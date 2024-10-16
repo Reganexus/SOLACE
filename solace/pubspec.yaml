@@ -1,0 +1,38 @@
+name: solace
+description: "A Symptom Monitoring and Intervention App for Palliative and Hospice Care"
+publish_to: 'none' 
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.5.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - lib/assets/images/auth/
+    - lib/assets/images/caregiver/
+    - lib/assets/images/user/
+    - lib/assets/images/shared/header/
+    - lib/assets/images/shared/info/
+    - lib/assets/images/shared/navigation/
+    - lib/assets/images/shared/profile/
+    - lib/assets/images/shared/vitals/
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: lib/assets/fonts/Inter/Inter-Bold.ttf
+        - asset: lib/assets/fonts/Inter/Inter-Regular.ttf
+    - family: Outfit
+      fonts:
+        - asset: lib/assets/fonts/Outfit/Outfit-Bold.ttf
+        - asset: lib/assets/fonts/Outfit/Outfit-Regular.ttf
