@@ -22,6 +22,7 @@ flutter:
     - lib/assets/images/auth/
     - lib/assets/images/caregiver/
     - lib/assets/images/user/
+    - lib/assets/images/shared/
     - lib/assets/images/shared/header/
     - lib/assets/images/shared/info/
     - lib/assets/images/shared/navigation/

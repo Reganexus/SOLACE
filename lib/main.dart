@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:solace/themes/colors.dart';
 import 'package:solace/screens/get_started_screen.dart';
-import 'package:solace/screens/login_screen.dart';
-import 'package:solace/screens/signup_screen.dart';
+import 'package:solace/screens/user/user_main.dart';
 
 
 void main() {
@@ -10,11 +8,13 @@ void main() {
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return const MaterialApp(
       title: 'SOLACE',
-      home: GetStarted(), // Set your initial page here
+      home: UserMainScreen(), // Set your initial page here
     );
   }
 }
