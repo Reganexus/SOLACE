@@ -1,19 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:solace/themes/colors.dart'; // Ensure this path is correct
+import 'package:solace/screens/user/user_main.dart'; // Import UserMainScreen
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
 
   @override
-  _SignupScreenState createState() => _SignupScreenState();
+  SignupScreenState createState() => SignupScreenState();
 }
 
-class _SignupScreenState extends State<SignupScreen> {
+class SignupScreenState extends State<SignupScreen> {
   bool _agreeToTerms = false;
   bool _isPasswordVisible = false; // Variable to toggle password visibility
 
   final FocusNode _emailFocusNode = FocusNode();
   final FocusNode _passwordFocusNode = FocusNode();
+
+  // Controllers for email and password fields
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
   @override
   void initState() {
@@ -32,7 +37,40 @@ class _SignupScreenState extends State<SignupScreen> {
   void dispose() {
     _emailFocusNode.dispose();
     _passwordFocusNode.dispose();
+    _emailController.dispose(); // Dispose email controller
+    _passwordController.dispose(); // Dispose password controller
     super.dispose();
+  }
+
+  // Function to handle sign up
+  void _signup() {
+    String email = _emailController.text.trim();
+    String password = _passwordController.text.trim();
+
+    // Add your authentication logic here
+    // For demonstration, we will just check if fields are filled and terms are agreed
+    if (email.isNotEmpty && password.isNotEmpty && _agreeToTerms) {
+      // On successful sign up, navigate to UserMainScreen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const UserMainScreen()),
+      );
+    } else {
+      // Show error message if fields are empty or terms are not agreed
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Sign Up Error'),
+          content: const Text('Please fill all fields and agree to the terms.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   @override
@@ -70,7 +108,8 @@ class _SignupScreenState extends State<SignupScreen> {
                   const SizedBox(height: 40),
 
                   // Email Input Field
-                  TextField(
+                  TextFormField(
+                    controller: _emailController, // Add controller here
                     focusNode: _emailFocusNode,
                     decoration: InputDecoration(
                       labelText: 'Email',
@@ -97,7 +136,8 @@ class _SignupScreenState extends State<SignupScreen> {
                   const SizedBox(height: 10),
 
                   // Password Input Field with Eye Icon
-                  TextField(
+                  TextFormField(
+                    controller: _passwordController, // Add controller here
                     focusNode: _passwordFocusNode,
                     obscureText: !_isPasswordVisible,
                     decoration: InputDecoration(
@@ -126,8 +166,8 @@ class _SignupScreenState extends State<SignupScreen> {
                               ? Icons.visibility
                               : Icons.visibility_off,
                           color: _passwordFocusNode.hasFocus
-                            ? AppColors.neon
-                            : AppColors.black,
+                              ? AppColors.neon
+                              : AppColors.black,
                         ),
                         onPressed: () {
                           setState(() {
@@ -191,6 +231,26 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Sign Up Button
+                  TextButton(
+                    onPressed: _signup, // Update to call _signup function
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 50, vertical: 10),
+                      backgroundColor: AppColors.neon, // Set background color
+                    ),
+                    child: const Text(
+                      'Sign Up',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: AppColors.white, // Set button text color
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 20),
 

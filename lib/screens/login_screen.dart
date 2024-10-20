@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:solace/themes/colors.dart'; // Adjust the path according to your structure
+import 'package:solace/screens/user/user_main.dart'; // Import the UserMainScreen
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  _LoginScreenState createState() => _LoginScreenState();
+  LoginScreenState createState() => LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class LoginScreenState extends State<LoginScreen> {
   bool _isPasswordVisible = false; // Variable to toggle password visibility
   final FocusNode _emailFocusNode = FocusNode();
   final FocusNode _passwordFocusNode = FocusNode();
+
+  // Controllers for the text fields
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
   @override
   void initState() {
@@ -30,6 +35,8 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailFocusNode.dispose();
     _passwordFocusNode.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -37,6 +44,37 @@ class _LoginScreenState extends State<LoginScreen> {
         color: AppColors.neon, // Change this to your focused color
         fontSize: 16,
       );
+
+  // Function to handle login
+  void _login() {
+    String email = _emailController.text.trim();
+    String password = _passwordController.text.trim();
+
+    // Add your authentication logic here
+    // For demonstration, we will just check if fields are not empty
+    if (email.isNotEmpty && password.isNotEmpty) {
+      // On successful login, navigate to UserMainScreen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const UserMainScreen()),
+      );
+    } else {
+      // Show error message if email or password is empty
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Login Error'),
+          content: const Text('Please enter email and password.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,16 +88,13 @@ class _LoginScreenState extends State<LoginScreen> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 600),
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 30), // Adjust side padding
+              padding: const EdgeInsets.symmetric(horizontal: 30),
               child: Column(
-                mainAxisAlignment:
-                    MainAxisAlignment.center, // Center vertically
-                crossAxisAlignment:
-                    CrossAxisAlignment.center, // Center horizontally
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: <Widget>[
                   Image.asset(
-                    'lib/assets/images/auth/sign_up.png', // Ensure this path is correct
+                    'lib/assets/images/auth/sign_up.png',
                     width: double.infinity,
                   ),
                   const SizedBox(height: 40),
@@ -76,7 +111,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 40),
 
                   // Email Input Field
-                  TextField(
+                  TextFormField(
+                    controller: _emailController, // Add controller here
                     focusNode: _emailFocusNode,
                     decoration: InputDecoration(
                       labelText: 'Email',
@@ -89,7 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                         borderSide: const BorderSide(
-                          color: AppColors.neon, // Color when focused
+                          color: AppColors.neon,
                           width: 2,
                         ),
                       ),
@@ -101,7 +137,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 20),
 
                   // Password Input Field
-                  TextField(
+                  TextFormField(
+                    controller: _passwordController, // Add controller here
                     focusNode: _passwordFocusNode,
                     obscureText: !_isPasswordVisible,
                     decoration: InputDecoration(
@@ -141,8 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ),
-
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 20),
 
                   // Forgot Password Text
                   GestureDetector(
@@ -154,7 +190,27 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         decoration: TextDecoration.underline,
-                        color: AppColors.black, // Set color as needed
+                        color: AppColors.black,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Login Button
+                  TextButton(
+                    onPressed: _login,
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 50, vertical: 10),
+                      backgroundColor: AppColors.neon,
+                    ),
+                    child: const Text(
+                      'Login',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: AppColors.white,
                       ),
                     ),
                   ),
@@ -203,7 +259,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Image.asset(
-                            'lib/assets/images/auth/google.png', // Ensure this path is correct
+                            'lib/assets/images/auth/google.png',
                             height: 24,
                           ),
                           const SizedBox(width: 10),

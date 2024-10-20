@@ -6,13 +6,13 @@ import 'package:solace/screens/user/user_profile.dart';
 import 'package:solace/themes/colors.dart';
 
 class UserMainScreen extends StatefulWidget {
-  const UserMainScreen({Key? key}) : super(key: key);
+  const UserMainScreen({super.key});
 
   @override
-  _UserMainScreenState createState() => _UserMainScreenState();
+  UserMainScreenState createState() => UserMainScreenState();
 }
 
-class _UserMainScreenState extends State<UserMainScreen> {
+class UserMainScreenState extends State<UserMainScreen> {
   int _selectedIndex = 0;
 
   // List of pages to navigate between

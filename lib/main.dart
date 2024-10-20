@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:solace/screens/get_started_screen.dart';
-import 'package:solace/screens/user/user_main.dart';
+// import 'package:solace/screens/user/user_main.dart';
 
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -14,7 +14,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       title: 'SOLACE',
-      home: UserMainScreen(), // Set your initial page here
+      // home: UserMainScreen(),
+      home: GetStarted(), // Set your initial page here
     );
   }
 }
