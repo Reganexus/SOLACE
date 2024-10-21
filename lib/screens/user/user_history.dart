@@ -15,12 +15,9 @@ class UserHistoryScreenState extends State<UserHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: AppColors.white,
-      ),
       body: Container(
         color: Colors.white,
-        padding: const EdgeInsets.fromLTRB(30, 0, 30, 30),
+        padding: const EdgeInsets.all(30),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
