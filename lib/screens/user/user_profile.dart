@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/screens/user/user_editprofile.dart'; // Adjust the path as necessary
 import 'package:solace/screens/get_started_screen.dart'; // Adjust the path as necessary
+import 'package:solace/screens/caregiver/caregiver_main.dart';
 
 class UserProfileScreen extends StatelessWidget {
   const UserProfileScreen({super.key});
@@ -9,12 +10,9 @@ class UserProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: AppColors.white,
-      ),
       body: Container(
         color: Colors.white,
-        padding: const EdgeInsets.fromLTRB(30, 0, 30, 30),
+        padding: const EdgeInsets.all(30),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -105,6 +103,30 @@ class UserProfileScreen extends StatelessWidget {
 
             // Horizontal line
             const Divider(thickness: 1, color: Colors.grey),
+
+            Center(
+              child: GestureDetector(
+                onTap: () {
+                  // Navigate to Sign Up view
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) =>
+                            const CaregiverMainScreen()), // Replace with your sign-up widget
+                  );
+                },
+                child: const Text(
+                  "Access Caregiver Side",
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.normal,
+                    fontSize: 12.0,
+                    color: AppColors.black,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),

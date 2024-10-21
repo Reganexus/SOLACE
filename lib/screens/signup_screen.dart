@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:solace/themes/colors.dart'; // Ensure this path is correct
 import 'package:solace/screens/user/user_main.dart'; // Import UserMainScreen
+import 'package:solace/screens/login_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -313,6 +314,29 @@ class SignupScreenState extends State<SignupScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
+                  Center(
+                    child: GestureDetector(
+                      onTap: () {
+                        // Navigate to Login view
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) =>
+                                  const LoginScreen()), // Replace with your login widget
+                        );
+                      },
+                      child: const Text(
+                        'I already have an account',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.normal,
+                          fontSize: 12.0,
+                          color: AppColors.black,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),

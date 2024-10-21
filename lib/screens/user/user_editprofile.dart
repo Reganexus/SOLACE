@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:solace/themes/colors.dart';
 import 'dart:io'; // For File class on mobile/desktop
-import 'dart:typed_data'; // For Uint8List on web
+// For Uint8List on web
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart'; // For kIsWeb
 

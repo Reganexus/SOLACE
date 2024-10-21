@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:solace/screens/get_started_screen.dart';
 // import 'package:solace/screens/user/user_main.dart';
+// import 'package:solace/screens/caregiver/caregiver_main.dart';
 
 
 void main() {
@@ -15,6 +16,7 @@ class MyApp extends StatelessWidget {
     return const MaterialApp(
       title: 'SOLACE',
       // home: UserMainScreen(),
+      // home: CaregiverMainScreen(),
       home: GetStarted(), // Set your initial page here
     );
   }

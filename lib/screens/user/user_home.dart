@@ -12,12 +12,12 @@ class UserHomeScreen extends StatelessWidget {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Notifications'),
-          content: SingleChildScrollView(
+          content: const SingleChildScrollView(
             child: ListBody(
               children: <Widget>[
-                const Text('Notification 1: System update available.'),
-                const Text('Notification 2: New message received.'),
-                const Text('Notification 3: Your profile has been updated.'),
+                Text('Notification 1: System update available.'),
+                Text('Notification 2: New message received.'),
+                Text('Notification 3: Your profile has been updated.'),
                 // Add more notifications here
               ],
             ),
@@ -41,12 +41,12 @@ class UserHomeScreen extends StatelessWidget {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Messages'),
-          content: SingleChildScrollView(
+          content: const SingleChildScrollView(
             child: ListBody(
               children: <Widget>[
-                const Text('Message 1: Welcome to Solace!'),
-                const Text('Message 2: Don’t forget to update your profile.'),
-                const Text('Message 3: Your password has been changed.'),
+                Text('Message 1: Welcome to Solace!'),
+                Text('Message 2: Don’t forget to update your profile.'),
+                Text('Message 3: Your password has been changed.'),
                 // Add more messages here
               ],
             ),
@@ -123,12 +123,9 @@ class UserHomeScreen extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: AppColors.white,
-      ),
       body: Container(
         color: Colors.white,
-        padding: const EdgeInsets.fromLTRB(30, 0, 30, 30),
+        padding: const EdgeInsets.all(30),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -286,16 +283,21 @@ class UserHomeScreen extends StatelessWidget {
                           Row(
                             children: [
                               Container(
+                                width: 30,
+                                height: 30,
                                 decoration: BoxDecoration(
                                   border: Border.all(color: Colors.black),
                                   borderRadius: BorderRadius.circular(5.0),
                                 ),
-                                padding: const EdgeInsets.all(10.0),
-                                child: const Text(
-                                  '15',
-                                  style: TextStyle(
-                                    fontSize: 16.0,
-                                    fontWeight: FontWeight.bold,
+                                padding: const EdgeInsets.all(5.0),
+                                child: const Center(
+                                  child: Text(
+                                    '15',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 12.0,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                               ),
