@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "805655165429",
-    "project_id": "solace-28954",
-    "storage_bucket": "solace-28954.appspot.com"
+    "project_number": "777666782319",
+    "project_id": "solace-vitaro",
+    "storage_bucket": "solace-vitaro.appspot.com"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:805655165429:android:efb54196a53830bf5248bc",
+        "mobilesdk_app_id": "1:777666782319:android:b1767b14f0fc6d1275599a",
         "android_client_info": {
           "package_name": "com.res.solace"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyAvoBEmFi4tatfJU8ER5lZ3Qwd6-ge-6mo"
+          "current_key": "AIzaSyDNf_if4Jh3-H_Y9qVIEHptTZcfHohU9Us"
         }
       ],
       "services": {
