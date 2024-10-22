@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:solace/screens/wrapper.dart';
+import 'package:solace/services/auth.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/screens/user/user_editprofile.dart'; // Adjust the path as necessary
 import 'package:solace/screens/get_started_screen.dart'; // Adjust the path as necessary
 import 'package:solace/screens/caregiver/caregiver_main.dart';
 
-class UserProfileScreen extends StatelessWidget {
+class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
+
+  @override
+  State<UserProfileScreen> createState() => _UserProfileScreenState();
+}
+
+class _UserProfileScreenState extends State<UserProfileScreen> {
+  final AuthService _auth = AuthService();
 
   @override
   Widget build(BuildContext context) {
@@ -88,12 +97,12 @@ class UserProfileScreen extends StatelessWidget {
                   'Logout',
                   'lib/assets/images/shared/profile/logout.png',
                   AppColors.red,
-                  () {
+                  () async {
+                    // Call the signOut function
+                    await _auth.signOut();
                     Navigator.pushReplacement(
                       context,
-                      MaterialPageRoute(
-                        builder: (context) => const GetStarted(),
-                      ),
+                      MaterialPageRoute(builder: (context) => const Wrapper()),
                     );
                   },
                 ),

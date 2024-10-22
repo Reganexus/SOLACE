@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:solace/themes/colors.dart'; // Ensure this path is correct
 import 'package:solace/screens/user/user_main.dart'; // Import UserMainScreen
 import 'package:solace/screens/login_screen.dart';
+import 'package:solace/services/auth.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -11,6 +12,9 @@ class SignupScreen extends StatefulWidget {
 }
 
 class SignupScreenState extends State<SignupScreen> {
+
+  final AuthService _auth = AuthService();
+
   bool _agreeToTerms = false;
   bool _isPasswordVisible = false; // Variable to toggle password visibility
 
@@ -43,35 +47,53 @@ class SignupScreenState extends State<SignupScreen> {
     super.dispose();
   }
 
-  // Function to handle sign up
-  void _signup() {
+  // Function to handle sign up with validation
+  void _signup() async {
     String email = _emailController.text.trim();
     String password = _passwordController.text.trim();
 
-    // Add your authentication logic here
-    // For demonstration, we will just check if fields are filled and terms are agreed
-    if (email.isNotEmpty && password.isNotEmpty && _agreeToTerms) {
-      // On successful sign up, navigate to UserMainScreen
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const UserMainScreen()),
-      );
+    if (email.isEmpty) {
+      _showSignUpErrorDialog('Email field cannot be empty.');
+    } else if (password.length < 6) {
+      _showSignUpErrorDialog('Password should be at least 6 characters long.');
+    } else if (!_agreeToTerms) {
+      _showSignUpErrorDialog('Please agree to the terms and conditions.');
     } else {
-      // Show error message if fields are empty or terms are not agreed
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Sign Up Error'),
-          content: const Text('Please fill all fields and agree to the terms.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
+      // Try signing up with Firebase
+      try {
+        // Firebase will throw an error if the email is invalid or the password is too short
+        dynamic result = await _auth.signUpWithEmailAndPassword(email, password);
+        if (result != null) {
+          // On successful sign up, navigate to UserMainScreen
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const UserMainScreen()),
+          );
+        } else {
+          // either not valid email format or account already
+          _showSignUpErrorDialog('Sign up failed. Please try again.');
+        }
+      } catch (e) {
+        _showSignUpErrorDialog('Error: ${e.toString()}');
+      }
     }
+  }
+
+  // Function to show error dialogs
+  void _showSignUpErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sign Up Error'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
