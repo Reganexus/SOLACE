@@ -1,9 +1,8 @@
-import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:solace/models/user.dart';
+import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/authenticate/authenticate.dart';
-import 'package:solace/screens/user/user_home.dart';
-import 'package:solace/screens/user/user_main.dart';
+import 'package:solace/screens/home/home.dart';
+import 'package:flutter/material.dart';
 
 class Wrapper extends StatelessWidget {
   const Wrapper({super.key});
@@ -12,13 +11,13 @@ class Wrapper extends StatelessWidget {
   Widget build(BuildContext context) {
 
     final user = Provider.of<MyUser?>(context);
-    print("Current user: ${user}");
+    print('Provided user id: $user');
 
-    // return Authenticate or Home widget
+    // return either Home or Authenticate widget
     if(user == null) {
       return Authenticate();
     } else {
-      return UserMainScreen();
+      return Home();
     }
   }
 }

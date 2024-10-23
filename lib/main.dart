@@ -1,13 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-import 'package:solace/models/user.dart';
-import 'package:solace/screens/get_started_screen.dart';
-import 'package:solace/services/auth.dart';
-import 'screens/wrapper.dart';
+import 'package:solace/models/my_user.dart';
+import 'package:solace/screens/wrapper.dart';
+import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-// import 'package:solace/screens/user/user_main.dart';
-// import 'package:solace/screens/caregiver/caregiver_main.dart';
-
+import 'package:solace/services/auth.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,11 +21,8 @@ class MyApp extends StatelessWidget {
       catchError: (_,__) => null,
       initialData: null,
       value: AuthService().user,
-      child: const MaterialApp(
+      child: MaterialApp(
         title: 'SOLACE',
-        // home: UserMainScreen(),
-        // home: CaregiverMainScreen(),
-        //home: GetStarted(), // Set your initial page here
         home: Wrapper(),
       ),
     );
