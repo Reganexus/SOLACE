@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:solace/models/my_user.dart';
+import 'package:solace/services/database.dart';
 
 class AuthService {
 
@@ -7,7 +8,7 @@ class AuthService {
 
   // create MyUser object based on User
   MyUser? _userFromFirebaseUser(User? user) {
-    return user != null ? MyUser(uid: user.uid) : null;
+    return user != null ? MyUser(uid: user.uid, isAdmin: false) : null;
   }
 
   // auth change user stream
@@ -32,7 +33,7 @@ class AuthService {
     try {
       UserCredential result = await _auth.signInWithEmailAndPassword(email: email, password: password);
       User? user = result.user;
-      print('New user: $user');
+      print('Logged in user: $user');
       return _userFromFirebaseUser(user);
     } catch (e) {
       print(e.hashCode);
@@ -41,10 +42,13 @@ class AuthService {
   }
 
   // sign up with email and password
-  Future registerWithEmailAndPassword(String email, String password) async {
+  Future signUpWithEmailAndPassword(String email, String password) async {
     try {
       UserCredential result = await _auth.createUserWithEmailAndPassword(email: email, password: password);
       User? user = result.user;
+      bool isAdmin = false;
+      // create a new document for the user with the uid (test values)
+      await DatabaseService(uid: user!.uid).updateUserData(isAdmin, 'Tacda', 'Earl Stephen', 'Cominador', email);
       print('New user: $user');
       return _userFromFirebaseUser(user);
     } catch (e) {

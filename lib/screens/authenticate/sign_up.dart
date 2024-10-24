@@ -53,7 +53,7 @@ class _SignUpState extends State<SignUp> {
               ElevatedButton( // sign up button
                 onPressed: () async {
                   if(_formKey.currentState!.validate()){
-                    dynamic result = await _auth.registerWithEmailAndPassword(email, password);
+                    dynamic result = await _auth.signUpWithEmailAndPassword(email, password);
                     if(result == null) {
                       setState(() => error = 'Invalid email or password');
                     }

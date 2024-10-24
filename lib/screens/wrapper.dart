@@ -9,15 +9,10 @@ class Wrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
+    // Get the user from the provider (auth state)
     final user = Provider.of<MyUser?>(context);
-    print('Provided user id: $user');
 
-    // return either Home or Authenticate widget
-    if(user == null) {
-      return Authenticate();
-    } else {
-      return Home();
-    }
+    // If user is null, show the authentication page; otherwise, home page
+    return user == null ? Authenticate() : Home();
   }
 }
