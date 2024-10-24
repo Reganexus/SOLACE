@@ -16,6 +16,16 @@ class _UserListState extends State<UserList> {
 
     final users = Provider.of<List<FirestoreUser>?>(context);
 
+    if(users == null){
+      print('No list');
+    } else if(users.isEmpty) {
+      print('List is empty');
+    } else {
+      for(int i = 0; i < users.length; i++) {
+        print('User $i: ${users[i].isAdmin}');
+      };
+    }
+
     return ListView.builder(
       itemCount: users!.length,
       itemBuilder: (context, index) {
