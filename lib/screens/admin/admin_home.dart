@@ -36,8 +36,7 @@ class _AdminHomeState extends State<AdminHome> {
 
   @override
   Widget build(BuildContext context) {
-    return StreamProvider<List<UserData>?>.value(
-      catchError: (_,__) => null,
+    return StreamProvider<List<UserData>>.value(
       initialData: [],
       value: DatabaseService().users,
       child: Scaffold(

@@ -53,7 +53,7 @@ class DatabaseService {
 
 
   // user list from snapshot
-  List<UserData>? _userListFromSnapshot(QuerySnapshot snapshot) {
+  List<UserData> _userListFromSnapshot(QuerySnapshot snapshot) {
     return snapshot.docs.map((doc){
       return UserData(
         isAdmin: doc.get('isAdmin') ?? false,
@@ -87,7 +87,7 @@ class DatabaseService {
   }
 
   // get userCollection stream
-  Stream<List<UserData>?>? get users {
+  Stream<List<UserData>> get users {
     return userCollection.snapshots().map(_userListFromSnapshot);
   }
 
