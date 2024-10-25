@@ -1,6 +1,5 @@
 import 'package:solace/services/auth.dart';
 import 'package:flutter/material.dart';
-import 'package:solace/screens/authenticate/sign_up.dart';
 
 class LogIn extends StatefulWidget {
   final toggleView;
@@ -36,6 +35,7 @@ class _LogInState extends State<LogIn> {
             children: <Widget>[
               SizedBox(height: 20.0),
               TextFormField(  // email field
+                decoration: InputDecoration(labelText: 'Enter your Email'),
                 validator: (val) => val!.isEmpty ? "Enter an email" : null,
                 onChanged: (val) {
                   setState(() => email = val);
@@ -43,6 +43,7 @@ class _LogInState extends State<LogIn> {
               ),
               SizedBox(height: 20.0),
               TextFormField(  // password field
+                decoration: InputDecoration(labelText: 'Enter your Password'),
                 validator: (val) => val!.length < 6 ? "Enter a password 6+ chars long" : null,
                 obscureText: true,
                 onChanged: (val) {

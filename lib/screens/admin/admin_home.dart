@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:solace/models/firestore_user.dart';
+import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/admin/admin_dashboard.dart';
 import 'package:solace/screens/admin/admin_settings.dart';
 import 'package:solace/screens/admin/user_list.dart';
@@ -36,7 +36,7 @@ class _AdminHomeState extends State<AdminHome> {
 
   @override
   Widget build(BuildContext context) {
-    return StreamProvider<List<FirestoreUser>?>.value(
+    return StreamProvider<List<UserData>?>.value(
       catchError: (_,__) => null,
       initialData: [],
       value: DatabaseService().users,

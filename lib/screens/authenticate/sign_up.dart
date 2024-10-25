@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:solace/screens/authenticate/login.dart';
 import 'package:solace/services/auth.dart';
 
 class SignUp extends StatefulWidget {
@@ -15,8 +14,9 @@ class _SignUpState extends State<SignUp> {
   final AuthService _auth = AuthService();
   final _formKey = GlobalKey<FormState>();
 
-  String email = '';
-  String password = '';
+  String _email = '';
+  String _password = '';
+  bool _acceptedTerms = false;
   String error = '';
 
   @override
@@ -36,27 +36,40 @@ class _SignUpState extends State<SignUp> {
             children: <Widget>[
               SizedBox(height: 20.0),
               TextFormField(  // email field
+                decoration: InputDecoration(labelText: 'Enter a valid Email'),
                 validator: (val) => val!.isEmpty ? "Enter an email" : null,
                 onChanged: (val) {
-                  setState(() => email = val);
+                  setState(() => _email = val);
                 },
               ),
               SizedBox(height: 20.0),
               TextFormField(  // password field
+                decoration: InputDecoration(labelText: 'Create a Password'),
                 validator: (val) => val!.length < 6 ? "Enter a password 6+ chars long" : null,
                 obscureText: true,
                 onChanged: (val) {
-                  setState(() => password = val);
+                  setState(() => _password = val);
                 },
+              ),
+              SizedBox(height: 20.0),
+              CheckboxListTile(
+                title: Text("I accept the Terms and Conditions"),
+                value: _acceptedTerms,
+                onChanged: (val) {
+                  setState(() => _acceptedTerms = val!);
+                },
+                controlAffinity: ListTileControlAffinity.leading,
               ),
               SizedBox(height: 20.0),
               ElevatedButton( // sign up button
                 onPressed: () async {
-                  if(_formKey.currentState!.validate()){
-                    dynamic result = await _auth.signUpWithEmailAndPassword(email, password);
+                  if(_formKey.currentState!.validate() && _acceptedTerms) {
+                    dynamic result = await _auth.signUpWithEmailAndPassword(_email, _password);
                     if(result == null) {
                       setState(() => error = 'Invalid email or password');
                     }
+                  } else if (!_acceptedTerms) {
+                    setState(() => error = 'You must accept the Terms and Conditions');
                   }
                 },
                 style: ElevatedButton.styleFrom(

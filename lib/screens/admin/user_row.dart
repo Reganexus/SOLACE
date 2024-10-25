@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:solace/models/firestore_user.dart';
+import 'package:solace/models/my_user.dart';
 
 class UserRow extends StatelessWidget {
-  final FirestoreUser user;
+  final UserData user;
   const UserRow({ super.key, required this.user });
 
   @override
@@ -16,8 +16,8 @@ class UserRow extends StatelessWidget {
             radius: 25.0,
             backgroundColor: user.isAdmin ? Colors.tealAccent : Colors.purple[400],
           ),
-          title: Text('[${user.isAdmin ? 'admin' : 'user'}] ${user.lastName}, ${user.firstName} ${user.middleName}'),
-          subtitle: Text(user.email),
+          title: Text('${user.lastName}, ${user.firstName} ${user.middleName}'),
+          subtitle: Text(user.isAdmin ? 'Admin' : 'User'),
         ),
       ),
     );

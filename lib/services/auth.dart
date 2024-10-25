@@ -8,7 +8,7 @@ class AuthService {
 
   // create MyUser object based on User
   MyUser? _userFromFirebaseUser(User? user) {
-    return user != null ? MyUser(uid: user.uid, isAdmin: false) : null;
+    return user != null ? MyUser(uid: user.uid) : null;
   }
 
   // auth change user stream
@@ -46,10 +46,22 @@ class AuthService {
     try {
       UserCredential result = await _auth.createUserWithEmailAndPassword(email: email, password: password);
       User? user = result.user;
-      bool isAdmin = false;
+      if(user == null) return null;
+
+      print('New user id: ${user.uid}');
       // create a new document for the user with the uid (test values)
-      await DatabaseService(uid: user!.uid).updateUserData(isAdmin, 'Tacda', 'Earl Stephen', 'Cominador', email);
-      print('New user: $user');
+      await DatabaseService(uid: user.uid).updateUserData(
+        isAdmin: false,
+        email: email,
+        lastName: '',
+        firstName: '',
+        middleName: '',
+        phoneNumber: '',
+        sex: 'Other',
+        birthMonth: 'January',
+        birthDay: '1',
+        birthYear: (DateTime.now().year).toString(),
+      );
       return _userFromFirebaseUser(user);
     } catch (e) {
       print(e.hashCode);

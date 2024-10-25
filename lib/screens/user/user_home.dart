@@ -7,7 +7,7 @@ import 'package:solace/services/auth.dart';
 import 'package:solace/shared/widgets/bottom_navbar.dart';
 
 class UserHome extends StatefulWidget {
-  UserHome({super.key});
+  const UserHome({super.key});
 
   @override
   _UserHomeState createState() => _UserHomeState();
@@ -17,7 +17,7 @@ class _UserHomeState extends State<UserHome> {
   final AuthService _auth = AuthService();
 
   // Current selected index for the navigation bar
-  int _currentIndex = 0;
+  int _currentIndex = 3;
 
   // Screens for each tab in the bottom navigation
   final List<Widget> _screens = [
