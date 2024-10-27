@@ -11,7 +11,6 @@ class UserProfile extends StatelessWidget {
   Widget build(BuildContext context) {
 
     final user = Provider.of<MyUser?>(context);
-    print('User: $user');
 
     return Scaffold(
       backgroundColor: Colors.purple[100],
@@ -21,9 +20,8 @@ class UserProfile extends StatelessWidget {
           print('Snapshot: $snapshot');
           if(snapshot.hasData) {
             UserData? userData = snapshot.data;
-            return UserDataForm(isSignUp: false, userData: userData, onButtonPressed: () {print('YOOOOOOOOOOOO');});
+            return UserDataForm(isSignUp: false, userData: userData, onButtonPressed: () {});
           } else {
-            print('Snapshot: $snapshot');
             return Center(child: Text('Loading...'));
           }
         }

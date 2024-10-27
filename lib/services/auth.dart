@@ -47,8 +47,7 @@ class AuthService {
       UserCredential result = await _auth.createUserWithEmailAndPassword(email: email, password: password);
       User? user = result.user;
       if(user == null) return null;
-
-      print('New user id: ${user.uid}');
+      
       // create a new document for the user with the uid (test values)
       await DatabaseService(uid: user.uid).updateUserData(
         isAdmin: false,

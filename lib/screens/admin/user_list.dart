@@ -17,10 +17,10 @@ class _UserListState extends State<UserList> {
     final users = Provider.of<List<UserData>?>(context);
 
     if(users == null){
-      print('No list');
+      print('No user list');
       return Text('List is null');
     } else if(users.isEmpty) {
-      print('List is empty');
+      print('User list is empty');
       return Text('List is empty');
     } else {
       for(int i = 0; i < users.length; i++) {

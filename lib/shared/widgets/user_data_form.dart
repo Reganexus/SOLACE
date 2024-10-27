@@ -145,16 +145,7 @@ class _UserDataFormState extends State<UserDataForm> {
                 ElevatedButton( // log in button
                   onPressed: widget.isSignUp ? () {}
                   : () async {
-                    print(_lastName);
-                    print(_firstName);
-                    print(_middleName);
-                    print(_phoneNumber);
-                    print(_sex);
-                    print(_birthMonth);
-                    print(_birthDay);
-                    print(_birthYear);
                     if(_formKey.currentState!.validate()) {
-                      print(user?.uid);
                       await DatabaseService(uid: user!.uid).updateUserData(
                         lastName: _lastName,
                         firstName: _firstName,
@@ -164,8 +155,7 @@ class _UserDataFormState extends State<UserDataForm> {
                         birthMonth: _birthMonth,
                         birthDay: _birthDay,
                         birthYear: _birthYear);
-                      //setState(() => _error = 'Data updated');
-                      print(user.uid);
+                      setState(() => _error = 'Data updated');
                     }
                   },
                   style: ElevatedButton.styleFrom(

@@ -33,24 +33,35 @@ class DatabaseService {
     if (birthDay != null) updatedData['birthDay'] = birthDay;
     if (birthYear != null) updatedData['birthYear'] = birthYear;
 
-    print(updatedData['isAdmin']);
-    print(updatedData['email']);
-    print(updatedData['lastName']);
-    print(updatedData['firstName']);
-    print(updatedData['middleName']);
-    print(updatedData['phoneNumber']);
-    print(updatedData['sex']);
-    print(updatedData['birthMonth']);
-    print(updatedData['birthDay']);
-    print(updatedData['birthYear']);
-
     // Only execute if there are fields to set
     if (updatedData.isNotEmpty) {
-      print('UID: $uid');
       return await userCollection.doc(uid).set(updatedData, SetOptions(merge: true));
     }
   }
 
+  // Method to add a vital record
+  Future<void> addVitalRecord(String vital, int inputRecord) async {
+    // Check if uid is not null
+    if (uid != null) {
+      // Create a new record document under the 'heart_rate' subcollection
+      DocumentReference docRef = userCollection
+          .doc(uid) // Reference to the specific user
+          .collection('vitals') // Accessing the vitals subcollection
+          .doc(vital); // Document for the vital
+
+      // Get a reference to the 'records' subcollection within the vital
+      CollectionReference recordsRef = docRef.collection('records');
+
+      // Create a new record with a timestamp and value
+      await recordsRef.add({
+        'timestamp': FieldValue.serverTimestamp(), // Automatically set to server time
+        'value': inputRecord,
+      });
+    } else {
+      //throw Exception("User ID is null. Cannot add heart rate record.");
+      print('User ID is null. Cannot add vital record.');
+    }
+  }
 
   // user list from snapshot
   List<UserData> _userListFromSnapshot(QuerySnapshot snapshot) {
