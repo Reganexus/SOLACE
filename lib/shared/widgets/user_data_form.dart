@@ -165,7 +165,7 @@ class _UserDataFormState extends State<UserDataForm> {
                         birthDay: _birthDay,
                         birthYear: _birthYear);
                       //setState(() => _error = 'Data updated');
-                      print(user?.uid);
+                      print(user.uid);
                     }
                   },
                   style: ElevatedButton.styleFrom(

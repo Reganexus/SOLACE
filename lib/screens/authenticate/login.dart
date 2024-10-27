@@ -1,9 +1,12 @@
+import 'package:solace/screens/home/home.dart';
 import 'package:solace/services/auth.dart';
 import 'package:flutter/material.dart';
 
 class LogIn extends StatefulWidget {
   final toggleView;
-  const LogIn({super.key, this.toggleView});
+  final bool isTesting;
+  final bool isTestAdmin;
+  const LogIn({super.key, this.toggleView, required this.isTesting, required this.isTestAdmin });
 
   @override
   State<LogIn> createState() => _LogInState();
@@ -17,6 +20,25 @@ class _LogInState extends State<LogIn> {
   String email = '';
   String password = '';
   String error = '';
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isTesting) {
+      _autoLogin();
+    }
+  }
+
+  Future<void> _autoLogin() async {
+    String testEmail = widget.isTestAdmin ? 'earl@gmail.com' : 'john@gmail.com';
+    String testPassword = 'test123';
+
+    dynamic result = await _auth.logInWithEmailAndPassword(testEmail, testPassword);
+    if (result == null) {
+      setState(() => error = 'Could not log in with those credentials');
+    }
+
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -17,7 +17,7 @@ class _UserHomeState extends State<UserHome> {
   final AuthService _auth = AuthService();
 
   // Current selected index for the navigation bar
-  int _currentIndex = 3;
+  int _currentIndex = 2;
 
   // Screens for each tab in the bottom navigation
   final List<Widget> _screens = [
