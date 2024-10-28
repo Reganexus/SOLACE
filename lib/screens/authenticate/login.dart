@@ -4,8 +4,7 @@ import 'package:flutter/material.dart';
 class LogIn extends StatefulWidget {
   final toggleView;
   final bool isTesting;
-  final bool isTestAdmin;
-  const LogIn({super.key, this.toggleView, required this.isTesting, required this.isTestAdmin });
+  const LogIn({super.key, this.toggleView, required this.isTesting });
 
   @override
   State<LogIn> createState() => _LogInState();
@@ -29,7 +28,7 @@ class _LogInState extends State<LogIn> {
   }
 
   Future<void> _autoLogin() async {
-    String testEmail = widget.isTestAdmin ? 'earl@gmail.com' : 'john@gmail.com';
+    String testEmail = 'john@gmail.com';
     String testPassword = 'test123';
 
     dynamic result = await _auth.logInWithEmailAndPassword(testEmail, testPassword);
