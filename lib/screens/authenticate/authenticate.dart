@@ -12,7 +12,7 @@ class Authenticate extends StatefulWidget {
 class _AuthenticateState extends State<Authenticate> {
 
   // ************* for testing ************* //
-  bool isTesting = true;
+  bool isTesting = false;
   bool isTestAdmin = true;
   // ************* for testing ************* //
 
@@ -22,7 +22,7 @@ class _AuthenticateState extends State<Authenticate> {
   @override
   Widget build(BuildContext context) {
     if(isTesting){
-      return LogIn(isTesting: isTesting);
+      return LogIn(toggleView: toggleView, isTesting: isTesting);
     }
 
     if(showLogInPage) {

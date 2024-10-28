@@ -1,14 +1,18 @@
+// ignore_for_file: avoid_print
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:solace/models/my_user.dart';
 
 class DatabaseService {
 
   final String? uid;
-  DatabaseService({ this.uid });
+  DatabaseService({this.uid});
 
   // collection reference
-  final CollectionReference userCollection = FirebaseFirestore.instance.collection('users');
+  final CollectionReference userCollection =
+      FirebaseFirestore.instance.collection('users');
 
+  // Update user data in Firestore
   Future<void> updateUserData({
     bool? isAdmin,
     String? email,
@@ -20,9 +24,12 @@ class DatabaseService {
     String? birthMonth,
     String? birthDay,
     String? birthYear,
+    String? address,
   }) async {
     Map<String, dynamic> updatedData = {};
-    if (isAdmin != null) updatedData['isAdmin'] = isAdmin;
+    if (isAdmin != null) {
+      updatedData['isAdmin'] = isAdmin;
+    }
     if (email != null) updatedData['email'] = email;
     if (lastName != null) updatedData['lastName'] = lastName;
     if (firstName != null) updatedData['firstName'] = firstName;
@@ -32,58 +39,61 @@ class DatabaseService {
     if (birthMonth != null) updatedData['birthMonth'] = birthMonth;
     if (birthDay != null) updatedData['birthDay'] = birthDay;
     if (birthYear != null) updatedData['birthYear'] = birthYear;
+    if (address != null) updatedData['address'] = address;
 
-    // Only execute if there are fields to set
     if (updatedData.isNotEmpty) {
-      return await userCollection.doc(uid).set(updatedData, SetOptions(merge: true));
+      await userCollection.doc(uid).set(updatedData, SetOptions(merge: true));
     }
   }
 
   // Method to add a vital record
-  Future<void> addVitalRecord(String vital, int inputRecord) async {
-    // Check if uid is not null
-    if (uid != null) {
-      // Create a new record document under the 'heart_rate' subcollection
-      DocumentReference docRef = userCollection
-          .doc(uid) // Reference to the specific user
-          .collection('vitals') // Accessing the vitals subcollection
-          .doc(vital); // Document for the vital
+  Future<void> addVitalRecord(String vital, double inputRecord) async {
+    // // Check if uid is not null
+    // if (uid != null) {
+    //   print('To add vital inside: $uid');
+    //   // Create a new record document under the 'heart_rate' subcollection
+    //   DocumentReference docRef = userCollection
+    //       .doc(uid) // Reference to the specific user
+    //       .collection('vitals') // Accessing the vitals subcollection
+    //       .doc(vital); // Document for the vital
 
-      // Get a reference to the 'records' subcollection within the vital
-      CollectionReference recordsRef = docRef.collection('records');
+    //   // Get a reference to the 'records' subcollection within the vital
+    //   CollectionReference recordsRef = docRef.collection('records');
 
-      // Create a new record with a timestamp and value
-      await recordsRef.add({
-        'timestamp': FieldValue.serverTimestamp(), // Automatically set to server time
-        'value': inputRecord,
-      });
-    } else {
-      //throw Exception("User ID is null. Cannot add heart rate record.");
-      print('User ID is null. Cannot add vital record.');
+    //   // Create a new record with a timestamp and value
+    //   await recordsRef.add({
+    //     'timestamp': FieldValue.serverTimestamp(), // Automatically set to server time
+    //     'value': inputRecord,
+    //   });
+
+    //   print('Added vital: $uid');
+    // } else {
+    //   //throw Exception("User ID is null. Cannot add heart rate record.");
+    //   print('User ID is null. Cannot add vital record.');
+    // }
+    print('Add vital: $vital $inputRecord');  // print for now, problems with permission
+  }
+
+  // Fetch user data from Firestore
+  Future<UserData?> getUserData() async {
+    try {
+      DocumentSnapshot snapshot = await userCollection.doc(uid).get();
+      if (snapshot.exists) {
+        return _userDataFromSnapshot(snapshot);
+      } else {
+        return null;
+      }
+    } catch (e) {
+      print('Error fetching user data: $e');
+      return null;
     }
   }
 
-  // user list from snapshot
-  List<UserData> _userListFromSnapshot(QuerySnapshot snapshot) {
-    return snapshot.docs.map((doc){
-      return UserData(
-        isAdmin: doc.get('isAdmin') ?? false,
-        email: doc.get('email') ?? 'none',
-        lastName: doc.get('lastName') ?? 'none',
-        firstName: doc.get('firstName') ?? 'none',
-        middleName: doc.get('middleName') ?? 'none',
-        phoneNumber: doc.get('phoneNumber') ?? 'none',
-        sex: doc.get('sex') ?? 'none',
-        birthMonth: doc.get('birthMonth') ?? 'none',
-        birthDay: doc.get('birthDay') ?? 'none',
-        birthYear: doc.get('birthYear') ?? 'none',
-      );
-    }).toList();
-  }
-
-  // user data from snapshots
+  // Convert DocumentSnapshot to UserData
   UserData _userDataFromSnapshot(DocumentSnapshot snapshot) {
+    print('_userDataFromSnapshot: $snapshot');
     return UserData(
+      uid: snapshot['uid'],
       isAdmin: snapshot['isAdmin'],
       email: snapshot['email'],
       lastName: snapshot['lastName'],
@@ -94,16 +104,38 @@ class DatabaseService {
       birthMonth: snapshot['birthMonth'],
       birthDay: snapshot['birthDay'],
       birthYear: snapshot['birthYear'],
+      address: snapshot['address'],
     );
   }
 
-  // get userCollection stream
+  // Stream of user list data
   Stream<List<UserData>> get users {
     return userCollection.snapshots().map(_userListFromSnapshot);
   }
 
-  // get user doc stream
+  // Stream to get user data
   Stream<UserData>? get userData {
+    print('Get userdata: $uid');
     return userCollection.doc(uid).snapshots().map(_userDataFromSnapshot);
+  }
+
+  // Convert QuerySnapshot to List<UserData>
+  List<UserData> _userListFromSnapshot(QuerySnapshot snapshot) {
+    return snapshot.docs.map((doc){
+      return UserData(
+        uid: doc.get('uid') ?? 'none',
+        isAdmin: doc.get('isAdmin') ?? false,
+        email: doc.get('email') ?? 'none',
+        lastName: doc.get('lastName') ?? 'none',
+        firstName: doc.get('firstName') ?? 'none',
+        middleName: doc.get('middleName') ?? 'none',
+        phoneNumber: doc.get('phoneNumber') ?? 'none',
+        sex: doc.get('sex') ?? 'none',
+        birthMonth: doc.get('birthMonth') ?? 'none',
+        birthDay: doc.get('birthDay') ?? 'none',
+        birthYear: doc.get('birthYear') ?? 'none',
+        address: doc.get('address') ?? 'none',
+      );
+    }).toList();
   }
 }
