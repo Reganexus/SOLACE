@@ -1,16 +1,16 @@
 import 'package:solace/services/auth.dart';
 import 'package:flutter/material.dart';
+import 'package:solace/themes/colors.dart';
 
 class LogIn extends StatefulWidget {
-  final toggleView;
-  const LogIn({super.key, this.toggleView});
+  final Function toggleView;
+  const LogIn({super.key, required this.toggleView});
 
   @override
   State<LogIn> createState() => _LogInState();
 }
 
 class _LogInState extends State<LogIn> {
-
   final AuthService _auth = AuthService();
   final _formKey = GlobalKey<FormState>();
 
@@ -18,85 +18,261 @@ class _LogInState extends State<LogIn> {
   String password = '';
   String error = '';
 
+  bool _isPasswordVisible = false;
+  final FocusNode _emailFocusNode = FocusNode();
+  final FocusNode _passwordFocusNode = FocusNode();
+
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+
+    _emailFocusNode.addListener(() {
+      setState(() {});
+    });
+
+    _passwordFocusNode.addListener(() {
+      setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  TextStyle get focusedLabelStyle => const TextStyle(
+    color: AppColors.neon,
+    fontSize: 16,
+  );
+
+  InputDecoration _inputDecoration(String label, FocusNode focusNode) {
+    return InputDecoration(
+      labelText: label,
+      filled: true,
+      fillColor: AppColors.gray,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(
+          color: AppColors.neon,
+          width: 2,
+        ),
+      ),
+      labelStyle: TextStyle(
+        color: focusNode.hasFocus ? AppColors.neon : AppColors.black,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+
     return Scaffold(
-      backgroundColor: Colors.purple[100],
-      appBar: AppBar(
-        backgroundColor: Colors.purple[400],
-        elevation: 0.0,
-        title: const Text('Log in to SOLACE'),
-      ),
-      body: Container(
-        padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 50.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: <Widget>[
-              SizedBox(height: 20.0),
-              TextFormField(  // email field
-                decoration: InputDecoration(labelText: 'Enter your Email'),
-                validator: (val) => val!.isEmpty ? "Enter an email" : null,
-                onChanged: (val) {
-                  setState(() => email = val);
-                },
-              ),
-              SizedBox(height: 20.0),
-              TextFormField(  // password field
-                decoration: InputDecoration(labelText: 'Enter your Password'),
-                validator: (val) => val!.length < 6 ? "Enter a password 6+ chars long" : null,
-                obscureText: true,
-                onChanged: (val) {
-                  setState(() => password = val);
-                },
-              ),
-              SizedBox(height: 20.0),
-              ElevatedButton( // log in button
-                onPressed: () async {
-                  if(_formKey.currentState!.validate()){
-                    dynamic result = await _auth.logInWithEmailAndPassword(email, password);
-                    if(result == null) {
-                      setState(() => error = 'Could not log in with those credentials');
-                    }
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.tealAccent[400],
-                ),
-                child: Text(
-                  'Log In',
-                  style: TextStyle(
-                    color: Colors.tealAccent[800],
-                  ),
-                ),
-              ),
-              SizedBox(height: 20.0),
-              ElevatedButton( // log in button
-                onPressed: () {
-                  // Navigator.of(context).pushReplacement(
-                  // MaterialPageRoute(
-                  //   builder: (context) => const SignUp(),
-                  // ));
-                  widget.toggleView();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.tealAccent[400],
-                ),
-                child: Text(
-                  'Go to Sign Up page',
-                  style: TextStyle(
-                    color: Colors.tealAccent[800],
-                  ),
-                ),
-              ),
-              SizedBox(height: 12.0),
-              Text(
-                error,
-                style: TextStyle(color: Colors.red, fontSize: 14.0),
-              ),
-            ],
+      backgroundColor: AppColors.white,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 30),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: screenHeight, // Set min height based on device height
           ),
-        )
+          child: Center(
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  Image.asset(
+                    'lib/assets/images/auth/solace.png',
+                    width: 100,
+                  ),
+                  const SizedBox(height: 40),
+                  const Text(
+                    'Welcome Back!',
+                    style: TextStyle(
+                      fontFamily: 'Outfit',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 30,
+                      color: AppColors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+
+                  TextFormField(
+                    controller: _emailController,
+                    focusNode: _emailFocusNode,
+                    decoration: _inputDecoration('Email', _emailFocusNode),
+                    validator: (val) => val!.isEmpty ? "Enter an email" : null,
+                    onChanged: (val) {
+                      setState(() => email = val);
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: _passwordController,
+                    focusNode: _passwordFocusNode,
+                    obscureText: !_isPasswordVisible,
+                    decoration: _inputDecoration('Password', _passwordFocusNode).copyWith(
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                          color: _passwordFocusNode.hasFocus ? AppColors.neon : AppColors.black,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _isPasswordVisible = !_isPasswordVisible;
+                          });
+                        },
+                      ),
+                    ),
+                    validator: (val) => val!.length < 6
+                        ? "Enter a password 6+ chars long"
+                        : null,
+                    onChanged: (val) {
+                      setState(() => password = val);
+                    },
+                  ),
+                  const SizedBox(height: 20),
+
+                  Container(
+                    constraints: BoxConstraints(
+                      minHeight: 50, // Set a minimum height
+                    ),
+                    child: Center(
+                      child: GestureDetector(
+                        onTap: () {},
+                        child: const Text(
+                          'Forgot Password?',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 16.0,
+                            fontWeight: FontWeight.bold,
+                            decoration: TextDecoration.underline,
+                            color: AppColors.black,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  TextButton(
+                    onPressed: () async {
+                      if (_formKey.currentState!.validate()) {
+                        dynamic result = await _auth.logInWithEmailAndPassword(
+                            email, password);
+                        if (result == null) {
+                          setState(() => error =
+                          'Could not log in with those credentials');
+                        }
+                      }
+                    },
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 50, vertical: 10),
+                      backgroundColor: AppColors.neon,
+                    ),
+                    child: const Text(
+                      'Login',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: AppColors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  const Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Divider(
+                          thickness: 1,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 10),
+                        child: Text("or"),
+                      ),
+                      Expanded(
+                        child: Divider(
+                          thickness: 1,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: () {},
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 50, vertical: 15),
+                        backgroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          side: const BorderSide(color: Colors.grey),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Image.asset(
+                            'lib/assets/images/auth/google.png',
+                            height: 24,
+                          ),
+                          const SizedBox(width: 10),
+                          const Text(
+                            'Sign in with Google',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: AppColors.black,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Center(
+                    child: GestureDetector(
+                      onTap: () {
+                        widget.toggleView();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(10), // Increase the tap area
+                        child: const Text(
+                          "I don't have an account yet",
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.normal,
+                            fontSize: 16.0,
+                            color: AppColors.black,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

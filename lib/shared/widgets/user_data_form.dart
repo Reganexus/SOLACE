@@ -1,192 +1,141 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:solace/themes/colors.dart';
 import 'package:solace/models/my_user.dart';
-import 'package:solace/services/database.dart';
 
 class UserDataForm extends StatefulWidget {
-
-  final bool isSignUp;
   final UserData? userData;
-  final VoidCallback onButtonPressed;
+  final Function onButtonPressed;
+  final bool isSignUp;
 
-  const UserDataForm({ super.key, required this.isSignUp, this.userData, required this.onButtonPressed });
+  const UserDataForm({
+    super.key,
+    required this.onButtonPressed,
+    required this.userData,
+    this.isSignUp = true,
+  });
 
   @override
-  State<UserDataForm> createState() => _UserDataFormState();
+  UserDataFormState createState() => UserDataFormState();
 }
 
-class _UserDataFormState extends State<UserDataForm> {
-  
-  // i'm thinking of reusing this widget for initial input before the user goes to the homepage
-  // as well as inside the user profile for further edits (only applied to user profile)
-
+class UserDataFormState extends State<UserDataForm> {
   final _formKey = GlobalKey<FormState>();
 
-  String _error = '';
-  String? _lastName;
-  String? _firstName;
-  String? _middleName;
-  String? _phoneNumber;
-  String? _sex;
-  String? _birthMonth;
-  String? _birthDay;
-  String? _birthYear;
+  late TextEditingController firstNameController;
+  late TextEditingController lastNameController;
+  late TextEditingController middleNameController;
+  late TextEditingController phoneNumberController;
+  late String sex;
+  late String birthMonth;
+  late String birthDay;
+  late String birthYear;
+  late TextEditingController addressController; // Add this line
 
-  List<String> sexes = ['Male', 'Female', 'Other'];
-  List<String> months = [ 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-  List<String> days = List.generate(31, (index) => (1 + index).toString());
-  List<String> years = List.generate(
-    (DateTime.now().year) - (DateTime.now().year - 120) + 1,
-    (index) => ((DateTime.now().year - 120) + index).toString()
-  );
+  @override
+  void initState() {
+    super.initState();
+
+    firstNameController = TextEditingController(text: widget.userData?.firstName ?? '');
+    lastNameController = TextEditingController(text: widget.userData?.lastName ?? '');
+    middleNameController = TextEditingController(text: widget.userData?.middleName ?? '');
+    phoneNumberController = TextEditingController(text: widget.userData?.phoneNumber ?? '');
+    sex = widget.userData?.sex ?? '';
+    birthMonth = widget.userData?.birthMonth ?? '';
+    birthDay = widget.userData?.birthDay ?? '';
+    birthYear = widget.userData?.birthYear ?? '';
+    addressController = TextEditingController(text: widget.userData?.address ?? ''); // Ensure address is set
+  }
+
+  @override
+  void dispose() {
+    // Dispose the controllers to free up resources
+    firstNameController.dispose();
+    lastNameController.dispose();
+    middleNameController.dispose();
+    phoneNumberController.dispose();
+    addressController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    
-    final user = Provider.of<MyUser?>(context);
-
-    return Scaffold(
-      backgroundColor: Colors.purple[100],
-      body: Container(
-        padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 50.0),
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              children: <Widget>[
-                SizedBox(height: 20.0),
-                TextFormField(  // last name field
-                  initialValue: widget.userData?.lastName,
-                  decoration: InputDecoration(labelText: 'Last Name'),
-                  validator: (val) => val!.isEmpty ? "Required" : null,
-                  onChanged: (val) {
-                    setState(() => _lastName = val);
-                  },
-                ),
-                SizedBox(height: 20.0),
-                TextFormField(  // first name field
-                  initialValue: widget.userData?.firstName,
-                  validator: (val) => val!.isEmpty ? "Required" : null,
-                  decoration: InputDecoration(labelText: 'First Name'),
-                  onChanged: (val) {
-                    setState(() => _firstName = val);
-                  },
-                ),
-                SizedBox(height: 20.0),
-                TextFormField(  // middle name field (can be null)
-                  initialValue: widget.userData?.middleName,
-                  decoration: InputDecoration(labelText: 'Middle Name'),
-                  onChanged: (val) {
-                    setState(() => _middleName = val);
-                  },
-                ),
-                SizedBox(height: 20.0),
-                TextFormField(  // phone number field
-                  initialValue: widget.userData?.phoneNumber,
-                  validator: (val) => val!.length != 11 ? "Required" : null,
-                  decoration: InputDecoration(labelText: 'Phone Number'),
-                  onChanged: (val) {
-                    setState(() => _phoneNumber = val);
-                  },
-                ),
-                SizedBox(height: 20.0),
-                DropdownButtonFormField(  // sex dropdown
-                  value: _sex ?? widget.userData?.sex,
-                  items: sexes.map((sex) {
-                    return DropdownMenuItem(
-                      value: sex,
-                      child: Text(sex),
-                    );
-                  }).toList(),
-                  validator: (val) => val == null ? 'Required' : null,
-                  onChanged: (val) => setState(() => _sex = val! ),
-                  hint: Text('Sex'),
-                ),
-                SizedBox(height: 20.0),
-                DropdownButtonFormField(  // months dropdown
-                  value: _birthMonth ?? widget.userData?.birthMonth,
-                  items: months.map((month) {
-                    return DropdownMenuItem(
-                      value: month,
-                      child: Text(month),
-                    );
-                  }).toList(),
-                  validator: (val) => val == null ? 'Required' : null,
-                  onChanged: (val) => setState(() => _birthMonth = val ),
-                  hint: Text('Birth Month'),
-                ),
-                SizedBox(height: 20.0),
-                DropdownButtonFormField(  // days dropdown
-                  value: _birthDay ?? widget.userData?.birthDay,
-                  items: days.map((day) {
-                    return DropdownMenuItem(
-                      value: day,
-                      child: Text(day),
-                    );
-                  }).toList(),
-                  validator: (val) => val == null ? 'Required' : null,
-                  onChanged: (val) => setState(() => _birthDay = val ),
-                  hint: Text('Birth Day'),
-                ),
-                SizedBox(height: 20.0),
-                DropdownButtonFormField(  // years dropdown
-                  value: _birthYear ?? widget.userData?.birthYear,
-                  items: years.map((year) {
-                    return DropdownMenuItem(
-                      value: year,
-                      child: Text(year),
-                    );
-                  }).toList(),
-                  validator: (val) => val == null ? 'Required' : null,
-                  onChanged: (val) => setState(() => _birthYear = val ),
-                  hint: Text('Birth Year'),
-                ),
-                SizedBox(height: 20.0),
-                ElevatedButton( // log in button
-                  onPressed: widget.isSignUp ? () {}
-                  : () async {
-                    print(_lastName);
-                    print(_firstName);
-                    print(_middleName);
-                    print(_phoneNumber);
-                    print(_sex);
-                    print(_birthMonth);
-                    print(_birthDay);
-                    print(_birthYear);
-                    if(_formKey.currentState!.validate()) {
-                      print(user?.uid);
-                      await DatabaseService(uid: user!.uid).updateUserData(
-                        lastName: _lastName,
-                        firstName: _firstName,
-                        middleName: _middleName,
-                        phoneNumber: _phoneNumber,
-                        sex: _sex,
-                        birthMonth: _birthMonth,
-                        birthDay: _birthDay,
-                        birthYear: _birthYear);
-                      //setState(() => _error = 'Data updated');
-                      print(user?.uid);
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.tealAccent[400],
-                  ),
-                  child: Text(
-                    widget.isSignUp ? 'Create account' : 'Update Data',
-                    style: TextStyle(
-                      color: Colors.tealAccent[800],
-                    ),
-                  ),
-                ),
-                SizedBox(height: 12.0),
-                Text(
-                  _error,
-                  style: TextStyle(color: Colors.red, fontSize: 14.0),
-                ),
-              ],
-            ),
+    return Form(
+      key: _formKey,
+      child: Column(
+        children: [
+          TextFormField(
+            controller: firstNameController,
+            decoration: InputDecoration(labelText: 'First Name', fillColor: AppColors.gray, filled: true),
+            onChanged: (val) => firstNameController.text = val,
+            validator: (val) => val!.isEmpty ? 'Enter First Name' : null,
           ),
-        )
+          TextFormField(
+            controller: lastNameController,
+            decoration: InputDecoration(labelText: 'Last Name', fillColor: AppColors.gray, filled: true),
+            onChanged: (val) => lastNameController.text = val,
+            validator: (val) => val!.isEmpty ? 'Enter Last Name' : null,
+          ),
+          TextFormField(
+            controller: middleNameController,
+            decoration: InputDecoration(labelText: 'Middle Name', fillColor: AppColors.gray, filled: true),
+            onChanged: (val) => middleNameController.text = val,
+            validator: (val) => val!.isEmpty ? 'Enter Middle Name' : null,
+          ),
+          TextFormField(
+            controller: phoneNumberController,
+            decoration: InputDecoration(labelText: 'Phone Number', fillColor: AppColors.gray, filled: true),
+            onChanged: (val) => phoneNumberController.text = val,
+            validator: (val) => val!.isEmpty ? 'Enter Phone Number' : null,
+          ),
+          DropdownButtonFormField<String>(
+            value: sex,
+            decoration: InputDecoration(labelText: 'Gender', fillColor: AppColors.gray, filled: true),
+            items: ['Male', 'Female', 'Other'].map((String value) {
+              return DropdownMenuItem<String>(
+                value: value,
+                child: Text(value),
+              );
+            }).toList(),
+            onChanged: (newValue) {
+              setState(() {
+                sex = newValue!;
+              });
+            },
+          ),
+          // Address input field
+          TextFormField(
+            controller: addressController, // Use the controller
+            decoration: InputDecoration(
+              labelText: 'Address',
+              fillColor: AppColors.gray,
+              filled: true,
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (value) {
+              addressController.text = value; // Save the address input
+            },
+          ),
+          // Repeat for birthMonth, birthDay, and birthYear dropdowns...
+
+          ElevatedButton(
+            onPressed: () {
+              if (_formKey.currentState!.validate()) {
+                widget.onButtonPressed(
+                  firstName: firstNameController.text,
+                  lastName: lastNameController.text,
+                  middleName: middleNameController.text,
+                  phoneNumber: phoneNumberController.text,
+                  sex: sex,
+                  birthMonth: birthMonth,
+                  birthDay: birthDay,
+                  birthYear: birthYear,
+                  address: addressController.text,
+                );
+              }
+            },
+            child: Text(widget.isSignUp ? 'Sign Up' : 'Update Profile'),
+          ),
+        ],
       ),
     );
   }

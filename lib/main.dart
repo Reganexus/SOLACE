@@ -4,6 +4,7 @@ import 'package:solace/screens/wrapper.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:solace/services/auth.dart';
+import 'package:solace/services/database.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,10 +21,18 @@ class MyApp extends StatelessWidget {
       catchError: (_,__) => null,
       initialData: null,
       value: AuthService().user,
-      child: MaterialApp(
-        title: 'SOLACE',
-        home: Wrapper(),
+      child: StreamProvider<UserData?>.value(
+        catchError: (_,__) => null,
+        initialData: null,
+        value: AuthService().currentUser != null
+            ? DatabaseService(uid: AuthService().currentUser!.uid).userData
+            : null, // Ensure user is logged in
+        child: MaterialApp(
+          title: 'SOLACE',
+          home: Wrapper(),
+        ),
       ),
     );
-  } 
+  }
 }
+

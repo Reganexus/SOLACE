@@ -1,16 +1,19 @@
+// ignore_for_file: avoid_print
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:solace/models/my_user.dart';
 
 class DatabaseService {
-
   final String? uid;
-  DatabaseService({ this.uid });
+  DatabaseService({this.uid});
 
   // collection reference
-  final CollectionReference userCollection = FirebaseFirestore.instance.collection('users');
+  final CollectionReference userCollection =
+      FirebaseFirestore.instance.collection('users');
 
+  // Update user data in Firestore
   Future<void> updateUserData({
-    bool? isAdmin,
+    bool? isAdmin, // Add isAdmin parameter
     String? email,
     String? lastName,
     String? firstName,
@@ -20,9 +23,12 @@ class DatabaseService {
     String? birthMonth,
     String? birthDay,
     String? birthYear,
+    String? address,
   }) async {
     Map<String, dynamic> updatedData = {};
-    if (isAdmin != null) updatedData['isAdmin'] = isAdmin;
+    if (isAdmin != null) {
+      updatedData['isAdmin'] = isAdmin; // Include isAdmin in updatedData
+    }
     if (email != null) updatedData['email'] = email;
     if (lastName != null) updatedData['lastName'] = lastName;
     if (firstName != null) updatedData['firstName'] = firstName;
@@ -32,30 +38,85 @@ class DatabaseService {
     if (birthMonth != null) updatedData['birthMonth'] = birthMonth;
     if (birthDay != null) updatedData['birthDay'] = birthDay;
     if (birthYear != null) updatedData['birthYear'] = birthYear;
+    if (address != null) updatedData['address'] = address; // Add this line
 
-    print(updatedData['isAdmin']);
-    print(updatedData['email']);
-    print(updatedData['lastName']);
-    print(updatedData['firstName']);
-    print(updatedData['middleName']);
-    print(updatedData['phoneNumber']);
-    print(updatedData['sex']);
-    print(updatedData['birthMonth']);
-    print(updatedData['birthDay']);
-    print(updatedData['birthYear']);
-
-    // Only execute if there are fields to set
     if (updatedData.isNotEmpty) {
-      print('UID: $uid');
-      return await userCollection.doc(uid).set(updatedData, SetOptions(merge: true));
+      await userCollection.doc(uid).set(updatedData, SetOptions(merge: true));
     }
   }
 
+  // Fetch user data from Firestore
+  Future<UserData?> getUserData() async {
+    try {
+      DocumentSnapshot snapshot = await userCollection.doc(uid).get();
+      if (snapshot.exists) {
+        return _userDataFromSnapshot(snapshot);
+      } else {
+        return null;
+      }
+    } catch (e) {
+      print('Error fetching user data: $e');
+      return null;
+    }
+  }
 
-  // user list from snapshot
+  // Convert DocumentSnapshot to UserData
+  UserData _userDataFromSnapshot(DocumentSnapshot snapshot) {
+    return UserData(
+      uid: snapshot.id, // Capture the document ID as uid
+      isAdmin: snapshot['isAdmin'] ?? false,
+      email: snapshot['email'],
+      lastName: snapshot['lastName'],
+      firstName: snapshot['firstName'],
+      middleName: snapshot['middleName'],
+      phoneNumber: snapshot['phoneNumber'],
+      sex: snapshot['sex'],
+      birthMonth: snapshot['birthMonth'],
+      birthDay: snapshot['birthDay'],
+      birthYear: snapshot['birthYear'],
+      address: snapshot['address'],
+    );
+  }
+
+  // Stream of user list data
+  Stream<List<UserData>> get users {
+    return userCollection.snapshots().map(_userListFromSnapshot);
+  }
+
+  // Stream to get user data
+  Stream<UserData?> get userData {
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .snapshots()
+        .map((snapshot) {
+      if (snapshot.exists) {
+        return UserData(
+          uid: snapshot.id, // Provide the uid here
+          isAdmin: snapshot['isAdmin'] ?? false,
+          email: snapshot['email'] ?? '',
+          firstName: snapshot['firstName'],
+          lastName: snapshot['lastName'],
+          middleName: snapshot['middleName'],
+          phoneNumber: snapshot['phoneNumber'],
+          sex: snapshot['sex'],
+          birthMonth: snapshot['birthMonth'],
+          birthDay: snapshot['birthDay'],
+          birthYear: snapshot['birthYear'],
+          address: snapshot['address'],
+        );
+      } else {
+        return null; // No user data found
+      }
+    });
+  }
+
+
+  // Convert QuerySnapshot to List<UserData>
   List<UserData> _userListFromSnapshot(QuerySnapshot snapshot) {
-    return snapshot.docs.map((doc){
+    return snapshot.docs.map((doc) {
       return UserData(
+        uid: doc.id, // Include uid here
         isAdmin: doc.get('isAdmin') ?? false,
         email: doc.get('email') ?? 'none',
         lastName: doc.get('lastName') ?? 'none',
@@ -70,29 +131,4 @@ class DatabaseService {
     }).toList();
   }
 
-  // user data from snapshots
-  UserData _userDataFromSnapshot(DocumentSnapshot snapshot) {
-    return UserData(
-      isAdmin: snapshot['isAdmin'],
-      email: snapshot['email'],
-      lastName: snapshot['lastName'],
-      firstName: snapshot['firstName'],
-      middleName: snapshot['middleName'],
-      phoneNumber: snapshot['phoneNumber'],
-      sex: snapshot['sex'],
-      birthMonth: snapshot['birthMonth'],
-      birthDay: snapshot['birthDay'],
-      birthYear: snapshot['birthYear'],
-    );
-  }
-
-  // get userCollection stream
-  Stream<List<UserData>> get users {
-    return userCollection.snapshots().map(_userListFromSnapshot);
-  }
-
-  // get user doc stream
-  Stream<UserData>? get userData {
-    return userCollection.doc(uid).snapshots().map(_userDataFromSnapshot);
-  }
 }

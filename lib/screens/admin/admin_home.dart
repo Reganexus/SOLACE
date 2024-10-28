@@ -12,20 +12,20 @@ class AdminHome extends StatefulWidget {
   const AdminHome({super.key});
 
   @override
-  _AdminHomeState createState() => _AdminHomeState();
+  AdminHomeState createState() => AdminHomeState();
 }
 
-class _AdminHomeState extends State<AdminHome> {
+class AdminHomeState extends State<AdminHome> {
   final AuthService _auth = AuthService();
-  
+
   // Current selected index for the navigation bar
   int _currentIndex = 0;
 
   // Screens for each tab in the bottom navigation
   final List<Widget> _screens = [
-    UserList(),  // Replace this with your user list screen
-    AdminDashboard(),  // Add your own dashboard screen
-    AdminSettings()  // Add your settings screen
+    UserList(),
+    AdminDashboard(),
+    AdminSettings(),
   ];
 
   void _onTap(int index) {
@@ -42,27 +42,27 @@ class _AdminHomeState extends State<AdminHome> {
       child: Scaffold(
         backgroundColor: Colors.purple[100],
         appBar: AppBar(
-          title: Text('Welcome Admin'),
+          title: const Text('Welcome Admin'),
           backgroundColor: Colors.purple[400],
           elevation: 0.0,
           actions: <Widget>[
             ElevatedButton.icon(
-              icon: Icon(Icons.logout),
-              label: Text('Logout'),
+              icon: const Icon(Icons.logout),
+              label: const Text('Logout'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.purple[100],
               ),
               onPressed: () async {
                 await _auth.signOut();
               },
-            )
+            ),
           ],
         ),
-        body: _screens[_currentIndex],  // Display the current screen based on the selected index
+        body: _screens[_currentIndex], // Display the current screen based on the selected index
         bottomNavigationBar: BottomNavBar(
           currentIndex: _currentIndex,
           onTap: _onTap,
-          isAdmin: true,  // Indicate that this is the admin home
+          role: 'Admin', // Specify role for admin
         ),
       ),
     );
