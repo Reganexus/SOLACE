@@ -4,7 +4,7 @@ import 'package:solace/models/my_user.dart';
 
 class UserDataForm extends StatefulWidget {
   final UserData? userData;
-  final Function onButtonPressed;
+  final UserDataCallback onButtonPressed;
   final bool isSignUp;
 
   const UserDataForm({
@@ -17,6 +17,18 @@ class UserDataForm extends StatefulWidget {
   @override
   UserDataFormState createState() => UserDataFormState();
 }
+
+typedef UserDataCallback = void Function({
+  required String firstName,
+  required String lastName,
+  required String middleName,
+  required String phoneNumber,
+  required String sex,
+  required String birthMonth,
+  required String birthDay,
+  required String birthYear,
+  required String address,
+});
 
 class UserDataFormState extends State<UserDataForm> {
   final _formKey = GlobalKey<FormState>();

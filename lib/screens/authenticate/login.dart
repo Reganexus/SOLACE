@@ -4,13 +4,15 @@ import 'package:solace/themes/colors.dart';
 
 class LogIn extends StatefulWidget {
   final Function toggleView;
-  const LogIn({super.key, required this.toggleView});
+  final bool isTesting;
+  const LogIn({super.key, required this.toggleView, required this.isTesting });
 
   @override
   State<LogIn> createState() => _LogInState();
 }
 
 class _LogInState extends State<LogIn> {
+
   final AuthService _auth = AuthService();
   final _formKey = GlobalKey<FormState>();
 
@@ -29,6 +31,10 @@ class _LogInState extends State<LogIn> {
   void initState() {
     super.initState();
 
+    if (widget.isTesting) {
+      _autoLogin();
+    }
+
     _emailFocusNode.addListener(() {
       setState(() {});
     });
@@ -36,6 +42,17 @@ class _LogInState extends State<LogIn> {
     _passwordFocusNode.addListener(() {
       setState(() {});
     });
+  }
+
+  Future<void> _autoLogin() async {
+    String testEmail = 'john@gmail.com';
+    String testPassword = 'test123';
+
+    dynamic result = await _auth.logInWithEmailAndPassword(testEmail, testPassword);
+    if (result == null) {
+      setState(() => error = 'Auto login failed');
+    }
+
   }
 
   @override

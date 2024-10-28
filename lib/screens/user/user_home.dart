@@ -15,7 +15,7 @@ class UserHome extends StatefulWidget {
 
 class UserHomeState extends State<UserHome> {
 
-  int _currentIndex = 0;
+  int _currentIndex = 3;
   late final List<Widget> _screens;
 
   @override

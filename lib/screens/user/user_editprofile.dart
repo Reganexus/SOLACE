@@ -34,26 +34,35 @@ class EditProfileScreen extends StatelessWidget {
           body: UserDataForm(
             isSignUp: false,
             userData: userData,
-            onButtonPressed: () {
-              // Perform the update and handle navigation in the then callback
+            onButtonPressed: ({
+              required String firstName,
+              required String lastName,
+              required String middleName,
+              required String phoneNumber,
+              required String sex,
+              required String birthMonth,
+              required String birthDay,
+              required String birthYear,
+              required String address,
+            }) {
               DatabaseService(uid: user.uid).updateUserData(
-                firstName: userData!.firstName,
-                lastName: userData.lastName,
-                middleName: userData.middleName,
-                phoneNumber: userData.phoneNumber,
-                sex: userData.sex,
-                birthMonth: userData.birthMonth,
-                birthDay: userData.birthDay,
-                birthYear: userData.birthYear,
-                address: userData.address, // Include the address
+                firstName: firstName,
+                lastName: lastName,
+                middleName: middleName,
+                phoneNumber: phoneNumber,
+                sex: sex,
+                birthMonth: birthMonth,
+                birthDay: birthDay,
+                birthYear: birthYear,
+                address: address,
               ).then((_) {
-                // Check if the widget is still mounted before navigating
                 if (context.mounted) {
-                  Navigator.pop(context); // Navigate back after saving
+                  Navigator.pop(context);
                 }
               });
             },
           ),
+
         );
       },
     );
