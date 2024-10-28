@@ -165,29 +165,35 @@ class _LogInState extends State<LogIn> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  TextButton(
-                    onPressed: () async {
-                      if (_formKey.currentState!.validate()) {
-                        dynamic result = await _auth.logInWithEmailAndPassword(
-                            email, password);
-                        if (result == null) {
-                          setState(() => error =
-                          'Could not log in with those credentials');
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: () async {
+                        if (_formKey.currentState!.validate()) {
+                          dynamic result = await _auth.logInWithEmailAndPassword(
+                              email, password);
+                          if (result == null) {
+                            setState(() => error =
+                            'Could not log in with those credentials');
+                          }
                         }
-                      }
-                    },
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 50, vertical: 10),
-                      backgroundColor: AppColors.neon,
-                    ),
-                    child: const Text(
-                      'Login',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: AppColors.white,
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 50, vertical: 15),
+                        backgroundColor: AppColors.neon,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)
+                        ),
+                      ),
+                      child: const Text(
+                        'Login',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: AppColors.white,
+                        ),
                       ),
                     ),
                   ),
@@ -224,7 +230,7 @@ class _LogInState extends State<LogIn> {
                             horizontal: 50, vertical: 15),
                         backgroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(10),
                           side: const BorderSide(color: Colors.grey),
                         ),
                       ),

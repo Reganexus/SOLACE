@@ -212,37 +212,43 @@ class _SignUpState extends State<SignUp> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  TextButton(
-                    onPressed: () async {
-                      if (_formKey.currentState!.validate() && _agreeToTerms) {
-                        // Use _auth to register the user
-                        var result = await _auth.signUpWithEmailAndPassword(
-                          _email,
-                          _password,
-                        );
-                        if (result == null) {
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: () async {
+                        if (_formKey.currentState!.validate() && _agreeToTerms) {
+                          // Use _auth to register the user
+                          var result = await _auth.signUpWithEmailAndPassword(
+                            _email,
+                            _password,
+                          );
+                          if (result == null) {
+                            setState(() {
+                              error = "Registration failed. Please try again.";
+                            });
+                          }
+                        } else if (!_agreeToTerms) {
                           setState(() {
-                            error = "Registration failed. Please try again.";
+                            error = "You must agree to the terms and conditions.";
                           });
                         }
-                      } else if (!_agreeToTerms) {
-                        setState(() {
-                          error = "You must agree to the terms and conditions.";
-                        });
-                      }
-                    },
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 50, vertical: 10),
-                      backgroundColor: AppColors.neon,
-                    ),
-                    child: const Text(
-                      'Sign up',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: AppColors.white,
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 50, vertical: 15),
+                        backgroundColor: AppColors.neon,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)
+                        ),
+                      ),
+                      child: const Text(
+                        'Sign up',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: AppColors.white,
+                        ),
                       ),
                     ),
                   ),

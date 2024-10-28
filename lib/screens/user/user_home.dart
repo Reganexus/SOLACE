@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/user/user_dashboard.dart';
 import 'package:solace/screens/user/user_history.dart';
 import 'package:solace/screens/user/user_profile.dart';
 import 'package:solace/screens/user/user_tracking.dart';
 import 'package:solace/shared/widgets/bottom_navbar.dart';
 import 'package:solace/themes/colors.dart';
-import 'package:solace/services/database.dart'; // Import your database service
 
 class UserHome extends StatefulWidget {
   const UserHome({super.key});
@@ -17,10 +14,8 @@ class UserHome extends StatefulWidget {
 }
 
 class UserHomeState extends State<UserHome> {
-  // Current selected index for the navigation bar
-  int _currentIndex = 0;
 
-  // Screens for each tab in the bottom navigation
+  int _currentIndex = 0;
   late final List<Widget> _screens;
 
   @override
@@ -28,7 +23,7 @@ class UserHomeState extends State<UserHome> {
     super.initState();
     _screens = [
       UserDashboard(
-        navigateToHistory: _navigateToHistory, // Pass the callback here
+        navigateToHistory: _navigateToHistory,
       ),
       UserHistory(),
       UserTracking(),
@@ -38,7 +33,7 @@ class UserHomeState extends State<UserHome> {
 
   void _navigateToHistory() {
     setState(() {
-      _currentIndex = 1; // Update index to show History screen
+      _currentIndex = 1;
     });
   }
 
@@ -48,29 +43,7 @@ class UserHomeState extends State<UserHome> {
     });
   }
 
-  // Build AppBar based on the selected index
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: AppColors.white,
-      scrolledUnderElevation: 0.0,
-      title: Padding(
-        padding: const EdgeInsets.fromLTRB(15.0, 20.0, 15.0, 10.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _buildLeftAppBar(),
-            _buildRightAppBar(context),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Left side of AppBar
   Widget _buildLeftAppBar() {
-    final userData = Provider.of<UserData?>(context); // Get user data from provider
-    final firstName = userData?.firstName ?? 'User'; // Use default if first name is null
-
     return Row(
       children: [
         const CircleAvatar(
@@ -78,9 +51,9 @@ class UserHomeState extends State<UserHome> {
           backgroundImage: AssetImage('lib/assets/images/shared/placeholder.png'),
         ),
         const SizedBox(width: 10.0),
-        Text(
-          'Welcome, $firstName!',
-          style: const TextStyle(
+        const Text(
+          'Hello, User!',
+          style: TextStyle(
             fontSize: 18.0,
             fontWeight: FontWeight.bold,
             fontFamily: 'Inter',
@@ -90,7 +63,6 @@ class UserHomeState extends State<UserHome> {
     );
   }
 
-  // Right side of AppBar
   Widget _buildRightAppBar(BuildContext context) {
     return Row(
       children: [
@@ -113,7 +85,40 @@ class UserHomeState extends State<UserHome> {
     );
   }
 
-  // Function to show notifications dialog
+  PreferredSizeWidget _buildAppBar() {
+    final appBar = AppBar(
+      backgroundColor: AppColors.white,
+      scrolledUnderElevation: 0.0,
+      elevation: 0.0,
+      title: Padding(
+        padding: const EdgeInsets.fromLTRB(15.0, 20.0, 15.0, 10.0),
+        child: _currentIndex == 0
+            ? Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildLeftAppBar(),
+            _buildRightAppBar(context),
+          ],
+        )
+            : Text(
+          _currentIndex == 1 ? 'History' :
+          _currentIndex == 2 ? 'Tracking' :
+          'Profile',
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'Inter',
+          ),
+        ),
+      ),
+    );
+
+    return PreferredSize(
+      preferredSize: const Size.fromHeight(60.0),
+      child: appBar,
+    );
+  }
+
   void _showNotifications(BuildContext context) {
     showDialog(
       context: context,
@@ -133,7 +138,7 @@ class UserHomeState extends State<UserHome> {
             TextButton(
               child: const Text('Close'),
               onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).pop();
               },
             ),
           ],
@@ -142,7 +147,6 @@ class UserHomeState extends State<UserHome> {
     );
   }
 
-  // Function to show messages dialog
   void _showMessages(BuildContext context) {
     showDialog(
       context: context,
@@ -162,7 +166,7 @@ class UserHomeState extends State<UserHome> {
             TextButton(
               child: const Text('Close'),
               onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).pop();
               },
             ),
           ],
@@ -173,23 +177,14 @@ class UserHomeState extends State<UserHome> {
 
   @override
   Widget build(BuildContext context) {
-    // Get user data from the provider
-    final userData = Provider.of<UserData?>(context);
-
-    return StreamProvider<UserData?>.value(
-      value: userData != null
-          ? DatabaseService(uid: userData.uid).userData
-          : Stream.value(null), // Provide a default stream if userData is null
-      initialData: null,
-      child: Scaffold(
-        backgroundColor: AppColors.white,
-        appBar: _buildAppBar(),
-        body: _screens[_currentIndex],
-        bottomNavigationBar: BottomNavBar(
-          currentIndex: _currentIndex,
-          onTap: _onTap,
-          role: 'Patient',
-        ),
+    return Scaffold(
+      backgroundColor: AppColors.white,
+      appBar: _buildAppBar(),
+      body: _screens[_currentIndex],
+      bottomNavigationBar: BottomNavBar(
+        currentIndex: _currentIndex,
+        onTap: _onTap,
+        role: 'Patient',
       ),
     );
   }
