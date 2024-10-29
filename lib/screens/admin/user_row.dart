@@ -14,10 +14,11 @@ class UserRow extends StatelessWidget {
         child: ListTile(
           leading: CircleAvatar(
             radius: 25.0,
-            backgroundColor: user.isAdmin ? Colors.tealAccent : Colors.purple[400],
+            backgroundColor: user.userRole == UserRole.admin ? Colors.tealAccent : Colors.purple[400],
           ),
           title: Text('${user.lastName}, ${user.firstName} ${user.middleName}'),
-          subtitle: Text(user.isAdmin ? 'Admin' : 'User'),
+          subtitle: Text(UserData.getUserRoleString(user.userRole)
+          ),
         ),
       ),
     );

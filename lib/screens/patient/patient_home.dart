@@ -1,33 +1,33 @@
 import 'package:flutter/material.dart';
-import 'package:solace/screens/user/user_dashboard.dart';
-import 'package:solace/screens/user/user_history.dart';
-import 'package:solace/screens/user/user_profile.dart';
-import 'package:solace/screens/user/user_tracking.dart';
+import 'package:solace/screens/patient/patient_dashboard.dart';
+import 'package:solace/screens/patient/patient_history.dart';
+import 'package:solace/screens/patient/patient_profile.dart';
+import 'package:solace/screens/patient/patient_tracking.dart';
 import 'package:solace/shared/widgets/bottom_navbar.dart';
 import 'package:solace/themes/colors.dart';
 
-class UserHome extends StatefulWidget {
-  const UserHome({super.key});
+class PatientHome extends StatefulWidget {
+  const PatientHome({super.key});
 
   @override
-  UserHomeState createState() => UserHomeState();
+  PatientHomeState createState() => PatientHomeState();
 }
 
-class UserHomeState extends State<UserHome> {
+class PatientHomeState extends State<PatientHome> {
 
-  int _currentIndex = 2;
+  int _currentIndex = 3;
   late final List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
     _screens = [
-      UserDashboard(
+      PatientDashboard(
         navigateToHistory: _navigateToHistory,
       ),
-      UserHistory(),
-      UserTracking(),
-      UserProfile(),
+      PatientHistory(),
+      PatientTracking(),
+      PatientProfile(),
     ];
   }
 

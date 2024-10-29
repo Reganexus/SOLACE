@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:solace/themes/colors.dart'; // Assuming AppColors is defined here
 
-class UserHistory extends StatefulWidget {
-  const UserHistory({super.key});
+class PatientHistory extends StatefulWidget {
+  const PatientHistory({super.key});
 
   @override
-  UserHistoryState createState() => UserHistoryState();
+  PatientHistoryState createState() => PatientHistoryState();
 }
 
-class UserHistoryState extends State<UserHistory> {
+class PatientHistoryState extends State<PatientHistory> {
   // Variable to store selected radio button value
   String _selectedTimeFrame = 'This Week';
 

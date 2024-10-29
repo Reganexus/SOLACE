@@ -3,11 +3,11 @@ import 'package:provider/provider.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/services/auth.dart';
-import 'package:solace/screens/user/user_editprofile.dart';
+import 'package:solace/shared/widgets/user_editprofile.dart';
 import 'package:solace/models/my_user.dart'; // Ensure you import your UserData model
 
-class UserProfile extends StatelessWidget {
-  const UserProfile({super.key});
+class PatientProfile extends StatelessWidget {
+  const PatientProfile({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -20,6 +20,7 @@ class UserProfile extends StatelessWidget {
         stream: DatabaseService(uid: user?.uid).userData,
         builder: (context, snapshot) {
           print('Snapshot: ${snapshot}');
+          print('UID: ${user?.uid}');
           if(snapshot.hasData) {
             UserData? userData = snapshot.data;
             return Container(

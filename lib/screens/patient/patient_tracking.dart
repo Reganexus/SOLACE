@@ -6,14 +6,14 @@ import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/themes/colors.dart'; // Assuming AppColors is defined here
 
-class UserTracking extends StatefulWidget {
-  const UserTracking({super.key});
+class PatientTracking extends StatefulWidget {
+  const PatientTracking({super.key});
 
   @override
-  UserTrackingState createState() => UserTrackingState();
+  PatientTrackingState createState() => PatientTrackingState();
 }
 
-class UserTrackingState extends State<UserTracking> {
+class PatientTrackingState extends State<PatientTracking> {
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 

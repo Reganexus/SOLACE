@@ -3,6 +3,7 @@ import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/authenticate/authenticate.dart';
 import 'package:solace/screens/home/home.dart';
 import 'package:flutter/material.dart';
+import 'package:solace/services/auth.dart';
 
 class Wrapper extends StatelessWidget {
   const Wrapper({super.key});

@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:solace/services/auth.dart';
 
-class CaregiverHome extends StatefulWidget {
-  const CaregiverHome({super.key});
+class FamilyHome extends StatefulWidget {
+  const FamilyHome({super.key});
 
   @override
-  State<CaregiverHome> createState() => _CaregiverHomeState();
+  State<FamilyHome> createState() => _FamilyHomeState();
 }
 
-class _CaregiverHomeState extends State<CaregiverHome> {
+class _FamilyHomeState extends State<FamilyHome> {
   final AuthService _auth = AuthService();
   
   @override
@@ -16,7 +16,7 @@ class _CaregiverHomeState extends State<CaregiverHome> {
     return Scaffold(
       backgroundColor: Colors.purple[100],
       appBar: AppBar(
-        title: const Text('Welcome Caregiver'),
+        title: const Text('Welcome Family'),
         backgroundColor: Colors.purple[400],
         elevation: 0.0,
         actions: <Widget>[

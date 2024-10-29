@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:solace/themes/colors.dart';
 
-class UserDashboard extends StatelessWidget {
+class PatientDashboard extends StatelessWidget {
   final VoidCallback navigateToHistory;
 
-  UserDashboard({super.key, required this.navigateToHistory});
+  PatientDashboard({super.key, required this.navigateToHistory});
 
   // Function to show modal
   void _showTaskModal(BuildContext context, String task) {

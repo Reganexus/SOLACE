@@ -26,7 +26,7 @@ class _UserListState extends State<UserList> {
       return Text('List is empty');
     } else {
       for(int i = 0; i < users.length; i++) {
-        print('User $i: ${users[i].isAdmin}');
+        print('User $i: ${users[i].userRole == UserRole.admin}');
       }
     }
 

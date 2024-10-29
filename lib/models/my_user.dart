@@ -1,3 +1,5 @@
+enum UserRole { admin, patient, family, caregiver, doctor }
+
 class MyUser {
   final String uid;
 
@@ -5,8 +7,7 @@ class MyUser {
 }
 
 class UserData {
-  final String uid; // Add this line
-  final bool isAdmin;
+  final UserRole userRole;
   final String? email;
   final String? lastName;
   final String? firstName;
@@ -19,8 +20,7 @@ class UserData {
   final String? address;
 
   UserData({
-    required this.uid, // Add this line
-    required this.isAdmin,
+    required this.userRole,
     required this.email,
     this.lastName,
     this.firstName,
@@ -35,7 +35,7 @@ class UserData {
 
   @override
   String toString() {
-    return 'UserData{isAdmin: $isAdmin, email: $email, lastName: $lastName, firstName: $firstName, middleName: $middleName, phoneNumber: $phoneNumber, sex: $sex, birthMonth: $birthMonth, birthDay: $birthDay, birthYear: $birthYear}';
+    return 'UserData{userRole: $userRole, email: $email, lastName: $lastName, firstName: $firstName, middleName: $middleName, phoneNumber: $phoneNumber, sex: $sex, birthMonth: $birthMonth, birthDay: $birthDay, birthYear: $birthYear, address: $address}';
   }
 
   @override
@@ -43,8 +43,7 @@ class UserData {
     if (identical(this, other)) return true;
 
     return other is UserData &&
-        other.uid == uid && // Include uid in equality check
-        other.isAdmin == isAdmin &&
+        other.userRole == userRole &&
         other.email == email &&
         other.lastName == lastName &&
         other.firstName == firstName &&
@@ -53,13 +52,13 @@ class UserData {
         other.sex == sex &&
         other.birthMonth == birthMonth &&
         other.birthDay == birthDay &&
-        other.birthYear == birthYear;
+        other.birthYear == birthYear &&
+        other.address == address;
   }
 
   @override
   int get hashCode {
-    return uid.hashCode ^ // Include uid in hashCode
-    isAdmin.hashCode ^
+    return userRole.hashCode ^
     email.hashCode ^
     lastName.hashCode ^
     firstName.hashCode ^
@@ -68,6 +67,31 @@ class UserData {
     sex.hashCode ^
     birthMonth.hashCode ^
     birthDay.hashCode ^
-    birthYear.hashCode;
+    birthYear.hashCode ^
+    address.hashCode;
+  }
+
+  // Helper function to convert string to UserRole enum
+  static UserRole getUserRoleFromString(String role) {
+    return UserRole.values.firstWhere(
+      (e) => e.toString().split('.').last == role,
+      orElse: () => UserRole.patient, // Default role if not found
+    );
+  }
+
+  // Helper function to convert UserRole enum to string
+  static String getUserRoleString(UserRole role) {
+    switch (role) {
+      case UserRole.admin:
+        return 'admin';
+      case UserRole.family:
+        return 'family';
+      case UserRole.caregiver:
+        return 'caregiver';
+      case UserRole.doctor:
+        return 'doctor';
+      default:
+        return 'patient';
+    }
   }
 }

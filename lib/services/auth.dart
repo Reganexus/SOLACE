@@ -61,7 +61,7 @@ class AuthService {
 
       // Create a new document for the user with the uid (test values)
       await DatabaseService(uid: user.uid).updateUserData(
-        isAdmin: false, // Ensure this parameter is defined in updateUserData
+        userRole: UserRole.patient,
         email: email,
         lastName: '',
         firstName: '',
@@ -71,6 +71,7 @@ class AuthService {
         birthMonth: 'January',
         birthDay: '1',
         birthYear: (DateTime.now().year).toString(),
+        address: '',
       );
       return _userFromFirebaseUser(user);
     } catch (e) {

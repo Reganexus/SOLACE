@@ -14,7 +14,7 @@ class DatabaseService {
 
   // Update user data in Firestore
   Future<void> updateUserData({
-    bool? isAdmin,
+    UserRole? userRole,
     String? email,
     String? lastName,
     String? firstName,
@@ -27,8 +27,8 @@ class DatabaseService {
     String? address,
   }) async {
     Map<String, dynamic> updatedData = {};
-    if (isAdmin != null) {
-      updatedData['isAdmin'] = isAdmin;
+    if (userRole != null) {
+      updatedData['userRole'] = userRole.toString().split('.').last;  // Saves enum as a string
     }
     if (email != null) updatedData['email'] = email;
     if (lastName != null) updatedData['lastName'] = lastName;
@@ -93,8 +93,7 @@ class DatabaseService {
   UserData _userDataFromSnapshot(DocumentSnapshot snapshot) {
     print('_userDataFromSnapshot: $snapshot');
     return UserData(
-      uid: snapshot['uid'],
-      isAdmin: snapshot['isAdmin'],
+      userRole: UserData.getUserRoleFromString(snapshot['userRole']),
       email: snapshot['email'],
       lastName: snapshot['lastName'],
       firstName: snapshot['firstName'],
@@ -123,8 +122,7 @@ class DatabaseService {
   List<UserData> _userListFromSnapshot(QuerySnapshot snapshot) {
     return snapshot.docs.map((doc){
       return UserData(
-        uid: doc.get('uid') ?? 'none',
-        isAdmin: doc.get('isAdmin') ?? false,
+        userRole: UserData.getUserRoleFromString(doc.get('userRole')),
         email: doc.get('email') ?? 'none',
         lastName: doc.get('lastName') ?? 'none',
         firstName: doc.get('firstName') ?? 'none',
