@@ -7,6 +7,16 @@ import 'package:solace/services/database.dart';
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  void displayValues() {
+    print('Current User: ${_auth.currentUser}');
+    print('Display name: ${_auth.currentUser?.displayName}');
+    print('Email: ${_auth.currentUser?.email}');
+    print('Email verified: ${_auth.currentUser?.emailVerified}');
+    print('Is anonymous: ${_auth.currentUser?.isAnonymous}');
+    print('Photo URL: ${_auth.currentUser?.photoURL}');
+    print('Provider data: ${_auth.currentUser?.providerData}');
+  }
+
   // Create MyUser object based on User
   MyUser? _userFromFirebaseUser(User? user) {
     return user != null ? MyUser(uid: user.uid) : null;
@@ -63,15 +73,15 @@ class AuthService {
       await DatabaseService(uid: user.uid).updateUserData(
         userRole: UserRole.patient,
         email: email,
-        lastName: '',
-        firstName: '',
-        middleName: '',
-        phoneNumber: '',
+        lastName: 'N/A',
+        firstName: 'N/A',
+        middleName: 'N/A',
+        phoneNumber: 'N/A',
         sex: 'Other',
         birthMonth: 'January',
         birthDay: '1',
         birthYear: (DateTime.now().year).toString(),
-        address: '',
+        address: 'N/A',
       );
       return _userFromFirebaseUser(user);
     } catch (e) {

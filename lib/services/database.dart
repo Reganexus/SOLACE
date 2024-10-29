@@ -48,29 +48,29 @@ class DatabaseService {
 
   // Method to add a vital record
   Future<void> addVitalRecord(String vital, double inputRecord) async {
-    // // Check if uid is not null
-    // if (uid != null) {
-    //   print('To add vital inside: $uid');
-    //   // Create a new record document under the 'heart_rate' subcollection
-    //   DocumentReference docRef = userCollection
-    //       .doc(uid) // Reference to the specific user
-    //       .collection('vitals') // Accessing the vitals subcollection
-    //       .doc(vital); // Document for the vital
+    // Check if uid is not null
+    if (uid != null) {
+      print('To add vital inside: $uid');
+      // Create a new record document under the 'heart_rate' subcollection
+      DocumentReference docRef = userCollection
+          .doc(uid) // Reference to the specific user
+          .collection('vitals') // Accessing the vitals subcollection
+          .doc(vital); // Document for the vital
 
-    //   // Get a reference to the 'records' subcollection within the vital
-    //   CollectionReference recordsRef = docRef.collection('records');
+      // Get a reference to the 'records' subcollection within the vital
+      CollectionReference recordsRef = docRef.collection('records');
 
-    //   // Create a new record with a timestamp and value
-    //   await recordsRef.add({
-    //     'timestamp': FieldValue.serverTimestamp(), // Automatically set to server time
-    //     'value': inputRecord,
-    //   });
+      // Create a new record with a timestamp and value
+      await recordsRef.add({
+        'timestamp': FieldValue.serverTimestamp(), // Automatically set to server time
+        'value': inputRecord,
+      });
 
-    //   print('Added vital: $uid');
-    // } else {
-    //   //throw Exception("User ID is null. Cannot add heart rate record.");
-    //   print('User ID is null. Cannot add vital record.');
-    // }
+      print('Added vital: $uid');
+    } else {
+      //throw Exception("User ID is null. Cannot add heart rate record.");
+      print('User ID is null. Cannot add vital record.');
+    }
     print('Add vital: $vital $inputRecord');  // print for now, problems with permission
   }
 

@@ -8,6 +8,8 @@ import 'package:solace/services/auth.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  // await AuthService().signOut();
+  
   runApp(const MyApp());
 }
 
