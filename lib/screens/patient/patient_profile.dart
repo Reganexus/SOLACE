@@ -19,6 +19,8 @@ class PatientProfile extends StatelessWidget {
       body: StreamBuilder<UserData>(
         stream: DatabaseService(uid: user?.uid).userData,
         builder: (context, snapshot) {
+          print('Profile uid: ${user?.uid}');
+          print('Profile snapshot: ${snapshot}');
           if(snapshot.hasData) {
             UserData? userData = snapshot.data;
             return Container(

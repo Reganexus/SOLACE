@@ -281,7 +281,7 @@ class _SignUpState extends State<SignUp> {
                     width: double.infinity,
                     child: TextButton(
                       onPressed: () {
-                        // Google sign-up action
+                        _auth.signInWithGoogle();
                       },
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(

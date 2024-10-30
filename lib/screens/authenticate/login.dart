@@ -258,7 +258,9 @@ class _LogInState extends State<LogIn> {
                   SizedBox(
                     width: double.infinity,
                     child: TextButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        _auth.signInWithGoogle();
+                      },
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 50, vertical: 15),
@@ -277,7 +279,7 @@ class _LogInState extends State<LogIn> {
                           ),
                           const SizedBox(width: 10),
                           const Text(
-                            'Sign in with Google',
+                            'Log in with Google',
                             style: TextStyle(
                               fontSize: 16,
                               color: AppColors.black,

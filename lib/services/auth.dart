@@ -1,6 +1,7 @@
 // ignore_for_file: avoid_print
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
 
@@ -69,7 +70,8 @@ class AuthService {
       if (user == null) return null;
       print('New user id: ${user.uid}');
 
-      // Create a new document for the user with the uid (test values)
+      
+      // Create a new document for the user with the uid (default values)
       await DatabaseService(uid: user.uid).updateUserData(
         userRole: UserRole.patient,
         email: email,
@@ -90,9 +92,52 @@ class AuthService {
     }
   }
 
+  // Sign in with Google
+  Future<MyUser?> signInWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      final GoogleSignInAuthentication? googleAuth = await googleUser?.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth?.accessToken,
+        idToken: googleAuth?.idToken,
+      );
+
+      // Sign in to Firebase with the Google credential
+      UserCredential result = await _auth.signInWithCredential(credential);
+      User? user = result.user; // Retrieve the user object after sign-in
+      
+      if (user == null) return null;
+      
+      // Ensure email is not null for new users
+      String email = user.email ?? 'N/A';
+
+      // Create a new document for the user with the uid (default values)
+      await DatabaseService(uid: user.uid).updateUserData(
+        userRole: UserRole.patient,
+        email: email,
+        lastName: 'N/A',
+        firstName: 'N/A',
+        middleName: 'N/A',
+        phoneNumber: 'N/A',
+        sex: 'Other',
+        birthMonth: 'January',
+        birthDay: '1',
+        birthYear: (DateTime.now().year).toString(),
+        address: 'N/A',
+      );
+      return _userFromFirebaseUser(user);
+    } catch (e) {
+      print("Google sign-in error: ${e.toString()}");
+      return null;
+    }
+  }
+
+
   // Sign out
   Future<void> signOut() async {
     try {
+      await GoogleSignIn().signOut();
       await _auth.signOut();
       print('User signed out');
     } catch (e) {
