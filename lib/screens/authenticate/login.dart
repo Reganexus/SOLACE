@@ -1,3 +1,4 @@
+import 'package:solace/screens/authenticate/forgot.dart';
 import 'package:solace/services/auth.dart';
 import 'package:flutter/material.dart';
 import 'package:solace/themes/colors.dart';
@@ -167,7 +168,14 @@ class _LogInState extends State<LogIn> {
                     ),
                     child: Center(
                       child: GestureDetector(
-                        onTap: () {},
+                        onTap: () {
+                          Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const Forgot(),
+                              ),
+                            );
+                        },
                         child: const Text(
                           'Forgot Password?',
                           style: TextStyle(
@@ -181,6 +189,15 @@ class _LogInState extends State<LogIn> {
                       ),
                     ),
                   ),
+                  if (error.isNotEmpty) ...[
+                    SizedBox(
+                      height: 20,
+                      child: Text(
+                        error,
+                        style: const TextStyle(color: Colors.red, fontSize: 14),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
