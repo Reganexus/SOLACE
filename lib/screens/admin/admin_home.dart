@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/admin/admin_dashboard.dart';
 import 'package:solace/screens/admin/admin_settings.dart';
-import 'package:solace/screens/admin/user_list.dart';
+import 'package:solace/screens/admin/admin_users.dart';
 import 'package:solace/services/auth.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/shared/widgets/bottom_navbar.dart';
@@ -19,12 +19,12 @@ class AdminHomeState extends State<AdminHome> {
   final AuthService _auth = AuthService();
 
   // Current selected index for the navigation bar
-  int _currentIndex = 0;
+  int _currentIndex = 1;
 
   // Screens for each tab in the bottom navigation
   final List<Widget> _screens = [
-    UserList(),
     AdminDashboard(),
+    AdminUsers(),
     AdminSettings(),
   ];
 

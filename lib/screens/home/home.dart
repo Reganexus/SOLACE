@@ -20,12 +20,8 @@ class Home extends StatelessWidget {
     final user = Provider.of<MyUser?>(context);
     if (user == null) {
       // If user is not logged in, show Authenticate screen
-      print('We out boys');
       return Authenticate();
     }
-
-    print('We in boys');
-
     // Use FutureBuilder to fetch the current user data from Firestore
     return FutureBuilder<DocumentSnapshot>(
       future: userCollection.doc(user.uid).get(),

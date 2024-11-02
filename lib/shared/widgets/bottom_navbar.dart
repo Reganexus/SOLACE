@@ -106,6 +106,16 @@ class BottomNavBar extends StatelessWidget {
               width: 30,
               height: 30,
             ),
+            label: 'Contacts',
+          ),
+          BottomNavigationBarItem(
+            icon: Image.asset(
+              currentIndex == 4
+                  ? 'lib/assets/images/user/profile_selected.png'
+                  : 'lib/assets/images/user/profile.png',
+              width: 30,
+              height: 30,
+            ),
             label: 'Profile',
           ),
         ];

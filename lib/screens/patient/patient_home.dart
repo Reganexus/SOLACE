@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:solace/screens/patient/patient_contacts.dart';
 import 'package:solace/screens/patient/patient_dashboard.dart';
 import 'package:solace/screens/patient/patient_history.dart';
 import 'package:solace/screens/patient/patient_profile.dart';
@@ -27,6 +28,7 @@ class PatientHomeState extends State<PatientHome> {
       ),
       PatientHistory(),
       PatientTracking(),
+      PatientContacts(),
       PatientProfile(),
     ];
   }
@@ -103,6 +105,7 @@ class PatientHomeState extends State<PatientHome> {
             : Text(
           _currentIndex == 1 ? 'History' :
           _currentIndex == 2 ? 'Tracking' :
+          _currentIndex == 3 ? 'Contacts' :
           'Profile',
           style: const TextStyle(
             fontSize: 24,

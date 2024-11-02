@@ -27,14 +27,18 @@ class _VerifyState extends State<Verify> {
   Future<void> reloadUser() async {
     final user = FirebaseAuth.instance.currentUser!;
     await user.reload();
-    if (user.emailVerified) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const Wrapper()),
-        (Route<dynamic> route) => false,
-      );
+    if(mounted){
+      if (user.emailVerified) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => Wrapper()),
+          (Route<dynamic> route) => false,
+        );
+      } else {
+        setState(() {}); // Trigger UI update if not verified yet
+      }
     } else {
-      setState(() {}); // Trigger UI update if not verified yet
+      print('Verify reload user not mounted');
     }
   }
 

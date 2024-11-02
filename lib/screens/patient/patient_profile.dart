@@ -12,15 +12,11 @@ class PatientProfile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<MyUser?>(context);
-    print('User Profile: $user'); // Check if userData is null or contains the expected data
-
     return Scaffold(
       backgroundColor: AppColors.white,
       body: StreamBuilder<UserData>(
         stream: DatabaseService(uid: user?.uid).userData,
         builder: (context, snapshot) {
-          print('Profile uid: ${user?.uid}');
-          print('Profile snapshot: ${snapshot}');
           if(snapshot.hasData) {
             UserData? userData = snapshot.data;
             return Container(

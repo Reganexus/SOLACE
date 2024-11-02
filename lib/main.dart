@@ -1,4 +1,3 @@
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/wrapper.dart';
@@ -9,7 +8,6 @@ import 'package:solace/services/auth.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  // await AuthService().signOut();
   
   runApp(const MyApp());
 }
