@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_print, duplicate_ignore
+// ignore_for_file: avoid_print, duplicate_ignore, use_build_context_synchronously
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -42,22 +42,23 @@ class PatientTrackingState extends State<PatientTracking> {
     final user = Provider.of<MyUser?>(context);
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: Container(
-        color: AppColors.white,
-        padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Title for Vitals Section
-            const Text(
-              'Vitals',
-              style: TextStyle(
-                fontSize: 24.0,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Outfit',
+      body: SingleChildScrollView( // Wrap the body in SingleChildScrollView
+        child: Container(
+          color: AppColors.white,
+          padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Title for Vitals Section
+              const Text(
+                'Vitals',
+                style: TextStyle(
+                  fontSize: 24.0,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Outfit',
+                ),
               ),
-            ),
-            const SizedBox(height: 20.0),
+              const SizedBox(height: 20.0),
 
             // Wrap for Vitals Buttons
             Center(
@@ -100,91 +101,87 @@ class PatientTrackingState extends State<PatientTracking> {
               ),
             ),
 
-            const SizedBox(height: 20.0),
+              const SizedBox(height: 20.0),
 
-            // Horizontal Line Separator
-            const Divider(thickness: 1.0),
+              // Horizontal Line Separator
+              const Divider(thickness: 1.0),
 
-            const SizedBox(height: 20.0),
+              const SizedBox(height: 20.0),
 
-            // Title for Pain Assessment Section
-            const Text(
-              'Pain Assessment',
-              style: TextStyle(
-                fontSize: 24.0,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Outfit',
-              ),
-            ),
-            const SizedBox(height: 10.0),
-
-            // Scrollable Container for Sliders
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    _buildPainSlider('Pain', AppColors.neon, _painValue,
-                            (value) => setState(() => _painValue = value)),
-                    _buildPainSlider(
-                        'Exhaustion',
-                        AppColors.neon,
-                        _exhaustionValue,
-                            (value) => setState(() => _exhaustionValue = value)),
-                    _buildPainSlider('Nausea', AppColors.neon, _nauseaValue,
-                            (value) => setState(() => _nauseaValue = value)),
-                    _buildPainSlider(
-                        'Depression',
-                        AppColors.blue,
-                        _depressionValue,
-                            (value) => setState(() => _depressionValue = value)),
-                    _buildPainSlider('Anxiety', AppColors.blue, _anxietyValue,
-                            (value) => setState(() => _anxietyValue = value)),
-                    _buildPainSlider(
-                        'Drowsiness',
-                        AppColors.blue,
-                        _drowsinessValue,
-                            (value) => setState(() => _drowsinessValue = value)),
-                    _buildPainSlider(
-                        'Appetite',
-                        AppColors.purple,
-                        _appetiteValue,
-                            (value) => setState(() => _appetiteValue = value)),
-                    _buildPainSlider(
-                        'Feeling of Well-being',
-                        AppColors.purple,
-                        _wellBeingValue,
-                            (value) => setState(() => _wellBeingValue = value)),
-                    _buildPainSlider(
-                        'Shortness of Breath',
-                        AppColors.purple,
-                        _shortnessOfBreathValue,
-                            (value) =>
-                            setState(() => _shortnessOfBreathValue = value)),
-
-                    // Submit button
-                    const SizedBox(height: 20.0),
-                    TextButton(
-                      onPressed: _submit,
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 50, vertical: 10),
-                        backgroundColor: AppColors.neon, // Set background color
-                      ),
-                      child: const Text(
-                        'Submit',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: AppColors.white, // Set button text color
-                        ),
-                      ),
-                    ),
-                  ],
+              // Title for Pain Assessment Section
+              const Text(
+                'Pain Assessment',
+                style: TextStyle(
+                  fontSize: 24.0,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Outfit',
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 10.0),
+
+              // Scrollable Container for Sliders
+              Column(
+                children: [
+                  _buildPainSlider('Pain', AppColors.neon, _painValue,
+                          (value) => setState(() => _painValue = value)),
+                  _buildPainSlider(
+                      'Exhaustion',
+                      AppColors.neon,
+                      _exhaustionValue,
+                          (value) => setState(() => _exhaustionValue = value)),
+                  _buildPainSlider('Nausea', AppColors.neon, _nauseaValue,
+                          (value) => setState(() => _nauseaValue = value)),
+                  _buildPainSlider(
+                      'Depression',
+                      AppColors.blue,
+                      _depressionValue,
+                          (value) => setState(() => _depressionValue = value)),
+                  _buildPainSlider('Anxiety', AppColors.blue, _anxietyValue,
+                          (value) => setState(() => _anxietyValue = value)),
+                  _buildPainSlider(
+                      'Drowsiness',
+                      AppColors.blue,
+                      _drowsinessValue,
+                          (value) => setState(() => _drowsinessValue = value)),
+                  _buildPainSlider(
+                      'Appetite',
+                      AppColors.purple,
+                      _appetiteValue,
+                          (value) => setState(() => _appetiteValue = value)),
+                  _buildPainSlider(
+                      'Feeling of Well-being',
+                      AppColors.purple,
+                      _wellBeingValue,
+                          (value) => setState(() => _wellBeingValue = value)),
+                  _buildPainSlider(
+                      'Shortness of Breath',
+                      AppColors.purple,
+                      _shortnessOfBreathValue,
+                          (value) => setState(() => _shortnessOfBreathValue = value)),
+
+                  // Submit button
+                  const SizedBox(height: 20.0),
+                  TextButton(
+                    onPressed: _submit,
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 50, vertical: 10),
+                      backgroundColor: AppColors.neon, // Set background color
+                    ),
+                    child: const Text(
+                      'Submit',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: AppColors.white, // Set button text color
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -199,8 +196,8 @@ class PatientTrackingState extends State<PatientTracking> {
         _showInputModal(context, title, uid);
       },
       child: SizedBox(
-        width: 90.0,
-        height: 90.0,
+        width: 100.0,
+        height: 100.0,
         child: Column(
           children: [
             Container(
@@ -212,7 +209,7 @@ class PatientTrackingState extends State<PatientTracking> {
               ),
               child: Padding(
                 padding:
-                const EdgeInsets.all(16.0), // Padding inside the container
+                const EdgeInsets.all(15.0), // Padding inside the container
                 child: Image.asset(iconPath),
               ),
             ),
@@ -221,7 +218,7 @@ class PatientTrackingState extends State<PatientTracking> {
               title,
               style: const TextStyle(
                 color: Colors.black,
-                fontSize: 12.0,
+                fontSize: 14.0,
                 fontWeight: FontWeight.normal,
                 fontFamily: 'Inter',
               ),
@@ -301,14 +298,13 @@ class PatientTrackingState extends State<PatientTracking> {
     );
   }
 
-
   // Function to show modal for input related to vitals measure
   void _showInputModal(BuildContext context, String title, String uid) {
     TextEditingController controller = TextEditingController();
 
     showDialog(
       context: context,
-      builder: (BuildContext context) {
+      builder: (context) {
         return AlertDialog(
           title: Text(title), // Keep this as it is
           content: Form(
@@ -356,13 +352,14 @@ class PatientTrackingState extends State<PatientTracking> {
                   Navigator.of(context).pop(); // Close the dialog
                 }
               },
-              child: const Text('Submit'),
+              child: const Text('Cancel'),
             ),
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop();
+                _vitalInputs[title] = controller.text; // Store input value
+                Navigator.pop(context); // Close the modal
               },
-              child: const Text('Cancel'),
+              child: const Text('Submit'),
             ),
           ],
         );
@@ -370,10 +367,9 @@ class PatientTrackingState extends State<PatientTracking> {
     );
   }
 
-  // Function to handle submit button
+  // Function to handle submission of pain assessment
   void _submit() {
-    // ignore: avoid_print
-    print('Pain Assessment:');
+    // Process and submit the values as needed
     print('Pain: $_painValue');
     print('Exhaustion: $_exhaustionValue');
     print('Nausea: $_nauseaValue');
@@ -381,15 +377,8 @@ class PatientTrackingState extends State<PatientTracking> {
     print('Anxiety: $_anxietyValue');
     print('Drowsiness: $_drowsinessValue');
     print('Appetite: $_appetiteValue');
-    print('Feeling of Well-being: $_wellBeingValue');
+    print('Well-being: $_wellBeingValue');
     print('Shortness of Breath: $_shortnessOfBreathValue');
-
-    // Print all vital inputs
-    print('Vital Inputs:');
-    _vitalInputs.forEach((key, value) {
-      print('$key: $value');
-    });
-
-    // Here, you can also add logic to send this data to your backend or other processing
+    print('Vital Inputs: $_vitalInputs');
   }
 }

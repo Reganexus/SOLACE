@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:solace/models/my_user.dart';
+import 'package:solace/services/database.dart';
 import 'package:solace/screens/patient/patient_contacts.dart';
 import 'package:solace/screens/patient/patient_dashboard.dart';
 import 'package:solace/screens/patient/patient_history.dart';
@@ -6,6 +9,7 @@ import 'package:solace/screens/patient/patient_profile.dart';
 import 'package:solace/screens/patient/patient_tracking.dart';
 import 'package:solace/shared/widgets/bottom_navbar.dart';
 import 'package:solace/themes/colors.dart';
+import 'package:solace/shared/widgets/show_qr.dart';
 
 class PatientHome extends StatefulWidget {
   const PatientHome({super.key});
@@ -15,7 +19,6 @@ class PatientHome extends StatefulWidget {
 }
 
 class PatientHomeState extends State<PatientHome> {
-
   int _currentIndex = 3;
   late final List<Widget> _screens;
 
@@ -45,23 +48,34 @@ class PatientHomeState extends State<PatientHome> {
     });
   }
 
-  Widget _buildLeftAppBar() {
-    return Row(
-      children: [
-        const CircleAvatar(
-          radius: 20.0,
-          backgroundImage: AssetImage('lib/assets/images/shared/placeholder.png'),
-        ),
-        const SizedBox(width: 10.0),
-        const Text(
-          'Hello, User!',
-          style: TextStyle(
-            fontSize: 18.0,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Inter',
-          ),
-        ),
-      ],
+  Widget _buildLeftAppBar(BuildContext context) {
+    final user = Provider.of<MyUser?>(context);
+    return StreamBuilder<UserData?>(
+      stream: DatabaseService(uid: user?.uid).userData,
+      builder: (context, snapshot) {
+        String firstName = '';
+        if (snapshot.hasData) {
+          firstName = snapshot.data?.firstName?.split(' ')[0] ?? 'User';
+        }
+        return Row(
+          children: [
+            const CircleAvatar(
+              radius: 20.0,
+              backgroundImage:
+                  AssetImage('lib/assets/images/shared/placeholder.png'),
+            ),
+            const SizedBox(width: 10.0),
+            Text(
+              'Hello, $firstName',
+              style: const TextStyle(
+                fontSize: 18.0,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Inter',
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -88,37 +102,66 @@ class PatientHomeState extends State<PatientHome> {
   }
 
   PreferredSizeWidget _buildAppBar() {
-    final appBar = AppBar(
-      backgroundColor: AppColors.white,
-      scrolledUnderElevation: 0.0,
-      elevation: 0.0,
-      title: Padding(
-        padding: const EdgeInsets.fromLTRB(15.0, 20.0, 15.0, 10.0),
-        child: _currentIndex == 0
-            ? Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _buildLeftAppBar(),
-            _buildRightAppBar(context),
-          ],
-        )
-            : Text(
-          _currentIndex == 1 ? 'History' :
-          _currentIndex == 2 ? 'Tracking' :
-          _currentIndex == 3 ? 'Contacts' :
-          'Profile',
-          style: const TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Inter',
-          ),
-        ),
-      ),
-    );
+    final user = Provider.of<MyUser?>(context);
 
     return PreferredSize(
       preferredSize: const Size.fromHeight(60.0),
-      child: appBar,
+      child: StreamBuilder<UserData?>(
+        stream: DatabaseService(uid: user?.uid).userData,
+        builder: (context, snapshot) {
+          String fullName = snapshot.hasData
+              ? '${snapshot.data?.firstName ?? 'User'} ${snapshot.data?.middleName ?? ''} ${snapshot.data?.lastName ?? 'User'}'
+              : 'User';
+
+          return AppBar(
+            backgroundColor: AppColors.white,
+            scrolledUnderElevation: 0.0,
+            elevation: 0.0,
+            title: Padding(
+              padding: const EdgeInsets.fromLTRB(15.0, 20.0, 15.0, 10.0),
+              child: _currentIndex == 0
+                  ? Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildLeftAppBar(context),
+                  _buildRightAppBar(context),
+                ],
+              )
+                  : _currentIndex == 3
+                  ? Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Profile',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Inter',
+                    ),
+                  ),
+                  IconButton(
+                    icon: Image.asset(
+                      'lib/assets/images/shared/profile/qr.png',
+                      height: 30,
+                    ),
+                    onPressed: () {
+                      _showQrModal(context, fullName, user?.uid ?? '');
+                    },
+                  ),
+                ],
+              )
+                  : Text(
+                _currentIndex == 1 ? 'History' : 'Tracking',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Inter',
+                ),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -177,6 +220,17 @@ class PatientHomeState extends State<PatientHome> {
       },
     );
   }
+
+  // Function to show QR modal
+  void _showQrModal(BuildContext context, String fullName, String uid) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ShowQrPage(fullName: fullName, uid: uid),
+      ),
+    );
+  }
+
 
   @override
   Widget build(BuildContext context) {

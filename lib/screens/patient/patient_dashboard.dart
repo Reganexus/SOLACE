@@ -41,6 +41,14 @@ class PatientDashboard extends StatelessWidget {
       'title': 'Schedule Appointment',
       'icon': 'lib/assets/images/shared/vitals/temperature.png'
     },
+    {
+      'title': 'Get Weight',
+      'icon': 'lib/assets/images/shared/vitals/weight.png'
+    },
+    {
+      'title': 'Check Temperature',
+      'icon': 'lib/assets/images/shared/vitals/temperature.png'
+    },
   ];
 
   @override
@@ -127,14 +135,17 @@ class PatientDashboard extends StatelessWidget {
                           // Call the method passed from UserHome to navigate to History
                           navigateToHistory();
                         },
-                        child: const Text(
-                          'See more about your status',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontWeight: FontWeight.normal,
-                            fontSize: 12.0,
-                            color: AppColors.black,
-                            decoration: TextDecoration.underline,
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          child: const Text(
+                            'See more about your status',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontWeight: FontWeight.normal,
+                              fontSize: 16.0,
+                              color: AppColors.black,
+                              decoration: TextDecoration.underline,
+                            ),
                           ),
                         ),
                       ),
@@ -156,7 +167,7 @@ class PatientDashboard extends StatelessWidget {
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
-                          vertical: 10.0, horizontal: 15.0),
+                          vertical: 15.0, horizontal: 15.0),
                       decoration: BoxDecoration(
                         color: AppColors.gray,
                         borderRadius: BorderRadius.circular(10.0),
@@ -167,8 +178,8 @@ class PatientDashboard extends StatelessWidget {
                           Row(
                             children: [
                               Container(
-                                width: 30,
-                                height: 30,
+                                width: 40,
+                                height: 40,
                                 decoration: BoxDecoration(
                                   border: Border.all(color: Colors.black),
                                   borderRadius: BorderRadius.circular(5.0),
@@ -179,7 +190,7 @@ class PatientDashboard extends StatelessWidget {
                                     '15',
                                     style: TextStyle(
                                       fontFamily: 'Inter',
-                                      fontSize: 12.0,
+                                      fontSize: 14.0,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -189,7 +200,7 @@ class PatientDashboard extends StatelessWidget {
                               const Text(
                                 'October',
                                 style: TextStyle(
-                                  fontSize: 16.0,
+                                  fontSize: 18.0,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -198,7 +209,7 @@ class PatientDashboard extends StatelessWidget {
                           const Text(
                             'Appointment',
                             style: TextStyle(
-                              fontSize: 16.0,
+                              fontSize: 18.0,
                               fontWeight: FontWeight.normal,
                             ),
                           ),
@@ -218,72 +229,55 @@ class PatientDashboard extends StatelessWidget {
                     ),
                     const SizedBox(height: 10.0),
 
-                    // Horizontal List of Tasks
-                    SizedBox(
-                      height: 150.0, // Set a height for the task list
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: tasks.length,
-                        itemBuilder: (context, index) {
-                          return GestureDetector(
-                            onTap: () {
-                              _showTaskModal(context, tasks[index]['title']!);
-                            },
-                            child: Card(
-                              margin: const EdgeInsets.only(right: 15.0),
-                              shape: RoundedRectangleBorder(
+                    // Vertical List of Tasks
+                    ListView.builder(
+                      padding: const EdgeInsets.only(bottom: 10.0),
+                      itemCount: tasks.length,
+                      shrinkWrap: true, // Allows ListView to be inside a SingleChildScrollView
+                      physics: const NeverScrollableScrollPhysics(), // Disable scrolling for the ListView
+                      itemBuilder: (context, index) {
+                        return GestureDetector(
+                          onTap: () {
+                            _showTaskModal(context, tasks[index]['title']!);
+                          },
+                          child: Card(
+                            margin: const EdgeInsets.only(
+                                bottom: 15.0), // Add bottom margin for gaps
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10.0),
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 20.0, horizontal: 15.0),
+                              decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(10.0),
+                                color: AppColors.purple,
                               ),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 20.0, horizontal: 15.0),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(10.0),
-                                  color: AppColors.purple,
-                                ),
-                                child: Stack(
-                                  children: [
-                                    Column(
-                                      mainAxisAlignment: MainAxisAlignment.end,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.end,
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(8.0),
-                                          child: Text(
-                                            tasks[index]['title']!,
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontFamily: 'Outfit',
-                                              fontSize: 16.0,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
+                              child: Row(
+                                children: [
+                                  Image.asset(
+                                    tasks[index]['icon']!,
+                                    height:
+                                    30, // Adjust icon height as needed
+                                  ),
+                                  const SizedBox(
+                                      width:
+                                      10.0), // Add gap between icon and text
+                                  Text(
+                                    tasks[index]['title']!,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontFamily: 'Outfit',
+                                      fontSize: 16.0,
+                                      fontWeight: FontWeight.bold,
                                     ),
-                                    Positioned(
-                                      right: 3,
-                                      top: 3,
-                                      child: Container(
-                                        padding: const EdgeInsets.all(5.0),
-                                        decoration: const BoxDecoration(
-                                          color: AppColors.blackTransparent,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Image.asset(
-                                          tasks[index]['icon']!,
-                                          height: 25,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),

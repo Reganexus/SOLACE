@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:solace/screens/authenticate/authenticate.dart';
 import 'package:solace/screens/authenticate/verify.dart';

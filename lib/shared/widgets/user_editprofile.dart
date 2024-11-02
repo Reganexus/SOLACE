@@ -26,41 +26,54 @@ class EditProfileScreen extends StatelessWidget {
         final userData = snapshot.data;
 
         return Scaffold(
+          backgroundColor: AppColors.white,
           appBar: AppBar(
             title: const Text('Edit Profile'),
             backgroundColor: AppColors.white,
             scrolledUnderElevation: 0.0,
           ),
-          body: UserDataForm(
-            isSignUp: false,
-            userData: userData,
-            onButtonPressed: ({
-              required String firstName,
-              required String lastName,
-              required String middleName,
-              required String phoneNumber,
-              required String sex,
-              required String birthMonth,
-              required String birthDay,
-              required String birthYear,
-              required String address,
-            }) {
-              DatabaseService(uid: user.uid).updateUserData(
-                firstName: firstName,
-                lastName: lastName,
-                middleName: middleName,
-                phoneNumber: phoneNumber,
-                sex: sex,
-                birthMonth: birthMonth,
-                birthDay: birthDay,
-                birthYear: birthYear,
-                address: address,
-              ).then((_) {
-                if (context.mounted) {
-                  Navigator.pop(context);
-                }
-              });
-            },
+          body: SingleChildScrollView(
+            child: Container(
+              color: AppColors.white,
+              padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
+              child: Column(
+                children: [
+                  UserDataForm(
+                    isSignUp: false,
+                    userData: userData,
+                    onButtonPressed: ({
+                      required String firstName,
+                      required String lastName,
+                      required String middleName,
+                      required String phoneNumber,
+                      required String sex,
+                      required String birthMonth,
+                      required String birthDay,
+                      required String birthYear,
+                      required String address,
+                    }) {
+                      DatabaseService(uid: user.uid)
+                          .updateUserData(
+                        firstName: firstName,
+                        lastName: lastName,
+                        middleName: middleName,
+                        phoneNumber: phoneNumber,
+                        sex: sex,
+                        birthMonth: birthMonth,
+                        birthDay: birthDay,
+                        birthYear: birthYear,
+                        address: address,
+                      )
+                          .then((_) {
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                        }
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
           ),
         );
       },

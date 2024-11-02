@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:solace/services/auth.dart';
 import 'package:solace/themes/colors.dart';
@@ -217,7 +218,16 @@ class _SignUpState extends State<SignUp> {
                     child: TextButton(
                       onPressed: () async {
                         if (_formKey.currentState!.validate() && _agreeToTerms) {
-                          // Use _auth to register the user
+                          // Check if the email already exists
+                          bool emailExists = await _auth.emailExists(_email);
+                          if (emailExists) {
+                            setState(() {
+                              error = "An account with this email already exists. Please log in.";
+                            });
+                            return; // Stop further execution
+                          }
+
+                          // Proceed with email/password signup
                           var result = await _auth.signUpWithEmailAndPassword(
                             _email,
                             _password,
@@ -234,12 +244,9 @@ class _SignUpState extends State<SignUp> {
                         }
                       },
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 50, vertical: 15),
+                        padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
                         backgroundColor: AppColors.neon,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                       child: const Text(
                         'Sign up',
@@ -252,6 +259,7 @@ class _SignUpState extends State<SignUp> {
                       ),
                     ),
                   ),
+
                   const SizedBox(height: 20),
 
                   const Row(
@@ -279,12 +287,31 @@ class _SignUpState extends State<SignUp> {
                   SizedBox(
                     width: double.infinity,
                     child: TextButton(
-                      onPressed: () {
-                        _auth.signInWithGoogle();
-                      },
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 50, vertical: 15),
+                        onPressed: () async {
+                          // Sign up with Google
+                          UserCredential? userCredential = await _auth.signInWithGoogle();
+
+                          if (userCredential != null) {
+                            String email = userCredential.user?.email ?? '';
+
+                            // Check if email already exists in Firestore
+                            bool emailExists = await _auth.emailExists(email);
+                            if (emailExists) {
+                              setState(() {
+                                error = "An account with this email already exists. Please log in.";
+                              });
+                              return; // Stop further execution
+                            }
+
+                            // Proceed with Google sign-up if email does not exist
+                          } else {
+                            setState(() {
+                              error = "Google Sign-Up failed. Please try again.";
+                            });
+                          }
+                        },
+                        style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
                         backgroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -310,6 +337,7 @@ class _SignUpState extends State<SignUp> {
                       ),
                     ),
                   ),
+
                   const SizedBox(height: 10),
                   Center(
                     child: GestureDetector(

@@ -92,7 +92,7 @@ class PatientHistoryState extends State<PatientHistory> {
                 fontWeight: _selectedTimeFrame == title
                     ? FontWeight.bold
                     : FontWeight.normal,
-                fontSize: 14.0,
+                fontSize: 16.0,
                 fontFamily: 'Inter',
               ),
             ),

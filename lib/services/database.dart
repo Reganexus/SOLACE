@@ -1,16 +1,29 @@
 // ignore_for_file: avoid_print
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import 'package:solace/models/my_user.dart';
 
 class DatabaseService {
-
   final String? uid;
+
   DatabaseService({this.uid});
 
-  // collection reference
+  // Collection reference
   final CollectionReference userCollection =
-      FirebaseFirestore.instance.collection('users');
+  FirebaseFirestore.instance.collection('users');
+
+  // Stream to get all patients
+  Stream<List<UserData>> get patients {
+    return userCollection
+        .where('userRole', isEqualTo: 'patient')
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) {
+      // Attach document ID to UserData
+      final userData = UserData.fromDocument(doc);
+      return userData;
+    }).toList());
+  }
 
   // Update user data in Firestore
   Future<void> updateUserData({
@@ -28,7 +41,7 @@ class DatabaseService {
   }) async {
     Map<String, dynamic> updatedData = {};
     if (userRole != null) {
-      updatedData['userRole'] = userRole.toString().split('.').last;  // Saves enum as a string
+      updatedData['userRole'] = userRole.toString().split('.').last;
     }
     if (email != null) updatedData['email'] = email;
     if (lastName != null) updatedData['lastName'] = lastName;
@@ -46,32 +59,44 @@ class DatabaseService {
     }
   }
 
+  // Fetch user data by email
+  Future<UserData?> getUserDataByEmail(String email) async {
+    try {
+      QuerySnapshot querySnapshot = await userCollection
+          .where('email', isEqualTo: email)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        return UserData.fromDocument(querySnapshot.docs.first);
+      }
+      return null;
+    } catch (e) {
+      print("Error fetching user data by email: ${e.toString()}");
+      return null;
+    }
+  }
+
   // Method to add a vital record
   Future<void> addVitalRecord(String vital, double inputRecord) async {
-    // Check if uid is not null
     if (uid != null) {
       print('To add vital inside: $uid');
-      // Create a new record document under the 'heart_rate' subcollection
       DocumentReference docRef = userCollection
-          .doc(uid) // Reference to the specific user
-          .collection('vitals') // Accessing the vitals subcollection
-          .doc(vital); // Document for the vital
+          .doc(uid)
+          .collection('vitals')
+          .doc(vital);
 
-      // Get a reference to the 'records' subcollection within the vital
       CollectionReference recordsRef = docRef.collection('records');
 
-      // Create a new record with a timestamp and value
       await recordsRef.add({
-        'timestamp': FieldValue.serverTimestamp(), // Automatically set to server time
+        'timestamp': FieldValue.serverTimestamp(),
         'value': inputRecord,
       });
 
       print('Added vital: $uid');
     } else {
-      //throw Exception("User ID is null. Cannot add heart rate record.");
       print('User ID is null. Cannot add vital record.');
     }
-    print('Add vital: $vital $inputRecord');  // print for now, problems with permission
+    print('Add vital: $vital $inputRecord');
   }
 
   // Fetch user data from Firestore
@@ -79,7 +104,7 @@ class DatabaseService {
     try {
       DocumentSnapshot snapshot = await userCollection.doc(uid).get();
       if (snapshot.exists) {
-        return _userDataFromSnapshot(snapshot);
+        return UserData.fromDocument(snapshot);
       } else {
         return null;
       }
@@ -89,51 +114,68 @@ class DatabaseService {
     }
   }
 
-  // Convert DocumentSnapshot to UserData
-  UserData _userDataFromSnapshot(DocumentSnapshot snapshot) {
-    print('_userDataFromSnapshot: $snapshot');
-    return UserData(
-      userRole: UserData.getUserRoleFromString(snapshot['userRole']),
-      email: snapshot['email'],
-      lastName: snapshot['lastName'],
-      firstName: snapshot['firstName'],
-      middleName: snapshot['middleName'],
-      phoneNumber: snapshot['phoneNumber'],
-      sex: snapshot['sex'],
-      birthMonth: snapshot['birthMonth'],
-      birthDay: snapshot['birthDay'],
-      birthYear: snapshot['birthYear'],
-      address: snapshot['address'],
-    );
-  }
-
   // Stream of user list data
   Stream<List<UserData>> get users {
-    return userCollection.snapshots().map(_userListFromSnapshot);
+    return userCollection.snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) => UserData.fromDocument(doc)).toList();
+    });
   }
 
   // Stream to get user data
-  Stream<UserData>? get userData {
+  Stream<UserData?>? get userData {
     print('Get userdata: $uid');
-    return userCollection.doc(uid).snapshots().map(_userDataFromSnapshot);
+    return userCollection.doc(uid).snapshots().map((snapshot) {
+      if (snapshot.exists) {
+        return UserData.fromDocument(snapshot);
+      } else {
+        return null;
+      }
+    });
   }
 
-  // Convert QuerySnapshot to List<UserData>
-  List<UserData> _userListFromSnapshot(QuerySnapshot snapshot) {
-    return snapshot.docs.map((doc){
-      return UserData(
-        userRole: UserData.getUserRoleFromString(doc.get('userRole')),
-        email: doc.get('email') ?? 'none',
-        lastName: doc.get('lastName') ?? 'none',
-        firstName: doc.get('firstName') ?? 'none',
-        middleName: doc.get('middleName') ?? 'none',
-        phoneNumber: doc.get('phoneNumber') ?? 'none',
-        sex: doc.get('sex') ?? 'none',
-        birthMonth: doc.get('birthMonth') ?? 'none',
-        birthDay: doc.get('birthDay') ?? 'none',
-        birthYear: doc.get('birthYear') ?? 'none',
-        address: doc.get('address') ?? 'none',
-      );
-    }).toList();
+  Future<void> saveScheduleForCaregiver(String caregiverId, DateTime scheduledDateTime, String patientId) async {
+    // Convert DateTime to Timestamp for Firestore
+    final Timestamp timestamp = Timestamp.fromDate(scheduledDateTime);
+
+    await FirebaseFirestore.instance.collection('users').doc(caregiverId).update({
+      'schedule': FieldValue.arrayUnion([
+        {
+          'date': timestamp,
+          'time': DateFormat.jm().format(scheduledDateTime), // Format time for display
+          'patientId': patientId,
+        }
+      ]),
+    });
+  }
+
+  Future<void> saveScheduleForPatient(String patientId, DateTime scheduledDateTime, String caregiverId) async {
+    // Convert DateTime to Timestamp for Firestore
+    final Timestamp timestamp = Timestamp.fromDate(scheduledDateTime);
+
+    await FirebaseFirestore.instance.collection('users').doc(patientId).update({
+      'schedule': FieldValue.arrayUnion([
+        {
+          'date': timestamp,
+          'time': DateFormat.jm().format(scheduledDateTime), // Format time for display
+          'caregiverId': caregiverId,
+        }
+      ]),
+    });
+  }
+
+
+  // Fetch the schedule for a user
+  Future<List<Map<String, dynamic>>> getScheduleForUser(String userId) async {
+    try {
+      DocumentSnapshot snapshot = await userCollection.doc(userId).get();
+      if (snapshot.exists) {
+        return List<Map<String, dynamic>>.from(snapshot.get('schedule') ?? []);
+      } else {
+        return [];
+      }
+    } catch (e) {
+      print('Error fetching schedule: $e');
+      return [];
+    }
   }
 }

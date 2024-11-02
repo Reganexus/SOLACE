@@ -1,47 +1,170 @@
+// ignore_for_file: avoid_print, use_build_context_synchronously
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:solace/services/database.dart';
 import 'package:solace/themes/colors.dart';
+import 'package:accordion/accordion.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:solace/models/my_user.dart';
 
-class UserDashboard extends StatelessWidget {
-  final VoidCallback navigateToHistory;
+class CaregiverDashboard extends StatefulWidget {
+  const CaregiverDashboard({super.key});
 
-  UserDashboard({super.key, required this.navigateToHistory});
+  @override
+  CaregiverDashboardState createState() => CaregiverDashboardState();
+}
 
-  // Function to show modal
-  void _showTaskModal(BuildContext context, String task) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(task),
-          content: Text('Details about $task.'),
-          actions: [
-            TextButton(
-              child: const Text('Close'),
-              onPressed: () {
-                Navigator.of(context).pop(); // Close the modal
-              },
-            ),
-          ],
-        );
-      },
+class CaregiverDashboardState extends State<CaregiverDashboard> {
+  final ValueNotifier<int?> _openSectionIndex = ValueNotifier<int?>(null);
+  final ScrollController _scrollController = ScrollController();
+  final String caregiverId = FirebaseAuth.instance.currentUser?.uid ?? '';
+
+  late final DatabaseService _databaseService;
+
+  @override
+  void initState() {
+    super.initState();
+    _databaseService = DatabaseService();
+  }
+
+  @override
+  void dispose() {
+    _openSectionIndex.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _handleOpenSection(int index) {
+    _openSectionIndex.value = index;
+    _scrollToSection(index);
+  }
+
+  void _handleCloseSection() {
+    _openSectionIndex.value = null;
+  }
+
+  static const headerStyle = TextStyle(
+    color: Colors.black,
+    fontSize: 16,
+    fontFamily: 'Inter',
+    fontWeight: FontWeight.bold,
+  );
+
+  static const contentStyle = TextStyle(
+    color: Colors.black,
+    fontSize: 16,
+    fontWeight: FontWeight.normal,
+    fontFamily: 'Inter',
+  );
+
+  void _scrollToSection(int index) {
+    double sectionHeight = 100.0;
+    double headerHeight = 80.0;
+
+    double targetOffset = headerHeight + (index * sectionHeight);
+
+    _scrollController.animateTo(
+      targetOffset - (MediaQuery.of(context).size.height / 3),
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeInOut,
     );
   }
 
-  // Sample task data
-  final List<Map<String, String>> tasks = [
-    {
-      'title': 'Take Medication',
-      'icon': 'lib/assets/images/shared/vitals/heart_rate.png'
-    },
-    {
-      'title': 'Check Blood Pressure',
-      'icon': 'lib/assets/images/shared/vitals/blood_pressure.png'
-    },
-    {
-      'title': 'Schedule Appointment',
-      'icon': 'lib/assets/images/shared/vitals/temperature.png'
-    },
-  ];
+  Future<void> _makeCall(String phoneNumber) async {
+    final Uri launchUri = Uri(
+      scheme: 'tel',
+      path: phoneNumber,
+    );
+
+    var status = await Permission.phone.status;
+    if (status.isDenied) {
+      await Permission.phone.request();
+      status = await Permission.phone.status;
+    }
+
+    if (status.isGranted) {
+      if (await canLaunchUrl(launchUri)) {
+        await launchUrl(launchUri);
+      } else {
+        print('Could not launch $launchUri');
+      }
+    } else {
+      print('Permission denied to make calls.');
+    }
+  }
+
+  Future<void> _scheduleAppointment(String caregiverId, String patientId) async {
+    final DateTime today = DateTime.now();
+    final DateTime? selectedDate = await showDatePicker(
+      context: context,
+      initialDate: today,
+      firstDate: today,
+      lastDate: DateTime(today.year, today.month + 3),
+    );
+
+    if (selectedDate != null) {
+      final TimeOfDay? selectedTime = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.now(),
+      );
+
+      if (selectedTime != null) {
+        // Combine the date and time into a single DateTime object
+        final DateTime scheduledDateTime = DateTime(
+          selectedDate.year,
+          selectedDate.month,
+          selectedDate.day,
+          selectedTime.hour,
+          selectedTime.minute,
+        );
+
+        try {
+          // Save both the date and time to Firestore
+          await _databaseService.saveScheduleForCaregiver(caregiverId, scheduledDateTime, patientId);
+          await _databaseService.saveScheduleForPatient(patientId, scheduledDateTime, caregiverId);
+          print("Schedule saved for both caregiver and patient.");
+        } catch (e) {
+          print("Failed to save schedule: $e");
+        }
+      } else {
+        print("No time selected.");
+      }
+    } else {
+      print("No date selected.");
+    }
+  }
+
+
+  Widget _buildActionButton(String label, String iconPath, Color bgColor, VoidCallback onPressed) {
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 0.0, vertical: 0.0),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(5.0),
+      ),
+      child: TextButton(
+        onPressed: onPressed,
+        child: Row(
+          children: [
+            Image.asset(iconPath, height: 20, width: 20),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,240 +176,146 @@ class UserDashboard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Wrap this section in a SingleChildScrollView
             Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Status Group Title
-                    const Text(
-                      'Status',
-                      style: TextStyle(
-                        fontSize: 24.0,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Outfit',
-                      ),
-                    ),
-                    const SizedBox(height: 10.0),
+              child: StreamBuilder<List<UserData?>>(
+                stream: _databaseService.patients,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(child: Text("Error loading patients: ${snapshot.error}"));
+                  }
 
-                    // Status Card
-                    Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: AppColors.neon,
-                        borderRadius: BorderRadius.circular(10.0),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                vertical: 30.0, horizontal: 15.0),
-                            color: Colors.transparent,
-                            child: const Text(
-                              'Good',
-                              style: TextStyle(
-                                fontSize: 50.0,
-                                fontFamily: 'Outfit',
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                              textAlign: TextAlign.left,
-                            ),
-                          ),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(12.0),
-                            decoration: const BoxDecoration(
-                              color: AppColors.blackTransparent,
-                              borderRadius: BorderRadius.only(
-                                  bottomLeft: Radius.circular(10.0),
-                                  bottomRight: Radius.circular(10.0)),
-                            ),
-                            child: const Text(
-                              'ⓘ No symptoms detected. Keep up the good work!',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12.0,
-                                color: Colors.white,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 10.0),
+                  final patients = snapshot.data ?? [];
 
-                    // Clickable Link to History
-                    Center(
-                      child: GestureDetector(
-                        onTap: () {
-                          // Call the method passed from UserHome to navigate to History
-                          navigateToHistory();
-                        },
-                        child: const Text(
-                          'See more about your status',
+                  return SingleChildScrollView(
+                    controller: _scrollController,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Priority Patients',
                           style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontWeight: FontWeight.normal,
-                            fontSize: 12.0,
-                            color: AppColors.black,
-                            decoration: TextDecoration.underline,
+                            fontSize: 24.0,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Outfit',
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 30.0),
-
-                    // Schedule Section
-                    const Text(
-                      'Schedule',
-                      style: TextStyle(
-                        fontSize: 24.0,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Outfit',
-                      ),
-                    ),
-                    const SizedBox(height: 10.0),
-
-                    // Schedule Container
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 10.0, horizontal: 15.0),
-                      decoration: BoxDecoration(
-                        color: AppColors.gray,
-                        borderRadius: BorderRadius.circular(10.0),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                width: 30,
-                                height: 30,
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.black),
-                                  borderRadius: BorderRadius.circular(5.0),
+                        const SizedBox(height: 20.0),
+                        Accordion(
+                          scaleWhenAnimating: false,
+                          paddingListHorizontal: 0.0,
+                          paddingListTop: 0.0,
+                          paddingListBottom: 0.0,
+                          maxOpenSections: 1,
+                          headerBackgroundColor: AppColors.gray,
+                          headerBackgroundColorOpened: AppColors.neon,
+                          contentBackgroundColor: AppColors.gray,
+                          contentBorderColor: AppColors.gray,
+                          contentHorizontalPadding: 20,
+                          contentVerticalPadding: 10,
+                          headerPadding: const EdgeInsets.symmetric(
+                              vertical: 7, horizontal: 15),
+                          children: patients.map((patient) {
+                            return AccordionSection(
+                              onOpenSection: () => _handleOpenSection(patients.indexOf(patient)),
+                              onCloseSection: _handleCloseSection,
+                              headerBackgroundColor: AppColors.gray,
+                              headerBackgroundColorOpened: AppColors.neon,
+                              contentBackgroundColor: AppColors.gray,
+                              contentBorderColor: AppColors.gray,
+                              contentHorizontalPadding: 20,
+                              contentVerticalPadding: 10,
+                              headerPadding: const EdgeInsets.symmetric(
+                                  vertical: 10, horizontal: 15),
+                              leftIcon: CircleAvatar(
+                                backgroundImage: AssetImage(
+                                    'lib/assets/images/shared/placeholder.png'), // Default placeholder
+                                radius: 18.0,
+                              ),
+                              rightIcon: ValueListenableBuilder<int?>(
+                                // Updated
+                                valueListenable: _openSectionIndex,
+                                builder: (context, value, child) {
+                                  return Icon(
+                                    Icons.keyboard_arrow_down,
+                                    color: value == patients.indexOf(patient)
+                                        ? AppColors.white
+                                        : AppColors.black,
+                                    size: 20,
+                                  );
+                                },
+                              ),
+                              isOpen: _openSectionIndex.value == patients.indexOf(patient),
+                              header: Padding(
+                                padding:
+                                const EdgeInsets.symmetric(vertical: 10.0),
+                                child: ValueListenableBuilder<int?>(
+                                  valueListenable: _openSectionIndex,
+                                  builder: (context, value, child) {
+                                    return Text(
+                                      '${patient!.firstName!} ${patient.lastName!}',
+                                      style: headerStyle.copyWith(
+                                        color:
+                                        value == patients.indexOf(patient)
+                                            ? AppColors.white
+                                            : AppColors.black,
+                                        fontSize: 18.0,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.normal,
+                                      ),
+                                    );
+                                  },
                                 ),
-                                padding: const EdgeInsets.all(5.0),
-                                child: const Center(
-                                  child: Text(
-                                    '15',
+                              ),
+                              content: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Identified Conditions',
                                     style: TextStyle(
-                                      fontFamily: 'Inter',
-                                      fontSize: 12.0,
+                                      fontSize: 16.0,
                                       fontWeight: FontWeight.bold,
+                                      fontFamily: 'Inter',
                                     ),
                                   ),
-                                ),
-                              ),
-                              const SizedBox(width: 10.0),
-                              const Text(
-                                'October',
-                                style: TextStyle(
-                                  fontSize: 16.0,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const Text(
-                            'Appointment',
-                            style: TextStyle(
-                              fontSize: 16.0,
-                              fontWeight: FontWeight.normal,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 30.0),
-
-                    // Tasks Section
-                    const Text(
-                      'Tasks',
-                      style: TextStyle(
-                        fontSize: 24.0,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Outfit',
-                      ),
-                    ),
-                    const SizedBox(height: 10.0),
-
-                    // Horizontal List of Tasks
-                    SizedBox(
-                      height: 150.0, // Set a height for the task list
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: tasks.length,
-                        itemBuilder: (context, index) {
-                          return GestureDetector(
-                            onTap: () {
-                              _showTaskModal(context, tasks[index]['title']!);
-                            },
-                            child: Card(
-                              margin: const EdgeInsets.only(right: 15.0),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10.0),
-                              ),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 20.0, horizontal: 15.0),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(10.0),
-                                  color: AppColors.purple,
-                                ),
-                                child: Stack(
-                                  children: [
-                                    Column(
-                                      mainAxisAlignment: MainAxisAlignment.end,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.end,
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(8.0),
-                                          child: Text(
-                                            tasks[index]['title']!,
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontFamily: 'Outfit',
-                                              fontSize: 16.0,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    Positioned(
-                                      right: 3,
-                                      top: 3,
-                                      child: Container(
-                                        padding: const EdgeInsets.all(5.0),
-                                        decoration: const BoxDecoration(
-                                          color: AppColors.blackTransparent,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Image.asset(
-                                          tasks[index]['icon']!,
-                                          height: 25,
-                                        ),
+                                  const SizedBox(height: 10.0),
+                                  // Provide a default message if conditions are not available
+                                  Text("No identified conditions available",
+                                      style: contentStyle),
+                                  const SizedBox(
+                                      height: 20.0), // Space before buttons
+                                  Row(
+                                    mainAxisAlignment:
+                                    MainAxisAlignment.start,
+                                    children: [
+                                      // When calling _scheduleAppointment, use patient.uid
+                                      _buildActionButton(
+                                        'Schedule',
+                                        'lib/assets/images/shared/functions/schedule.png',
+                                        AppColors.darkblue,
+                                            () => _scheduleAppointment(caregiverId, patient!.uid),
                                       ),
-                                    ),
-                                  ],
-                                ),
+
+                                      const SizedBox(width: 10),
+                                      _buildActionButton(
+                                        'Call',
+                                        'lib/assets/images/shared/functions/call.png',
+                                        AppColors.red,
+                                            () => _makeCall(patient!.phoneNumber!), // Use the actual phone number
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
-                            ),
-                          );
-                        },
-                      ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  );
+                },
               ),
             ),
           ],

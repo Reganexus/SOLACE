@@ -46,24 +46,44 @@ class BottomNavBar extends StatelessWidget {
       case 'Caregiver':
         return [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home),
+            icon: Image.asset(
+              currentIndex == 0
+                  ? 'lib/assets/images/caregiver/home_selected.png'
+                  : 'lib/assets/images/caregiver/home.png',
+              width: 30,
+              height: 30,
+            ),
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.history),
-            label: 'History',
+            icon: Image.asset(
+              currentIndex == 1
+                  ? 'lib/assets/images/caregiver/patients_selected.png'
+                  : 'lib/assets/images/caregiver/patients.png',
+              width: 30,
+              height: 30,
+            ),
+            label: 'Patients',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.monitor_heart_rounded),
+            icon: Image.asset(
+              currentIndex == 2
+                  ? 'lib/assets/images/user/tracking_selected.png'
+                  : 'lib/assets/images/user/tracking.png',
+              width: 30,
+              height: 30,
+            ),
             label: 'Tracking',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person),
+            icon: Image.asset(
+              currentIndex == 3
+                  ? 'lib/assets/images/user/profile_selected.png'
+                  : 'lib/assets/images/user/profile.png',
+              width: 30,
+              height: 30,
+            ),
             label: 'Profile',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.schedule),
-            label: 'Schedule', // Example caregiver-specific item
           ),
         ];
       default: // Patient by default

@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:solace/screens/authenticate/forgot.dart';
 import 'package:solace/services/auth.dart';
 import 'package:flutter/material.dart';
@@ -13,7 +14,6 @@ class LogIn extends StatefulWidget {
 }
 
 class _LogInState extends State<LogIn> {
-
   final AuthService _auth = AuthService();
   final _formKey = GlobalKey<FormState>();
 
@@ -36,12 +36,18 @@ class _LogInState extends State<LogIn> {
       _autoLogin();
     }
 
+    // Listener for email focus
     _emailFocusNode.addListener(() {
-      setState(() {});
+      if (mounted) {
+        setState(() {});
+      }
     });
 
+    // Listener for password focus
     _passwordFocusNode.addListener(() {
-      setState(() {});
+      if (mounted) {
+        setState(() {});
+      }
     });
   }
 
@@ -50,14 +56,16 @@ class _LogInState extends State<LogIn> {
     String testPassword = 'test123';
 
     dynamic result = await _auth.logInWithEmailAndPassword(testEmail, testPassword);
-    if (result == null) {
+    if (result == null && mounted) {
       setState(() => error = 'Auto login failed');
     }
-
   }
 
   @override
   void dispose() {
+    // Dispose of focus nodes
+    _emailFocusNode.removeListener(() {}); // Removing the listener to avoid calling setState after dispose
+    _passwordFocusNode.removeListener(() {}); // Removing the listener to avoid calling setState after dispose
     _emailFocusNode.dispose();
     _passwordFocusNode.dispose();
     _emailController.dispose();
@@ -102,7 +110,7 @@ class _LogInState extends State<LogIn> {
         padding: const EdgeInsets.symmetric(horizontal: 30),
         child: ConstrainedBox(
           constraints: BoxConstraints(
-            minHeight: screenHeight, // Set min height based on device height
+            minHeight: screenHeight,
           ),
           child: Center(
             child: Form(
@@ -125,14 +133,15 @@ class _LogInState extends State<LogIn> {
                     ),
                   ),
                   const SizedBox(height: 40),
-
                   TextFormField(
                     controller: _emailController,
                     focusNode: _emailFocusNode,
                     decoration: _inputDecoration('Email', _emailFocusNode),
                     validator: (val) => val!.isEmpty ? "Enter an email" : null,
                     onChanged: (val) {
-                      setState(() => email = val);
+                      if (mounted) {
+                        setState(() => email = val);
+                      }
                     },
                   ),
                   const SizedBox(height: 20),
@@ -147,34 +156,31 @@ class _LogInState extends State<LogIn> {
                           color: _passwordFocusNode.hasFocus ? AppColors.neon : AppColors.black,
                         ),
                         onPressed: () {
-                          setState(() {
-                            _isPasswordVisible = !_isPasswordVisible;
-                          });
+                          if (mounted) {
+                            setState(() {
+                              _isPasswordVisible = !_isPasswordVisible;
+                            });
+                          }
                         },
                       ),
                     ),
-                    validator: (val) => val!.length < 6
-                        ? "Enter a password 6+ chars long"
-                        : null,
+                    validator: (val) => val!.length < 6 ? "Enter a password 6+ chars long" : null,
                     onChanged: (val) {
-                      setState(() => password = val);
+                      if (mounted) {
+                        setState(() => password = val);
+                      }
                     },
                   ),
                   const SizedBox(height: 20),
-
                   Container(
-                    constraints: BoxConstraints(
-                      minHeight: 50, // Set a minimum height
-                    ),
+                    constraints: BoxConstraints(minHeight: 50),
                     child: Center(
                       child: GestureDetector(
                         onTap: () {
                           Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const Forgot(),
-                              ),
-                            );
+                            context,
+                            MaterialPageRoute(builder: (context) => const Forgot()),
+                          );
                         },
                         child: const Text(
                           'Forgot Password?',
@@ -189,7 +195,7 @@ class _LogInState extends State<LogIn> {
                       ),
                     ),
                   ),
-                  if (error.isNotEmpty) ...[
+                  if (error.isNotEmpty)
                     SizedBox(
                       height: 20,
                       child: Text(
@@ -197,28 +203,22 @@ class _LogInState extends State<LogIn> {
                         style: const TextStyle(color: Colors.red, fontSize: 14),
                       ),
                     ),
-                  ],
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
                     child: TextButton(
                       onPressed: () async {
                         if (_formKey.currentState!.validate()) {
-                          dynamic result = await _auth.logInWithEmailAndPassword(
-                              email, password);
-                          if (result == null) {
-                            setState(() => error =
-                            'Could not log in with those credentials');
+                          dynamic result = await _auth.logInWithEmailAndPassword(email, password);
+                          if (result == null && mounted) {
+                            setState(() => error = 'Could not log in with those credentials');
                           }
                         }
                       },
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 50, vertical: 15),
+                        padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
                         backgroundColor: AppColors.neon,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                       child: const Text(
                         'Login',
@@ -232,38 +232,47 @@ class _LogInState extends State<LogIn> {
                     ),
                   ),
                   const SizedBox(height: 20),
-
                   const Row(
                     children: <Widget>[
                       Expanded(
-                        child: Divider(
-                          thickness: 1,
-                          color: Colors.grey,
-                        ),
+                        child: Divider(thickness: 1, color: Colors.grey),
                       ),
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 10),
                         child: Text("or"),
                       ),
                       Expanded(
-                        child: Divider(
-                          thickness: 1,
-                          color: Colors.grey,
-                        ),
+                        child: Divider(thickness: 1, color: Colors.grey),
                       ),
                     ],
                   ),
                   const SizedBox(height: 20),
-
                   SizedBox(
                     width: double.infinity,
                     child: TextButton(
-                      onPressed: () {
-                        _auth.signInWithGoogle();
+                      onPressed: () async {
+                        UserCredential? userCredential = await _auth.signInWithGoogle();
+                        if (userCredential == null) {
+                          if (mounted) {
+                            setState(() {
+                              error = "Google sign-in failed. Please try again.";
+                            });
+                          }
+                          return;
+                        }
+
+                        String email = userCredential.user?.email ?? '';
+                        bool emailExists = await _auth.emailExists(email);
+
+                        if (!emailExists && mounted) {
+                          setState(() {
+                            error = "No account found for this email. Please sign up first.";
+                          });
+                          return;
+                        }
                       },
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 50, vertical: 15),
+                        padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
                         backgroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -296,7 +305,7 @@ class _LogInState extends State<LogIn> {
                         widget.toggleView();
                       },
                       child: Container(
-                        padding: const EdgeInsets.all(10), // Increase the tap area
+                        padding: const EdgeInsets.all(10),
                         child: const Text(
                           "I don't have an account yet",
                           style: TextStyle(

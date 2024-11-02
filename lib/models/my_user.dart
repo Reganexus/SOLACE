@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 enum UserRole { admin, patient, family, caregiver, doctor }
 
 class MyUser {
@@ -7,6 +9,7 @@ class MyUser {
 }
 
 class UserData {
+  final String uid; // Added the uid field
   final UserRole userRole;
   final String? email;
   final String? lastName;
@@ -20,6 +23,7 @@ class UserData {
   final String? address;
 
   UserData({
+    required this.uid, // Add uid here
     required this.userRole,
     required this.email,
     this.lastName,
@@ -33,9 +37,27 @@ class UserData {
     this.address,
   });
 
+  // Factory method to create UserData from a Firestore document
+  factory UserData.fromDocument(DocumentSnapshot snapshot) {
+    return UserData(
+      uid: snapshot.id, // Fetch uid from Firestore document ID
+      userRole: UserData.getUserRoleFromString(snapshot['userRole']),
+      email: snapshot['email'],
+      lastName: snapshot['lastName'],
+      firstName: snapshot['firstName'],
+      middleName: snapshot['middleName'],
+      phoneNumber: snapshot['phoneNumber'],
+      sex: snapshot['sex'],
+      birthMonth: snapshot['birthMonth'],
+      birthDay: snapshot['birthDay'],
+      birthYear: snapshot['birthYear'],
+      address: snapshot['address'],
+    );
+  }
+
   @override
   String toString() {
-    return 'UserData{userRole: $userRole, email: $email, lastName: $lastName, firstName: $firstName, middleName: $middleName, phoneNumber: $phoneNumber, sex: $sex, birthMonth: $birthMonth, birthDay: $birthDay, birthYear: $birthYear, address: $address}';
+    return 'UserData{uid: $uid, userRole: $userRole, email: $email, lastName: $lastName, firstName: $firstName, middleName: $middleName, phoneNumber: $phoneNumber, sex: $sex, birthMonth: $birthMonth, birthDay: $birthDay, birthYear: $birthYear, address: $address}';
   }
 
   @override
@@ -43,6 +65,7 @@ class UserData {
     if (identical(this, other)) return true;
 
     return other is UserData &&
+        other.uid == uid && // Include uid comparison here
         other.userRole == userRole &&
         other.email == email &&
         other.lastName == lastName &&
@@ -58,7 +81,8 @@ class UserData {
 
   @override
   int get hashCode {
-    return userRole.hashCode ^
+    return uid.hashCode ^ // Include uid in hashCode
+    userRole.hashCode ^
     email.hashCode ^
     lastName.hashCode ^
     firstName.hashCode ^
@@ -74,7 +98,7 @@ class UserData {
   // Helper function to convert string to UserRole enum
   static UserRole getUserRoleFromString(String role) {
     return UserRole.values.firstWhere(
-      (e) => e.toString().split('.').last == role,
+          (e) => e.toString().split('.').last == role,
       orElse: () => UserRole.patient, // Default role if not found
     );
   }

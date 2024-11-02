@@ -55,6 +55,12 @@
 		<string>This app requires access to your photo library.</string>
 		<key>NSMicrophoneUsageDescription</key>
 		<string>This app requires access to your microphone.</string>
+        <key>NSContactsUsageDescription</key>
+        <string>We need access to your contacts to send SMS.</string>
+        <key>NSMicrophoneUsageDescription</key>
+        <string>We need access to the microphone to make calls.</string>
+        <key>NSPhotoLibraryUsageDescription</key>
+        <string>We need access to your photo library.</string>
 
 	</dict>
 </plist>
