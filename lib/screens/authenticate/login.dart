@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/authenticate/forgot.dart';
 import 'package:solace/screens/home/home.dart';
@@ -9,13 +11,18 @@ class LogIn extends StatefulWidget {
   final VoidCallback toggleView; // Updated to VoidCallback
   final bool isTesting;
 
-  const LogIn({super.key, required this.toggleView, required this.isTesting}); // Pass key to super
+  const LogIn(
+      {super.key,
+      required this.toggleView,
+      required this.isTesting}); // Pass key to super
 
   @override
   State<LogIn> createState() => _LogInState();
 }
 
 class _LogInState extends State<LogIn> {
+  MyUser? currentUser;
+
   final AuthService _auth = AuthService();
   final _formKey = GlobalKey<FormState>();
 
@@ -66,20 +73,26 @@ class _LogInState extends State<LogIn> {
     super.dispose();
   }
 
+  void _showError(String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
   Future<void> _autoLogin() async {
     String testEmail = 'john@gmail.com';
     String testPassword = 'test123';
 
-    dynamic result = await _auth.logInWithEmailAndPassword(testEmail, testPassword);
+    dynamic result =
+        await _auth.logInWithEmailAndPassword(testEmail, testPassword);
     if (result == null && mounted) {
       setState(() => error = 'Auto login failed');
     }
   }
 
   TextStyle get focusedLabelStyle => const TextStyle(
-    color: AppColors.neon,
-    fontSize: 16,
-  );
+        color: AppColors.neon,
+        fontSize: 16,
+      );
 
   InputDecoration _inputDecoration(String label, FocusNode focusNode) {
     return InputDecoration(
@@ -162,11 +175,16 @@ class _LogInState extends State<LogIn> {
                     controller: _passwordController,
                     focusNode: _passwordFocusNode,
                     obscureText: !_isPasswordVisible,
-                    decoration: _inputDecoration('Password', _passwordFocusNode).copyWith(
+                    decoration: _inputDecoration('Password', _passwordFocusNode)
+                        .copyWith(
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-                          color: _passwordFocusNode.hasFocus ? AppColors.neon : AppColors.black,
+                          _isPasswordVisible
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                          color: _passwordFocusNode.hasFocus
+                              ? AppColors.neon
+                              : AppColors.black,
                         ),
                         onPressed: () {
                           if (mounted) {
@@ -177,7 +195,9 @@ class _LogInState extends State<LogIn> {
                         },
                       ),
                     ),
-                    validator: (val) => val!.length < 6 ? "Enter a password 6+ chars long" : null,
+                    validator: (val) => val!.length < 6
+                        ? "Enter a password 6+ chars long"
+                        : null,
                     onChanged: (val) {
                       if (mounted) {
                         setState(() => password = val);
@@ -192,7 +212,8 @@ class _LogInState extends State<LogIn> {
                         onTap: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => const Forgot()),
+                            MaterialPageRoute(
+                                builder: (context) => const Forgot()),
                           );
                         },
                         child: const Text(
@@ -215,37 +236,45 @@ class _LogInState extends State<LogIn> {
                       onPressed: _isLoading // Check if loading
                           ? null // Disable the button while loading
                           : () async {
-                        if (_formKey.currentState!.validate()) {
-                          setState(() {
-                            _isLoading = true; // Set loading state to true
-                          });
-                          dynamic result = await _auth.logInWithEmailAndPassword(email, password);
-                          setState(() {
-                            _isLoading = false; // Reset loading state
-                            if (result == null) {
-                              error = 'Could not log in with those credentials';
-                            } else {
-                              error = ''; // Clear error on success
-                            }
-                          });
-                        }
-                      },
+                              if (_formKey.currentState!.validate()) {
+                                setState(() {
+                                  _isLoading =
+                                      true; // Set loading state to true
+                                });
+                                dynamic result = await _auth
+                                    .logInWithEmailAndPassword(email, password);
+                                setState(() {
+                                  _isLoading = false; // Reset loading state
+                                  if (result == null) {
+                                    error =
+                                        'Could not log in with those credentials';
+                                  } else {
+                                    error = ''; // Clear error on success
+                                  }
+                                });
+                              }
+                            },
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 50, vertical: 15),
                         backgroundColor: AppColors.neon,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
                       ),
-                      child: _isLoading // Show CircularProgressIndicator if loading
-                          ? const Center(child: CircularProgressIndicator(color: Colors.white))
-                          : const Text(
-                        'Login',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: AppColors.white,
-                        ),
-                      ),
+                      child:
+                          _isLoading // Show CircularProgressIndicator if loading
+                              ? const Center(
+                                  child: CircularProgressIndicator(
+                                      color: Colors.white))
+                              : const Text(
+                                  'Login',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                    color: AppColors.white,
+                                  ),
+                                ),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -268,31 +297,34 @@ class _LogInState extends State<LogIn> {
                     width: double.infinity,
                     child: TextButton(
                       onPressed: () async {
-                        MyUser? myUser = await _auth.signInWithGoogle(); // Assuming signInWithGoogle returns MyUser?
-                        if (myUser == null) {
-                          if (mounted) {
-                            setState(() {
-                              error = "Google sign-in failed. Please try again.";
-                            });
-                          }
-                          return;
+                        setState(() {
+                          _isLoading = true; // Set loading state
+                        });
+
+                        MyUser? myUser = await _auth
+                            .signInWithGoogle(); // Call your sign-in method
+
+                        if (myUser != null) {
+                          // User is signed in, update your local state if needed
+                          setState(() {
+                            currentUser =
+                                myUser; // Assuming you have a state variable for the current user
+                          });
+
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => Home(), // Navigate to home
+                            ),
+                          );
+                        } else {
+                          _showError(
+                              "Google sign-in failed. Please try again.");
                         }
 
-                        // Check if user is verified before navigating
-                        if (myUser.isVerified) {
-                          if (mounted) {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(builder: (context) => Home()),
-                            );
-                          }
-                        } else {
-                          if (mounted) {
-                            setState(() {
-                              error = "Your account is not verified. Please verify your email.";
-                            });
-                          }
-                        }
+                        setState(() {
+                          _isLoading = false; // Reset loading state
+                        });
                       },
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -315,7 +347,6 @@ class _LogInState extends State<LogIn> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 20),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,

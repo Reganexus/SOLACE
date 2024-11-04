@@ -26,6 +26,11 @@ class DatabaseService {
     }).toList());
   }
 
+  Future<bool> checkUserExists() async {
+    DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    return userDoc.exists;
+  }
+
   // Update user data in Firestore
   Future<void> updateUserData({
     UserRole? userRole,
@@ -34,10 +39,10 @@ class DatabaseService {
     String? firstName,
     String? middleName,
     String? phoneNumber,
-    DateTime? birthday, // Add birthday here
+    DateTime? birthday,
     String? gender,
     String? address,
-    bool? isVerified, // New field for verification status
+    bool? isVerified,
   }) async {
     Map<String, dynamic> updatedData = {};
 
@@ -114,6 +119,7 @@ class DatabaseService {
   Future<UserData?> getUserData() async {
     try {
       DocumentSnapshot snapshot = await userCollection.doc(uid).get();
+
       if (snapshot.exists) {
         return UserData.fromDocument(snapshot);
       } else {
@@ -173,7 +179,6 @@ class DatabaseService {
       ]),
     });
   }
-
 
   // Fetch the schedule for a user
   Future<List<Map<String, dynamic>>> getScheduleForUser(String userId) async {

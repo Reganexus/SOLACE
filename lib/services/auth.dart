@@ -109,53 +109,35 @@ class AuthService {
 
   Future<MyUser?> signInWithGoogle() async {
     try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      debugPrint("Google user selected: $googleUser");
-
+      // Google Sign-In process
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
       final GoogleSignInAuthentication? googleAuth = await googleUser?.authentication;
-      debugPrint("Google authentication object: $googleAuth");
 
+      // Create a new credential
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth?.accessToken,
         idToken: googleAuth?.idToken,
       );
 
-      UserCredential userCredential = await _auth.signInWithCredential(credential);
-      User? user = userCredential.user;
-      if (user == null) {
-        debugPrint("User object is null after Google sign-in.");
-        return null;
-      }
+      // Sign in to Firebase
+      UserCredential result = await _auth.signInWithCredential(credential);
+      User? user = result.user;
 
-      debugPrint('User signed in with Google: ${user.uid}');
-
-      DocumentSnapshot userDoc = await _firestore.collection('users').doc(user.uid).get();
-
-      if (!userDoc.exists) {
-        debugPrint("User does not exist in Firestore. Creating new user document.");
+      if (user != null) {
+        // You can now create or update the user in Firestore
         await DatabaseService(uid: user.uid).updateUserData(
           userRole: UserRole.patient,
-          email: user.email ?? '',
-          lastName: '',
-          firstName: '',
-          middleName: '',
-          phoneNumber: '',
-          gender: '',
-          birthday: null,
-          address: '',
-          isVerified: true, // Default to verified for Google sign-ins
+          email: user.email,
+          isVerified: true, // Set initial verification status
         );
-      } else {
-        debugPrint("User exists in Firestore. Setting verification status to true.");
-        await DatabaseService(uid: user.uid).setUserVerificationStatus(user.uid, true);
-      }
 
-      debugPrint("Returning MyUser object for user: ${user.uid}");
-      return MyUser(uid: user.uid, isVerified: true);
+        return MyUser(uid: user.uid, isVerified: false);
+      }
     } catch (e) {
-      debugPrint("Google sign-in error: $e");
+      debugPrint("Google sign-in error: ${e.toString()}");
       return null;
     }
+    return null;
   }
 
 

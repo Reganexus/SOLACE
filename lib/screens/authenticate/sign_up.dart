@@ -19,6 +19,8 @@ class SignUp extends StatefulWidget {
 }
 
 class _SignUpState extends State<SignUp> {
+  MyUser? currentUser;
+
   final AuthService _auth = AuthService();
   final _formKey = GlobalKey<FormState>();
 
@@ -126,57 +128,6 @@ class _SignUpState extends State<SignUp> {
       _showError("You must agree to the terms and conditions.");
     }
   }
-
-  Future<void> _handleSignUpWithGoogle() async {
-    if (mounted) {
-      setState(() {
-        _isLoading = true;
-      });
-    }
-
-    try {
-      MyUser? result = await _auth.signInWithGoogle();
-      debugPrint("Sign-in with Google result: $result");
-
-      if (result != null) {
-        debugPrint("Google sign-in successful for user: ${result.uid}");
-        if (result.isVerified) {
-          debugPrint("User is verified. Navigating to Home.");
-
-          if (mounted) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => Home()),
-            ).then((_) {
-              debugPrint("Navigation to Home completed.");
-            });
-          }
-        } else {
-          if (mounted) {
-            debugPrint("User is not verified. Showing error message.");
-            _showError("Your account is not verified. Please verify your email.");
-          }
-        }
-      } else {
-        if (mounted) {
-          debugPrint("Google registration failed. Showing error message.");
-          _showError("Registration failed. Please try again.");
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        debugPrint("Error during Google sign-in: $e");
-        _showError("Network error. Please try again later.");
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
 
   void _showError(String message) {
     ScaffoldMessenger.of(context)
@@ -507,7 +458,36 @@ class _SignUpState extends State<SignUp> {
                   SizedBox(
                     width: double.infinity,
                     child: TextButton(
-                      onPressed: _handleSignUpWithGoogle,
+                      onPressed: () async {
+                        setState(() {
+                          _isLoading = true; // Set loading state
+                        });
+
+                        MyUser? myUser = await _auth
+                            .signInWithGoogle(); // Call your sign-in method
+
+                        if (myUser != null) {
+                          // User is signed in, update your local state if needed
+                          setState(() {
+                            currentUser =
+                                myUser; // Assuming you have a state variable for the current user
+                          });
+
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => Home(), // Navigate to home
+                            ),
+                          );
+                        } else {
+                          _showError(
+                              "Google sign-in failed. Please try again.");
+                        }
+
+                        setState(() {
+                          _isLoading = false; // Reset loading state
+                        });
+                      },
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 50, vertical: 15),
