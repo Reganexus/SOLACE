@@ -1,5 +1,3 @@
-// ignore_for_file: avoid_print
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:solace/models/my_user.dart';
@@ -14,12 +12,12 @@ class AdminUsers extends StatefulWidget {
 
 class _AdminUsersState extends State<AdminUsers> {
   UserRole? selectedRole;
-  List<UserData>? filteredUsers;
+  List<UserData> filteredUsers = []; // Initialized as an empty list
 
   @override
   Widget build(BuildContext context) {
     final users = Provider.of<List<UserData>?>(context) ?? [];
-    _updateFilteredUsers(users);
+    _updateFilteredUsers(users); // Call to update the filtered list
 
     return Column(
       children: [
@@ -63,24 +61,22 @@ class _AdminUsersState extends State<AdminUsers> {
               ],
               onChanged: (UserRole? newValue) {
                 setState(() {
-                  selectedRole = newValue;
-                  _updateFilteredUsers(users);
+                  selectedRole = newValue; // Set the selected role
+                  _updateFilteredUsers(users); // Update filtered users based on new role
                 });
               },
             ),
           ],
         ),
         Expanded(
-          child: filteredUsers == null
-              ? Text('Loading users...')
-              : filteredUsers!.isEmpty
-                  ? Text('No users for this role')
-                  : ListView.builder(
-                      itemCount: filteredUsers!.length,
-                      itemBuilder: (context, index) {
-                        return UserRow(user: filteredUsers![index]);
-                      },
-                    ),
+          child: filteredUsers.isEmpty
+              ? Text('No users for this role') // No users found
+              : ListView.builder(
+            itemCount: filteredUsers.length,
+            itemBuilder: (context, index) {
+              return UserRow(user: filteredUsers[index]); // Access directly
+            },
+          ),
         ),
       ],
     );
@@ -93,12 +89,12 @@ class _AdminUsersState extends State<AdminUsers> {
     }).toList();
 
     // Sort the list alphabetically by last name, then first name
-    filteredUsers?.sort((a, b) {
-      int lastNameComparison = (a.lastName ?? '').compareTo(b.lastName ?? '');
+    filteredUsers.sort((a, b) {
+      int lastNameComparison = (a.lastName).compareTo(b.lastName);
       if (lastNameComparison != 0) {
         return lastNameComparison;
       } else {
-        return (a.firstName ?? '').compareTo(b.firstName ?? '');
+        return (a.firstName).compareTo(b.firstName);
       }
     });
   }

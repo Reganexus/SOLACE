@@ -36,7 +36,7 @@ class CaregiverPatientsState extends State<CaregiverPatients> {
         filteredPatients = List.from(allPatients); // Reset to all patients
       } else {
         filteredPatients = allPatients.where((patient) {
-          String fullName = '${patient.firstName ?? ''} ${patient.lastName ?? ''}';
+          String fullName = '${patient.firstName} ${patient.lastName}'; // Remove null-aware operator
           return fullName.toLowerCase().contains(query.toLowerCase());
         }).toList();
       }
@@ -47,12 +47,10 @@ class CaregiverPatientsState extends State<CaregiverPatients> {
     setState(() {
       if (_sortOrder == 'A-Z') {
         filteredPatients.sort((a, b) =>
-            (a.firstName ?? '').compareTo(b.firstName ?? '')
-        );
+            a.firstName.compareTo(b.firstName)); // Remove null-aware operator
       } else {
         filteredPatients.sort((a, b) =>
-            (b.firstName ?? '').compareTo(a.firstName ?? '')
-        );
+            b.firstName.compareTo(a.firstName)); // Remove null-aware operator
       }
     });
   }
@@ -105,28 +103,40 @@ class CaregiverPatientsState extends State<CaregiverPatients> {
                             focusNode: _focusNode,
                             onSubmitted: (value) {
                               _filterPatients(value);
-                              FocusScope.of(context).unfocus(); // Unfocus after submitting
+                              FocusScope.of(context)
+                                  .unfocus(); // Unfocus after submitting
                             },
                             decoration: InputDecoration(
                               hintText: 'Search',
-                              hintStyle: const TextStyle(color: AppColors.blackTransparent),
+                              hintStyle: const TextStyle(
+                                  color: AppColors.blackTransparent),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(color: AppColors.blackTransparent), // Default border color
+                                borderSide: const BorderSide(
+                                    color: AppColors
+                                        .blackTransparent), // Default border color
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(color: AppColors.blackTransparent), // Remove border color when focused
+                                borderSide: const BorderSide(
+                                    color: AppColors
+                                        .blackTransparent), // Remove border color when focused
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(color: AppColors.blackTransparent), // Border color when not focused
+                                borderSide: const BorderSide(
+                                    color: AppColors
+                                        .blackTransparent), // Border color when not focused
                               ),
-                              contentPadding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 10.0),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  vertical: 12.0, horizontal: 10.0),
                               suffixIcon: IconButton(
                                 icon: Icon(
                                   Icons.search,
-                                  color: _focusNode.hasFocus ? AppColors.neon : Colors.grey, // Change color based on focus
+                                  color: _focusNode.hasFocus
+                                      ? AppColors.neon
+                                      : Colors
+                                          .grey, // Change color based on focus
                                 ),
                                 onPressed: () {
                                   _filterPatients(_searchController.text);
@@ -162,7 +172,9 @@ class CaregiverPatientsState extends State<CaregiverPatients> {
                         ),
                         const SizedBox(width: 5.0),
                         Icon(
-                          _sortOrder == 'A-Z' ? Icons.arrow_downward : Icons.arrow_upward,
+                          _sortOrder == 'A-Z'
+                              ? Icons.arrow_downward
+                              : Icons.arrow_upward,
                           color: Colors.white,
                           size: 20,
                         ),
@@ -170,6 +182,7 @@ class CaregiverPatientsState extends State<CaregiverPatients> {
                     ),
                   ),
                   const SizedBox(height: 10.0),
+                  // In your ListView.builder
                   Expanded(
                     child: ListView.builder(
                       itemCount: filteredPatients.length,
@@ -181,13 +194,16 @@ class CaregiverPatientsState extends State<CaregiverPatients> {
                               context,
                               MaterialPageRoute(
                                 builder: (context) => CaregiverViewStatus(
-                                  username: patient.firstName ?? 'Unknown',
+                                  username: patient.firstName.isNotEmpty
+                                      ? patient.firstName
+                                      : 'Unknown',
                                 ),
                               ),
                             );
                           },
                           child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 15.0),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 10.0, horizontal: 15.0),
                             margin: const EdgeInsets.symmetric(vertical: 5.0),
                             decoration: BoxDecoration(
                               color: AppColors.gray,
@@ -196,12 +212,13 @@ class CaregiverPatientsState extends State<CaregiverPatients> {
                             child: Row(
                               children: [
                                 CircleAvatar(
-                                  backgroundImage: AssetImage('lib/assets/images/shared/placeholder.png'),
+                                  backgroundImage: AssetImage(
+                                      'lib/assets/images/shared/placeholder.png'),
                                   radius: 18.0,
                                 ),
                                 const SizedBox(width: 10.0),
                                 Text(
-                                  '${patient.firstName ?? 'No name'} ${patient.lastName ?? ''}',
+                                  '${patient.firstName} ${patient.lastName}', // Remove null-aware operator
                                   style: const TextStyle(
                                     fontSize: 18.0,
                                     fontFamily: 'Inter',

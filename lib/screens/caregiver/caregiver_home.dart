@@ -45,7 +45,7 @@ class _CaregiverHomeState extends State<CaregiverHome> {
       builder: (context, snapshot) {
         String firstName = '';
         if (snapshot.hasData) {
-          firstName = snapshot.data?.firstName?.split(' ')[0] ?? 'User';
+          firstName = snapshot.data?.firstName.split(' ')[0] ?? 'User';
         }
         return Row(
           children: [

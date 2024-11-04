@@ -55,14 +55,13 @@ class PatientHomeState extends State<PatientHome> {
       builder: (context, snapshot) {
         String firstName = '';
         if (snapshot.hasData) {
-          firstName = snapshot.data?.firstName?.split(' ')[0] ?? 'User';
+          firstName = snapshot.data!.firstName.split(' ')[0]; // Use ! instead of ?.
         }
         return Row(
           children: [
             const CircleAvatar(
               radius: 20.0,
-              backgroundImage:
-                  AssetImage('lib/assets/images/shared/placeholder.png'),
+              backgroundImage: AssetImage('lib/assets/images/shared/placeholder.png'),
             ),
             const SizedBox(width: 10.0),
             Text(
@@ -78,6 +77,7 @@ class PatientHomeState extends State<PatientHome> {
       },
     );
   }
+
 
   Widget _buildRightAppBar(BuildContext context) {
     return Row(

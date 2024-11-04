@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
+import 'package:flutter/foundation.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -20,26 +21,33 @@ class AuthService {
   }
 
   void displayValues() {
-    print('Current User: ${_auth.currentUser}');
-    print('Display name: ${_auth.currentUser?.displayName}');
-    print('Email: ${_auth.currentUser?.email}');
-    print('Email verified: ${_auth.currentUser?.emailVerified}');
-    print('Is anonymous: ${_auth.currentUser?.isAnonymous}');
-    print('Photo URL: ${_auth.currentUser?.photoURL}');
-    print('Provider data: ${_auth.currentUser?.providerData}');
+    debugPrint('Current User: ${_auth.currentUser}');
+    debugPrint('Display name: ${_auth.currentUser?.displayName}');
+    debugPrint('Email: ${_auth.currentUser?.email}');
+    debugPrint('Email verified: ${_auth.currentUser?.emailVerified}');
+    debugPrint('Is anonymous: ${_auth.currentUser?.isAnonymous}');
+    debugPrint('Photo URL: ${_auth.currentUser?.photoURL}');
+    debugPrint('Provider data: ${_auth.currentUser?.providerData}');
   }
 
-  MyUser? _userFromFirebaseUser(User? user) {
-    return user != null ? MyUser(uid: user.uid) : null;
+  Future<MyUser?> _userFromFirebaseUser(User? user) async {
+    if (user != null) {
+      // Fetch user data to determine the actual verification status
+      UserData? userData = await DatabaseService(uid: user.uid).getUserData();
+      return userData != null ? MyUser(uid: user.uid, isVerified: userData.isVerified) : null;
+    }
+    return null;
   }
 
   Stream<MyUser?> get user {
-    return _auth.authStateChanges().map(_userFromFirebaseUser);
+    return _auth.authStateChanges().asyncMap(_userFromFirebaseUser);
   }
 
   User? get currentUser {
     return _auth.currentUser;
   }
+
+  String? get currentUserId => _auth.currentUser?.uid;
 
   Future<bool> emailExists(String email) async {
     final QuerySnapshot result = await _firestore
@@ -53,9 +61,9 @@ class AuthService {
     try {
       UserCredential result = await _auth.signInAnonymously();
       User? user = result.user;
-      return _userFromFirebaseUser(user);
+      return await _userFromFirebaseUser(user);
     } catch (e) {
-      print("Sign in anon error: ${e.toString()}");
+      debugPrint("Sign in anon error: ${e.toString()}");
       return null;
     }
   }
@@ -64,9 +72,9 @@ class AuthService {
     try {
       UserCredential result = await _auth.signInWithEmailAndPassword(email: email, password: password);
       User? user = result.user;
-      return user != null ? _userFromFirebaseUser(user) : null;
+      return user != null ? await _userFromFirebaseUser(user) : null;
     } catch (e) {
-      print("Log in error: ${e.toString()}");
+      debugPrint("Log in error: ${e.toString()}");
       return null;
     }
   }
@@ -76,8 +84,9 @@ class AuthService {
       UserCredential result = await _auth.createUserWithEmailAndPassword(email: email, password: password);
       User? user = result.user;
       if (user == null) return null;
-      print('New user id: ${user.uid}');
+      debugPrint('New user id: ${user.uid}');
 
+      // Set isVerified to false for email/password sign-ups
       await DatabaseService(uid: user.uid).updateUserData(
         userRole: UserRole.patient,
         email: email,
@@ -85,64 +94,94 @@ class AuthService {
         firstName: '',
         middleName: '',
         phoneNumber: '',
-        sex: 'Other',
-        birthMonth: 'January',
-        birthDay: '1',
-        birthYear: DateTime.now().year.toString(),
+        gender: '',
+        birthday: null,
         address: '',
+        isVerified: false, // Set verification status to false initially
       );
-      return _userFromFirebaseUser(user);
+
+      return MyUser(uid: user.uid, isVerified: false);
     } catch (e) {
-      print("Sign up error: ${e.toString()}");
+      debugPrint("Sign up error: ${e.toString()}");
       return null;
     }
   }
 
-  Future<UserCredential?> signInWithGoogle() async {
+  Future<MyUser?> signInWithGoogle() async {
     try {
-      final googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
-        return null;
-      }
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      debugPrint("Google user selected: $googleUser");
 
-      final googleAuth = await googleUser.authentication;
-      final userCredential = await _auth.signInWithCredential(
-        GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
-        ),
+      final GoogleSignInAuthentication? googleAuth = await googleUser?.authentication;
+      debugPrint("Google authentication object: $googleAuth");
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth?.accessToken,
+        idToken: googleAuth?.idToken,
       );
 
-      // Check if the email already exists
-      final emailExists = await this.emailExists(userCredential.user?.email ?? '');
-      if (emailExists) {
+      UserCredential userCredential = await _auth.signInWithCredential(credential);
+      User? user = userCredential.user;
+      if (user == null) {
+        debugPrint("User object is null after Google sign-in.");
         return null;
       }
 
-      return userCredential;
+      debugPrint('User signed in with Google: ${user.uid}');
+
+      DocumentSnapshot userDoc = await _firestore.collection('users').doc(user.uid).get();
+
+      if (!userDoc.exists) {
+        debugPrint("User does not exist in Firestore. Creating new user document.");
+        await DatabaseService(uid: user.uid).updateUserData(
+          userRole: UserRole.patient,
+          email: user.email ?? '',
+          lastName: '',
+          firstName: '',
+          middleName: '',
+          phoneNumber: '',
+          gender: '',
+          birthday: null,
+          address: '',
+          isVerified: true, // Default to verified for Google sign-ins
+        );
+      } else {
+        debugPrint("User exists in Firestore. Setting verification status to true.");
+        await DatabaseService(uid: user.uid).setUserVerificationStatus(user.uid, true);
+      }
+
+      debugPrint("Returning MyUser object for user: ${user.uid}");
+      return MyUser(uid: user.uid, isVerified: true);
     } catch (e) {
-      print("Google Sign-In Error: $e");
+      debugPrint("Google sign-in error: $e");
       return null;
     }
+  }
+
+
+  Future<void> setUserVerificationStatus(String uid, bool isVerified) async {
+    await FirebaseFirestore.instance.collection('users').doc(uid).update({
+      'isVerified': isVerified,
+    });
   }
 
   Future<void> signOut() async {
     try {
       await _googleSignIn.signOut();
       await _auth.signOut();
-      print('User signed out');
+      debugPrint('User signed out');
     } catch (e) {
-      print("Sign out error: ${e.toString()}");
+      debugPrint("Sign out error: ${e.toString()}");
     }
   }
 
   Future<bool?> resetPassword(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email);
-      print('Password reset email sent to $email');
+      debugPrint('Password reset email sent to $email');
       return true;
     } catch (e) {
-      print("Reset password error: ${e.toString()}");
+      debugPrint("Reset password error: ${e.toString()}");
       return null;
     }
   }

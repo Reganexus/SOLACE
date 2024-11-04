@@ -1,13 +1,15 @@
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/authenticate/forgot.dart';
+import 'package:solace/screens/home/home.dart';
 import 'package:solace/services/auth.dart';
 import 'package:flutter/material.dart';
 import 'package:solace/themes/colors.dart';
 
 class LogIn extends StatefulWidget {
-  final Function toggleView;
+  final VoidCallback toggleView; // Updated to VoidCallback
   final bool isTesting;
-  const LogIn({super.key, required this.toggleView, required this.isTesting });
+
+  const LogIn({super.key, required this.toggleView, required this.isTesting}); // Pass key to super
 
   @override
   State<LogIn> createState() => _LogInState();
@@ -20,6 +22,7 @@ class _LogInState extends State<LogIn> {
   String email = '';
   String password = '';
   String error = '';
+  bool _isLoading = false; // Loading state
 
   bool _isPasswordVisible = false;
   final FocusNode _emailFocusNode = FocusNode();
@@ -51,6 +54,18 @@ class _LogInState extends State<LogIn> {
     });
   }
 
+  @override
+  void dispose() {
+    // Dispose of focus nodes
+    _emailFocusNode.removeListener(() {});
+    _passwordFocusNode.removeListener(() {});
+    _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   Future<void> _autoLogin() async {
     String testEmail = 'john@gmail.com';
     String testPassword = 'test123';
@@ -59,18 +74,6 @@ class _LogInState extends State<LogIn> {
     if (result == null && mounted) {
       setState(() => error = 'Auto login failed');
     }
-  }
-
-  @override
-  void dispose() {
-    // Dispose of focus nodes
-    _emailFocusNode.removeListener(() {}); // Removing the listener to avoid calling setState after dispose
-    _passwordFocusNode.removeListener(() {}); // Removing the listener to avoid calling setState after dispose
-    _emailFocusNode.dispose();
-    _passwordFocusNode.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
   }
 
   TextStyle get focusedLabelStyle => const TextStyle(
@@ -132,7 +135,17 @@ class _LogInState extends State<LogIn> {
                       color: AppColors.black,
                     ),
                   ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 20),
+                  if (error.isNotEmpty)
+                    SizedBox(
+                      height: 40,
+                      child: Text(
+                        error,
+                        style: const TextStyle(color: Colors.red, fontSize: 14),
+                        textAlign: TextAlign.left,
+                      ),
+                    ),
+                  const SizedBox(height: 20),
                   TextFormField(
                     controller: _emailController,
                     focusNode: _emailFocusNode,
@@ -195,24 +208,26 @@ class _LogInState extends State<LogIn> {
                       ),
                     ),
                   ),
-                  if (error.isNotEmpty)
-                    SizedBox(
-                      height: 20,
-                      child: Text(
-                        error,
-                        style: const TextStyle(color: Colors.red, fontSize: 14),
-                      ),
-                    ),
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
                     child: TextButton(
-                      onPressed: () async {
+                      onPressed: _isLoading // Check if loading
+                          ? null // Disable the button while loading
+                          : () async {
                         if (_formKey.currentState!.validate()) {
+                          setState(() {
+                            _isLoading = true; // Set loading state to true
+                          });
                           dynamic result = await _auth.logInWithEmailAndPassword(email, password);
-                          if (result == null && mounted) {
-                            setState(() => error = 'Could not log in with those credentials');
-                          }
+                          setState(() {
+                            _isLoading = false; // Reset loading state
+                            if (result == null) {
+                              error = 'Could not log in with those credentials';
+                            } else {
+                              error = ''; // Clear error on success
+                            }
+                          });
                         }
                       },
                       style: TextButton.styleFrom(
@@ -220,7 +235,9 @@ class _LogInState extends State<LogIn> {
                         backgroundColor: AppColors.neon,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
-                      child: const Text(
+                      child: _isLoading // Show CircularProgressIndicator if loading
+                          ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                          : const Text(
                         'Login',
                         style: TextStyle(
                           fontFamily: 'Inter',
@@ -251,8 +268,8 @@ class _LogInState extends State<LogIn> {
                     width: double.infinity,
                     child: TextButton(
                       onPressed: () async {
-                        UserCredential? userCredential = await _auth.signInWithGoogle();
-                        if (userCredential == null) {
+                        MyUser? myUser = await _auth.signInWithGoogle(); // Assuming signInWithGoogle returns MyUser?
+                        if (myUser == null) {
                           if (mounted) {
                             setState(() {
                               error = "Google sign-in failed. Please try again.";
@@ -261,24 +278,22 @@ class _LogInState extends State<LogIn> {
                           return;
                         }
 
-                        String email = userCredential.user?.email ?? '';
-                        bool emailExists = await _auth.emailExists(email);
-
-                        if (!emailExists && mounted) {
-                          setState(() {
-                            error = "No account found for this email. Please sign up first.";
-                          });
-                          return;
+                        // Check if user is verified before navigating
+                        if (myUser.isVerified) {
+                          if (mounted) {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (context) => Home()),
+                            );
+                          }
+                        } else {
+                          if (mounted) {
+                            setState(() {
+                              error = "Your account is not verified. Please verify your email.";
+                            });
+                          }
                         }
                       },
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
-                        backgroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          side: const BorderSide(color: Colors.grey),
-                        ),
-                      ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -288,36 +303,44 @@ class _LogInState extends State<LogIn> {
                           ),
                           const SizedBox(width: 10),
                           const Text(
-                            'Log in with Google',
+                            'Sign in with Google',
                             style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontWeight: FontWeight.bold,
                               fontSize: 16,
-                              color: AppColors.black,
+                              color: Colors.black,
                             ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  Center(
-                    child: GestureDetector(
-                      onTap: () {
-                        widget.toggleView();
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
+
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      const Text(
+                        'Don\'t have an account?',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 16,
+                          color: AppColors.black,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: widget.toggleView,
                         child: const Text(
-                          "I don't have an account yet",
+                          'Sign Up',
                           style: TextStyle(
                             fontFamily: 'Inter',
-                            fontWeight: FontWeight.normal,
-                            fontSize: 16.0,
-                            color: AppColors.black,
-                            decoration: TextDecoration.underline,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.neon,
                           ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
                 ],
               ),

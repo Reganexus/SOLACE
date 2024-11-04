@@ -249,16 +249,14 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
                               ),
                               isOpen: _openSectionIndex.value == patients.indexOf(patient),
                               header: Padding(
-                                padding:
-                                const EdgeInsets.symmetric(vertical: 10.0),
+                                padding: const EdgeInsets.symmetric(vertical: 10.0),
                                 child: ValueListenableBuilder<int?>(
                                   valueListenable: _openSectionIndex,
                                   builder: (context, value, child) {
                                     return Text(
-                                      '${patient!.firstName!} ${patient.lastName!}',
+                                      '${patient?.firstName ?? 'Unknown'} ${patient?.lastName ?? 'Unknown'}',
                                       style: headerStyle.copyWith(
-                                        color:
-                                        value == patients.indexOf(patient)
+                                        color: value == patients.indexOf(patient)
                                             ? AppColors.white
                                             : AppColors.black,
                                         fontSize: 18.0,
@@ -282,28 +280,24 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
                                   ),
                                   const SizedBox(height: 10.0),
                                   // Provide a default message if conditions are not available
-                                  Text("No identified conditions available",
-                                      style: contentStyle),
-                                  const SizedBox(
-                                      height: 20.0), // Space before buttons
+                                  Text("No identified conditions available", style: contentStyle),
+                                  const SizedBox(height: 20.0),
                                   Row(
-                                    mainAxisAlignment:
-                                    MainAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.start,
                                     children: [
                                       // When calling _scheduleAppointment, use patient.uid
                                       _buildActionButton(
                                         'Schedule',
                                         'lib/assets/images/shared/functions/schedule.png',
                                         AppColors.darkblue,
-                                            () => _scheduleAppointment(caregiverId, patient!.uid),
+                                            () => _scheduleAppointment(caregiverId, patient?.uid ?? ''), // No null assertion
                                       ),
-
                                       const SizedBox(width: 10),
                                       _buildActionButton(
                                         'Call',
                                         'lib/assets/images/shared/functions/call.png',
                                         AppColors.red,
-                                            () => _makeCall(patient!.phoneNumber!), // Use the actual phone number
+                                            () => _makeCall(patient?.phoneNumber ?? ''), // No null assertion
                                       ),
                                     ],
                                   ),

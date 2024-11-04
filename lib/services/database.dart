@@ -1,6 +1,7 @@
 // ignore_for_file: avoid_print
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:solace/models/my_user.dart';
 
@@ -33,29 +34,39 @@ class DatabaseService {
     String? firstName,
     String? middleName,
     String? phoneNumber,
-    String? sex,
-    String? birthMonth,
-    String? birthDay,
-    String? birthYear,
+    DateTime? birthday, // Add birthday here
+    String? gender,
     String? address,
+    bool? isVerified, // New field for verification status
   }) async {
     Map<String, dynamic> updatedData = {};
+
     if (userRole != null) {
-      updatedData['userRole'] = userRole.toString().split('.').last;
+      updatedData['userRole'] = UserData.getUserRoleString(userRole);
     }
     if (email != null) updatedData['email'] = email;
     if (lastName != null) updatedData['lastName'] = lastName;
     if (firstName != null) updatedData['firstName'] = firstName;
     if (middleName != null) updatedData['middleName'] = middleName;
     if (phoneNumber != null) updatedData['phoneNumber'] = phoneNumber;
-    if (sex != null) updatedData['sex'] = sex;
-    if (birthMonth != null) updatedData['birthMonth'] = birthMonth;
-    if (birthDay != null) updatedData['birthDay'] = birthDay;
-    if (birthYear != null) updatedData['birthYear'] = birthYear;
+    if (birthday != null) updatedData['birthday'] = Timestamp.fromDate(birthday);
+    if (gender != null) updatedData['gender'] = gender;
     if (address != null) updatedData['address'] = address;
+    if (isVerified != null) updatedData['isVerified'] = isVerified; // Add to updated data
 
     if (updatedData.isNotEmpty) {
       await userCollection.doc(uid).set(updatedData, SetOptions(merge: true));
+    }
+  }
+
+  Future<void> setUserVerificationStatus(String uid, bool isVerified) async {
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(uid).update({
+        'isVerified': isVerified,
+      });
+      debugPrint('User verification status updated to $isVerified for user $uid');
+    } catch (e) {
+      debugPrint("Error updating user verification status: ${e.toString()}");
     }
   }
 

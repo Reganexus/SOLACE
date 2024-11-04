@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:solace/themes/colors.dart';
@@ -13,7 +15,7 @@ class EditProfileScreen extends StatelessWidget {
     final user = Provider.of<MyUser?>(context);
 
     return FutureBuilder<UserData?>(
-      future: DatabaseService(uid: user!.uid).getUserData(),
+      future: DatabaseService(uid: user?.uid).getUserData(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -40,35 +42,32 @@ class EditProfileScreen extends StatelessWidget {
                 children: [
                   UserDataForm(
                     isSignUp: false,
-                    userData: userData,
+                    userData: userData, // No email field needed here
                     onButtonPressed: ({
                       required String firstName,
                       required String lastName,
                       required String middleName,
                       required String phoneNumber,
-                      required String sex,
-                      required String birthMonth,
-                      required String birthDay,
-                      required String birthYear,
+                      required String gender,
+                      required DateTime? birthday,
                       required String address,
-                    }) {
-                      DatabaseService(uid: user.uid)
-                          .updateUserData(
-                        firstName: firstName,
-                        lastName: lastName,
-                        middleName: middleName,
-                        phoneNumber: phoneNumber,
-                        sex: sex,
-                        birthMonth: birthMonth,
-                        birthDay: birthDay,
-                        birthYear: birthYear,
-                        address: address,
-                      )
-                          .then((_) {
+                    }) async {
+                      try {
+                        await DatabaseService(uid: user?.uid).updateUserData(
+                          firstName: firstName,
+                          lastName: lastName,
+                          middleName: middleName,
+                          phoneNumber: phoneNumber,
+                          gender: gender,
+                          birthday: birthday,
+                          address: address,
+                        );
                         if (context.mounted) {
                           Navigator.pop(context);
                         }
-                      });
+                      } catch (e) {
+                        print("Error updating profile: $e");
+                      }
                     },
                   ),
                 ],

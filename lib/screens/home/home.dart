@@ -11,6 +11,7 @@ import 'package:solace/screens/doctor/doctor_home.dart';
 import 'package:solace/screens/family/family_home.dart';
 import 'package:solace/screens/patient/patient_home.dart';
 import 'package:solace/services/database.dart';
+import 'package:solace/screens/authenticate/verify.dart'; // Import your verify screen
 
 class Home extends StatelessWidget {
   final CollectionReference userCollection = DatabaseService().userCollection;
@@ -20,36 +21,60 @@ class Home extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<MyUser?>(context);
+    debugPrint("Current user from Provider: $user");
+
     if (user == null) {
-      // If user is not logged in, show Authenticate screen
+      debugPrint("User is null. Redirecting to Authenticate screen.");
       return Authenticate();
     }
-    // Use FutureBuilder to fetch the current user data from Firestore
+
     return FutureBuilder<DocumentSnapshot>(
       future: userCollection.doc(user.uid).get(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          // Show a loading spinner while waiting for Firestore data
-          return Text('Loading...');
+          debugPrint("Loading user data...");
+          return Center(child: CircularProgressIndicator());
         }
 
         if (snapshot.hasError) {
-          // Handle any error that occurs while fetching data
-          return Text('Error fetching user data');
+          debugPrint("Error fetching user data: ${snapshot.error}");
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('Error fetching user data: ${snapshot.error}'),
+                ElevatedButton(
+                  onPressed: () {
+                    // Implement retry logic or navigate to a safe screen
+                  },
+                  child: Text('Retry'),
+                ),
+              ],
+            ),
+          );
         }
 
         if (snapshot.hasData && snapshot.data != null) {
-          // Check if the document has data before casting
+          debugPrint("User data found: ${snapshot.data}");
           final userData = snapshot.data!.data();
           if (userData == null) {
-            return PatientHome(); // No data means new user
+            debugPrint("User data is null, navigating to PatientHome.");
+            return PatientHome();
           }
 
-          // Cast to Map<String, dynamic> after confirming it's not null
           var userMap = userData as Map<String, dynamic>;
-          String userRole = userMap['userRole'] ??  'Patient';
+          String userRole = userMap['userRole']?.toString() ?? UserRole.patient.toString();
+          bool isVerified = userMap['isVerified'] ?? false;
+          debugPrint('User role retrieved: $userRole');
+          debugPrint('User isVerified status: $isVerified');
 
-          // Return the appropriate home screen based on userRole flag
+          if (!isVerified) {
+            debugPrint("User is not verified. Redirecting to Verify screen.");
+            return Verify();
+          }
+
+          debugPrint("User is verified. Redirecting to respective home screen for role: $userRole");
+
           switch (userRole) {
             case 'admin':
               return AdminHome();
@@ -63,10 +88,11 @@ class Home extends StatelessWidget {
               return PatientHome();
           }
         } else {
-          // Handle the case where no user data is found
-          return Text('User data not found');
+          debugPrint("No user data found in Firestore. Showing default message.");
+          return Center(child: Text('User data not found'));
         }
       },
     );
   }
 }
+

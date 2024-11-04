@@ -3,6 +3,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:solace/screens/wrapper.dart';
+import 'package:solace/services/database.dart'; // Import your DatabaseService
+import 'package:solace/themes/colors.dart'; // Make sure to import your colors
 
 class Verify extends StatefulWidget {
   const Verify({super.key});
@@ -20,42 +22,44 @@ class _VerifyState extends State<Verify> {
 
   void sendVerifyLink() async {
     final user = FirebaseAuth.instance.currentUser!;
-    await user.sendEmailVerification().then((val) => {
-      print('Email verification link sent.')
-    });
+    if (!user.emailVerified) {
+      await user.sendEmailVerification().then((_) {
+        debugPrint('Email verification link sent.');
+      });
+    }
   }
 
-  // Reloads user and redirects to Wrapper if verified
+  // Reloads user and updates verification status in Firestore if verified
   Future<void> reloadUser() async {
     final user = FirebaseAuth.instance.currentUser!;
     await user.reload();
-    if(mounted){
-      if (user.emailVerified) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => Wrapper()),
-          (Route<dynamic> route) => false,
-        );
-      } else {
-        setState(() {}); // Trigger UI update if not verified yet
-      }
+    if (user.emailVerified) {
+      // Update the user's verification status in Firestore
+      await DatabaseService(uid: user.uid).setUserVerificationStatus(user.uid, true);
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const Wrapper()),
+            (Route<dynamic> route) => false,
+      );
     } else {
-      print('Verify reload user not mounted');
+      setState(() {}); // Trigger UI update if still not verified
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.white, // Set the background color here
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Email verification sent. Check your email and click the link.'),
+            const Text('Email verification sent. Check your email and click the link.'),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: reloadUser,
-              child: Text('Refresh'),
+              child: const Text('Refresh'),
             ),
           ],
         ),

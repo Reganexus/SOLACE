@@ -2,7 +2,7 @@
   "project_info": {
     "project_number": "805655165429",
     "project_id": "solace-28954",
-    "storage_bucket": "solace-28954.appspot.com"
+    "storage_bucket": "solace-28954.firebasestorage.app"
   },
   "client": [
     {
@@ -19,6 +19,14 @@
           "android_info": {
             "package_name": "com.res.solace",
             "certificate_hash": "350ffffc1482105e2529c315d97801a8bff45c0d"
+          }
+        },
+        {
+          "client_id": "805655165429-v0o8tpfemffrnc1pchl0egul5cjckp2s.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.res.solace",
+            "certificate_hash": "539489dfbd0288d66284598b7d3020db0e7ee302"
           }
         },
         {
