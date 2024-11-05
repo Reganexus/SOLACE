@@ -523,7 +523,7 @@ class _SignUpState extends State<SignUp> {
                     onTap: () =>
                         widget.toggleView(), // Call toggleView as a function
                     child: const Text(
-                      'Don\'t have an account? Register',
+                      'Already have an account? Login',
                       style: TextStyle(
                         fontFamily: 'Inter',
                         fontWeight: FontWeight.bold,

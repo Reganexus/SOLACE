@@ -2,8 +2,10 @@
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:solace/screens/home/home.dart';
 import 'package:solace/screens/wrapper.dart';
 import 'package:solace/services/database.dart'; // Import your DatabaseService
+import 'package:solace/shared/globals.dart';
 import 'package:solace/themes/colors.dart'; // Make sure to import your colors
 
 class Verify extends StatefulWidget {
@@ -16,8 +18,19 @@ class Verify extends StatefulWidget {
 class _VerifyState extends State<Verify> {
   @override
   void initState() {
-    sendVerifyLink();
-    super.initState();
+  super.initState();
+    if (!emailVerificationEnabled) {
+      // Use post frame callback to ensure we navigate after the build
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        debugPrint('Navigating to Home immediately for testing purposes');
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => Home()),
+        );
+      });
+    } else {
+      sendVerifyLink();
+    }
   }
 
   void sendVerifyLink() async {

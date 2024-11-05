@@ -1,6 +1,7 @@
 import 'package:solace/screens/authenticate/login.dart';
 import 'package:flutter/material.dart';
 import 'package:solace/screens/authenticate/sign_up.dart';
+import 'package:solace/shared/globals.dart';
 
 class Authenticate extends StatefulWidget {
   const Authenticate({super.key});
@@ -10,23 +11,17 @@ class Authenticate extends StatefulWidget {
 }
 
 class _AuthenticateState extends State<Authenticate> {
-
-  // ************* for testing ************* //
-  bool isTesting = false;
-  bool isTestAdmin = true;
-  // ************* for testing ************* //
-
   bool showLogInPage = false;
   toggleView() { setState(() => showLogInPage = !showLogInPage); }
 
   @override
   Widget build(BuildContext context) {
-    if(isTesting){
-      return LogIn(toggleView: toggleView, isTesting: isTesting);
+    if(autoLoginenabled){
+      return LogIn(toggleView: toggleView);
     }
 
     if(showLogInPage) {
-      return LogIn(toggleView: toggleView, isTesting: isTesting);
+      return LogIn(toggleView: toggleView);
     } else {
       return SignUp(toggleView: toggleView);
     }

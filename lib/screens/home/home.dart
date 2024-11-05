@@ -11,7 +11,8 @@ import 'package:solace/screens/doctor/doctor_home.dart';
 import 'package:solace/screens/family/family_home.dart';
 import 'package:solace/screens/patient/patient_home.dart';
 import 'package:solace/services/database.dart';
-import 'package:solace/screens/authenticate/verify.dart'; // Import your verify screen
+import 'package:solace/screens/authenticate/verify.dart';
+import 'package:solace/shared/globals.dart'; // Import your verify screen
 
 class Home extends StatelessWidget {
   final CollectionReference userCollection = DatabaseService().userCollection;
@@ -68,7 +69,7 @@ class Home extends StatelessWidget {
           debugPrint('User role retrieved: $userRole');
           debugPrint('User isVerified status: $isVerified');
 
-          if (!isVerified) {
+          if (emailVerificationEnabled && !isVerified) {
             debugPrint("User is not verified. Redirecting to Verify screen.");
             return Verify();
           }

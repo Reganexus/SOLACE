@@ -5,16 +5,15 @@ import 'package:solace/screens/authenticate/forgot.dart';
 import 'package:solace/screens/home/home.dart';
 import 'package:solace/services/auth.dart';
 import 'package:flutter/material.dart';
+import 'package:solace/shared/globals.dart';
 import 'package:solace/themes/colors.dart';
 
 class LogIn extends StatefulWidget {
   final VoidCallback toggleView; // Updated to VoidCallback
-  final bool isTesting;
 
   const LogIn(
       {super.key,
-      required this.toggleView,
-      required this.isTesting}); // Pass key to super
+      required this.toggleView}); // Pass key to super
 
   @override
   State<LogIn> createState() => _LogInState();
@@ -42,7 +41,7 @@ class _LogInState extends State<LogIn> {
   void initState() {
     super.initState();
 
-    if (widget.isTesting) {
+    if (autoLoginenabled) {
       _autoLogin();
     }
 
@@ -237,21 +236,25 @@ class _LogInState extends State<LogIn> {
                           ? null // Disable the button while loading
                           : () async {
                               if (_formKey.currentState!.validate()) {
-                                setState(() {
-                                  _isLoading =
-                                      true; // Set loading state to true
-                                });
+                                if (mounted) {
+                                  setState(() {
+                                    _isLoading =
+                                        true; // Set loading state to true
+                                  });
+                                }
                                 dynamic result = await _auth
                                     .logInWithEmailAndPassword(email, password);
-                                setState(() {
-                                  _isLoading = false; // Reset loading state
-                                  if (result == null) {
-                                    error =
-                                        'Could not log in with those credentials';
-                                  } else {
-                                    error = ''; // Clear error on success
-                                  }
-                                });
+                                if (mounted) {
+                                  setState(() {
+                                    _isLoading = false; // Reset loading state
+                                    if (result == null) {
+                                      error =
+                                          'Could not log in with those credentials';
+                                    } else {
+                                      error = ''; // Clear error on success
+                                    }
+                                  });
+                                }
                               }
                             },
                       style: TextButton.styleFrom(
@@ -362,7 +365,7 @@ class _LogInState extends State<LogIn> {
                       TextButton(
                         onPressed: widget.toggleView,
                         child: const Text(
-                          'Sign Up',
+                          'Register',
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 16,
