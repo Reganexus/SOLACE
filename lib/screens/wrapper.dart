@@ -8,6 +8,7 @@ import 'package:solace/screens/home/home.dart';
 import 'package:flutter/material.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/shared/globals.dart';
+import 'package:solace/themes/colors.dart';
 
 class Wrapper extends StatefulWidget {
   const Wrapper({super.key});
@@ -20,12 +21,13 @@ class _WrapperState extends State<Wrapper> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.white,
       body: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Center(
-                child: CircularProgressIndicator()); // Loading indicator
+                child: CircularProgressIndicator(color: AppColors.neon)); // Loading indicator
           }
 
           if (snapshot.hasData) {
@@ -40,7 +42,7 @@ class _WrapperState extends State<Wrapper> {
                   if (userSnapshot.connectionState == ConnectionState.waiting) {
                     return Center(
                         child:
-                            CircularProgressIndicator()); // Loading indicator for user data
+                            CircularProgressIndicator(color: AppColors.neon)); // Loading indicator for user data
                   }
 
                   if (userSnapshot.hasError) {

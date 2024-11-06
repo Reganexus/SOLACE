@@ -59,7 +59,7 @@ class EditProfileScreen extends StatelessWidget {
                       required String address,
                     }) async {
                       try {
-                        await DatabaseService(uid: user?.uid).updateUserData(
+                        await DatabaseService(uid: user.uid).updateUserData(
                           firstName: firstName,
                           lastName: lastName,
                           middleName: middleName,

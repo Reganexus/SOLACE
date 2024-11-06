@@ -26,12 +26,6 @@ class DatabaseService {
             }).toList());
   }
 
-  Future<bool> checkUserExists() async {
-    DocumentSnapshot userDoc =
-        await FirebaseFirestore.instance.collection('users').doc(uid).get();
-    return userDoc.exists;
-  }
-
   // Update user data in Firestore
   Future<void> updateUserData({
     UserRole? userRole,
@@ -206,202 +200,111 @@ class DatabaseService {
     }
   }
 
+  // Send a friend request
   Future<void> sendFriendRequest(
       String currentUserId, String targetUserId) async {
-    var currentUserDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(currentUserId)
-        .get();
-    var targetUserDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(targetUserId)
-        .get();
+    final timestamp = FieldValue.serverTimestamp();
 
-    // If the contacts field is null, initialize it for the current user
-    if (currentUserDoc.exists) {
-      var currentUserData = currentUserDoc.data() as Map<String, dynamic>;
-      if (currentUserData['contacts'] == null) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(currentUserId)
-            .update({
-          'contacts': {
-            'friends': [],
-            'pending': [],
-            'requests': [],
-          },
-        });
-      }
+    try {
+      await userCollection.doc(targetUserId).update({
+        'contacts.requests.$currentUserId': {'timestamp': timestamp}
+      });
+      print('Friend request sent from $currentUserId to $targetUserId');
+    } catch (e) {
+      print('Error sending friend request: $e');
     }
-
-    // If the contacts field is null, initialize it for the target user
-    if (targetUserDoc.exists) {
-      var targetUserData = targetUserDoc.data() as Map<String, dynamic>;
-      if (targetUserData['contacts'] == null) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(targetUserId)
-            .update({
-          'contacts': {
-            'friends': [],
-            'pending': [],
-            'requests': [],
-          },
-        });
-      }
-    }
-
-    // Check if a request has already been sent from the current user to the target user
-    var currentUserPending =
-        currentUserDoc.data()?['contacts']['pending'] ?? [];
-    var targetUserRequests =
-        targetUserDoc.data()?['contacts']['requests'] ?? [];
-
-    bool alreadySent =
-        currentUserPending.any((item) => item['userId'] == targetUserId);
-    bool alreadyRequested =
-        targetUserRequests.any((item) => item['userId'] == currentUserId);
-
-    if (alreadySent || alreadyRequested) {
-      throw Exception("Friend request already sent or received.");
-    }
-
-    // Proceed with sending the friend request to the target user
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(targetUserId)
-        .update({
-      'contacts.requests': FieldValue.arrayUnion([
-        {
-          'userId': currentUserId,
-          'dateRequested': Timestamp.now(),
-        }
-      ])
-    });
-
-    // Add the request to the requestor's pending list
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(currentUserId)
-        .update({
-      'contacts.pending': FieldValue.arrayUnion([
-        {
-          'userId': targetUserId,
-          'dateSent': Timestamp.now(),
-        }
-      ])
-    });
   }
 
+  // Accept a friend request
   Future<void> acceptFriendRequest(
-      String currentUserId, String requestorUserId) async {
-    // Remove the request from the current user and add the friend to their list
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(currentUserId)
-        .update({
-      'contacts.requests': FieldValue.arrayRemove([
-        {'userId': requestorUserId}
-      ]),
-      'contacts.friends': FieldValue.arrayUnion([
-        {'userId': requestorUserId, 'dateAdded': Timestamp.now()}
-      ]),
-    });
+      String currentUserId, String senderUserId) async {
+    final timestamp = FieldValue.serverTimestamp();
 
-    // Remove the user from the pending list in the requestor's document and add as friend
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(requestorUserId)
-        .update({
-      'contacts.pending': FieldValue.arrayRemove([
-        {'userId': currentUserId}
-      ]),
-      'contacts.friends': FieldValue.arrayUnion([
-        {'userId': currentUserId, 'dateAdded': Timestamp.now()}
-      ]),
-    });
-  }
+    try {
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final userRef = userCollection.doc(currentUserId);
+        final senderRef = userCollection.doc(senderUserId);
 
-  Future<void> rejectFriendRequest(
-      String currentUserId, String requestorUserId) async {
-    FirebaseFirestore firestore = FirebaseFirestore.instance;
-
-    // Using a transaction to ensure both updates happen atomically
-    await firestore.runTransaction((transaction) async {
-      // Step 1: Get the current user's document
-      DocumentReference currentUserRef = firestore.collection('users').doc(currentUserId);
-      DocumentSnapshot currentUserSnapshot = await transaction.get(currentUserRef);
-
-      // Step 2: Get the requester's document
-      DocumentReference requestorUserRef = firestore.collection('users').doc(requestorUserId);
-      DocumentSnapshot requestorUserSnapshot = await transaction.get(requestorUserRef);
-
-      // Ensure both users' data exists
-      if (currentUserSnapshot.exists && requestorUserSnapshot.exists) {
-        // Get the current user's requests and the requester's pending
-        var currentUserData = currentUserSnapshot.data() as Map<String, dynamic>;
-        var requestorUserData = requestorUserSnapshot.data() as Map<String, dynamic>;
-
-        var currentUserRequests = List<Map<String, dynamic>>.from(currentUserData['contacts']['requests'] ?? []);
-        var requestorUserPending = List<Map<String, dynamic>>.from(requestorUserData['contacts']['pending'] ?? []);
-
-        // Remove the request from the current user's requests
-        currentUserRequests.removeWhere((request) => request['userId'] == requestorUserId);
-
-        // Remove the current user from the requestor's pending list
-        requestorUserPending.removeWhere((pending) => pending['userId'] == currentUserId);
-
-        // Step 3: Update both users' contacts in Firestore
-        transaction.update(currentUserRef, {
-          'contacts.requests': currentUserRequests,
+        // Remove request from the current user's requests and add to friends
+        transaction.update(userRef, {
+          'contacts.requests.$senderUserId': FieldValue.delete(),
+          'contacts.friends.$senderUserId': {'timestamp': timestamp}
         });
 
-        transaction.update(requestorUserRef, {
-          'contacts.pending': requestorUserPending,
+        // Add current user to sender's friends list
+        transaction.update(senderRef, {
+          'contacts.friends.$currentUserId': {'timestamp': timestamp}
         });
-      }
-    });
-  }
-
-  Future<void> removeFriend(String currentUserId, String friendUserId) async {
-    // First, get the current user data to access the friend list
-    var currentUserDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(currentUserId)
-        .get();
-    var currentUserData = currentUserDoc.data();
-
-    // Get the friend data from the current user's 'friends' list
-    var friendData = currentUserData?['contacts']['friends'] ?? [];
-
-    // Find the friend object to remove from the list (the one with the friendUserId)
-    var friendToRemove = friendData.firstWhere(
-      (friend) => friend['userId'] == friendUserId,
-      orElse: () => null,
-    );
-
-    if (friendToRemove != null) {
-      // Remove the friend from the current user's friends list
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUserId)
-          .update({
-        'contacts.friends': FieldValue.arrayRemove([friendToRemove]),
       });
 
-      // Remove the current user from the friend's list (unfriending the other person)
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(friendUserId)
-          .update({
-        'contacts.friends': FieldValue.arrayRemove([
-          {
-            'userId': currentUserId,
-            'dateAdded': friendToRemove[
-                'dateAdded'] // Make sure to include the dateAdded field
-          }
-        ]),
-      });
+      print('Accepted friend request from $senderUserId for $currentUserId');
+    } catch (e) {
+      print('Error accepting friend request: $e');
     }
   }
+
+  // Decline a friend request
+  Future<void> declineFriendRequest(
+      String currentUserId, String senderUserId) async {
+    try {
+      await userCollection
+          .doc(currentUserId)
+          .update({'contacts.requests.$senderUserId': FieldValue.delete()});
+      print('Declined friend request from $senderUserId for $currentUserId');
+    } catch (e) {
+      print('Error declining friend request: $e');
+    }
+  }
+
+  // Remove a friend
+  Future<void> removeFriend(String currentUserId, String friendUserId) async {
+    try {
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final userRef = userCollection.doc(currentUserId);
+        final friendRef = userCollection.doc(friendUserId);
+
+        // Remove friend from current user's friends list
+        transaction.update(
+            userRef, {'contacts.friends.$friendUserId': FieldValue.delete()});
+
+        // Remove current user from friend's friends list
+        transaction.update(friendRef,
+            {'contacts.friends.$currentUserId': FieldValue.delete()});
+      });
+
+      print('Removed friend $friendUserId from $currentUserId');
+    } catch (e) {
+      print('Error removing friend: $e');
+    }
+  }
+
+  Future<bool> checkUserExists(String uid) async {
+    DocumentSnapshot userDoc = await userCollection.doc(uid).get();
+    return userDoc.exists;
+  }
+
+  Future<String> getUserName(String userId) async {
+    try {
+      DocumentSnapshot userDoc = await userCollection.doc(userId).get();
+
+      if (userDoc.exists) {
+        // Concatenate firstName, middleName, and lastName to form the full name
+        String firstName = userDoc['firstName'] ?? '';
+        String middleName = userDoc['middleName'] ?? '';
+        String lastName = userDoc['lastName'] ?? '';
+
+        // Combine parts, ensuring there's a space between them if not empty
+        String fullName = '$firstName ${middleName.isNotEmpty ? '$middleName ' : ''}$lastName';
+
+        // Trim leading and trailing spaces
+        return fullName.trim().isEmpty ? 'Unknown' : fullName.trim();
+      } else {
+        throw Exception("User not found");
+      }
+    } catch (e) {
+      print("Error getting user name: $e");
+      return 'Error'; // Return 'Error' if there's an exception
+    }
+  }
+
 }

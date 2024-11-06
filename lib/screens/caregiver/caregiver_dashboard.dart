@@ -232,7 +232,7 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
                               leftIcon: CircleAvatar(
                                 backgroundImage: AssetImage(
                                     'lib/assets/images/shared/placeholder.png'), // Default placeholder
-                                radius: 18.0,
+                                radius: 24.0,
                               ),
                               rightIcon: ValueListenableBuilder<int?>(
                                 // Updated

@@ -1,216 +1,572 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:solace/services/database.dart';
-import 'package:solace/shared/widgets/qr_scanner.dart';
+import 'package:solace/themes/colors.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class Contacts extends StatelessWidget {
-  final String userId;
+  final String currentUserId;
+  final DatabaseService db = DatabaseService();
 
-  const Contacts({super.key, required this.userId});
+  Contacts({super.key, required this.currentUserId});
+
+  Future<void> _makeCall(String phoneNumber) async {
+    final Uri launchUri = Uri(
+      scheme: 'tel',
+      path: phoneNumber,
+    );
+
+    var status = await Permission.phone.status;
+    if (status.isDenied) {
+      await Permission.phone.request();
+      status = await Permission.phone.status;
+    }
+
+    if (status.isGranted) {
+      if (await canLaunchUrl(launchUri)) {
+        await launchUrl(launchUri);
+      } else {}
+    } else {}
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.white,
       appBar: AppBar(
-        title: Text("Contacts"),
+        title: Text('Contacts'),
+        backgroundColor: AppColors.white,
+        scrolledUnderElevation: 0.0,
         actions: [
           IconButton(
             icon: Icon(Icons.search),
-            onPressed: () {
-              _showSearchModal(context);
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.qr_code_scanner),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => QRScannerPage(userId: userId)),
-              );
-            },
+            onPressed: () => _showSearchModal(context),
           ),
         ],
       ),
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance.collection('users').doc(userId).snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text("Error loading contacts"));
-          }
-          if (!snapshot.hasData || snapshot.data == null) {
-            return Center(child: Text("No contacts found"));
-          }
-
-          var data = snapshot.data!.data() as Map<String, dynamic>;
-          var contacts = data['contacts'] ?? {
-            'friends': [],
-            'pending': [],
-            'requests': [],
-          };
-
-          List friends = contacts['friends'] ?? [];
-          List pending = contacts['pending'] ?? [];
-          List requests = contacts['requests'] ?? [];
-
-          return ListView(
+      body: SingleChildScrollView(
+        child: Container(
+          color: AppColors.white,
+          padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
+          child: Column(
             children: [
-              _buildSectionTitle("Friends"),
-              _buildContactsList(friends, context, isFriendList: true),
-              _buildSectionTitle("Pending Requests"),
-              _buildContactsList(pending, context, isPendingList: true),
-              _buildSectionTitle("Requests Received"),
-              _buildContactsList(requests, context, isRequestList: true),
+              _buildHeader('Friends'),
+              _buildFriendsList(),
+              SizedBox(height: 20),
+              _buildHeader('Friend Requests'),
+              _buildRequestsList(),
             ],
-          );
-        },
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+  // Header for Friends & Requests list
+  Widget _buildHeader(String title) {
+    return SizedBox(
+      width: double.infinity,
       child: Text(
         title,
-        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        textAlign: TextAlign.left,
+        style: TextStyle(
+          fontSize: 24,
+          fontFamily: 'Outfit',
+          fontWeight: FontWeight.bold,
+          color: AppColors.black,
+        ),
       ),
     );
   }
 
-  // Helper for contact lists
-  Widget _buildContactsList(List contacts, BuildContext context, {bool isFriendList = false, bool isPendingList = false, bool isRequestList = false}) {
-    if (contacts.isEmpty) {
-      return Center(child: Text("No ${isFriendList ? 'friends' : isPendingList ? 'pending requests' : 'requests'} found"));
-    }
+  // Friends list
+  Widget _buildFriendsList() {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUserId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return Center(
+            child: CircularProgressIndicator(color: AppColors.neon),
+          );
+        }
 
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: NeverScrollableScrollPhysics(),
-      itemCount: contacts.length,
-      itemBuilder: (context, index) {
-        String contactId = contacts[index]['userId'];
+        var friendsData = snapshot.data!['contacts']['friends'];
 
-        return FutureBuilder<DocumentSnapshot>(
-          future: FirebaseFirestore.instance.collection('users').doc(contactId).get(),
-          builder: (context, userSnapshot) {
-            if (userSnapshot.connectionState == ConnectionState.waiting) {
-              return ListTile(
-                title: Text("Loading..."),
-                subtitle: Text(contactId),
+        // Check if friendsData is null or empty
+        if (friendsData == null || (friendsData is Map && friendsData.isEmpty)) {
+          return Column(
+            children: [
+              SizedBox(height: 20,),
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(vertical: 18),
+                decoration: BoxDecoration(
+                  color: AppColors.gray,
+                  borderRadius: BorderRadius.circular(10.0),
+                ),
+                child: Text(
+                  'No friends yet',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.normal,
+                    color: AppColors.black,
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+
+        if (friendsData is Map) {
+          var friends = friendsData.keys.toList();
+
+          return ListView.builder(
+            shrinkWrap: true,
+            physics: NeverScrollableScrollPhysics(),
+            itemCount: friends.length,
+            itemBuilder: (context, index) {
+              String friendId = friends[index];
+
+              return FutureBuilder<String>(
+                future: db.getUserName(friendId),
+                builder: (context, nameSnapshot) {
+                  if (!nameSnapshot.hasData) {
+                    return Center(child: CircularProgressIndicator());
+                  }
+
+                  String friendName = nameSnapshot.data ?? 'Unknown';
+
+                  return Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+                    margin: EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.gray,
+                      borderRadius: BorderRadius.circular(10.0),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        CircleAvatar(
+                          radius: 24,
+                          backgroundImage: AssetImage(
+                              'lib/assets/images/shared/placeholder.png'),
+                        ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            friendName,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontFamily: 'Inter',
+                              fontWeight: FontWeight.normal,
+                              color: AppColors.black,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.more_vert),
+                          onPressed: () =>
+                              _showFriendOptions(context, friendId),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               );
-            }
-
-            if (userSnapshot.hasError || !userSnapshot.hasData) {
-              return ListTile(
-                title: Text("Error loading name"),
-                subtitle: Text(contactId),
-              );
-            }
-
-            // Extract firstName, middleName, lastName
-            var firstName = userSnapshot.data?.get('firstName').trim() ?? '';
-            var middleName = userSnapshot.data?.get('middleName').trim() ?? '';
-            var lastName = userSnapshot.data?.get('lastName').trim() ?? '';
-
-            // Combine the name components
-            String contactName = '$firstName ${middleName.isNotEmpty ? middleName + ' ' : ''}$lastName';
-
-            return ListTile(
-              title: Text(contactName.isEmpty ? "Unknown" : contactName),
-              subtitle: Text(contactId),
-              trailing: _buildContactActions(contactId, context, isFriendList, isPendingList, isRequestList),
-            );
-          },
-        );
+            },
+          );
+        }
+        return Container(); // In case no friends are found.
       },
     );
   }
 
-  Widget _buildContactActions(String contactId, BuildContext context, bool isFriendList, bool isPendingList, bool isRequestList) {
-    if (isFriendList) {
-      return IconButton(
-        icon: Icon(Icons.delete, color: Colors.red),
-        onPressed: () async {
-          await DatabaseService(uid: userId).removeFriend(userId, contactId);
-        },
-      );
-    } else if (isPendingList) {
-      return IconButton(
-        icon: Icon(Icons.cancel, color: Colors.orange),
-        onPressed: () async {
-          await DatabaseService(uid: userId).rejectFriendRequest(userId, contactId);
-        },
-      );
-    } else if (isRequestList) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: Icon(Icons.check, color: Colors.green),
-            onPressed: () async {
-              await DatabaseService(uid: userId).acceptFriendRequest(userId, contactId);
+
+  // Requests list
+  Widget _buildRequestsList() {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUserId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return Center(child: CircularProgressIndicator());
+        }
+
+        var requestsData = snapshot.data!['contacts']['requests'];
+
+        // Check if requestsData is null or empty
+        if (requestsData == null || (requestsData is Map && requestsData.isEmpty)) {
+          return Column(
+            children: [
+              SizedBox(height: 20,),
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(vertical: 18),
+                decoration: BoxDecoration(
+                  color: AppColors.gray,
+                  borderRadius: BorderRadius.circular(10.0),
+                ),
+                child: Text(
+                  'No requests',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.normal,
+                    color: AppColors.black,
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+
+        if (requestsData is Map) {
+          var requests = requestsData.keys.toList();
+
+          return ListView.builder(
+            shrinkWrap: true,
+            physics: NeverScrollableScrollPhysics(),
+            itemCount: requests.length,
+            itemBuilder: (context, index) {
+              String requestId = requests[index];
+
+              return FutureBuilder<String>(
+                future: db.getUserName(requestId),
+                builder: (context, nameSnapshot) {
+                  if (!nameSnapshot.hasData) {
+                    return Center(child: CircularProgressIndicator());
+                  }
+
+                  String requesterName = nameSnapshot.data ?? 'Unknown';
+
+                  return Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+                    margin: EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.gray,
+                      borderRadius: BorderRadius.circular(10.0),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        CircleAvatar(
+                          radius: 24,
+                          backgroundImage: AssetImage(
+                              'lib/assets/images/shared/placeholder.png'),
+                        ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            requesterName,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontFamily: 'Inter',
+                              fontWeight: FontWeight.normal,
+                              color: AppColors.black,
+                            ),
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: Icon(Icons.check, color: Colors.green),
+                              onPressed: () =>
+                                  db.acceptFriendRequest(currentUserId, requestId),
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.clear, color: Colors.red),
+                              onPressed: () =>
+                                  db.declineFriendRequest(currentUserId, requestId),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
             },
-          ),
-          IconButton(
-            icon: Icon(Icons.close, color: Colors.red),
-            onPressed: () async {
-              await DatabaseService(uid: userId).rejectFriendRequest(userId, contactId);
-            },
-          ),
-        ],
-      );
-    }
-    return SizedBox.shrink();
+          );
+        }
+        return Container(); // In case no requests are found.
+      },
+    );
   }
 
-  void _showSearchModal(BuildContext context) {
+
+  // Friend Options Modal
+  Future<void> _showSearchModal(BuildContext context) async {
+    final TextEditingController uidController = TextEditingController();
+
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        TextEditingController userIdController = TextEditingController();
+      builder: (context) {
         return AlertDialog(
-          title: Text('Enter User ID'),
-          content: TextField(
-            controller: userIdController,
-            decoration: InputDecoration(hintText: 'User ID'),
+          backgroundColor: AppColors.white,
+          title: Text(
+            'Add Friend',
+            style: TextStyle(
+              fontFamily: 'Outfit',
+              fontWeight: FontWeight.bold,
+              fontSize: 24,
+            ),
           ),
-          actions: <Widget>[
-            TextButton(
-              child: Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+          content: SizedBox(
+            width: MediaQuery.of(context).size.width,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // This TextField now directly takes full width
+                TextField(
+                  controller: uidController,
+                  decoration: InputDecoration(
+                    labelText: 'Enter User UID',
+                    filled: true,
+                    fillColor: AppColors.gray,
+                    focusColor: AppColors.neon,
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide.none,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: AppColors.neon),
+                    ),
+                    labelStyle: TextStyle(color: AppColors.black),
+                  ),
+                  // Make sure it takes full width
+                  maxLines: 1,
+                  expands: false,
+                  style: TextStyle(fontSize: 18, fontFamily: 'Inter', fontWeight: FontWeight.normal),
+                ),
+                SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      height: 40,
+                      padding: const EdgeInsets.symmetric(horizontal: 0.0, vertical: 0.0),
+                      decoration: BoxDecoration(
+                        color: AppColors.neon,
+                        borderRadius: BorderRadius.circular(10.0),
+                      ),
+                      child: TextButton(
+                        onPressed: () async {
+                          String targetUserId = uidController.text.trim();
+                          bool exists = await db.checkUserExists(targetUserId);
+                          if (exists) {
+                            await db.sendFriendRequest(currentUserId, targetUserId);
+                            Navigator.pop(context);
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('User not found')),
+                            );
+                          }
+                        },
+                        style: TextButton.styleFrom(
+                          backgroundColor: AppColors.neon,
+                          foregroundColor: AppColors.white,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.group_add),
+                            SizedBox(width: 10),
+                            Text(
+                              'Add friend',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold, // Bold text style
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            TextButton(
-              child: Text('Send Request'),
-              onPressed: () async {
-                String targetUserId = userIdController.text;
-                if (targetUserId.isNotEmpty) {
-                  bool alreadySent = await _hasPendingRequest(targetUserId);
-                  if (alreadySent) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Request already sent or received')));
-                    Navigator.of(context).pop();
-                  } else {
-                    await DatabaseService(uid: userId).sendFriendRequest(userId, targetUserId);
-                    Navigator.of(context).pop(); // Close modal
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Friend request sent to $targetUserId')));
-                  }
-                }
-              },
-            ),
-          ],
+          ),
         );
       },
     );
   }
 
-  Future<bool> _hasPendingRequest(String targetUserId) async {
-    var userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
-    var contacts = userDoc.data()?['contacts'] ?? {'pending': []};
-    var pending = contacts['pending'] ?? [];
-    return pending.any((request) => request['userId'] == targetUserId);
+  Future<void> _showFriendOptions(BuildContext context, String friendId) async {
+    // Fetch the friend's name and phone number asynchronously
+    String friendName = await db.getUserName(friendId);
+    DocumentSnapshot friendDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(friendId)
+        .get();
+
+    String phoneNumber = friendDoc['phoneNumber'] ??
+        'Not available'; // Assuming phoneNumber field exists
+
+    // Extract the timestamp for when you became friends
+    var friendData = friendDoc['contacts']['friends'][currentUserId];
+
+    String formattedTimestamp = 'Unknown';
+    if (friendData is Timestamp) {
+      formattedTimestamp = DateFormat('yyyy-MM-dd').format(friendData.toDate());
+    } else if (friendData is Map) {
+      // If the data is a Map, we might need to extract the timestamp from within it
+      var timestamp = friendData[
+          'timestamp']; // assuming the timestamp is stored as 'timestamp'
+      if (timestamp is Timestamp) {
+        formattedTimestamp =
+            DateFormat('yyyy-MM-dd').format(timestamp.toDate());
+      }
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppColors.white,
+          title: Text(
+            friendName,
+            style: TextStyle(
+              fontFamily: 'Outfit',
+              fontWeight: FontWeight.bold,
+              fontSize: 24,
+            ),
+          ),
+          content: SizedBox(
+            width: MediaQuery.of(context).size.width,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Column(
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.phone, color: AppColors.black),
+                        SizedBox(width: 10),
+                        Text(
+                          phoneNumber,
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 18,
+                            fontWeight: FontWeight.normal,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Icon(Icons.people, color: AppColors.black),
+                        SizedBox(width: 10),
+                        Text(
+                          formattedTimestamp,
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 18,
+                            fontWeight: FontWeight.normal,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          height: 40,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 0.0, vertical: 0.0),
+                          decoration: BoxDecoration(
+                            color: AppColors.neon,
+                            borderRadius: BorderRadius.circular(10.0),
+                          ),
+                          child: TextButton(
+                            onPressed: () => _makeCall(phoneNumber),
+                            style: TextButton.styleFrom(
+                              backgroundColor: AppColors.neon,
+                              foregroundColor: AppColors.white,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.call),
+                                SizedBox(width: 10),
+                                Text(
+                                  'Call',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 14,
+                                    fontWeight:
+                                        FontWeight.bold, // Bold text style
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 10),
+                        Container(
+                          height: 40,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 0.0, vertical: 0.0),
+                          decoration: BoxDecoration(
+                            color: AppColors.red,
+                            borderRadius: BorderRadius.circular(10.0),
+                          ),
+                          child: TextButton(
+                            onPressed: () {
+                              db.removeFriend(currentUserId, friendId);
+                              Navigator.pop(context);
+                            },
+                            style: TextButton.styleFrom(
+                              backgroundColor: AppColors.red,
+                              foregroundColor: AppColors.white,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.group_remove), // Keep the icon
+                                SizedBox(width: 10),
+                                Text(
+                                  'Remove', // Changed text to "Remove"
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 14,
+                                    fontWeight:
+                                        FontWeight.bold, // Bold text style
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 }

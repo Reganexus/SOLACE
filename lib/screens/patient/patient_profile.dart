@@ -171,7 +171,7 @@ class PatientProfile extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => Contacts(userId: userData.uid), // Navigate to Contacts view
+                          builder: (context) => Contacts(currentUserId: userData.uid,), // Navigate to Contacts view
                         ),
                       );
                     },

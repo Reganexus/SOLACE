@@ -5,14 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/admin/admin_home.dart';
-import 'package:solace/screens/authenticate/authenticate.dart';
 import 'package:solace/screens/caregiver/caregiver_home.dart';
 import 'package:solace/screens/doctor/doctor_home.dart';
 import 'package:solace/screens/family/family_home.dart';
 import 'package:solace/screens/patient/patient_home.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/screens/authenticate/verify.dart';
-import 'package:solace/shared/globals.dart'; // Import your verify screen
+import 'package:solace/shared/globals.dart';
+import 'package:solace/themes/colors.dart'; // Import your verify screen
 
 class Home extends StatelessWidget {
   final CollectionReference userCollection = DatabaseService().userCollection;
@@ -27,15 +27,15 @@ class Home extends StatelessWidget {
     if (user == null) {
       debugPrint("Loading home...");
       return Center(
-                child: CircularProgressIndicator()); // Loading indicator
+                child: CircularProgressIndicator(color: AppColors.neon)); // Loading indicator
     }
 
     return FutureBuilder<DocumentSnapshot>(
-      future: userCollection.doc(user?.uid).get(),
+      future: userCollection.doc(user.uid).get(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           debugPrint("Loading user data...");
-          return Center(child: CircularProgressIndicator());
+          return Center(child: CircularProgressIndicator(color: AppColors.neon));
         }
 
         if (snapshot.hasError) {

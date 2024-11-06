@@ -23,8 +23,8 @@ class _LogInState extends State<LogIn> {
   final AuthService _auth = AuthService();
   final _formKey = GlobalKey<FormState>();
 
-  String email = '';
-  String password = '';
+  String _email = '';
+  String _password = '';
   String error = '';
   bool _isLoading = false; // Loading state
 
@@ -70,10 +70,132 @@ class _LogInState extends State<LogIn> {
     super.dispose();
   }
 
-  void _showError(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+  void _showError(String message, String criteria) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          backgroundColor: Colors.white,
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                // Container for the error messages
+                Container(
+                  padding: const EdgeInsets.all(16), // Padding inside the container
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF3F2), // Background color for errors
+                    border: Border.all(
+                      color: const Color(0xFFFEC5D0), // Border color for errors
+                      width: 2, // Border width
+                    ),
+                    borderRadius: BorderRadius.circular(10), // Rounded corners
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Error Title
+                      const Text(
+                        'Error/s Occurred!',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontFamily: 'Outfit',
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF690D02), // Text color for title
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      // Error Messages
+                      Text(
+                        message
+                            .split('\n')
+                            .where((error) => error.isNotEmpty) // Filter out empty messages
+                            .map((error) => "• $error")
+                            .join('\n'),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Color(0xFF690D02), // Text color for error messages
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Only show the Password Criteria Container if criteria is not empty
+                if (criteria.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(16), // Padding inside the container
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F5E9), // Complementary background color for password criteria
+                      border: Border.all(
+                        color: const Color(0xFFC8E6C9), // Complementary border color for password criteria
+                        width: 2, // Border width
+                      ),
+                      borderRadius: BorderRadius.circular(10), // Rounded corners
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Password Criteria Title
+                        const Text(
+                          'Password Criteria',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontFamily: 'Outfit',
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.black,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        // Password Criteria List
+                        Text(
+                          criteria
+                              .split('\n')
+                              .where((criterion) => criterion.isNotEmpty) // Filter out empty criteria
+                              .map((criterion) => "• $criterion")
+                              .join('\n'),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: AppColors.black,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                backgroundColor: AppColors.neon,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text(
+                'Close',
+                style: TextStyle(
+                  fontSize: 16.0,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Inter',
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
+
 
   Future<void> _autoLogin() async {
     String testEmail = 'john@gmail.com';
@@ -150,28 +272,11 @@ class _LogInState extends State<LogIn> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    if (error.isNotEmpty)
-                      SizedBox(
-                        height: 40,
-                        child: Text(
-                          error,
-                          style:
-                              const TextStyle(color: Colors.red, fontSize: 14),
-                          textAlign: TextAlign.left,
-                        ),
-                      ),
-                    const SizedBox(height: 20),
                     TextFormField(
                       controller: _emailController,
                       focusNode: _emailFocusNode,
                       decoration: _inputDecoration('Email', _emailFocusNode),
-                      validator: (val) =>
-                          val!.isEmpty ? "Enter an email" : null,
-                      onChanged: (val) {
-                        if (mounted) {
-                          setState(() => email = val);
-                        }
-                      },
+                      onChanged: (val) => setState(() => _email = val),
                     ),
                     const SizedBox(height: 20),
                     TextFormField(
@@ -199,14 +304,7 @@ class _LogInState extends State<LogIn> {
                           },
                         ),
                       ),
-                      validator: (val) => val!.length < 6
-                          ? "Enter a password 6+ chars long"
-                          : null,
-                      onChanged: (val) {
-                        if (mounted) {
-                          setState(() => password = val);
-                        }
-                      },
+                      onChanged: (val) => setState(() => _password = val),
                     ),
                     const SizedBox(height: 20),
                     Container(
@@ -240,6 +338,54 @@ class _LogInState extends State<LogIn> {
                         onPressed: _isLoading // Check if loading
                             ? null // Disable the button while loading
                             : () async {
+                                String errorMessage = '';
+
+                                // Validate Email
+                                if (_emailController.text.isEmpty) {
+                                  errorMessage += "Enter an email.\n";
+                                } else if (!RegExp(
+                                        r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+                                    .hasMatch(_emailController.text)) {
+                                  errorMessage +=
+                                      "Enter a valid email address.\n";
+                                }
+
+                                // Validate Password
+                                if (_passwordController.text.isEmpty) {
+                                  errorMessage += "Enter a password.\n";
+                                } else if (_passwordController.text.length <
+                                    6) {
+                                  errorMessage +=
+                                      "Password must be at least 6 characters long.\n";
+                                } else if (_passwordController.text.length >
+                                    4096) {
+                                  errorMessage +=
+                                      "Password must be no more than 4096 characters long.\n";
+                                } else if (!RegExp(r'(?=.*[a-z])')
+                                    .hasMatch(_passwordController.text)) {
+                                  errorMessage +=
+                                      "Password must include at least one lowercase letter.\n";
+                                } else if (!RegExp(r'(?=.*[A-Z])')
+                                    .hasMatch(_passwordController.text)) {
+                                  errorMessage +=
+                                      "Password must include at least one uppercase letter.\n";
+                                } else if (!RegExp(r'(?=.*\d)')
+                                    .hasMatch(_passwordController.text)) {
+                                  errorMessage +=
+                                      "Password must include at least one number.\n";
+                                } else if (!RegExp(r'(?=.*[!@#\$%\^&\*_])')
+                                    .hasMatch(_passwordController.text)) {
+                                  errorMessage +=
+                                      "Password must include at least one special character.\n";
+                                }
+
+                                // Show errors if there are any
+                                if (errorMessage.isNotEmpty) {
+                                  // Call _showError with both error messages and criteria
+                                  _showError(errorMessage, "");
+                                  return; // Exit early if there are validation errors
+                                }
+
                                 if (_formKey.currentState!.validate()) {
                                   if (mounted) {
                                     setState(() {
@@ -249,7 +395,7 @@ class _LogInState extends State<LogIn> {
                                   }
                                   dynamic result =
                                       await _auth.logInWithEmailAndPassword(
-                                          email, password);
+                                          _email, _password);
                                   if (mounted) {
                                     setState(() {
                                       _isLoading = false; // Reset loading state
@@ -337,7 +483,8 @@ class _LogInState extends State<LogIn> {
                           } else {
                             if (mounted) {
                               _showError(
-                                  "Google sign-in failed. Please try again.");
+                                  "Google sign-in failed. Please try again.",
+                                  "");
                             }
                           }
 

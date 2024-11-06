@@ -116,7 +116,7 @@ class _VerifyState extends State<Verify> {
       backgroundColor: AppColors.neon,
       body: Container(
         color: AppColors.neon,
-        padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
+        padding: const EdgeInsets.all(30),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

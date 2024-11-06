@@ -214,7 +214,7 @@ class CaregiverPatientsState extends State<CaregiverPatients> {
                                 CircleAvatar(
                                   backgroundImage: AssetImage(
                                       'lib/assets/images/shared/placeholder.png'),
-                                  radius: 18.0,
+                                  radius: 24.0,
                                 ),
                                 const SizedBox(width: 10.0),
                                 Text(

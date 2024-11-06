@@ -52,7 +52,7 @@ class _CaregiverHomeState extends State<CaregiverHome> {
             const CircleAvatar(
               radius: 20.0,
               backgroundImage:
-              AssetImage('lib/assets/images/shared/placeholder.png'),
+                  AssetImage('lib/assets/images/shared/placeholder.png'),
             ),
             const SizedBox(width: 10.0),
             Text(
@@ -106,48 +106,50 @@ class _CaregiverHomeState extends State<CaregiverHome> {
           return AppBar(
             backgroundColor: AppColors.white,
             scrolledUnderElevation: 0.0,
+            automaticallyImplyLeading: false,
             elevation: 0.0,
             title: Padding(
               padding: const EdgeInsets.fromLTRB(15.0, 20.0, 15.0, 10.0),
               child: _currentIndex == 0
                   ? Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildLeftAppBar(context),
-                  _buildRightAppBar(context),
-                ],
-              )
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildLeftAppBar(context),
+                        _buildRightAppBar(context),
+                      ],
+                    )
                   : _currentIndex == 3
-                  ? Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Profile',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Inter',
-                    ),
-                  ),
-                  IconButton(
-                    icon: Image.asset(
-                      'lib/assets/images/shared/profile/qr.png',
-                      height: 30,
-                    ),
-                    onPressed: () {
-                      _showQrModal(context, fullName, user?.uid ?? '');
-                    },
-                  ),
-                ],
-              )
-                  : Text(
-                _currentIndex == 1 ? 'Patients' : 'Tracking',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Inter',
-                ),
-              ),
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Profile',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'Inter',
+                              ),
+                            ),
+                            IconButton(
+                              icon: Image.asset(
+                                'lib/assets/images/shared/profile/qr.png',
+                                height: 30,
+                              ),
+                              onPressed: () {
+                                _showQrModal(
+                                    context, fullName, user?.uid ?? '');
+                              },
+                            ),
+                          ],
+                        )
+                      : Text(
+                          _currentIndex == 1 ? 'Patients' : 'Tracking',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Inter',
+                          ),
+                        ),
             ),
           );
         },
@@ -220,7 +222,6 @@ class _CaregiverHomeState extends State<CaregiverHome> {
       ),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {

@@ -114,6 +114,7 @@ class PatientHomeState extends State<PatientHome> {
           return AppBar(
             backgroundColor: AppColors.white,
             scrolledUnderElevation: 0.0,
+            automaticallyImplyLeading: false,
             elevation: 0.0,
             title: Padding(
               padding: const EdgeInsets.fromLTRB(15.0, 20.0, 15.0, 10.0),
