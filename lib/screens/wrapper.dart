@@ -50,13 +50,12 @@ class _WrapperState extends State<Wrapper> {
                   }
 
                   if (userSnapshot.hasData && userSnapshot.data != null) {
-                    final userData = userSnapshot.data!.data()
-                        as Map<String, dynamic>?; // Cast to map
-                    bool isVerified = userData?['isVerified'] ??
-                        false; // Safe access with null check
+                    // final userData = userSnapshot.data!.data()
+                    //     as Map<String, dynamic>?; // Cast to map
+                    // bool isVerified = userData?['isVerified'] ??
+                    //     false; // Safe access with null check
 
-                    debugPrint("OooLALALA User Data: $userData");
-                    if (emailVerificationEnabled && !isVerified) {
+                    if (emailVerificationEnabled && !snapshot.data!.emailVerified) {
                       return Verify(); // Redirect to Verify screen if not verified
                     } else {
                       return Home(); // Redirect to Home

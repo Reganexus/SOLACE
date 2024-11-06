@@ -25,12 +25,13 @@ class Home extends StatelessWidget {
     debugPrint("Current user from Provider: $user");
 
     if (user == null) {
-      debugPrint("User is null. Redirecting to Authenticate screen.");
-      return Authenticate();
+      debugPrint("Loading home...");
+      return Center(
+                child: CircularProgressIndicator()); // Loading indicator
     }
 
     return FutureBuilder<DocumentSnapshot>(
-      future: userCollection.doc(user.uid).get(),
+      future: userCollection.doc(user?.uid).get(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           debugPrint("Loading user data...");

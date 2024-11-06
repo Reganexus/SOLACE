@@ -14,8 +14,14 @@ class EditProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = Provider.of<MyUser?>(context);
 
+    if (user == null) {
+      debugPrint("Loading edit user profile...");
+      return Center(
+                child: CircularProgressIndicator()); // Loading indicator
+    }
+
     return FutureBuilder<UserData?>(
-      future: DatabaseService(uid: user?.uid).getUserData(),
+      future: DatabaseService(uid: user.uid).getUserData(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());

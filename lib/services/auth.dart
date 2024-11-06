@@ -96,13 +96,6 @@ class AuthService {
       await DatabaseService(uid: user.uid).updateUserData(
         userRole: UserRole.patient,
         email: email,
-        lastName: '',
-        firstName: '',
-        middleName: '',
-        phoneNumber: '',
-        gender: '',
-        birthday: null,
-        address: '',
         isVerified: false, // Set verification status to false initially
       );
 
@@ -129,7 +122,6 @@ class AuthService {
       // Sign in to Firebase
       UserCredential result = await _auth.signInWithCredential(credential);
       User? user = result.user;
-
       if (user != null) {
         // Check if the user exists in Firestore
         final email = user.email;
@@ -138,13 +130,6 @@ class AuthService {
           await DatabaseService(uid: user.uid).updateUserData(
             userRole: UserRole.patient, // Set default user role
             email: email,
-            lastName: '',
-            firstName: '',
-            middleName: '',
-            phoneNumber: '',
-            gender: '',
-            birthday: null,
-            address: '',
             isVerified: true, // Set isVerified to true for new Google sign-ups
           );
           debugPrint('New user document created for email: $email');
