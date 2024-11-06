@@ -34,7 +34,9 @@ class AuthService {
     if (user != null) {
       // Fetch user data to determine the actual verification status
       UserData? userData = await DatabaseService(uid: user.uid).getUserData();
-      return userData != null ? MyUser(uid: user.uid, isVerified: userData.isVerified) : null;
+      return userData != null
+          ? MyUser(uid: user.uid, isVerified: userData.isVerified)
+          : null;
     }
     return null;
   }
@@ -68,9 +70,11 @@ class AuthService {
     }
   }
 
-  Future<MyUser?> logInWithEmailAndPassword(String email, String password) async {
+  Future<MyUser?> logInWithEmailAndPassword(
+      String email, String password) async {
     try {
-      UserCredential result = await _auth.signInWithEmailAndPassword(email: email, password: password);
+      UserCredential result = await _auth.signInWithEmailAndPassword(
+          email: email, password: password);
       User? user = result.user;
       return user != null ? await _userFromFirebaseUser(user) : null;
     } catch (e) {
@@ -79,9 +83,11 @@ class AuthService {
     }
   }
 
-  Future<MyUser?> signUpWithEmailAndPassword(String email, String password) async {
+  Future<MyUser?> signUpWithEmailAndPassword(
+      String email, String password) async {
     try {
-      UserCredential result = await _auth.createUserWithEmailAndPassword(email: email, password: password);
+      UserCredential result = await _auth.createUserWithEmailAndPassword(
+          email: email, password: password);
       User? user = result.user;
       if (user == null) return null;
       debugPrint('New user id: ${user.uid}');
@@ -110,8 +116,9 @@ class AuthService {
   Future<MyUser?> signInWithGoogle() async {
     try {
       // Google Sign-In process
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      final GoogleSignInAuthentication? googleAuth = await googleUser?.authentication;
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      final GoogleSignInAuthentication? googleAuth =
+      await googleUser?.authentication;
 
       // Create a new credential
       final credential = GoogleAuthProvider.credential(
@@ -124,14 +131,42 @@ class AuthService {
       User? user = result.user;
 
       if (user != null) {
-        // You can now create or update the user in Firestore
-        await DatabaseService(uid: user.uid).updateUserData(
-          userRole: UserRole.patient,
-          email: user.email,
-          isVerified: true, // Set initial verification status
-        );
+        // Check if the user exists in Firestore
+        final email = user.email;
+        if (email != null && !await emailExists(email)) {
+          // If the user does not exist, create a new document
+          await DatabaseService(uid: user.uid).updateUserData(
+            userRole: UserRole.patient, // Set default user role
+            email: email,
+            lastName: '',
+            firstName: '',
+            middleName: '',
+            phoneNumber: '',
+            gender: '',
+            birthday: null,
+            address: '',
+            isVerified: true, // Set isVerified to true for new Google sign-ups
+          );
+          debugPrint('New user document created for email: $email');
+        } else {
+          debugPrint('User document already exists for email: $email');
+        }
 
-        return MyUser(uid: user.uid, isVerified: false);
+        // Fetch the user data again to ensure we have the latest data
+        DocumentSnapshot userDataSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        if (userDataSnapshot.exists) {
+          Map<String, dynamic> userData = userDataSnapshot.data() as Map<String, dynamic>;
+          bool isVerified = userData['isVerified'] ?? false;
+
+          return MyUser(uid: user.uid, isVerified: isVerified); // Return as verified
+        } else {
+          debugPrint("User data document does not exist after sign-in.");
+          return null; // Handle this case if necessary
+        }
       }
     } catch (e) {
       debugPrint("Google sign-in error: ${e.toString()}");
@@ -139,7 +174,6 @@ class AuthService {
     }
     return null;
   }
-
 
   Future<void> setUserVerificationStatus(String uid, bool isVerified) async {
     await FirebaseFirestore.instance.collection('users').doc(uid).update({

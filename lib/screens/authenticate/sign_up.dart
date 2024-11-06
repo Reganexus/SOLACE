@@ -36,6 +36,13 @@ class _SignUpState extends State<SignUp> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+  final passwordCriteria =
+      "Be at least 6 characters long.\n"
+      "Include at least one lowercase letter.\n"
+      "Include at least one uppercase letter.\n"
+      "Include at least one number.\n"
+      "Include at least one special character.\n";
+
   @override
   void initState() {
     super.initState();
@@ -87,6 +94,42 @@ class _SignUpState extends State<SignUp> {
 
   // Sign-up method in your sign-up screen
   Future<void> _handleSignUp() async {
+    // Validation checks
+    String errorMessage = '';
+
+    // Validate Email
+    if (_emailController.text.isEmpty) {
+      errorMessage += "Enter an email.\n";
+    } else if (!RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+        .hasMatch(_emailController.text)) {
+      errorMessage += "Enter a valid email address.\n";
+    }
+
+    // Validate Password
+    if (_passwordController.text.isEmpty) {
+      errorMessage += "Enter a password.\n";
+    } else if (_passwordController.text.length < 6) {
+      errorMessage += "Password must be at least 6 characters long.\n";
+    } else if (_passwordController.text.length > 4096) {
+      errorMessage += "Password must be no more than 4096 characters long.\n";
+    } else if (!RegExp(r'(?=.*[a-z])').hasMatch(_passwordController.text)) {
+      errorMessage += "Password must include at least one lowercase letter.\n";
+    } else if (!RegExp(r'(?=.*[A-Z])').hasMatch(_passwordController.text)) {
+      errorMessage += "Password must include at least one uppercase letter.\n";
+    } else if (!RegExp(r'(?=.*\d)').hasMatch(_passwordController.text)) {
+      errorMessage += "Password must include at least one number.\n";
+    } else if (!RegExp(r'(?=.*[!@#\$%\^&\*_])')
+        .hasMatch(_passwordController.text)) {
+      errorMessage += "Password must include at least one special character.\n";
+    }
+
+    // Show errors if there are any
+    if (errorMessage.isNotEmpty) {
+      // Call _showError with both error messages and criteria
+      _showError(errorMessage, passwordCriteria);
+      return; // Exit early if there are validation errors
+    }
+
     if (_formKey.currentState!.validate() && _agreeToTerms) {
       if (mounted) {
         setState(() {
@@ -98,8 +141,7 @@ class _SignUpState extends State<SignUp> {
         // Check if the email already exists
         bool emailExists = await _auth.emailExists(_email);
         if (emailExists) {
-          _showError(
-              "An account with this email already exists. Please log in.");
+          _showError("An account with this email already exists. Please log in.", "");
           return;
         }
 
@@ -113,10 +155,10 @@ class _SignUpState extends State<SignUp> {
             );
           }
         } else {
-          _showError("Registration failed. Please try again.");
+          _showError("Registration failed. Please try again.", "");
         }
       } catch (e) {
-        _showError("Network error. Please try again later.");
+        _showError("Network error. Please try again later.", "");
       } finally {
         if (mounted) {
           setState(() {
@@ -125,14 +167,130 @@ class _SignUpState extends State<SignUp> {
         }
       }
     } else if (!_agreeToTerms) {
-      _showError("You must agree to the terms and conditions.");
+      _showError("You must agree to the terms and conditions.", passwordCriteria);
     }
   }
 
-  void _showError(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+  void _showError(String message, String criteria) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          backgroundColor: Colors.white,
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                // Container for the error messages
+                Container(
+                  padding: const EdgeInsets.all(16), // Padding inside the container
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF3F2), // Background color for errors
+                    border: Border.all(
+                      color: const Color(0xFFFEC5D0), // Border color for errors
+                      width: 2, // Border width
+                    ),
+                    borderRadius: BorderRadius.circular(10), // Rounded corners
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Error Title
+                      const Text(
+                        'Error/s Occurred!',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontFamily: 'Outfit',
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF690D02), // Text color for title
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      // Error Messages
+                      Text(
+                        message.split('\n')
+                            .where((error) => error.isNotEmpty) // Filter out empty messages
+                            .map((error) => "• $error")
+                            .join('\n'),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Color(0xFF690D02), // Text color for error messages
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Container for the Password Criteria
+                Container(
+                  padding: const EdgeInsets.all(16), // Padding inside the container
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8F5E9), // Complementary background color for password criteria
+                    border: Border.all(
+                      color: const Color(0xFFC8E6C9), // Complementary border color for password criteria
+                      width: 2, // Border width
+                    ),
+                    borderRadius: BorderRadius.circular(10), // Rounded corners
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Password Criteria Title
+                      const Text(
+                        'Password Criteria',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontFamily: 'Outfit',
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      // Password Criteria List
+                      Text(
+                        criteria.split('\n')
+                            .where((criterion) => criterion.isNotEmpty) // Filter out empty criteria
+                            .map((criterion) => "• $criterion")
+                            .join('\n'),
+                        style: const TextStyle(fontSize: 16, color: AppColors.black),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                backgroundColor: AppColors.neon,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text(
+                'Close',
+                style: TextStyle(
+                  fontSize: 16.0,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Inter',
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -140,400 +298,407 @@ class _SignUpState extends State<SignUp> {
 
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 30),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: screenHeight,
-          ),
-          child: Center(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Image.asset(
-                    'lib/assets/images/auth/solace.png',
-                    width: 100,
-                  ),
-                  const SizedBox(height: 40),
-                  const Text(
-                    'Hello!',
-                    style: TextStyle(
-                      fontFamily: 'Outfit',
-                      fontWeight: FontWeight.bold,
-                      fontSize: 30,
-                      color: AppColors.black,
+      body: GestureDetector(
+        onTap: () {
+          FocusScope.of(context).unfocus(); // Dismiss the keyboard
+        },
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 30),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: screenHeight,
+            ),
+            child: Center(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    Image.asset(
+                      'lib/assets/images/auth/solace.png',
+                      width: 100,
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  if (error.isNotEmpty)
-                    SizedBox(
-                      height: 20,
-                      child: Text(
-                        error,
-                        style: const TextStyle(color: Colors.red, fontSize: 14),
+                    const SizedBox(height: 40),
+                    const Text(
+                      'Hello!',
+                      style: TextStyle(
+                        fontFamily: 'Outfit',
+                        fontWeight: FontWeight.bold,
+                        fontSize: 30,
+                        color: AppColors.black,
                       ),
                     ),
-                  const SizedBox(height: 20),
-                  TextFormField(
-                    controller: _emailController,
-                    focusNode: _emailFocusNode,
-                    decoration: _inputDecoration('Email', _emailFocusNode),
-                    validator: (val) {
-                      if (val!.isEmpty) {
-                        return "Enter an email";
-                      } else if (!RegExp(
-                              r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
-                          .hasMatch(val)) {
-                        return "Enter a valid email address";
-                      }
-                      return null;
-                    },
-                    onChanged: (val) => setState(() => _email = val),
-                  ),
-                  const SizedBox(height: 20),
-                  TextFormField(
-                    controller: _passwordController,
-                    focusNode: _passwordFocusNode,
-                    obscureText: !_isPasswordVisible,
-                    decoration: _inputDecoration('Password', _passwordFocusNode)
-                        .copyWith(
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _isPasswordVisible
-                              ? Icons.visibility
-                              : Icons.visibility_off,
-                          color: _passwordFocusNode.hasFocus
-                              ? AppColors.neon
-                              : AppColors.black,
+                    const SizedBox(height: 20),
+                    TextFormField(
+                      controller: _emailController,
+                      focusNode: _emailFocusNode,
+                      decoration: _inputDecoration('Email', _emailFocusNode),
+                      onChanged: (val) => setState(() => _email = val),
+                    ),
+                    const SizedBox(height: 20),
+                    TextFormField(
+                      controller: _passwordController,
+                      focusNode: _passwordFocusNode,
+                      obscureText: !_isPasswordVisible,
+                      decoration:
+                          _inputDecoration('Password', _passwordFocusNode)
+                              .copyWith(
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _isPasswordVisible
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                            color: _passwordFocusNode.hasFocus
+                                ? AppColors.neon
+                                : AppColors.black,
+                          ),
+                          onPressed: () => setState(
+                              () => _isPasswordVisible = !_isPasswordVisible),
                         ),
-                        onPressed: () => setState(
-                            () => _isPasswordVisible = !_isPasswordVisible),
                       ),
+                      onChanged: (val) => setState(() => _password = val),
                     ),
-                    validator: (val) {
-                      if (val!.length < 6) {
-                        return "Enter a password 6+ chars long";
-                      } else if (!RegExp(
-                              r'^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$')
-                          .hasMatch(val)) {
-                        return "Password must include at least one letter and one number";
-                      }
-                      return null;
-                    },
-                    onChanged: (val) => setState(() => _password = val),
-                  ),
-                  const SizedBox(height: 20),
-                  Container(
-                    constraints: BoxConstraints(
-                      minHeight: 50, // Set a minimum height
-                    ),
-                    child: Center(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Transform.scale(
-                            scale: 1.2, // Decrease size to make it more compact
-                            child: Checkbox(
-                              value: _agreeToTerms,
-                              onChanged: (bool? value) {
-                                setState(() {
-                                  _agreeToTerms = value ?? false;
-                                });
-                              },
-                              activeColor: AppColors.neon,
-                              checkColor: Colors.white,
-                              side: const BorderSide(
-                                color: AppColors.neon,
-                                width:
-                                    1.5, // Thinner border for a more compact look
+                    const SizedBox(height: 20),
+                    Container(
+                      constraints: BoxConstraints(
+                        minHeight: 50, // Set a minimum height
+                      ),
+                      child: Center(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Transform.scale(
+                              scale:
+                                  1.2, // Decrease size to make it more compact
+                              child: Checkbox(
+                                value: _agreeToTerms,
+                                onChanged: (bool? value) {
+                                  setState(() {
+                                    _agreeToTerms = value ?? false;
+                                  });
+                                },
+                                activeColor: AppColors.neon,
+                                checkColor: Colors.white,
+                                side: const BorderSide(
+                                  color: AppColors.neon,
+                                  width:
+                                      1.5, // Thinner border for a more compact look
+                                ),
                               ),
                             ),
-                          ),
-                          GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _agreeToTerms = !_agreeToTerms;
-                              });
-                            },
-                            child: Row(
-                              children: [
-                                const Text(
-                                  'I agree to ',
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 16.0,
-                                    color: AppColors.black,
-                                    fontWeight: FontWeight.normal,
-                                  ),
-                                ),
-                                GestureDetector(
-                                  onTap: () async {
-                                    // Load the JSON data
-                                    Map<String, dynamic> termsData =
-                                        await loadJson();
-
-                                    // Start with the welcome message
-                                    List<Widget> contentWidgets = [
-                                      Text(
-                                        termsData['terms']['welcomeMessage'],
-                                        style: const TextStyle(
-                                            fontSize: 16,
-                                            color: AppColors.black),
-                                      ),
-                                      const SizedBox(
-                                          height: 16), // Add some spacing
-                                    ];
-
-                                    // Loop through the sections and build the content
-                                    termsData['terms']['sections']
-                                        .forEach((key, section) {
-                                      contentWidgets.add(
-                                        Text(
-                                          section['numberHeader'],
-                                          style: const TextStyle(
-                                            fontFamily: 'Inter',
-                                            fontWeight: FontWeight.bold,
-                                            fontSize:
-                                                18, // You can adjust the font size if needed
-                                            color: AppColors.black,
-                                          ),
-                                        ),
-                                      );
-                                      contentWidgets.add(
-                                        Text(
-                                          section['content'],
-                                          style: const TextStyle(
-                                            fontFamily: 'Inter',
-                                            fontSize: 16,
-                                            color: AppColors.black,
-                                          ),
-                                        ),
-                                      );
-                                      contentWidgets.add(const SizedBox(
-                                          height:
-                                              16)); // Add spacing between sections
-                                    });
-
-                                    // Show the dialog with the loaded content
-                                    showDialog(
-                                      context: context,
-                                      builder: (BuildContext context) {
-                                        return AlertDialog(
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(15),
-                                          ),
-                                          backgroundColor: Colors
-                                              .white, // Change to your desired color
-                                          title: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                'Terms and Conditions',
-                                                style: const TextStyle(
-                                                  fontSize: 24,
-                                                  fontFamily: 'Outfit',
-                                                  fontWeight: FontWeight.bold,
-                                                  color: AppColors.black,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          content: Container(
-                                            constraints: BoxConstraints(
-                                                maxHeight:
-                                                    400), // Set max height
-                                            child: SingleChildScrollView(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: contentWidgets,
-                                              ),
-                                            ),
-                                          ),
-                                          actions: <Widget>[
-                                            TextButton(
-                                              style: TextButton.styleFrom(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                        horizontal: 15,
-                                                        vertical: 5),
-                                                backgroundColor: AppColors.neon,
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(10),
-                                                  side: const BorderSide(
-                                                      color: AppColors.neon),
-                                                ),
-                                              ),
-                                              onPressed: () {
-                                                Navigator.of(context).pop();
-                                              },
-                                              child: const Text(
-                                                'Close',
-                                                style: TextStyle(
-                                                  fontSize: 16.0,
-                                                  fontWeight: FontWeight.bold,
-                                                  fontFamily: 'Inter',
-                                                  color: Colors.white,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        );
-                                      },
-                                    );
-                                  },
-                                  child: const Text(
-                                    'terms and conditions',
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _agreeToTerms = !_agreeToTerms;
+                                });
+                              },
+                              child: Row(
+                                children: [
+                                  const Text(
+                                    'I agree to ',
                                     style: TextStyle(
                                       fontFamily: 'Inter',
                                       fontSize: 16.0,
-                                      fontWeight: FontWeight.bold,
-                                      decoration: TextDecoration.underline,
                                       color: AppColors.black,
+                                      fontWeight: FontWeight.normal,
                                     ),
                                   ),
-                                )
-                              ],
+                                  GestureDetector(
+                                    onTap: () async {
+                                      // Load the JSON data
+                                      Map<String, dynamic> termsData =
+                                          await loadJson();
+
+                                      // Start with the welcome message
+                                      List<Widget> contentWidgets = [
+                                        Text(
+                                          termsData['terms']['welcomeMessage'],
+                                          style: const TextStyle(
+                                              fontSize: 16,
+                                              color: AppColors.black),
+                                        ),
+                                        const SizedBox(
+                                            height: 16), // Add some spacing
+                                      ];
+
+                                      // Loop through the sections and build the content
+                                      termsData['terms']['sections']
+                                          .forEach((key, section) {
+                                        contentWidgets.add(
+                                          Text(
+                                            section['numberHeader'],
+                                            style: const TextStyle(
+                                              fontFamily: 'Inter',
+                                              fontWeight: FontWeight.bold,
+                                              fontSize:
+                                                  18, // You can adjust the font size if needed
+                                              color: AppColors.black,
+                                            ),
+                                          ),
+                                        );
+                                        contentWidgets.add(
+                                          Text(
+                                            section['content'],
+                                            style: const TextStyle(
+                                              fontFamily: 'Inter',
+                                              fontSize: 16,
+                                              color: AppColors.black,
+                                            ),
+                                          ),
+                                        );
+                                        contentWidgets.add(const SizedBox(
+                                            height:
+                                                16)); // Add spacing between sections
+                                      });
+
+                                      // Show the dialog with the loaded content
+                                      showDialog(
+                                        context: context,
+                                        builder: (BuildContext context) {
+                                          return AlertDialog(
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(15),
+                                            ),
+                                            backgroundColor: Colors
+                                                .white, // Change to your desired color
+                                            title: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'Terms and Conditions',
+                                                  style: const TextStyle(
+                                                    fontSize: 24,
+                                                    fontFamily: 'Outfit',
+                                                    fontWeight: FontWeight.bold,
+                                                    color: AppColors.black,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            content: Container(
+                                              constraints: BoxConstraints(
+                                                  maxHeight:
+                                                      400), // Set max height
+                                              child: SingleChildScrollView(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: contentWidgets,
+                                                ),
+                                              ),
+                                            ),
+                                            actions: <Widget>[
+                                              TextButton(
+                                                style: TextButton.styleFrom(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                      horizontal: 15,
+                                                      vertical: 5),
+                                                  backgroundColor:
+                                                      AppColors.neon,
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            10),
+                                                    side: const BorderSide(
+                                                        color: AppColors.neon),
+                                                  ),
+                                                ),
+                                                onPressed: () {
+                                                  Navigator.of(context).pop();
+                                                },
+                                                child: const Text(
+                                                  'Close',
+                                                  style: TextStyle(
+                                                    fontSize: 16.0,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontFamily: 'Inter',
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      );
+                                    },
+                                    child: const Text(
+                                      'terms and conditions',
+                                      style: TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontSize: 16.0,
+                                        fontWeight: FontWeight.bold,
+                                        decoration: TextDecoration.underline,
+                                        color: AppColors.black,
+                                      ),
+                                    ),
+                                  )
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: TextButton(
-                      onPressed: _isLoading
-                          ? null
-                          : _handleSignUp, // Disable button if loading
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 50, vertical: 15),
-                        backgroundColor: AppColors.neon,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: _isLoading
+                            ? null
+                            : _handleSignUp, // Disable button if loading
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 50, vertical: 15),
+                          backgroundColor: AppColors.neon,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                        child: _isLoading
+                            ? const CircularProgressIndicator(
+                                color: AppColors.white) // Loading indicator
+                            : const Text(
+                                'Sign up',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                  color: AppColors.white,
+                                ),
+                              ),
                       ),
-                      child: _isLoading
-                          ? const CircularProgressIndicator(
-                              color: AppColors.white) // Loading indicator
-                          : const Text(
-                              'Sign up',
+                    ),
+                    const SizedBox(height: 20),
+                    const Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: Divider(
+                            thickness: 1,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 10),
+                          child: Text("or"),
+                        ),
+                        Expanded(
+                          child: Divider(
+                            thickness: 1,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: () async {
+                          if (mounted) {
+                            setState(() {
+                              _isLoading = true; // Set loading state
+                            });
+                          }
+
+                          MyUser? myUser = await _auth.signInWithGoogle();
+
+                          if (myUser != null) {
+                            // User is signed in, update your local state if needed
+                            if (mounted) {
+                              setState(() {
+                                currentUser = myUser;
+                              });
+                            }
+
+                            // Wrap navigation in a post-frame callback
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (mounted) {
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        Home(), // Navigate to home
+                                  ),
+                                );
+                              }
+                            });
+                          } else {
+                            if (mounted) {
+                              _showError(
+                                  "Google sign-in failed. Please try again.", passwordCriteria);
+                            }
+                          }
+
+                          if (mounted) {
+                            setState(() {
+                              _isLoading = false; // Reset loading state
+                            });
+                          }
+                        },
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 50, vertical: 15),
+                          backgroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: const BorderSide(color: Colors.grey),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Image.asset(
+                              'lib/assets/images/auth/google.png',
+                              height: 24,
+                            ),
+                            const SizedBox(width: 10),
+                            const Text(
+                              'Sign in with Google',
                               style: TextStyle(
                                 fontFamily: 'Inter',
                                 fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                                color: AppColors.white,
+                                fontSize: 16,
+                                color: Colors.black,
                               ),
                             ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  const Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: Divider(
-                          thickness: 1,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 10),
-                        child: Text("or"),
-                      ),
-                      Expanded(
-                        child: Divider(
-                          thickness: 1,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: TextButton(
-                      onPressed: () async {
-                        setState(() {
-                          _isLoading = true; // Set loading state
-                        });
-
-                        MyUser? myUser = await _auth
-                            .signInWithGoogle(); // Call your sign-in method
-
-                        if (myUser != null) {
-                          // User is signed in, update your local state if needed
-                          setState(() {
-                            currentUser =
-                                myUser; // Assuming you have a state variable for the current user
-                          });
-
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => Home(), // Navigate to home
-                            ),
-                          );
-                        } else {
-                          _showError(
-                              "Google sign-in failed. Please try again.");
-                        }
-
-                        setState(() {
-                          _isLoading = false; // Reset loading state
-                        });
-                      },
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 50, vertical: 15),
-                        backgroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          side: const BorderSide(color: Colors.grey),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Image.asset(
-                            'lib/assets/images/auth/google.png',
-                            height: 24,
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget>[
+                        const Text(
+                          'Already have an account?',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 16,
+                            color: AppColors.black,
                           ),
-                          const SizedBox(width: 10),
-                          const Text(
-                            'Sign in with Google',
+                        ),
+                        SizedBox(
+                          width: 5,
+                        ),
+                        GestureDetector(
+                          onTap: () => widget
+                              .toggleView(), // Call toggleView as a function
+                          child: const Text(
+                            'Login',
                             style: TextStyle(
                               fontFamily: 'Inter',
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
-                              color: Colors.black,
+                              color: AppColors.neon,
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  GestureDetector(
-                    onTap: () =>
-                        widget.toggleView(), // Call toggleView as a function
-                    child: const Text(
-                      'Already have an account? Login',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: AppColors.black,
-                        decoration: TextDecoration.underline,
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

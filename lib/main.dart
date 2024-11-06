@@ -1,6 +1,5 @@
 import 'package:provider/provider.dart';
 import 'package:solace/models/my_user.dart';
-import 'package:solace/screens/authenticate/authenticate.dart';
 import 'package:solace/screens/wrapper.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';

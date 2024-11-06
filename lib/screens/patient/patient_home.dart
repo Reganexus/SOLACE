@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
-import 'package:solace/screens/patient/patient_contacts.dart';
 import 'package:solace/screens/patient/patient_dashboard.dart';
 import 'package:solace/screens/patient/patient_history.dart';
 import 'package:solace/screens/patient/patient_profile.dart';
@@ -31,7 +30,6 @@ class PatientHomeState extends State<PatientHome> {
       ),
       PatientHistory(),
       PatientTracking(),
-      PatientContacts(),
       PatientProfile(),
     ];
   }

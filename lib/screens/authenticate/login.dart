@@ -11,9 +11,7 @@ import 'package:solace/themes/colors.dart';
 class LogIn extends StatefulWidget {
   final VoidCallback toggleView; // Updated to VoidCallback
 
-  const LogIn(
-      {super.key,
-      required this.toggleView}); // Pass key to super
+  const LogIn({super.key, required this.toggleView}); // Pass key to super
 
   @override
   State<LogIn> createState() => _LogInState();
@@ -121,262 +119,296 @@ class _LogInState extends State<LogIn> {
 
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 30),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: screenHeight,
-          ),
-          child: Center(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Image.asset(
-                    'lib/assets/images/auth/solace.png',
-                    width: 100,
-                  ),
-                  const SizedBox(height: 40),
-                  const Text(
-                    'Welcome Back!',
-                    style: TextStyle(
-                      fontFamily: 'Outfit',
-                      fontWeight: FontWeight.bold,
-                      fontSize: 30,
-                      color: AppColors.black,
+      body: GestureDetector(
+        onTap: () {
+          FocusScope.of(context).unfocus(); // Dismiss the keyboard
+        },
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 30),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: screenHeight,
+            ),
+            child: Center(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    Image.asset(
+                      'lib/assets/images/auth/solace.png',
+                      width: 100,
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  if (error.isNotEmpty)
-                    SizedBox(
-                      height: 40,
-                      child: Text(
-                        error,
-                        style: const TextStyle(color: Colors.red, fontSize: 14),
-                        textAlign: TextAlign.left,
+                    const SizedBox(height: 40),
+                    const Text(
+                      'Welcome Back!',
+                      style: TextStyle(
+                        fontFamily: 'Outfit',
+                        fontWeight: FontWeight.bold,
+                        fontSize: 30,
+                        color: AppColors.black,
                       ),
                     ),
-                  const SizedBox(height: 20),
-                  TextFormField(
-                    controller: _emailController,
-                    focusNode: _emailFocusNode,
-                    decoration: _inputDecoration('Email', _emailFocusNode),
-                    validator: (val) => val!.isEmpty ? "Enter an email" : null,
-                    onChanged: (val) {
-                      if (mounted) {
-                        setState(() => email = val);
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  TextFormField(
-                    controller: _passwordController,
-                    focusNode: _passwordFocusNode,
-                    obscureText: !_isPasswordVisible,
-                    decoration: _inputDecoration('Password', _passwordFocusNode)
-                        .copyWith(
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _isPasswordVisible
-                              ? Icons.visibility
-                              : Icons.visibility_off,
-                          color: _passwordFocusNode.hasFocus
-                              ? AppColors.neon
-                              : AppColors.black,
+                    const SizedBox(height: 20),
+                    if (error.isNotEmpty)
+                      SizedBox(
+                        height: 40,
+                        child: Text(
+                          error,
+                          style:
+                              const TextStyle(color: Colors.red, fontSize: 14),
+                          textAlign: TextAlign.left,
                         ),
-                        onPressed: () {
+                      ),
+                    const SizedBox(height: 20),
+                    TextFormField(
+                      controller: _emailController,
+                      focusNode: _emailFocusNode,
+                      decoration: _inputDecoration('Email', _emailFocusNode),
+                      validator: (val) =>
+                          val!.isEmpty ? "Enter an email" : null,
+                      onChanged: (val) {
+                        if (mounted) {
+                          setState(() => email = val);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    TextFormField(
+                      controller: _passwordController,
+                      focusNode: _passwordFocusNode,
+                      obscureText: !_isPasswordVisible,
+                      decoration:
+                          _inputDecoration('Password', _passwordFocusNode)
+                              .copyWith(
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _isPasswordVisible
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                            color: _passwordFocusNode.hasFocus
+                                ? AppColors.neon
+                                : AppColors.black,
+                          ),
+                          onPressed: () {
+                            if (mounted) {
+                              setState(() {
+                                _isPasswordVisible = !_isPasswordVisible;
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                      validator: (val) => val!.length < 6
+                          ? "Enter a password 6+ chars long"
+                          : null,
+                      onChanged: (val) {
+                        if (mounted) {
+                          setState(() => password = val);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    Container(
+                      constraints: BoxConstraints(minHeight: 50),
+                      child: Center(
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => const Forgot()),
+                            );
+                          },
+                          child: const Text(
+                            'Forgot Password?',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 16.0,
+                              fontWeight: FontWeight.bold,
+                              decoration: TextDecoration.underline,
+                              color: AppColors.black,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: _isLoading // Check if loading
+                            ? null // Disable the button while loading
+                            : () async {
+                                if (_formKey.currentState!.validate()) {
+                                  if (mounted) {
+                                    setState(() {
+                                      _isLoading =
+                                          true; // Set loading state to true
+                                    });
+                                  }
+                                  dynamic result =
+                                      await _auth.logInWithEmailAndPassword(
+                                          email, password);
+                                  if (mounted) {
+                                    setState(() {
+                                      _isLoading = false; // Reset loading state
+                                      if (result == null) {
+                                        error =
+                                            'Could not log in with those credentials';
+                                      } else {
+                                        error = ''; // Clear error on success
+                                      }
+                                    });
+                                  }
+                                }
+                              },
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 50, vertical: 15),
+                          backgroundColor: AppColors.neon,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                        child:
+                            _isLoading // Show CircularProgressIndicator if loading
+                                ? const Center(
+                                    child: CircularProgressIndicator(
+                                        color: Colors.white))
+                                : const Text(
+                                    'Login',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                      color: AppColors.white,
+                                    ),
+                                  ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: Divider(thickness: 1, color: Colors.grey),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 10),
+                          child: Text("or"),
+                        ),
+                        Expanded(
+                          child: Divider(thickness: 1, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: () async {
                           if (mounted) {
                             setState(() {
-                              _isPasswordVisible = !_isPasswordVisible;
+                              _isLoading = true; // Set loading state
+                            });
+                          }
+
+                          MyUser? myUser = await _auth.signInWithGoogle();
+
+                          if (myUser != null) {
+                            // User is signed in, update your local state if needed
+                            if (mounted) {
+                              setState(() {
+                                currentUser = myUser;
+                              });
+                            }
+
+                            // Wrap navigation in a post-frame callback
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (mounted) {
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        Home(), // Navigate to home
+                                  ),
+                                );
+                              }
+                            });
+                          } else {
+                            if (mounted) {
+                              _showError(
+                                  "Google sign-in failed. Please try again.");
+                            }
+                          }
+
+                          if (mounted) {
+                            setState(() {
+                              _isLoading = false; // Reset loading state
                             });
                           }
                         },
-                      ),
-                    ),
-                    validator: (val) => val!.length < 6
-                        ? "Enter a password 6+ chars long"
-                        : null,
-                    onChanged: (val) {
-                      if (mounted) {
-                        setState(() => password = val);
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  Container(
-                    constraints: BoxConstraints(minHeight: 50),
-                    child: Center(
-                      child: GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const Forgot()),
-                          );
-                        },
-                        child: const Text(
-                          'Forgot Password?',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 16.0,
-                            fontWeight: FontWeight.bold,
-                            decoration: TextDecoration.underline,
-                            color: AppColors.black,
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 50, vertical: 15),
+                          backgroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: const BorderSide(color: Colors.grey),
                           ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Image.asset(
+                              'lib/assets/images/auth/google.png',
+                              height: 24,
+                            ),
+                            const SizedBox(width: 10),
+                            const Text(
+                              'Sign in with Google',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: TextButton(
-                      onPressed: _isLoading // Check if loading
-                          ? null // Disable the button while loading
-                          : () async {
-                              if (_formKey.currentState!.validate()) {
-                                if (mounted) {
-                                  setState(() {
-                                    _isLoading =
-                                        true; // Set loading state to true
-                                  });
-                                }
-                                dynamic result = await _auth
-                                    .logInWithEmailAndPassword(email, password);
-                                if (mounted) {
-                                  setState(() {
-                                    _isLoading = false; // Reset loading state
-                                    if (result == null) {
-                                      error =
-                                          'Could not log in with those credentials';
-                                    } else {
-                                      error = ''; // Clear error on success
-                                    }
-                                  });
-                                }
-                              }
-                            },
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 50, vertical: 15),
-                        backgroundColor: AppColors.neon,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                      ),
-                      child:
-                          _isLoading // Show CircularProgressIndicator if loading
-                              ? const Center(
-                                  child: CircularProgressIndicator(
-                                      color: Colors.white))
-                              : const Text(
-                                  'Login',
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                    color: AppColors.white,
-                                  ),
-                                ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: Divider(thickness: 1, color: Colors.grey),
-                      ),
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 10),
-                        child: Text("or"),
-                      ),
-                      Expanded(
-                        child: Divider(thickness: 1, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: TextButton(
-                      onPressed: () async {
-                        setState(() {
-                          _isLoading = true; // Set loading state
-                        });
-
-                        MyUser? myUser = await _auth
-                            .signInWithGoogle(); // Call your sign-in method
-
-                        if (myUser != null) {
-                          // User is signed in, update your local state if needed
-                          setState(() {
-                            currentUser =
-                                myUser; // Assuming you have a state variable for the current user
-                          });
-
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => Home(), // Navigate to home
-                            ),
-                          );
-                        } else {
-                          _showError(
-                              "Google sign-in failed. Please try again.");
-                        }
-
-                        setState(() {
-                          _isLoading = false; // Reset loading state
-                        });
-                      },
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Image.asset(
-                            'lib/assets/images/auth/google.png',
-                            height: 24,
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget>[
+                        const Text(
+                          'Don\'t have an account?',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 16,
+                            color: AppColors.black,
                           ),
-                          const SizedBox(width: 10),
-                          const Text(
-                            'Sign in with Google',
+                        ),
+                        SizedBox(
+                          width: 5,
+                        ),
+                        GestureDetector(
+                          onTap: () => widget
+                              .toggleView(), // Call toggleView as a function
+                          child: const Text(
+                            'Login',
                             style: TextStyle(
                               fontFamily: 'Inter',
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
-                              color: Colors.black,
+                              color: AppColors.neon,
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: <Widget>[
-                      const Text(
-                        'Don\'t have an account?',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 16,
-                          color: AppColors.black,
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: widget.toggleView,
-                        child: const Text(
-                          'Register',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.neon,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

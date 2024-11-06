@@ -5,6 +5,7 @@ import 'package:solace/services/database.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/services/auth.dart';
 import 'package:solace/shared/widgets/user_editprofile.dart';
+import 'package:solace/shared/widgets/contacts.dart';
 import 'package:solace/models/my_user.dart';
 
 class PatientProfile extends StatelessWidget {
@@ -156,6 +157,40 @@ class PatientProfile extends StatelessWidget {
                   const SizedBox(height: 10),
 
                   const Text(
+                    'Contacts',
+                    style: TextStyle(
+                      fontSize: 18.0,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Inter',
+                      color: Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => Contacts(userId: userData.uid), // Navigate to Contacts view
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      "View Contacts",
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.normal,
+                        fontSize: 16.0,
+                        color: AppColors.black,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+                  const Divider(thickness: 1.0),
+                  const SizedBox(height: 10),
+
+                  const Text(
                     'Account',
                     style: TextStyle(
                       fontSize: 18.0,
@@ -164,7 +199,7 @@ class PatientProfile extends StatelessWidget {
                       color: Colors.black,
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 10),
                   GestureDetector(
                     onTap: () async {
                       await AuthService().signOut();
