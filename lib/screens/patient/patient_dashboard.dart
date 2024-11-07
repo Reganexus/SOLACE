@@ -1,10 +1,27 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:solace/themes/colors.dart';
+import 'package:solace/screens/patient/upcoming_schedules.dart'; // Import UpcomingSchedules
 
-class PatientDashboard extends StatelessWidget {
+class PatientDashboard extends StatefulWidget {
   final VoidCallback navigateToHistory;
 
-  PatientDashboard({super.key, required this.navigateToHistory});
+  const PatientDashboard({super.key, required this.navigateToHistory});
+
+  @override
+  PatientDashboardState createState() => PatientDashboardState();
+}
+
+class PatientDashboardState extends State<PatientDashboard> {
+  List<Map<String, dynamic>> upcomingSchedules = [];
+
+  @override
+  void initState() {
+    super.initState();
+    fetchPatientSchedules();
+  }
 
   // Function to show modal
   void _showTaskModal(BuildContext context, String task) {
@@ -50,6 +67,39 @@ class PatientDashboard extends StatelessWidget {
       'icon': 'lib/assets/images/shared/vitals/temperature.png'
     },
   ];
+
+  Future<void> fetchPatientSchedules() async {
+    final User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final String patientId = user.uid;
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(patientId)
+          .get();
+
+      if (snapshot.exists) {
+        final List<dynamic> schedulesData = snapshot.data()?['schedule'] ?? [];
+
+        final List<Map<String, dynamic>> schedules = [];
+        for (var schedule in schedulesData) {
+          final scheduleDate = (schedule['date'] as Timestamp).toDate();
+          final time = schedule['time'];
+
+          schedules.add({
+            'date': scheduleDate,
+            'time': time,
+          });
+        }
+
+        // Sort schedules by the earliest date first
+        schedules.sort((a, b) => a['date'].compareTo(b['date']));
+
+        setState(() {
+          upcomingSchedules = schedules;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -132,8 +182,8 @@ class PatientDashboard extends StatelessWidget {
                     Center(
                       child: GestureDetector(
                         onTap: () {
-                          // Call the method passed from UserHome to navigate to History
-                          navigateToHistory();
+                          // Use widget.navigateToHistory() to call the method
+                          widget.navigateToHistory();
                         },
                         child: Container(
                           padding: const EdgeInsets.all(10),
@@ -163,8 +213,9 @@ class PatientDashboard extends StatelessWidget {
                     ),
                     const SizedBox(height: 10.0),
 
-                    // Schedule Container
-                    Container(
+                    // schedule
+                    upcomingSchedules.isNotEmpty
+                        ? Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
                           vertical: 15.0, horizontal: 15.0),
@@ -185,10 +236,12 @@ class PatientDashboard extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(5.0),
                                 ),
                                 padding: const EdgeInsets.all(5.0),
-                                child: const Center(
+                                child: Center(
                                   child: Text(
-                                    '15',
-                                    style: TextStyle(
+                                    upcomingSchedules[0]['date'] != null
+                                        ? '${upcomingSchedules[0]['date']!.day}'
+                                        : '',
+                                    style: const TextStyle(
                                       fontFamily: 'Inter',
                                       fontSize: 14.0,
                                       fontWeight: FontWeight.bold,
@@ -197,23 +250,55 @@ class PatientDashboard extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(width: 10.0),
-                              const Text(
-                                'October',
-                                style: TextStyle(
+                              // Use DateFormat to display month name
+                              Text(
+                                upcomingSchedules[0]['date'] != null
+                                    ? DateFormat('MMMM').format(upcomingSchedules[0]['date'])
+                                    : '',
+                                style: const TextStyle(
                                   fontSize: 18.0,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ],
                           ),
-                          const Text(
-                            'Appointment',
-                            style: TextStyle(
+                          Text(
+                            upcomingSchedules[0]['time'] ??
+                                'No time available',
+                            style: const TextStyle(
                               fontSize: 18.0,
                               fontWeight: FontWeight.normal,
                             ),
                           ),
                         ],
+                      ),
+                    )
+                        : const Text('No upcoming appointments'),
+
+                    // GestureDetector to navigate to UpcomingSchedules view
+                    Center(
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const UpcomingSchedules(),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          child: const Text(
+                            'See all upcoming schedules',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontWeight: FontWeight.normal,
+                              fontSize: 16.0,
+                              color: AppColors.black,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 30.0),

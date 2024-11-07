@@ -148,7 +148,7 @@ class PatientProfile extends StatelessWidget {
                       _buildProfileInfoSection('Gender', userData.gender),
                       _buildProfileInfoSection('Birthdate',
                           userData.birthday != null ?
-                          '${userData.birthday!.day}/${userData.birthday!.month}/${userData.birthday!.year}' : 'N/A'),
+                          '${userData.birthday!.month}/${userData.birthday!.day}/${userData.birthday!.year}' : ''),
                     ],
                   ),
 

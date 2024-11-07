@@ -83,7 +83,8 @@ class AuthService {
     }
   }
 
-  Future<MyUser?> signUpWithEmailAndPassword(String email, String password) async {
+  Future<MyUser?> signUpWithEmailAndPassword(
+      String email, String password) async {
     try {
       UserCredential result = await _auth.createUserWithEmailAndPassword(
         email: email,
@@ -101,13 +102,17 @@ class AuthService {
       );
 
       // Initialize the contacts field as empty maps for the new user
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-        'contacts': {
-          'friends': {},
-          'pending': {},
-          'requests': {},
-        },
-      }, SetOptions(merge: true));  // Merge ensures it does not overwrite existing data
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set(
+          {
+            'contacts': {
+              'friends': {},
+              'pending': {},
+              'requests': {},
+            },
+          },
+          SetOptions(
+              merge:
+                  true)); // Merge ensures it does not overwrite existing data
 
       return MyUser(uid: user.uid, isVerified: false);
     } catch (e) {
@@ -116,12 +121,12 @@ class AuthService {
     }
   }
 
-
   Future<MyUser?> signInWithGoogle() async {
     try {
       // Google Sign-In process
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      final GoogleSignInAuthentication? googleAuth = await googleUser?.authentication;
+      final GoogleSignInAuthentication? googleAuth =
+          await googleUser?.authentication;
 
       // Create a new credential
       final credential = GoogleAuthProvider.credential(
@@ -144,12 +149,16 @@ class AuthService {
           );
 
           // Initialize the contacts field as empty maps for the new user
-          await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-            'contacts': {
-              'friends': {},
-              'requests': {},
-            },
-          }, SetOptions(merge: true));  // Merge ensures it does not overwrite existing data
+          await FirebaseFirestore.instance.collection('users').doc(user.uid).set(
+              {
+                'contacts': {
+                  'friends': {},
+                  'requests': {},
+                },
+              },
+              SetOptions(
+                  merge:
+                      true)); // Merge ensures it does not overwrite existing data
 
           debugPrint('New user document created for email: $email');
         } else {
@@ -163,10 +172,12 @@ class AuthService {
             .get();
 
         if (userDataSnapshot.exists) {
-          Map<String, dynamic> userData = userDataSnapshot.data() as Map<String, dynamic>;
+          Map<String, dynamic> userData =
+              userDataSnapshot.data() as Map<String, dynamic>;
           bool isVerified = userData['isVerified'] ?? false;
 
-          return MyUser(uid: user.uid, isVerified: isVerified); // Return as verified
+          return MyUser(
+              uid: user.uid, isVerified: isVerified); // Return as verified
         } else {
           debugPrint("User data document does not exist after sign-in.");
           return null; // Handle this case if necessary
@@ -178,7 +189,6 @@ class AuthService {
     }
     return null;
   }
-
 
   Future<void> setUserVerificationStatus(String uid, bool isVerified) async {
     await FirebaseFirestore.instance.collection('users').doc(uid).update({

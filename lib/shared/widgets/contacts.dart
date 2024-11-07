@@ -7,12 +7,50 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:solace/shared/widgets/qr_scan.dart';
 
 class Contacts extends StatelessWidget {
   final String currentUserId;
   final DatabaseService db = DatabaseService();
 
   Contacts({super.key, required this.currentUserId});
+
+  void _handleQRScanResult(BuildContext context, String result) async {
+    print('Scanned user ID: $result');
+
+    // Check if the user exists
+    bool exists = await db.checkUserExists(result);
+    if (!exists) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('User not found')),
+      );
+      return;
+    }
+
+    // Check if already friends
+    bool isFriend = await db.isUserFriend(currentUserId, result);
+    if (isFriend) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('You are already friends with this user!')),
+      );
+      return;
+    }
+
+    // Check if a request is already pending
+    bool hasPendingRequest = await db.hasPendingRequest(currentUserId, result);
+    if (hasPendingRequest) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Friend request already sent!')),
+      );
+      return;
+    }
+
+    // Send the friend request if all checks pass
+    await db.sendFriendRequest(currentUserId, result);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Friend request sent!')),
+    );
+  }
 
   Future<void> _makeCall(String phoneNumber) async {
     final Uri launchUri = Uri(
@@ -43,9 +81,28 @@ class Contacts extends StatelessWidget {
         scrolledUnderElevation: 0.0,
         actions: [
           IconButton(
-            icon: Icon(Icons.search),
+            icon: Icon(Icons.person_add),
+            iconSize: 30.0,
             onPressed: () => _showSearchModal(context),
           ),
+          IconButton(
+            icon: Icon(Icons.qr_code_scanner),
+            iconSize: 30.0,
+            onPressed: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const QRScannerPage()),
+              );
+
+              if (result != null) {
+                // Return the barcode data back to the previous screen
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('QR Code detected')),
+                );
+                _handleQRScanResult(context, result);
+              }
+            },
+          )
         ],
       ),
       body: SingleChildScrollView(
@@ -100,10 +157,13 @@ class Contacts extends StatelessWidget {
         var friendsData = snapshot.data!['contacts']['friends'];
 
         // Check if friendsData is null or empty
-        if (friendsData == null || (friendsData is Map && friendsData.isEmpty)) {
+        if (friendsData == null ||
+            (friendsData is Map && friendsData.isEmpty)) {
           return Column(
             children: [
-              SizedBox(height: 20,),
+              SizedBox(
+                height: 20,
+              ),
               Container(
                 width: double.infinity,
                 padding: EdgeInsets.symmetric(vertical: 18),
@@ -192,7 +252,6 @@ class Contacts extends StatelessWidget {
     );
   }
 
-
   // Requests list
   Widget _buildRequestsList() {
     return StreamBuilder<DocumentSnapshot>(
@@ -208,10 +267,13 @@ class Contacts extends StatelessWidget {
         var requestsData = snapshot.data!['contacts']['requests'];
 
         // Check if requestsData is null or empty
-        if (requestsData == null || (requestsData is Map && requestsData.isEmpty)) {
+        if (requestsData == null ||
+            (requestsData is Map && requestsData.isEmpty)) {
           return Column(
             children: [
-              SizedBox(height: 20,),
+              SizedBox(
+                height: 20,
+              ),
               Container(
                 width: double.infinity,
                 padding: EdgeInsets.symmetric(vertical: 18),
@@ -286,13 +348,13 @@ class Contacts extends StatelessWidget {
                           children: [
                             IconButton(
                               icon: Icon(Icons.check, color: Colors.green),
-                              onPressed: () =>
-                                  db.acceptFriendRequest(currentUserId, requestId),
+                              onPressed: () => db.acceptFriendRequest(
+                                  currentUserId, requestId),
                             ),
                             IconButton(
                               icon: Icon(Icons.clear, color: Colors.red),
-                              onPressed: () =>
-                                  db.declineFriendRequest(currentUserId, requestId),
+                              onPressed: () => db.declineFriendRequest(
+                                  currentUserId, requestId),
                             ),
                           ],
                         ),
@@ -308,7 +370,6 @@ class Contacts extends StatelessWidget {
       },
     );
   }
-
 
   // Friend Options Modal
   Future<void> _showSearchModal(BuildContext context) async {
@@ -332,7 +393,6 @@ class Contacts extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // This TextField now directly takes full width
                 TextField(
                   controller: uidController,
                   decoration: InputDecoration(
@@ -349,10 +409,12 @@ class Contacts extends StatelessWidget {
                     ),
                     labelStyle: TextStyle(color: AppColors.black),
                   ),
-                  // Make sure it takes full width
                   maxLines: 1,
                   expands: false,
-                  style: TextStyle(fontSize: 18, fontFamily: 'Inter', fontWeight: FontWeight.normal),
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.normal),
                 ),
                 SizedBox(height: 20),
                 Row(
@@ -360,7 +422,8 @@ class Contacts extends StatelessWidget {
                   children: [
                     Container(
                       height: 40,
-                      padding: const EdgeInsets.symmetric(horizontal: 0.0, vertical: 0.0),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 0.0, vertical: 0.0),
                       decoration: BoxDecoration(
                         color: AppColors.neon,
                         borderRadius: BorderRadius.circular(10.0),
@@ -368,15 +431,47 @@ class Contacts extends StatelessWidget {
                       child: TextButton(
                         onPressed: () async {
                           String targetUserId = uidController.text.trim();
+                          // Check if user exists
                           bool exists = await db.checkUserExists(targetUserId);
-                          if (exists) {
-                            await db.sendFriendRequest(currentUserId, targetUserId);
-                            Navigator.pop(context);
-                          } else {
+                          if (!exists) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text('User not found')),
                             );
+                            return;
                           }
+
+                          // Check if already friends
+                          bool isFriend = await db.isUserFriend(
+                              currentUserId, targetUserId);
+                          if (isFriend) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text(
+                                      'You are already friends with this user!')),
+                            );
+                            return;
+                          }
+
+                          // Check if request is pending
+                          bool hasPendingRequest = await db.hasPendingRequest(
+                              currentUserId, targetUserId);
+                          if (hasPendingRequest) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content:
+                                      Text('Friend request already sent!')),
+                            );
+                            return;
+                          }
+
+                          // Send the friend request if all checks pass
+                          await db.sendFriendRequest(
+                              currentUserId, targetUserId);
+                          Navigator.pop(context);
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Friend request sent!')),
+                          );
                         },
                         style: TextButton.styleFrom(
                           backgroundColor: AppColors.neon,

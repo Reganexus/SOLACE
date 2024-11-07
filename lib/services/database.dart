@@ -278,9 +278,39 @@ class DatabaseService {
     }
   }
 
-  Future<bool> checkUserExists(String uid) async {
-    DocumentSnapshot userDoc = await userCollection.doc(uid).get();
-    return userDoc.exists;
+  // Check if the user exists by UID
+  Future<bool> checkUserExists(String userId) async {
+    try {
+      var userDoc = await userCollection.doc(userId).get();
+      return userDoc.exists;
+    } catch (e) {
+      print('Error checking user existence: $e');
+      return false;
+    }
+  }
+
+  // Check if the user is already a friend
+  Future<bool> isUserFriend(String currentUserId, String targetUserId) async {
+    try {
+      var userDoc = await userCollection.doc(currentUserId).get();
+      var friends = userDoc['contacts']['friends'];
+      return friends.containsKey(targetUserId);
+    } catch (e) {
+      print('Error checking if user is a friend: $e');
+      return false;
+    }
+  }
+
+  // Check if the user already has a pending friend request
+  Future<bool> hasPendingRequest(String currentUserId, String targetUserId) async {
+    try {
+      var userDoc = await userCollection.doc(currentUserId).get();
+      var requests = userDoc['contacts']['requests'];
+      return requests.containsKey(targetUserId);
+    } catch (e) {
+      print('Error checking for pending request: $e');
+      return false;
+    }
   }
 
   Future<String> getUserName(String userId) async {
@@ -294,7 +324,8 @@ class DatabaseService {
         String lastName = userDoc['lastName'] ?? '';
 
         // Combine parts, ensuring there's a space between them if not empty
-        String fullName = '$firstName ${middleName.isNotEmpty ? '$middleName ' : ''}$lastName';
+        String fullName =
+            '$firstName ${middleName.isNotEmpty ? '$middleName ' : ''}$lastName';
 
         // Trim leading and trailing spaces
         return fullName.trim().isEmpty ? 'Unknown' : fullName.trim();
@@ -306,5 +337,4 @@ class DatabaseService {
       return 'Error'; // Return 'Error' if there's an exception
     }
   }
-
 }

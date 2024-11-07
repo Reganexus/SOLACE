@@ -97,21 +97,54 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
 
   Future<void> _scheduleAppointment(String caregiverId, String patientId) async {
     final DateTime today = DateTime.now();
+
+    // Show the customized date picker
     final DateTime? selectedDate = await showDatePicker(
       context: context,
       initialDate: today,
       firstDate: today,
       lastDate: DateTime(today.year, today.month + 3),
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            dialogBackgroundColor: AppColors.white,
+            colorScheme: ColorScheme.light(
+              primary: AppColors.neon, // Customize primary color
+              onPrimary: AppColors.white, // Customize text color on primary color
+              onSurface: AppColors.black, // Customize text color on surface color
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.neon, // Customize button text color
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (selectedDate != null) {
+      // Show the customized time picker
       final TimeOfDay? selectedTime = await showTimePicker(
         context: context,
         initialTime: TimeOfDay.now(),
+        builder: (BuildContext context, Widget? child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: ColorScheme.light(
+                primary: AppColors.neon, // Customize primary color
+                onPrimary: AppColors.white, // Customize text color on primary color
+                onSurface: AppColors.black, // Customize text color on surface color
+              ),
+            ),
+            child: child!,
+          );
+        },
       );
 
       if (selectedTime != null) {
-        // Combine the date and time into a single DateTime object
+        // Combine the selected date and time into a single DateTime object
         final DateTime scheduledDateTime = DateTime(
           selectedDate.year,
           selectedDate.month,
@@ -121,7 +154,7 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
         );
 
         try {
-          // Save both the date and time to Firestore
+          // Save schedule in Firestore for both caregiver and patient
           await _databaseService.saveScheduleForCaregiver(caregiverId, scheduledDateTime, patientId);
           await _databaseService.saveScheduleForPatient(patientId, scheduledDateTime, caregiverId);
           print("Schedule saved for both caregiver and patient.");
@@ -135,6 +168,7 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
       print("No date selected.");
     }
   }
+
 
 
   Widget _buildActionButton(String label, String iconPath, Color bgColor, VoidCallback onPressed) {
