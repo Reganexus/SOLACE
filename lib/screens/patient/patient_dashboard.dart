@@ -215,92 +215,118 @@ class PatientDashboardState extends State<PatientDashboard> {
 
                     // schedule
                     upcomingSchedules.isNotEmpty
-                        ? Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 15.0, horizontal: 15.0),
-                      decoration: BoxDecoration(
-                        color: AppColors.gray,
-                        borderRadius: BorderRadius.circular(10.0),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
+                        ? Column(
                             children: [
                               Container(
-                                width: 40,
-                                height: 40,
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 15.0, horizontal: 15.0),
                                 decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.black),
-                                  borderRadius: BorderRadius.circular(5.0),
+                                  color: AppColors.gray,
+                                  borderRadius: BorderRadius.circular(10.0),
                                 ),
-                                padding: const EdgeInsets.all(5.0),
-                                child: Center(
-                                  child: Text(
-                                    upcomingSchedules[0]['date'] != null
-                                        ? '${upcomingSchedules[0]['date']!.day}'
-                                        : '',
-                                    style: const TextStyle(
-                                      fontFamily: 'Inter',
-                                      fontSize: 14.0,
-                                      fontWeight: FontWeight.bold,
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          width: 40,
+                                          height: 40,
+                                          decoration: BoxDecoration(
+                                            border:
+                                                Border.all(color: Colors.black),
+                                            borderRadius:
+                                                BorderRadius.circular(5.0),
+                                          ),
+                                          padding: const EdgeInsets.all(5.0),
+                                          child: Center(
+                                            child: Text(
+                                              upcomingSchedules[0]['date'] !=
+                                                      null
+                                                  ? '${upcomingSchedules[0]['date']!.day}'
+                                                  : '',
+                                              style: const TextStyle(
+                                                fontFamily: 'Inter',
+                                                fontSize: 14.0,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10.0),
+                                        // Use DateFormat to display month name
+                                        Text(
+                                          upcomingSchedules[0]['date'] != null
+                                              ? DateFormat('MMMM').format(
+                                                  upcomingSchedules[0]['date'])
+                                              : '',
+                                          style: const TextStyle(
+                                            fontFamily: 'Inter',
+                                            fontSize: 18.0,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Text(
+                                      upcomingSchedules[0]['time'] ??
+                                          'No time available',
+                                      style: const TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontSize: 18.0,
+                                        fontWeight: FontWeight.normal,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Center(
+                                child: GestureDetector(
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const UpcomingSchedules(),
+                                      ),
+                                    );
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(10),
+                                    child: const Text(
+                                      'See all upcoming schedules',
+                                      style: TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.normal,
+                                        fontSize: 16.0,
+                                        color: AppColors.black,
+                                        decoration: TextDecoration.underline,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 10.0),
-                              // Use DateFormat to display month name
-                              Text(
-                                upcomingSchedules[0]['date'] != null
-                                    ? DateFormat('MMMM').format(upcomingSchedules[0]['date'])
-                                    : '',
-                                style: const TextStyle(
-                                  fontSize: 18.0,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
                             ],
-                          ),
-                          Text(
-                            upcomingSchedules[0]['time'] ??
-                                'No time available',
-                            style: const TextStyle(
-                              fontSize: 18.0,
-                              fontWeight: FontWeight.normal,
+                          )
+                        : Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 15.0, horizontal: 15.0),
+                            decoration: BoxDecoration(
+                              color: AppColors.gray,
+                              borderRadius: BorderRadius.circular(10.0),
                             ),
+                            child: Text("No upcoming appointments",
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 18.0,
+                                  fontWeight: FontWeight.normal,
+                                )),
                           ),
-                        ],
-                      ),
-                    )
-                        : const Text('No upcoming appointments'),
 
-                    // GestureDetector to navigate to UpcomingSchedules view
-                    Center(
-                      child: GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const UpcomingSchedules(),
-                            ),
-                          );
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          child: const Text(
-                            'See all upcoming schedules',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontWeight: FontWeight.normal,
-                              fontSize: 16.0,
-                              color: AppColors.black,
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
                     const SizedBox(height: 30.0),
 
                     // Tasks Section
@@ -318,8 +344,10 @@ class PatientDashboardState extends State<PatientDashboard> {
                     ListView.builder(
                       padding: const EdgeInsets.only(bottom: 10.0),
                       itemCount: tasks.length,
-                      shrinkWrap: true, // Allows ListView to be inside a SingleChildScrollView
-                      physics: const NeverScrollableScrollPhysics(), // Disable scrolling for the ListView
+                      shrinkWrap:
+                          true, // Allows ListView to be inside a SingleChildScrollView
+                      physics:
+                          const NeverScrollableScrollPhysics(), // Disable scrolling for the ListView
                       itemBuilder: (context, index) {
                         return GestureDetector(
                           onTap: () {
@@ -342,12 +370,11 @@ class PatientDashboardState extends State<PatientDashboard> {
                                 children: [
                                   Image.asset(
                                     tasks[index]['icon']!,
-                                    height:
-                                    30, // Adjust icon height as needed
+                                    height: 30, // Adjust icon height as needed
                                   ),
                                   const SizedBox(
                                       width:
-                                      10.0), // Add gap between icon and text
+                                          10.0), // Add gap between icon and text
                                   Text(
                                     tasks[index]['title']!,
                                     style: const TextStyle(

@@ -98,7 +98,8 @@ class AuthService {
       await DatabaseService(uid: user.uid).updateUserData(
         userRole: UserRole.patient,
         email: email,
-        isVerified: false, // Set verification status to false initially
+        isVerified: false,
+        newUser: true,
       );
 
       // Initialize the contacts field as empty maps for the new user
@@ -145,7 +146,8 @@ class AuthService {
           await DatabaseService(uid: user.uid).updateUserData(
             userRole: UserRole.patient, // Set default user role
             email: email,
-            isVerified: true, // Set isVerified to true for new Google sign-ups
+            isVerified: true,
+            newUser: true,
           );
 
           // Initialize the contacts field as empty maps for the new user

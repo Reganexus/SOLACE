@@ -21,7 +21,8 @@ class UserData {
   final DateTime? birthday;
   final String gender;
   final String address;
-  final bool isVerified; // New property
+  final bool isVerified;
+  final bool newUser;
 
   UserData({
     required this.userRole,
@@ -34,7 +35,8 @@ class UserData {
     this.birthday,
     required this.gender,
     required this.address,
-    required this.isVerified, // Initialize the new property
+    required this.isVerified,
+    required this.newUser,
   });
 
   factory UserData.fromDocument(DocumentSnapshot doc) {
@@ -52,7 +54,8 @@ class UserData {
           : null,
       gender: data['gender'] ?? '',
       address: data['address'] ?? '',
-      isVerified: data['isVerified'] ?? false, // Retrieve isVerified from Firestore
+      isVerified: data['isVerified'] ?? false,
+      newUser: data['newUser'] ?? true,
     );
   }
 

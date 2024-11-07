@@ -6,12 +6,14 @@ class UserDataForm extends StatefulWidget {
   final UserData? userData;
   final UserDataCallback onButtonPressed;
   final bool isSignUp;
+  final bool newUser; // Add the newUser flag here
 
   const UserDataForm({
     super.key,
     required this.onButtonPressed,
     required this.userData,
     this.isSignUp = true,
+    required this.newUser, // Ensure newUser is passed in constructor
   });
 
   @override
@@ -19,13 +21,13 @@ class UserDataForm extends StatefulWidget {
 }
 
 typedef UserDataCallback = void Function({
-required String firstName,
-required String lastName,
-required String middleName,
-required String phoneNumber,
-required String gender,
-required DateTime? birthday,
-required String address,
+  required String firstName,
+  required String lastName,
+  required String middleName,
+  required String phoneNumber,
+  required String gender,
+  required DateTime? birthday,
+  required String address,
 });
 
 class UserDataFormState extends State<UserDataForm> {
@@ -52,16 +54,23 @@ class UserDataFormState extends State<UserDataForm> {
   void initState() {
     super.initState();
 
-    firstNameController = TextEditingController(text: widget.userData?.firstName ?? '');
-    lastNameController = TextEditingController(text: widget.userData?.lastName ?? '');
-    middleNameController = TextEditingController(text: widget.userData?.middleName ?? '');
-    phoneNumberController = TextEditingController(text: widget.userData?.phoneNumber ?? '');
+    firstNameController =
+        TextEditingController(text: widget.userData?.firstName ?? '');
+    lastNameController =
+        TextEditingController(text: widget.userData?.lastName ?? '');
+    middleNameController =
+        TextEditingController(text: widget.userData?.middleName ?? '');
+    phoneNumberController =
+        TextEditingController(text: widget.userData?.phoneNumber ?? '');
     gender = widget.userData?.gender ?? '';
     birthday = widget.userData?.birthday;
-    addressController = TextEditingController(text: widget.userData?.address ?? '');
+    addressController =
+        TextEditingController(text: widget.userData?.address ?? '');
 
     birthdayController = TextEditingController(
-      text: birthday != null ? '${getMonthName(birthday!.month)} ${birthday!.day}, ${birthday!.year}' : '',
+      text: birthday != null
+          ? '${getMonthName(birthday!.month)} ${birthday!.day}, ${birthday!.year}'
+          : '',
     );
 
     // Add listeners to trigger rebuild on focus change
@@ -94,10 +103,57 @@ class UserDataFormState extends State<UserDataForm> {
     super.dispose();
   }
 
+  String? _nameValidation(String value) {
+    // Check if the field contains only letters and spaces, including special characters
+    final regex = RegExp(r'^[\p{L}\s]+$', unicode: true);
+    if (value.isEmpty) {
+      return 'This field cannot be empty';
+    }
+    if (!regex.hasMatch(value)) {
+      return 'No numbers or symbols allowed';
+    }
+    return null; // Valid input returns null
+  }
+
+  String? _lastNameValidation(String value) {
+    // Allow "Sr." or "Jr." suffix for Last Name, but no other symbols or numbers
+    final regex = RegExp(r'^[\p{L}\s\.]+$', unicode: true);
+    if (value.isEmpty) {
+      return 'This field cannot be empty';
+    }
+    if (!regex.hasMatch(value)) {
+      return 'No numbers or symbols allowed';
+    }
+    return null; // Valid input returns null
+  }
+
+
+  String? _phoneNumberValidation(String value) {
+    // Validate for 11-digit phone number, starting with "09"
+    final regex = RegExp(r'^\d{11}$');
+    if (value.isEmpty) {
+      return 'Phone number cannot be empty';
+    }
+    if (!regex.hasMatch(value)) {
+      return 'Phone number must be 11 digits';
+    }
+    return null; // Valid input returns null
+  }
+
   String getMonthName(int month) {
     const monthNames = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December'
     ];
     return monthNames[month - 1];
   }
@@ -128,7 +184,8 @@ class UserDataFormState extends State<UserDataForm> {
     if (picked != null) {
       setState(() {
         birthday = picked;
-        birthdayController.text = '${getMonthName(picked.month)} ${picked.day}, ${picked.year}';
+        birthdayController.text =
+            '${getMonthName(picked.month)} ${picked.day}, ${picked.year}';
       });
     }
   }
@@ -147,10 +204,12 @@ class UserDataFormState extends State<UserDataForm> {
         borderSide: BorderSide(color: AppColors.neon, width: 2),
       ),
       labelStyle: TextStyle(
-        color: focusNode.hasFocus ? AppColors.neon : AppColors.black,
+        color: AppColors.black, // Change label color if invalid
       ),
     );
   }
+
+// Helper function to check if the field is invalid
 
   @override
   Widget build(BuildContext context) {
@@ -167,49 +226,65 @@ class UserDataFormState extends State<UserDataForm> {
                 controller: firstNameController,
                 focusNode: firstNameFocusNode,
                 decoration: _inputDecoration('First Name', firstNameFocusNode),
-                validator: (val) => val!.isEmpty ? 'Enter First Name' : null,
+                validator: (val) => widget.newUser && val!.isEmpty
+                    ? 'Enter First Name'
+                    : _nameValidation(val!),
               ),
               const SizedBox(height: 20.0),
               TextFormField(
                 controller: middleNameController,
                 focusNode: middleNameFocusNode,
-                decoration: _inputDecoration('Middle Name', middleNameFocusNode),
-                validator: (val) => val!.isEmpty ? 'Enter Middle Name' : null,
+                decoration:
+                    _inputDecoration('Middle Name', middleNameFocusNode),
+                validator: (val) => widget.newUser && val!.isEmpty
+                    ? 'Enter Middle Name'
+                    : _nameValidation(val!),
               ),
               const SizedBox(height: 20.0),
               TextFormField(
                 controller: lastNameController,
                 focusNode: lastNameFocusNode,
                 decoration: _inputDecoration('Last Name', lastNameFocusNode),
-                validator: (val) => val!.isEmpty ? 'Enter Last Name' : null,
+                validator: (val) => widget.newUser && val!.isEmpty
+                    ? 'Enter Last Name'
+                    : _lastNameValidation(val!),
               ),
               const SizedBox(height: 20.0),
               TextFormField(
                 controller: phoneNumberController,
                 focusNode: phoneNumberFocusNode,
-                decoration: _inputDecoration('Phone Number', phoneNumberFocusNode),
-                validator: (val) => val!.isEmpty ? 'Enter Phone Number' : null,
+                decoration:
+                    _inputDecoration('Phone Number', phoneNumberFocusNode),
+                validator: (val) => widget.newUser && val!.isEmpty
+                    ? 'Enter Phone Number'
+                    : _phoneNumberValidation(val!),
               ),
               const SizedBox(height: 20.0),
               TextFormField(
                 controller: birthdayController,
                 focusNode: birthdayFocusNode,
                 readOnly: true,
-                decoration: _inputDecoration('Birthday', birthdayFocusNode).copyWith(
+                decoration:
+                    _inputDecoration('Birthday', birthdayFocusNode).copyWith(
                   suffixIcon: IconButton(
                     icon: Icon(
                       Icons.calendar_today,
-                      color: birthdayFocusNode.hasFocus ? AppColors.neon : AppColors.black,
+                      color: birthdayFocusNode.hasFocus
+                          ? AppColors.neon
+                          : AppColors.black,
                     ),
                     onPressed: () => _selectDate(context),
                   ),
                 ),
                 onTap: () => _selectDate(context),
-                validator: (val) => val!.isEmpty ? 'Enter your Birthday' : null,
+                validator: (val) => widget.newUser && val!.isEmpty
+                    ? 'Enter your Birthday'
+                    : null,
               ),
               const SizedBox(height: 20.0),
               DropdownButtonFormField<String>(
-                value: gender.isNotEmpty ? gender : null, // Set to null if empty
+                value:
+                    gender.isNotEmpty ? gender : null, // Set to null if empty
                 focusNode: genderFocusNode,
                 decoration: _inputDecoration('Gender', genderFocusNode),
                 dropdownColor: AppColors.white,
@@ -225,20 +300,28 @@ class UserDataFormState extends State<UserDataForm> {
                 }).toList(),
                 onChanged: (newValue) {
                   setState(() {
-                    gender = newValue!; // This will only execute if newValue is not null
+                    gender =
+                        newValue!; // This will only execute if newValue is not null
                   });
                 },
                 icon: Icon(
                   Icons.arrow_drop_down,
-                  color: genderFocusNode.hasFocus ? AppColors.neon : AppColors.black,
+                  color: genderFocusNode.hasFocus
+                      ? AppColors.neon
+                      : AppColors.black,
                 ),
+                validator: (val) =>
+                    widget.newUser && (val == null || val.isEmpty)
+                        ? 'Select Gender'
+                        : null,
               ),
-
               const SizedBox(height: 20.0),
               TextFormField(
                 controller: addressController,
                 focusNode: addressFocusNode,
                 decoration: _inputDecoration('Address', addressFocusNode),
+                validator: (val) =>
+                    widget.newUser && val!.isEmpty ? 'Enter Address' : null,
               ),
               const SizedBox(height: 20.0),
               TextButton(
@@ -256,7 +339,8 @@ class UserDataFormState extends State<UserDataForm> {
                   }
                 },
                 style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 50, vertical: 10),
                   backgroundColor: AppColors.neon,
                   foregroundColor: AppColors.white,
                   shape: RoundedRectangleBorder(

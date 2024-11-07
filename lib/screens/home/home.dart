@@ -12,6 +12,7 @@ import 'package:solace/screens/patient/patient_home.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/screens/authenticate/verify.dart';
 import 'package:solace/shared/globals.dart';
+import 'package:solace/shared/widgets/user_editprofile.dart';
 import 'package:solace/themes/colors.dart'; // Import your verify screen
 
 class Home extends StatelessWidget {
@@ -67,12 +68,17 @@ class Home extends StatelessWidget {
           var userMap = userData as Map<String, dynamic>;
           String userRole = userMap['userRole']?.toString() ?? UserRole.patient.toString();
           bool isVerified = userMap['isVerified'] ?? false;
+          bool newUser = userMap['newUser'] ?? false;
+
           debugPrint('User role retrieved: $userRole');
           debugPrint('User isVerified status: $isVerified');
 
           if (emailVerificationEnabled && !isVerified) {
-            debugPrint("User is not verified. Redirecting to Verify screen.");
             return Verify();
+          }
+
+          if (newUser) {
+            return EditProfileScreen();  // Redirect to EditProfile if new user
           }
 
           debugPrint("User is verified. Redirecting to respective home screen for role: $userRole");

@@ -8,10 +8,10 @@ class UpcomingSchedules extends StatefulWidget {
   const UpcomingSchedules({super.key});
 
   @override
-  _UpcomingSchedulesState createState() => _UpcomingSchedulesState();
+  UpcomingSchedulesState createState() => UpcomingSchedulesState();
 }
 
-class _UpcomingSchedulesState extends State<UpcomingSchedules> {
+class UpcomingSchedulesState extends State<UpcomingSchedules> {
   List<Map<String, dynamic>> upcomingSchedules = [];
   final DatabaseService db = DatabaseService();
 

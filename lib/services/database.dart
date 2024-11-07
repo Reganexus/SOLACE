@@ -38,12 +38,12 @@ class DatabaseService {
     String? gender,
     String? address,
     bool? isVerified,
+    bool? newUser, // New field for update
   }) async {
     Map<String, dynamic> updatedData = {};
 
     if (userRole != null) {
-      updatedData['userRole'] = UserData.getUserRoleString(
-          userRole); // This should convert the UserRole enum to string
+      updatedData['userRole'] = UserData.getUserRoleString(userRole);
     }
     if (email != null) updatedData['email'] = email;
     if (lastName != null) updatedData['lastName'] = lastName;
@@ -56,7 +56,10 @@ class DatabaseService {
     if (gender != null) updatedData['gender'] = gender;
     if (address != null) updatedData['address'] = address;
     if (isVerified != null) {
-      updatedData['isVerified'] = isVerified; // Add to updated data
+      updatedData['isVerified'] = isVerified;
+    }
+    if (newUser != null) {
+      updatedData['newUser'] = newUser; // Include newUser in the update
     }
 
     if (updatedData.isNotEmpty) {

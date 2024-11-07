@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:solace/screens/home/home.dart';
 import 'package:solace/services/database.dart'; // Import your DatabaseService
 import 'package:solace/shared/globals.dart';
+import 'package:solace/shared/widgets/user_editprofile.dart';
 import 'package:solace/themes/colors.dart'; // Make sure to import your colors
 
 class Verify extends StatefulWidget {
@@ -49,32 +50,38 @@ class _VerifyState extends State<Verify> {
     }
   }
 
-  Future<void> reloadUser() async {
+  void reloadUser() async {
     final user = FirebaseAuth.instance.currentUser!;
     await user.reload();
     if (user.emailVerified) {
-      debugPrint("User email is verified in Firebase.");
       await DatabaseService(uid: user.uid).setUserVerificationStatus(user.uid, true);
 
-      // Instead of navigating through Wrapper, navigate directly to Home
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => Home()),
-            (Route<dynamic> route) => false,
-      );
+      // Fetch user data to check for `newUser`
+      final userData = await DatabaseService(uid: user.uid).getUserData();
+      if (userData?.newUser == true) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => EditProfileScreen()),
+              (Route<dynamic> route) => false,
+        );
+      } else {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => Home()),
+              (Route<dynamic> route) => false,
+        );
+      }
     } else {
-      debugPrint("User email is not verified yet.");
       setState(() {
-        isVerifying = true; // Continue the spinner if still not verified
+        isVerifying = true;  // Continue verification spinner if not verified
       });
     }
   }
 
-
   void listenForVerification() async {
     while (isVerifying) {
       await Future.delayed(const Duration(seconds: 5)); // Check every 5 seconds
-      await reloadUser();
+      reloadUser();
     }
   }
 

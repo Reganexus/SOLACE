@@ -33,6 +33,7 @@ class CaregiverProfile extends StatelessWidget {
                 birthday: null,
                 userRole: UserRole.patient,
                 isVerified: false,
+                newUser: true,
               );
 
           return SingleChildScrollView(
