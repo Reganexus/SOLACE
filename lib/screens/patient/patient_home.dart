@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:solace/models/my_user.dart';
@@ -7,6 +8,7 @@ import 'package:solace/screens/patient/patient_history.dart';
 import 'package:solace/screens/patient/patient_profile.dart';
 import 'package:solace/screens/patient/patient_tracking.dart';
 import 'package:solace/shared/widgets/bottom_navbar.dart';
+import 'package:solace/shared/widgets/notifications.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/shared/widgets/show_qr.dart';
 
@@ -53,13 +55,15 @@ class PatientHomeState extends State<PatientHome> {
       builder: (context, snapshot) {
         String firstName = '';
         if (snapshot.hasData) {
-          firstName = snapshot.data!.firstName.split(' ')[0]; // Use ! instead of ?.
+          firstName =
+              snapshot.data!.firstName.split(' ')[0]; // Use ! instead of ?.
         }
         return Row(
           children: [
             const CircleAvatar(
               radius: 20.0,
-              backgroundImage: AssetImage('lib/assets/images/shared/placeholder.png'),
+              backgroundImage:
+                  AssetImage('lib/assets/images/shared/placeholder.png'),
             ),
             const SizedBox(width: 10.0),
             Text(
@@ -76,28 +80,65 @@ class PatientHomeState extends State<PatientHome> {
     );
   }
 
-
   Widget _buildRightAppBar(BuildContext context) {
-    return Row(
-      children: [
-        IconButton(
-          icon: Image.asset(
-            'lib/assets/images/shared/header/message.png',
-            height: 30,
-          ),
-          onPressed: () => _showMessages(context),
+    final user = Provider.of<MyUser?>(context); // Get the user using Provider.
+
+    if (user == null) {
+      return IconButton(
+        icon: Image.asset(
+          'lib/assets/images/shared/header/notification.png',
+          height: 30,
         ),
-        const SizedBox(width: 10.0),
-        IconButton(
-          icon: Image.asset(
-            'lib/assets/images/shared/header/notification.png',
-            height: 30,
-          ),
-          onPressed: () => _showNotifications(context),
-        ),
-      ],
+        onPressed: () => _showNotifications(context),
+      );
+    }
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data == null) {
+          return IconButton(
+            icon: Image.asset(
+              'lib/assets/images/shared/header/notification.png',
+              height: 30,
+            ),
+            onPressed: () => _showNotifications(context),
+          );
+        }
+
+        // Check if there are unread notifications
+        List<dynamic> notifications = snapshot.data!['notifications'] ?? [];
+        bool hasUnread = notifications.any((n) => n['read'] == false);
+
+        return Stack(
+          children: [
+            IconButton(
+              icon: Image.asset(
+                'lib/assets/images/shared/header/notification.png',
+                height: 30,
+              ),
+              onPressed: () => _showNotifications(context),
+            ),
+            if (hasUnread)
+              Positioned(
+                right: 0,
+                top: 0,
+                child: Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
+
+
 
   PreferredSizeWidget _buildAppBar() {
     final user = Provider.of<MyUser?>(context);
@@ -120,43 +161,44 @@ class PatientHomeState extends State<PatientHome> {
               padding: const EdgeInsets.fromLTRB(15.0, 20.0, 15.0, 10.0),
               child: _currentIndex == 0
                   ? Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildLeftAppBar(context),
-                  _buildRightAppBar(context),
-                ],
-              )
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildLeftAppBar(context),
+                        _buildRightAppBar(context),
+                      ],
+                    )
                   : _currentIndex == 3
-                  ? Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Profile',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Inter',
-                    ),
-                  ),
-                  IconButton(
-                    icon: Image.asset(
-                      'lib/assets/images/shared/profile/qr.png',
-                      height: 30,
-                    ),
-                    onPressed: () {
-                      _showQrModal(context, fullName, user?.uid ?? '');
-                    },
-                  ),
-                ],
-              )
-                  : Text(
-                _currentIndex == 1 ? 'History' : 'Tracking',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Inter',
-                ),
-              ),
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Profile',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'Inter',
+                              ),
+                            ),
+                            IconButton(
+                              icon: Image.asset(
+                                'lib/assets/images/shared/profile/qr.png',
+                                height: 30,
+                              ),
+                              onPressed: () {
+                                _showQrModal(
+                                    context, fullName, user?.uid ?? '');
+                              },
+                            ),
+                          ],
+                        )
+                      : Text(
+                          _currentIndex == 1 ? 'History' : 'Tracking',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Inter',
+                          ),
+                        ),
             ),
           );
         },
@@ -165,58 +207,21 @@ class PatientHomeState extends State<PatientHome> {
   }
 
   void _showNotifications(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Notifications'),
-          content: const SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                Text('Notification 1: System update available.'),
-                Text('Notification 2: New message received.'),
-                Text('Notification 3: Your profile has been updated.'),
-              ],
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Close'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
+    final user =
+        Provider.of<MyUser?>(context, listen: false); // Add listen: false
 
-  void _showMessages(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Messages'),
-          content: const SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                Text('Message 1: Welcome to Solace!'),
-                Text('Message 2: Don’t forget to update your profile.'),
-                Text('Message 3: Your password has been changed.'),
-              ],
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Close'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
+    if (user == null) {
+      // Handle case where user is not available (optional)
+      return;
+    }
+
+    // Pass user.uid to NotificationList widget
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => NotificationList(
+            userId: user.uid), // Pass userId to NotificationView
+      ),
     );
   }
 
@@ -229,7 +234,6 @@ class PatientHomeState extends State<PatientHome> {
       ),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {

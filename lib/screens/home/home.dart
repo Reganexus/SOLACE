@@ -1,10 +1,9 @@
-// ignore_for_file: avoid_print
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/admin/admin_home.dart';
+import 'package:solace/screens/authenticate/authenticate.dart';
 import 'package:solace/screens/caregiver/caregiver_home.dart';
 import 'package:solace/screens/doctor/doctor_home.dart';
 import 'package:solace/screens/family/family_home.dart';
@@ -13,12 +12,17 @@ import 'package:solace/services/database.dart';
 import 'package:solace/screens/authenticate/verify.dart';
 import 'package:solace/shared/globals.dart';
 import 'package:solace/shared/widgets/user_editprofile.dart';
-import 'package:solace/themes/colors.dart'; // Import your verify screen
+import 'package:solace/themes/colors.dart';
 
-class Home extends StatelessWidget {
+class Home extends StatefulWidget {
+  const Home({super.key});
+
+  @override
+  HomeState createState() => HomeState();
+}
+
+class HomeState extends State<Home> {
   final CollectionReference userCollection = DatabaseService().userCollection;
-
-  Home({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -26,29 +30,30 @@ class Home extends StatelessWidget {
     debugPrint("Current user from Provider: $user");
 
     if (user == null) {
-      debugPrint("Loading home...");
-      return Center(
-                child: CircularProgressIndicator(color: AppColors.neon)); // Loading indicator
+      debugPrint("User is null, navigating to Authenticate screen.");
+      return Authenticate();
     }
 
     return FutureBuilder<DocumentSnapshot>(
       future: userCollection.doc(user.uid).get(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          debugPrint("Loading user data...");
-          return Center(child: CircularProgressIndicator(color: AppColors.neon));
+          return Center(
+            child: CircularProgressIndicator(color: AppColors.neon),
+          );
         }
 
         if (snapshot.hasError) {
-          debugPrint("Error fetching user data: ${snapshot.error}");
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text('Error fetching user data: ${snapshot.error}'),
+                SizedBox(height: 10),
                 ElevatedButton(
                   onPressed: () {
-                    // Implement retry logic or navigate to a safe screen
+                    // Retry logic: trigger a rebuild to refetch data
+                    setState(() {});
                   },
                   child: Text('Retry'),
                 ),
@@ -58,31 +63,28 @@ class Home extends StatelessWidget {
         }
 
         if (snapshot.hasData && snapshot.data != null) {
-          debugPrint("User data found: ${snapshot.data}");
-          final userData = snapshot.data!.data();
+          final userData = snapshot.data!.data() as Map<String, dynamic>?;
           if (userData == null) {
             debugPrint("User data is null, navigating to PatientHome.");
             return PatientHome();
           }
 
-          var userMap = userData as Map<String, dynamic>;
-          String userRole = userMap['userRole']?.toString() ?? UserRole.patient.toString();
-          bool isVerified = userMap['isVerified'] ?? false;
-          bool newUser = userMap['newUser'] ?? false;
+          // Fetch user role, isVerified, and newUser flags
+          String userRole = userData['userRole'] ?? UserRole.patient.toString();
+          bool isVerified = userData['isVerified'] ?? false;
+          bool newUser = userData['newUser'] ?? false;
 
-          debugPrint('User role retrieved: $userRole');
-          debugPrint('User isVerified status: $isVerified');
-
+          // Handle unverified users with email verification enabled
           if (emailVerificationEnabled && !isVerified) {
             return Verify();
           }
 
+          // Direct new users to the profile setup screen
           if (newUser) {
-            return EditProfileScreen();  // Redirect to EditProfile if new user
+            return EditProfileScreen();
           }
 
-          debugPrint("User is verified. Redirecting to respective home screen for role: $userRole");
-
+          // Route user based on their role
           switch (userRole) {
             case 'admin':
               return AdminHome();
@@ -96,11 +98,10 @@ class Home extends StatelessWidget {
               return PatientHome();
           }
         } else {
-          debugPrint("No user data found in Firestore. Showing default message.");
+          debugPrint("No user data found in Firestore.");
           return Center(child: Text('User data not found'));
         }
       },
     );
   }
 }
-

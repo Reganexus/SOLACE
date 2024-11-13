@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:solace/screens/authenticate/authenticate.dart';
@@ -17,6 +19,28 @@ class Wrapper extends StatefulWidget {
 }
 
 class _WrapperState extends State<Wrapper> {
+  late final StreamSubscription<User?> _authStateSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _authStateSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (mounted) {
+        setState(() {
+          // Trigger rebuild to update UI based on auth state
+          debugPrint("User auth state changed, updating UI.");
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    // Cancel the subscription to avoid memory leaks
+    _authStateSubscription.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -27,26 +51,27 @@ class _WrapperState extends State<Wrapper> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Center(
               child: CircularProgressIndicator(color: AppColors.neon),
-            ); // Loading indicator
+            );
           }
 
           if (!snapshot.hasData) {
-            // No user signed in, show the authentication screen
+            debugPrint("No user found, navigating to Authenticate screen.");
+            // User is signed out
             return Authenticate();
           }
 
           final user = snapshot.data;
           if (user != null) {
-            // If user is signed in, we fetch their data
+            // Check Firestore for user details
             return FutureBuilder<DocumentSnapshot>(
               future: DatabaseService(uid: user.uid).userCollection.doc(user.uid).get(),
               builder: (context, userSnapshot) {
                 if (userSnapshot.connectionState == ConnectionState.waiting) {
-                  return Center(child: CircularProgressIndicator(color: AppColors.neon)); // Loading indicator for user data
+                  return Center(child: CircularProgressIndicator(color: AppColors.neon));
                 }
 
                 if (userSnapshot.hasError) {
-                  return Center(child: Text('Error: ${userSnapshot.error}')); // Handle error
+                  return Center(child: Text('Error: ${userSnapshot.error}'));
                 }
 
                 if (userSnapshot.hasData && userSnapshot.data != null) {
@@ -57,20 +82,19 @@ class _WrapperState extends State<Wrapper> {
                   if (emailVerificationEnabled && !isVerified) {
                     return Verify();
                   } else if (newUser) {
-                    return EditProfileScreen(); // Redirect to EditProfile if new user
+                    return EditProfileScreen();
                   } else {
-                    return Home(); // Redirect to Home if profile is completed
+                    return Home();
                   }
                 }
 
-                // If no data or the data is null, show loading
                 return Center(child: CircularProgressIndicator(color: AppColors.neon));
               },
             );
           }
 
-          // Fallback to Authenticate if no user is found
-          return Authenticate(); // No user signed in
+          // Fallback if no user found
+          return Authenticate();
         },
       ),
     );

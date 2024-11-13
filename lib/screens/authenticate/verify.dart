@@ -19,12 +19,14 @@ class Verify extends StatefulWidget {
 class _VerifyState extends State<Verify> {
   bool isResendDisabled = false; // Prevents multiple requests in a short time
   bool isVerifying = true; // Indicates if we are currently verifying the email
+  bool isGoogleSignUp = false; // Indicates if the user signed up with Google
   int resendCooldown = 60; // Cooldown period in seconds
   Timer? cooldownTimer; // Timer instance for cooldown
 
   @override
   void initState() {
     super.initState();
+    determineSignUpMethod();
     if (!emailVerificationEnabled) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.pushReplacement(
@@ -35,6 +37,21 @@ class _VerifyState extends State<Verify> {
     } else {
       sendVerifyLink();
       listenForVerification();
+    }
+  }
+
+  void determineSignUpMethod() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      // Check if the user signed up with Google
+      for (var userInfo in user.providerData) {
+        if (userInfo.providerId == 'google.com') {
+          setState(() {
+            isGoogleSignUp = true;
+          });
+          break;
+        }
+      }
     }
   }
 
@@ -50,39 +67,66 @@ class _VerifyState extends State<Verify> {
     }
   }
 
-  void reloadUser() async {
-    final user = FirebaseAuth.instance.currentUser!;
-    await user.reload();
-    if (user.emailVerified) {
-      await DatabaseService(uid: user.uid).setUserVerificationStatus(user.uid, true);
-
-      // Fetch user data to check for `newUser`
-      final userData = await DatabaseService(uid: user.uid).getUserData();
-      if (userData?.newUser == true) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => EditProfileScreen()),
-              (Route<dynamic> route) => false,
-        );
+  void listenForVerification() async {
+    while (isVerifying) {
+      await Future.delayed(const Duration(seconds: 5)); // Check every 5 seconds
+      if (mounted) {
+        // Ensure the widget is still in the widget tree
+        reloadUser();
       } else {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => Home()),
+        break; // Stop the loop if the widget is no longer mounted
+      }
+    }
+  }
+
+  void reloadUser() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    // Ensure `user` is not null and `mounted` is true before continuing
+    if (user != null && mounted) {
+      await user.reload();
+      if (user.emailVerified) {
+        await DatabaseService(uid: user.uid)
+            .setUserVerificationStatus(user.uid, true);
+
+        // Fetch user data to check for `newUser`
+        final userData = await DatabaseService(uid: user.uid).getUserData();
+        if (userData?.newUser == true) {
+          if (mounted) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => EditProfileScreen()),
               (Route<dynamic> route) => false,
-        );
+            );
+          }
+        } else {
+          if (mounted) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => Home()),
+              (Route<dynamic> route) => false,
+            );
+          }
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            isVerifying = true; // Continue verification spinner if not verified
+          });
+        }
       }
     } else {
       setState(() {
-        isVerifying = true;  // Continue verification spinner if not verified
+        isVerifying = false; // Exit the verification loop if user is null
       });
     }
   }
 
-  void listenForVerification() async {
-    while (isVerifying) {
-      await Future.delayed(const Duration(seconds: 5)); // Check every 5 seconds
-      reloadUser();
-    }
+  @override
+  void dispose() {
+    isVerifying = false; // Stop the verification loop when widget is disposed
+    cooldownTimer?.cancel(); // Cancel the cooldown timer
+    super.dispose();
   }
 
   void resendVerificationEmail() async {
@@ -110,12 +154,6 @@ class _VerifyState extends State<Verify> {
   }
 
   @override
-  void dispose() {
-    cooldownTimer?.cancel(); // Cancel the timer if the widget is disposed
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser!;
 
@@ -132,94 +170,128 @@ class _VerifyState extends State<Verify> {
                 valueColor: AlwaysStoppedAnimation<Color>(AppColors.white),
               ),
             const SizedBox(height: 20),
-            const Text(
-              'Verify your Account',
-              style: TextStyle(
-                fontSize: 30,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Outfit',
-                color: AppColors.white,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Center(
-              child: RichText(
-                textAlign: TextAlign.center,
-                text: TextSpan(
-                  children: [
-                    const TextSpan(
-                      text: 'A verification email has been sent to ',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.normal,
-                        fontFamily: 'Inter',
-                        color: AppColors.white,
-                      ),
-                    ),
-                    TextSpan(
-                      text: user.email,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Inter',
-                        color: AppColors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 80),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                const Text(
-                  'No verification? ',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 18,
-                    color: AppColors.white,
-                  ),
-                ),
-                if (!isResendDisabled) // Show the Resend Gesture Detector if not disabled
-                  GestureDetector(
-                    onTap: resendVerificationEmail,
-                    child: const Text(
-                      'Resend',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: AppColors.white,
-                      ),
-                    ),
-                  )
-                else // Show cooldown timer if disabled
-                  RichText(
-                    text: TextSpan(
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 18,
-                        color: AppColors.white,
-                      ),
-                      children: [
-                        TextSpan(
-                          text: '$resendCooldown ',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold, // Bold for the countdown
-                          ),
-                        ),
-                        const TextSpan(
-                          text: 'seconds.',
-                          style: TextStyle(
-                            fontWeight: FontWeight.normal, // Normal for "seconds"
-                          ),
-                        ),
-                      ],
+            // Conditional UI based on sign-in method
+            if (isGoogleSignUp)
+              Column(
+                children: const [
+                  Text(
+                    'Thanks for signing up with Google!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Outfit',
+                      color: AppColors.white,
                     ),
                   ),
-              ],
-            ),
+                  SizedBox(height: 20),
+                  Text(
+                    'We\'ve linked your Google account, so you\'re all set!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontFamily: 'Inter',
+                      color: AppColors.white,
+                    ),
+                  ),
+                ],
+              )
+            else
+              Column(
+                children: [
+                  const Text(
+                    'Verify your Account',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Outfit',
+                      color: AppColors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Center(
+                    child: RichText(
+                      textAlign: TextAlign.center,
+                      text: TextSpan(
+                        children: [
+                          const TextSpan(
+                            text: 'A verification email has been sent to ',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.normal,
+                              fontFamily: 'Inter',
+                              color: AppColors.white,
+                            ),
+                          ),
+                          TextSpan(
+                            text: user.email,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'Inter',
+                              color: AppColors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 80),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      const Text(
+                        'No verification? ',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 18,
+                          color: AppColors.white,
+                        ),
+                      ),
+                      if (!isResendDisabled) // Show the Resend Gesture Detector if not disabled
+                        GestureDetector(
+                          onTap: resendVerificationEmail,
+                          child: const Text(
+                            'Resend',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: AppColors.white,
+                            ),
+                          ),
+                        )
+                      else // Show cooldown timer if disabled
+                        RichText(
+                          text: TextSpan(
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 18,
+                              color: AppColors.white,
+                            ),
+                            children: [
+                              TextSpan(
+                                text: '$resendCooldown ',
+                                style: const TextStyle(
+                                  fontWeight:
+                                      FontWeight.bold, // Bold for the countdown
+                                ),
+                              ),
+                              const TextSpan(
+                                text: 'seconds.',
+                                style: TextStyle(
+                                  fontWeight:
+                                      FontWeight.normal, // Normal for "seconds"
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
           ],
         ),
       ),

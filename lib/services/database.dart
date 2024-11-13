@@ -153,9 +153,25 @@ class DatabaseService {
 
   Future<void> saveScheduleForCaregiver(
       String caregiverId, DateTime scheduledDateTime, String patientId) async {
-    // Convert DateTime to Timestamp for Firestore
     final Timestamp timestamp = Timestamp.fromDate(scheduledDateTime);
 
+    // Fetch patient name
+    final patientSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(patientId)
+        .get();
+    String patientName = '';
+    if (patientSnapshot.exists) {
+      patientName = patientSnapshot.data()?['firstName']?.trim() ?? '';
+      String lastName = patientSnapshot.data()?['lastName']?.trim() ?? '';
+      patientName = '$patientName $lastName'.trim();
+    }
+
+    // Format date and time
+    String formattedDateTime =
+        DateFormat('MMMM dd, yyyy h:mm a').format(scheduledDateTime);
+
+    // Save schedule for caregiver
     await FirebaseFirestore.instance
         .collection('users')
         .doc(caregiverId)
@@ -163,30 +179,82 @@ class DatabaseService {
       'schedule': FieldValue.arrayUnion([
         {
           'date': timestamp,
-          'time': DateFormat.jm()
-              .format(scheduledDateTime), // Format time for display
+          'time': DateFormat.jm().format(scheduledDateTime),
           'patientId': patientId,
         }
       ]),
     });
+
+    // Add schedule notification for caregiver
+    await addNotification(
+      caregiverId,
+      "Scheduled visit for patient $patientName at $formattedDateTime",
+      'schedule',
+    );
   }
 
   Future<void> saveScheduleForPatient(
       String patientId, DateTime scheduledDateTime, String caregiverId) async {
-    // Convert DateTime to Timestamp for Firestore
     final Timestamp timestamp = Timestamp.fromDate(scheduledDateTime);
 
+    // Fetch caregiver name
+    final caregiverSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(caregiverId)
+        .get();
+    String caregiverName = '';
+    if (caregiverSnapshot.exists) {
+      caregiverName = caregiverSnapshot.data()?['firstName']?.trim() ?? '';
+      String lastName = caregiverSnapshot.data()?['lastName']?.trim() ?? '';
+      caregiverName = '$caregiverName $lastName'.trim();
+    }
+
+    // Format date and time
+    String formattedDateTime =
+        DateFormat('MMMM dd, yyyy h:mm a').format(scheduledDateTime);
+
+    // Save schedule for patient
     await FirebaseFirestore.instance.collection('users').doc(patientId).update({
       'schedule': FieldValue.arrayUnion([
         {
           'date': timestamp,
-          'time': DateFormat.jm()
-              .format(scheduledDateTime), // Format time for display
+          'time': DateFormat.jm().format(scheduledDateTime),
           'caregiverId': caregiverId,
         }
       ]),
     });
+
+    // Add schedule notification for patient
+    await addNotification(
+      patientId,
+      "Scheduled appointment with caregiver $caregiverName at $formattedDateTime.",
+      'schedule',
+    );
   }
+
+// Function to add a notification for the user, with the correct timestamp
+  Future<void> addNotification(
+      String userId, String notificationMessage, String type) async {
+    final timestamp = Timestamp.now();
+    final notificationId = DateTime.now().millisecondsSinceEpoch.toString(); // Generate a unique ID
+
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(userId).update({
+        'notifications': FieldValue.arrayUnion([
+          {
+            'notificationId': notificationId, // Unique ID for the notification
+            'message': notificationMessage,
+            'timestamp': timestamp,
+            'type': type,
+            'read': false, // Default to unread
+          }
+        ]),
+      });
+    } catch (e) {
+      print('Error adding notification: $e');
+    }
+  }
+
 
   // Fetch the schedule for a user
   Future<List<Map<String, dynamic>>> getScheduleForUser(String userId) async {
@@ -305,7 +373,8 @@ class DatabaseService {
   }
 
   // Check if the user already has a pending friend request
-  Future<bool> hasPendingRequest(String currentUserId, String targetUserId) async {
+  Future<bool> hasPendingRequest(
+      String currentUserId, String targetUserId) async {
     try {
       var userDoc = await userCollection.doc(currentUserId).get();
       var requests = userDoc['contacts']['requests'];

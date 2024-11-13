@@ -70,6 +70,55 @@ class _LogInState extends State<LogIn> {
     super.dispose();
   }
 
+  // Function to retry the sign-in process
+  Future<void> _retrySignIn() async {
+    await Future.delayed(Duration(seconds: 2)); // Delay before retry
+    if (mounted) {
+      setState(() {
+        _isLoading = true; // Reset loading state before retry
+      });
+    }
+    try {
+      MyUser? myUser = await _auth.signInWithGoogle();
+
+      if (myUser != null) {
+        // Successful retry, update local state and navigate
+        if (mounted) {
+          setState(() {
+            currentUser = myUser;
+          });
+        }
+
+        // Navigate to Home screen
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => Home(), // Navigate to home
+              ),
+            );
+          }
+        });
+      } else {
+        if (mounted) {
+          _showError("Google sign-in failed again. Please try later.", "");
+        }
+      }
+    } catch (error) {
+      // Handle retry error
+      if (mounted) {
+        _showError("Retry failed: $error. Please try later.", "");
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false; // Reset loading state after retry
+      });
+    }
+  }
+
   void _showError(String message, String criteria) {
     showDialog(
       context: context,
@@ -195,7 +244,6 @@ class _LogInState extends State<LogIn> {
       },
     );
   }
-
 
   Future<void> _autoLogin() async {
     String testEmail = 'john@gmail.com';
@@ -458,34 +506,46 @@ class _LogInState extends State<LogIn> {
                             });
                           }
 
-                          MyUser? myUser = await _auth.signInWithGoogle();
+                          try {
+                            // Attempt sign-in with Google
+                            MyUser? myUser = await _auth.signInWithGoogle();
 
-                          if (myUser != null) {
-                            // User is signed in, update your local state if needed
-                            if (mounted) {
-                              setState(() {
-                                currentUser = myUser;
-                              });
-                            }
-
-                            // Wrap navigation in a post-frame callback
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (myUser != null) {
+                              // If the user is signed in, update local state and proceed
                               if (mounted) {
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        Home(), // Navigate to home
-                                  ),
-                                );
+                                setState(() {
+                                  currentUser = myUser;
+                                });
                               }
-                            });
-                          } else {
-                            if (mounted) {
-                              _showError(
-                                  "Google sign-in failed. Please try again.",
-                                  "");
+
+                              // Wrap navigation in a post-frame callback to avoid issues with Navigator
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                if (mounted) {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => Home(), // Navigate to home
+                                    ),
+                                  );
+                                }
+                              });
+                            } else {
+                              // If sign-in fails, show error and allow retry
+                              if (mounted) {
+                                _showError("Google sign-in failed. Please try again.", "");
+                              }
+
+                              // Optionally retry the sign-in
+                              _retrySignIn();
                             }
+                          } catch (error) {
+                            // Handle errors during the sign-in process
+                            if (mounted) {
+                              _showError("An error occurred: $error. Please try again.", "");
+                            }
+
+                            // Retry the sign-in on error
+                            _retrySignIn();
                           }
 
                           if (mounted) {
@@ -543,7 +603,7 @@ class _LogInState extends State<LogIn> {
                           onTap: () => widget
                               .toggleView(), // Call toggleView as a function
                           child: const Text(
-                            'Login',
+                            'Sign Up',
                             style: TextStyle(
                               fontFamily: 'Inter',
                               fontWeight: FontWeight.bold,

@@ -81,45 +81,48 @@ class CaregiverProfile extends StatelessWidget {
                   const SizedBox(height: 10),
 
                   Center(
-                    child: TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const EditProfileScreen(),
-                          ),
-                        );
-                      },
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-                        backgroundColor: AppColors.neon,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          side: const BorderSide(color: AppColors.neon),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text(
-                            'Edit Profile',
-                            style: TextStyle(
-                              fontSize: 16.0,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'Inter',
-                              color: Colors.white,
+                    child: IntrinsicWidth(
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const EditProfileScreen(),
                             ),
+                          );
+                        },
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                          backgroundColor: AppColors.neon,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: const BorderSide(color: AppColors.neon),
                           ),
-                          const SizedBox(width: 8),
-                          Image.asset(
-                            'lib/assets/images/shared/profile/edit-white.png',
-                            height: 18,
-                            width: 18,
-                          ),
-                        ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text(
+                              'Edit Profile',
+                              style: TextStyle(
+                                fontSize: 16.0,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'Inter',
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Image.asset(
+                              'lib/assets/images/shared/profile/edit-white.png',
+                              height: 18,
+                              width: 18,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
+
 
                   const SizedBox(height: 10),
                   const Divider(thickness: 1.0),

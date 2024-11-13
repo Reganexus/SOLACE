@@ -95,7 +95,8 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
     }
   }
 
-  Future<void> _scheduleAppointment(String caregiverId, String patientId) async {
+  Future<void> _scheduleAppointment(
+      String caregiverId, String patientId) async {
     final DateTime today = DateTime.now();
 
     // Show the customized date picker
@@ -110,8 +111,10 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
             dialogBackgroundColor: AppColors.white,
             colorScheme: ColorScheme.light(
               primary: AppColors.neon, // Customize primary color
-              onPrimary: AppColors.white, // Customize text color on primary color
-              onSurface: AppColors.black, // Customize text color on surface color
+              onPrimary:
+                  AppColors.white, // Customize text color on primary color
+              onSurface:
+                  AppColors.black, // Customize text color on surface color
             ),
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
@@ -134,8 +137,10 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
             data: Theme.of(context).copyWith(
               colorScheme: ColorScheme.light(
                 primary: AppColors.neon, // Customize primary color
-                onPrimary: AppColors.white, // Customize text color on primary color
-                onSurface: AppColors.black, // Customize text color on surface color
+                onPrimary:
+                    AppColors.white, // Customize text color on primary color
+                onSurface:
+                    AppColors.black, // Customize text color on surface color
               ),
             ),
             child: child!,
@@ -144,6 +149,10 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
       );
 
       if (selectedTime != null) {
+        // Close the accordion and remove focus *before* any state changes occur
+        _openSectionIndex.value = null;
+        FocusScope.of(context).unfocus();
+
         // Combine the selected date and time into a single DateTime object
         final DateTime scheduledDateTime = DateTime(
           selectedDate.year,
@@ -155,8 +164,10 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
 
         try {
           // Save schedule in Firestore for both caregiver and patient
-          await _databaseService.saveScheduleForCaregiver(caregiverId, scheduledDateTime, patientId);
-          await _databaseService.saveScheduleForPatient(patientId, scheduledDateTime, caregiverId);
+          await _databaseService.saveScheduleForCaregiver(
+              caregiverId, scheduledDateTime, patientId);
+          await _databaseService.saveScheduleForPatient(
+              patientId, scheduledDateTime, caregiverId);
           print("Schedule saved for both caregiver and patient.");
         } catch (e) {
           print("Failed to save schedule: $e");
@@ -169,9 +180,8 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
     }
   }
 
-
-
-  Widget _buildActionButton(String label, String iconPath, Color bgColor, VoidCallback onPressed) {
+  Widget _buildActionButton(
+      String label, String iconPath, Color bgColor, VoidCallback onPressed) {
     return Container(
       height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 0.0, vertical: 0.0),
@@ -202,151 +212,166 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    // Reset the open section index to null on rebuild
+    _openSectionIndex.value = null;
+
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: Container(
-        color: AppColors.white,
-        padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: StreamBuilder<List<UserData?>>(
-                stream: _databaseService.patients,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return Center(child: CircularProgressIndicator());
-                  }
-                  if (snapshot.hasError) {
-                    return Center(child: Text("Error loading patients: ${snapshot.error}"));
-                  }
+      body: GestureDetector(
+        onTap: () {
+          FocusScope.of(context).unfocus();
+        },
+        child: Container(
+          color: AppColors.white,
+          padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: StreamBuilder<List<UserData?>>(
+                  stream: _databaseService.patients,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.hasError) {
+                      return Center(
+                          child: Text(
+                              "Error loading patients: ${snapshot.error}"));
+                    }
 
-                  final patients = snapshot.data ?? [];
+                    final patients = snapshot.data ?? [];
 
-                  return SingleChildScrollView(
-                    controller: _scrollController,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Priority Patients',
-                          style: TextStyle(
-                            fontSize: 24.0,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Outfit',
+                    return SingleChildScrollView(
+                      controller: _scrollController,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Priority Patients',
+                            style: TextStyle(
+                              fontSize: 24.0,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'Outfit',
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 20.0),
-                        Accordion(
-                          scaleWhenAnimating: false,
-                          paddingListHorizontal: 0.0,
-                          paddingListTop: 0.0,
-                          paddingListBottom: 0.0,
-                          maxOpenSections: 1,
-                          headerBackgroundColor: AppColors.gray,
-                          headerBackgroundColorOpened: AppColors.neon,
-                          contentBackgroundColor: AppColors.gray,
-                          contentBorderColor: AppColors.gray,
-                          contentHorizontalPadding: 20,
-                          contentVerticalPadding: 10,
-                          headerPadding: const EdgeInsets.symmetric(
-                              vertical: 7, horizontal: 15),
-                          children: patients.map((patient) {
-                            return AccordionSection(
-                              onOpenSection: () => _handleOpenSection(patients.indexOf(patient)),
-                              onCloseSection: _handleCloseSection,
-                              headerBackgroundColor: AppColors.gray,
-                              headerBackgroundColorOpened: AppColors.neon,
-                              contentBackgroundColor: AppColors.gray,
-                              contentBorderColor: AppColors.gray,
-                              contentHorizontalPadding: 20,
-                              contentVerticalPadding: 10,
-                              headerPadding: const EdgeInsets.symmetric(
-                                  vertical: 10, horizontal: 15),
-                              leftIcon: CircleAvatar(
-                                backgroundImage: AssetImage(
-                                    'lib/assets/images/shared/placeholder.png'), // Default placeholder
-                                radius: 24.0,
-                              ),
-                              rightIcon: ValueListenableBuilder<int?>(
-                                // Updated
-                                valueListenable: _openSectionIndex,
-                                builder: (context, value, child) {
-                                  return Icon(
-                                    Icons.keyboard_arrow_down,
-                                    color: value == patients.indexOf(patient)
-                                        ? AppColors.white
-                                        : AppColors.black,
-                                    size: 20,
-                                  );
-                                },
-                              ),
-                              isOpen: _openSectionIndex.value == patients.indexOf(patient),
-                              header: Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 10.0),
-                                child: ValueListenableBuilder<int?>(
+                          const SizedBox(height: 20.0),
+                          Accordion(
+                            scaleWhenAnimating: false,
+                            paddingListHorizontal: 0.0,
+                            paddingListTop: 0.0,
+                            paddingListBottom: 0.0,
+                            maxOpenSections: 1,
+                            headerBackgroundColor: AppColors.gray,
+                            headerBackgroundColorOpened: AppColors.neon,
+                            contentBackgroundColor: AppColors.gray,
+                            contentBorderColor: AppColors.gray,
+                            contentHorizontalPadding: 20,
+                            contentVerticalPadding: 10,
+                            headerPadding: const EdgeInsets.symmetric(
+                                vertical: 7, horizontal: 15),
+                            children: patients.map((patient) {
+                              return AccordionSection(
+                                onOpenSection: () => _handleOpenSection(
+                                    patients.indexOf(patient)),
+                                onCloseSection: _handleCloseSection,
+                                headerBackgroundColor: AppColors.gray,
+                                headerBackgroundColorOpened: AppColors.neon,
+                                contentBackgroundColor: AppColors.gray,
+                                contentBorderColor: AppColors.gray,
+                                contentHorizontalPadding: 20,
+                                contentVerticalPadding: 10,
+                                headerPadding: const EdgeInsets.symmetric(
+                                    vertical: 10, horizontal: 15),
+                                leftIcon: CircleAvatar(
+                                  backgroundImage: AssetImage(
+                                      'lib/assets/images/shared/placeholder.png'),
+                                  radius: 24.0,
+                                ),
+                                rightIcon: ValueListenableBuilder<int?>(
                                   valueListenable: _openSectionIndex,
                                   builder: (context, value, child) {
-                                    return Text(
-                                      '${patient?.firstName ?? 'Unknown'} ${patient?.lastName ?? 'Unknown'}',
-                                      style: headerStyle.copyWith(
-                                        color: value == patients.indexOf(patient)
-                                            ? AppColors.white
-                                            : AppColors.black,
-                                        fontSize: 18.0,
-                                        fontFamily: 'Inter',
-                                        fontWeight: FontWeight.normal,
-                                      ),
+                                    return Icon(
+                                      Icons.keyboard_arrow_down,
+                                      color: value == patients.indexOf(patient)
+                                          ? AppColors.white
+                                          : AppColors.black,
+                                      size: 20,
                                     );
                                   },
                                 ),
-                              ),
-                              content: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Identified Conditions',
-                                    style: TextStyle(
-                                      fontSize: 16.0,
-                                      fontWeight: FontWeight.bold,
-                                      fontFamily: 'Inter',
+                                isOpen: _openSectionIndex.value ==
+                                    patients.indexOf(patient),
+                                header: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 10.0),
+                                  child: ValueListenableBuilder<int?>(
+                                    valueListenable: _openSectionIndex,
+                                    builder: (context, value, child) {
+                                      return Text(
+                                        '${patient?.firstName ?? 'Unknown'} ${patient?.lastName ?? 'Unknown'}',
+                                        style: headerStyle.copyWith(
+                                          color:
+                                              value == patients.indexOf(patient)
+                                                  ? AppColors.white
+                                                  : AppColors.black,
+                                          fontSize: 18.0,
+                                          fontFamily: 'Inter',
+                                          fontWeight: FontWeight.normal,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                                content: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Identified Conditions',
+                                      style: TextStyle(
+                                        fontSize: 16.0,
+                                        fontWeight: FontWeight.bold,
+                                        fontFamily: 'Inter',
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 10.0),
-                                  // Provide a default message if conditions are not available
-                                  Text("No identified conditions available", style: contentStyle),
-                                  const SizedBox(height: 20.0),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.start,
-                                    children: [
-                                      // When calling _scheduleAppointment, use patient.uid
-                                      _buildActionButton(
-                                        'Schedule',
-                                        'lib/assets/images/shared/functions/schedule.png',
-                                        AppColors.darkblue,
-                                            () => _scheduleAppointment(caregiverId, patient?.uid ?? ''), // No null assertion
-                                      ),
-                                      const SizedBox(width: 10),
-                                      _buildActionButton(
-                                        'Call',
-                                        'lib/assets/images/shared/functions/call.png',
-                                        AppColors.red,
-                                            () => _makeCall(patient?.phoneNumber ?? ''), // No null assertion
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ],
-                    ),
-                  );
-                },
+                                    const SizedBox(height: 10.0),
+                                    Text("No identified conditions available",
+                                        style: contentStyle),
+                                    const SizedBox(height: 20.0),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.start,
+                                      children: [
+                                        _buildActionButton(
+                                          'Schedule',
+                                          'lib/assets/images/shared/functions/schedule.png',
+                                          AppColors.darkblue,
+                                          () => _scheduleAppointment(
+                                              caregiverId, patient?.uid ?? ''),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        _buildActionButton(
+                                          'Call',
+                                          'lib/assets/images/shared/functions/call.png',
+                                          AppColors.red,
+                                          () => _makeCall(
+                                              patient?.phoneNumber ?? ''),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
