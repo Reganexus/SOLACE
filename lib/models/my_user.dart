@@ -23,6 +23,7 @@ class UserData {
   final String address;
   final bool isVerified;
   final bool newUser;
+  final DateTime dateCreated;
 
   UserData({
     required this.userRole,
@@ -37,13 +38,15 @@ class UserData {
     required this.address,
     required this.isVerified,
     required this.newUser,
+    required this.dateCreated,
   });
 
   factory UserData.fromDocument(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     return UserData(
       uid: doc.id,
-      userRole: UserData.getUserRoleFromString(data['userRole']?.toString() ?? 'patient'), // Ensure to convert to string
+      userRole: UserData.getUserRoleFromString(data['userRole']?.toString() ??
+          'patient'), // Ensure to convert to string
       firstName: data['firstName'] ?? '',
       middleName: data['middleName'] ?? '',
       lastName: data['lastName'] ?? '',
@@ -56,6 +59,7 @@ class UserData {
       address: data['address'] ?? '',
       isVerified: data['isVerified'] ?? false,
       newUser: data['newUser'] ?? true,
+      dateCreated: (data['dateCreated'] as Timestamp).toDate(),
     );
   }
 
@@ -85,28 +89,31 @@ class UserData {
   @override
   int get hashCode {
     return uid.hashCode ^
-    userRole.hashCode ^
-    email.hashCode ^
-    lastName.hashCode ^
-    firstName.hashCode ^
-    middleName.hashCode ^
-    phoneNumber.hashCode ^
-    gender.hashCode ^
-    (birthday?.hashCode ?? 0) ^
-    address.hashCode ^
-    isVerified.hashCode; // Include isVerified in hash code
+        userRole.hashCode ^
+        email.hashCode ^
+        lastName.hashCode ^
+        firstName.hashCode ^
+        middleName.hashCode ^
+        phoneNumber.hashCode ^
+        gender.hashCode ^
+        (birthday?.hashCode ?? 0) ^
+        address.hashCode ^
+        isVerified.hashCode; // Include isVerified in hash code
   }
 
   // Helper function to convert string to UserRole enum
   static UserRole getUserRoleFromString(String role) {
     return UserRole.values.firstWhere(
-          (e) => e.toString().split('.').last == role,
+      (e) => e.toString().split('.').last == role,
       orElse: () => UserRole.patient, // Default role if not found
     );
   }
 
   // Helper function to convert UserRole enum to string
   static String getUserRoleString(UserRole userRole) {
-    return userRole.toString().split('.').last; // This will return the string representation
+    return userRole
+        .toString()
+        .split('.')
+        .last; // This will return the string representation
   }
 }

@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_print
+// ignore_for_file: avoid_print, unnecessary_nullable_for_final_variable_declarations
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -13,6 +13,9 @@ class AuthService {
 
   // Initialize GoogleSignIn instance
   final GoogleSignIn _googleSignIn = GoogleSignIn();
+
+  // Cache to store user data
+  MyUser? _cachedUser;
 
   // Check if a user exists with the given email
   Future<bool> userExists(String email) async {
@@ -31,40 +34,52 @@ class AuthService {
   }
 
   Future<MyUser?> _userFromFirebaseUser(User? user) async {
-    if (user != null) {
-      try {
-        UserData? userData = await DatabaseService(uid: user.uid).getUserData();
-        if (userData != null) {
-          return MyUser(uid: user.uid, isVerified: userData.isVerified);
-        } else {
-          debugPrint("No user data found for UID: ${user.uid}, retrying...");
-          await Future.delayed(
-              const Duration(milliseconds: 500)); // Delay before retry
-          userData = await DatabaseService(uid: user.uid).getUserData();
-          return userData != null
-              ? MyUser(uid: user.uid, isVerified: userData.isVerified)
-              : null;
-        }
-      } catch (e) {
-        debugPrint("Error fetching user data from Firestore: ${e.toString()}");
+    if (user == null) return null;
+
+    try {
+      if (_cachedUser != null && _cachedUser!.uid == user.uid) {
+        return _cachedUser; // Return cached data if available
       }
+
+      UserData? userData = await DatabaseService(uid: user.uid).getUserData();
+      if (userData != null) {
+        _cachedUser = MyUser(uid: user.uid, isVerified: userData.isVerified);
+        return _cachedUser;
+      } else {
+        debugPrint("No user data found for UID: ${user.uid}");
+      }
+    } catch (e) {
+      debugPrint("Error fetching user data from Firestore: ${e.toString()}");
     }
+
     return null;
   }
 
   Stream<MyUser?> get user {
     return _auth.authStateChanges().asyncMap((User? firebaseUser) async {
-      if (firebaseUser != null) {
-        // Fetch Firestore data for the user after auth state change
-        UserData? userData =
-            await DatabaseService(uid: firebaseUser.uid).getUserData();
-        return userData != null
-            ? MyUser(uid: firebaseUser.uid, isVerified: userData.isVerified)
-            : null;
+      if (firebaseUser == null) return null;
+
+      // Check if the cached user exists and matches
+      if (_cachedUser != null && _cachedUser!.uid == firebaseUser.uid) {
+        return _cachedUser;
       }
-      return null;
+
+      try {
+        // Fetch user data from the database
+        final userData = await DatabaseService(uid: firebaseUser.uid).getUserData();
+        if (userData != null) {
+          _cachedUser = MyUser(uid: firebaseUser.uid, isVerified: userData.isVerified);
+          return _cachedUser;
+        } else {
+          return null; // Handle the case where user data doesn't exist
+        }
+      } catch (e) {
+        print("Error fetching user data: $e");
+        return null;
+      }
     });
   }
+
 
   User? get currentUser {
     return _auth.currentUser;
@@ -104,6 +119,30 @@ class AuthService {
     }
   }
 
+  Future<void> _initializeUserDocument({
+    required String uid,
+    required String email,
+    required bool isVerified,
+    required bool newUser,
+  }) async {
+    await DatabaseService(uid: uid).updateUserData(
+      userRole: UserRole.patient,
+      email: email,
+      isVerified: isVerified,
+      newUser: newUser,
+      dateCreated: DateTime.now(),
+    );
+
+    await _firestore.collection('users').doc(uid).set({
+      'contacts': {
+        'friends': {},
+        'pending': {},
+        'requests': {},
+      },
+      'notifications': [],
+    }, SetOptions(merge: true));
+  }
+
   Future<MyUser?> signUpWithEmailAndPassword(
       String email, String password) async {
     try {
@@ -113,29 +152,13 @@ class AuthService {
       );
       User? user = result.user;
       if (user == null) return null;
-      debugPrint('New user id: ${user.uid}');
 
-      // Set isVerified to false for email/password sign-ups
-      await DatabaseService(uid: user.uid).updateUserData(
-        userRole: UserRole.patient,
+      await _initializeUserDocument(
+        uid: user.uid,
         email: email,
         isVerified: false,
         newUser: true,
       );
-
-      // Initialize the contacts and notifications fields as empty
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).set(
-          {
-            'contacts': {
-              'friends': {},
-              'pending': {},
-              'requests': {},
-            },
-            'notifications': [], // Initialize empty notifications array
-          },
-          SetOptions(
-              merge:
-                  true)); // Merge ensures it does not overwrite existing data
 
       return MyUser(uid: user.uid, isVerified: false);
     } catch (e) {
@@ -144,77 +167,52 @@ class AuthService {
     }
   }
 
-  // Google Sign-In Method with Retry Logic
   Future<MyUser?> signInWithGoogle() async {
     try {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      final GoogleSignInAuthentication? googleAuth =
-          await googleUser?.authentication;
+      if (googleUser == null) {
+        debugPrint("Google sign-in aborted by user.");
+        return null;
+      }
+
+      final GoogleSignInAuthentication? googleAuth = await googleUser.authentication;
+      if (googleAuth == null) {
+        debugPrint("Failed to retrieve Google authentication data.");
+        return null;
+      }
 
       final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth?.accessToken,
-        idToken: googleAuth?.idToken,
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
       );
 
       UserCredential result = await _auth.signInWithCredential(credential);
       User? user = result.user;
 
-      // Retry mechanism: Confirm user is recognized before proceeding
-      int retries = 3; // Max retries
-      while (user == null && retries > 0) {
-        await Future.delayed(const Duration(milliseconds: 500)); // Short delay
-        user = _auth.currentUser;
-        retries--;
+      if (user == null) {
+        debugPrint("Google sign-in failed, user is null.");
+        return null;
       }
 
-      if (user != null) {
-        final email = user.email;
-
-        // Check if user document already exists
-        if (email != null && !await emailExists(email)) {
-          // Create a new document if user does not exist
-          await DatabaseService(uid: user.uid).updateUserData(
-            userRole: UserRole.patient,
-            email: email,
-            isVerified: true,
-            newUser: true,
-          );
-
-          await _firestore.collection('users').doc(user.uid).set({
-            'contacts': {
-              'friends': {},
-              'requests': {},
-            },
-            'notifications': [], // Initialize empty notifications array
-          }, SetOptions(merge: true));
-
-          debugPrint('New user document created for email: $email');
-        } else {
-          debugPrint('User document already exists for email: $email');
-        }
-
-        // Explicitly update Provider with new user data
-        await _updateProviderUser(user);
-
-        return await _userFromFirebaseUser(user);
+      final email = user.email;
+      if (email != null && !await emailExists(email)) {
+        await _initializeUserDocument(
+          uid: user.uid,
+          email: email,
+          isVerified: true,
+          newUser: true,
+        );
       }
+
+      return await _userFromFirebaseUser(user);
     } catch (e) {
       debugPrint("Google sign-in error: ${e.toString()}");
     }
     return null;
   }
 
-  // Manually update Provider to prevent mis-navigation due to null user
-  Future<void> _updateProviderUser(User user) async {
-    final userData = await DatabaseService(uid: user.uid).getUserData();
-    if (userData != null) {
-      // Optionally trigger a Provider update in your main app here if needed
-      debugPrint("Provider manually updated with user: ${user.email}");
-    }
-  }
-
   Future<void> setUserVerificationStatus(String uid, bool isVerified) async {
-    await FirebaseFirestore.instance.collection('users').doc(uid).update({
+    await _firestore.collection('users').doc(uid).update({
       'isVerified': isVerified,
     });
   }
@@ -223,13 +221,7 @@ class AuthService {
     try {
       await _googleSignIn.signOut();
       await _auth.signOut();
-
-      // Ensure user is null after sign out
-      if (FirebaseAuth.instance.currentUser == null) {
-        debugPrint('User successfully signed out and session cleared.');
-      } else {
-        debugPrint('Sign out incomplete, user still detected.');
-      }
+      debugPrint('User successfully signed out.');
     } catch (e) {
       debugPrint("Sign out error: ${e.toString()}");
     }

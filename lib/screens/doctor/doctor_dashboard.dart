@@ -1,35 +1,30 @@
 // ignore_for_file: avoid_print
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Add this for Firestore
 import 'package:solace/themes/colors.dart';
 
-class AdminDashboard extends StatefulWidget {
-  const AdminDashboard({super.key});
+class DoctorDashboard extends StatefulWidget {
+  const DoctorDashboard({super.key});
 
   @override
-  State<AdminDashboard> createState() => _AdminDashboardState();
+  DoctorDashboardState createState() => DoctorDashboardState();
 }
 
-class _AdminDashboardState extends State<AdminDashboard> {
-  // Variables to hold the counts
+class DoctorDashboardState extends State<DoctorDashboard> {
+// Variables to hold the counts
   int patientCount = 0;
   int caregiverCount = 0;
-  int doctorCount = 0;
   int adminCount = 0;
   int totalUsers = 0;
-  int noRiskCount = 0;
-  int lowRiskCount = 0;
-  int highRiskCount = 0;
 
   @override
   void initState() {
     super.initState();
     fetchUserCounts();
-    fetchStatusCounts();
   }
 
-  // Function to fetch user counts by userRole
+  // Function to fetch user counts
   Future<void> fetchUserCounts() async {
     try {
       final firestore = FirebaseFirestore.instance;
@@ -45,11 +40,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
           .where('userRole', isEqualTo: 'caregiver')
           .get();
 
-      final doctorSnapshot = await firestore
-          .collection('users')
-          .where('userRole', isEqualTo: 'doctor')
-          .get();
-
       final adminSnapshot = await firestore
           .collection('users')
           .where('userRole', isEqualTo: 'admin')
@@ -58,72 +48,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
       setState(() {
         patientCount = patientSnapshot.size;
         caregiverCount = caregiverSnapshot.size;
-        doctorCount = doctorSnapshot.size;
         adminCount = adminSnapshot.size;
-        totalUsers = patientCount + caregiverCount + doctorCount + adminCount;
+        totalUsers = patientCount + caregiverCount + adminCount;
       });
     } catch (e) {
       print('Error fetching user counts: $e');
     }
   }
 
-  // Function to fetch status counts (No Risk, Low Risk, High Risk)
-  Future<void> fetchStatusCounts() async {
-    try {
-      final firestore = FirebaseFirestore.instance;
-
-      // Assuming status data is available in a collection like 'statusData'
-      final statusSnapshot = await firestore.collection('statusData').get();
-
-      if (statusSnapshot.docs.isEmpty) {
-        setState(() {
-          noRiskCount = 0;
-          lowRiskCount = 0;
-          highRiskCount = 0;
-        });
-        return;
-      }
-
-      // Initialize counts
-      int tempNoRisk = 0;
-      int tempLowRisk = 0;
-      int tempHighRisk = 0;
-
-      // Loop through each document and check the 'riskLevel' field
-      for (var doc in statusSnapshot.docs) {
-        var riskLevel = doc['riskLevel']; // Adjust field name according to your Firestore structure
-
-        // Check risk level and increment appropriate counter
-        if (riskLevel == 'noRisk') {
-          tempNoRisk++;
-        } else if (riskLevel == 'lowRisk') {
-          tempLowRisk++;
-        } else if (riskLevel == 'highRisk') {
-          tempHighRisk++;
-        }
-      }
-
-      // Update state with the final counts
-      setState(() {
-        noRiskCount = tempNoRisk;
-        lowRiskCount = tempLowRisk;
-        highRiskCount = tempHighRisk;
-      });
-
-    } catch (e) {
-      print('Error fetching status counts: $e');
-      setState(() {
-        noRiskCount = 0;
-        lowRiskCount = 0;
-        highRiskCount = 0;
-      });
-    }
-  }
-
   Widget _buildSquareContainer(String title, String label, Color color) {
     return Column(
       mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Container(
           width: 70,
@@ -150,7 +85,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           label,
           textAlign: TextAlign.center,
           style: const TextStyle(
-            fontSize: 14,
+            fontSize: 12,
             fontWeight: FontWeight.normal,
             fontFamily: 'Inter',
             color: AppColors.black,
@@ -190,11 +125,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   _buildSquareContainer(
                       '$patientCount', 'Patients', AppColors.blue),
                   _buildSquareContainer(
-                      '$caregiverCount', 'Caregivers', AppColors.purple),
+                      '$caregiverCount', 'Caregiver', AppColors.purple),
+                  _buildSquareContainer('$adminCount', 'Admin', AppColors.neon),
                   _buildSquareContainer(
-                      '$doctorCount', 'Doctors', AppColors.neon),
-                  _buildSquareContainer(
-                      '$adminCount', 'Admins', AppColors.darkgray),
+                      '$totalUsers', 'Total Users', AppColors.darkblue),
                 ],
               ),
               const SizedBox(height: 30),
@@ -214,14 +148,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 runSpacing: 16, // Vertical spacing between rows
                 alignment: WrapAlignment.start,
                 children: [
-                  _buildSquareContainer(
-                      '$noRiskCount', 'No Risk', AppColors.neon),
-                  _buildSquareContainer(
-                      '$lowRiskCount', 'Low Risk', AppColors.yellow),
-                  _buildSquareContainer(
-                      '$highRiskCount', 'High Risk', AppColors.red),
-                  _buildSquareContainer(
-                      '$totalUsers', 'Total Users', AppColors.darkblue),
+                  _buildSquareContainer('80', 'No Risk', AppColors.neon),
+                  _buildSquareContainer('15', 'Low Risk', AppColors.yellow),
+                  _buildSquareContainer('5', 'High Risk', AppColors.red),
+                  _buildSquareContainer('5', 'Unknown', AppColors.darkgray),
                 ],
               ),
             ],

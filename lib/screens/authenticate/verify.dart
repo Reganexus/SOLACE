@@ -1,13 +1,14 @@
 // ignore_for_file: avoid_print, use_build_context_synchronously
 
-import 'dart:async'; // Import the Timer class
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:solace/screens/home/home.dart';
-import 'package:solace/services/database.dart'; // Import your DatabaseService
+import 'package:solace/services/database.dart';
 import 'package:solace/shared/globals.dart';
 import 'package:solace/shared/widgets/user_editprofile.dart';
-import 'package:solace/themes/colors.dart'; // Make sure to import your colors
+import 'package:solace/themes/colors.dart';
 
 class Verify extends StatefulWidget {
   const Verify({super.key});
@@ -17,123 +18,146 @@ class Verify extends StatefulWidget {
 }
 
 class _VerifyState extends State<Verify> {
-  bool isResendDisabled = false; // Prevents multiple requests in a short time
-  bool isVerifying = true; // Indicates if we are currently verifying the email
-  bool isGoogleSignUp = false; // Indicates if the user signed up with Google
-  int resendCooldown = 60; // Cooldown period in seconds
-  Timer? cooldownTimer; // Timer instance for cooldown
+  bool isResendDisabled = false;
+  bool isVerifying = true;
+  bool isGoogleSignUp = false;
+  int resendCooldown = 60;
+  Timer? cooldownTimer;
 
   @override
   void initState() {
     super.initState();
     determineSignUpMethod();
     if (!emailVerificationEnabled) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => Home()),
-        );
-      });
+      navigateToHome();
     } else {
-      sendVerifyLink();
-      listenForVerification();
+      sendVerificationEmail();
+      listenForEmailVerification();
+    }
+  }
+
+  Future<void> createUserDocument(String uid) async {
+    final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
+    final userDoc = await userRef.get();
+    if (!userDoc.exists) {
+      await userRef.set({
+        'uid': uid,
+        'isVerified': false,
+        'newUser': true,
+        // Add other necessary fields here
+      });
     }
   }
 
   void determineSignUpMethod() {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      // Check if the user signed up with Google
       for (var userInfo in user.providerData) {
         if (userInfo.providerId == 'google.com') {
-          setState(() {
-            isGoogleSignUp = true;
-          });
+          if (!isGoogleSignUp) {
+            setState(() {
+              isGoogleSignUp = true;
+            });
+          }
           break;
         }
       }
     }
   }
 
-  void sendVerifyLink() async {
+  void sendVerificationEmail() async {
     final user = FirebaseAuth.instance.currentUser!;
     if (!user.emailVerified) {
-      await user.sendEmailVerification().then((_) {
-        debugPrint('Verification email sent to: ${user.email}');
+      try {
+        await user.sendEmailVerification();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Verification email sent to ${user.email}')),
         );
-      });
+        debugPrint('Verification email sent to: ${user.email}');
+      } catch (e) {
+        debugPrint('Failed to send verification email: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to send verification email')),
+        );
+      }
     }
   }
 
-  void listenForVerification() async {
+  void listenForEmailVerification() async {
     while (isVerifying) {
-      await Future.delayed(const Duration(seconds: 5)); // Check every 5 seconds
+      await Future.delayed(const Duration(seconds: 5));
       if (mounted) {
-        // Ensure the widget is still in the widget tree
         reloadUser();
       } else {
-        break; // Stop the loop if the widget is no longer mounted
+        break;
       }
     }
   }
 
   void reloadUser() async {
     final user = FirebaseAuth.instance.currentUser;
-
-    // Ensure `user` is not null and `mounted` is true before continuing
-    if (user != null && mounted) {
-      await user.reload();
-      if (user.emailVerified) {
-        await DatabaseService(uid: user.uid)
-            .setUserVerificationStatus(user.uid, true);
-
-        // Fetch user data to check for `newUser`
-        final userData = await DatabaseService(uid: user.uid).getUserData();
-        if (userData?.newUser == true) {
-          if (mounted) {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (context) => EditProfileScreen()),
-              (Route<dynamic> route) => false,
-            );
-          }
+    if (user != null) {
+      try {
+        await user.reload();
+        if (user.emailVerified) {
+          await DatabaseService(uid: user.uid).setUserVerificationStatus(user.uid, true);
+          handlePostVerification(user.uid);
         } else {
           if (mounted) {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (context) => Home()),
-              (Route<dynamic> route) => false,
-            );
+            setState(() {
+              isVerifying = true;
+            });
           }
         }
-      } else {
-        if (mounted) {
-          setState(() {
-            isVerifying = true; // Continue verification spinner if not verified
-          });
-        }
+      } catch (e) {
+        debugPrint("Error reloading user: $e");
       }
-    } else {
-      setState(() {
-        isVerifying = false; // Exit the verification loop if user is null
-      });
     }
   }
 
-  @override
-  void dispose() {
-    isVerifying = false; // Stop the verification loop when widget is disposed
-    cooldownTimer?.cancel(); // Cancel the cooldown timer
-    super.dispose();
+  void handlePostVerification(String uid) async {
+    final userData = await DatabaseService(uid: uid).getUserData();
+    if (userData == null) {
+      // If no user data is found, try creating the user document
+      await createUserDocument(uid);
+      // Now fetch again after creation
+      final newUserData = await DatabaseService(uid: uid).getUserData();
+      if (newUserData?.newUser ?? false) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+              (route) => false,
+        );
+      } else {
+        navigateToHome();
+      }
+    } else if (userData?.newUser ?? false) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+            (route) => false,
+      );
+    } else {
+      navigateToHome();
+    }
   }
 
-  void resendVerificationEmail() async {
+
+  void navigateToHome() {
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const Home()),
+            (route) => false,
+      );
+    }
+  }
+
+  void resendVerificationEmail() {
     setState(() {
-      isResendDisabled = true; // Temporarily disable button to prevent spamming
+      isResendDisabled = true;
     });
-    sendVerifyLink();
+    sendVerificationEmail();
     startCooldown();
   }
 
@@ -146,11 +170,17 @@ class _VerifyState extends State<Verify> {
       } else {
         timer.cancel();
         setState(() {
-          isResendDisabled = false; // Enable resend after cooldown
-          resendCooldown = 60; // Reset cooldown
+          isResendDisabled = false;
+          resendCooldown = 60;
         });
       }
     });
+  }
+
+  @override
+  void dispose() {
+    cooldownTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -170,7 +200,6 @@ class _VerifyState extends State<Verify> {
                 valueColor: AlwaysStoppedAnimation<Color>(AppColors.white),
               ),
             const SizedBox(height: 20),
-            // Conditional UI based on sign-in method
             if (isGoogleSignUp)
               Column(
                 children: const [
@@ -210,31 +239,28 @@ class _VerifyState extends State<Verify> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  Center(
-                    child: RichText(
-                      textAlign: TextAlign.center,
-                      text: TextSpan(
-                        children: [
-                          const TextSpan(
-                            text: 'A verification email has been sent to ',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.normal,
-                              fontFamily: 'Inter',
-                              color: AppColors.white,
-                            ),
+                  RichText(
+                    textAlign: TextAlign.center,
+                    text: TextSpan(
+                      children: [
+                        const TextSpan(
+                          text: 'A verification email has been sent to ',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontFamily: 'Inter',
+                            color: AppColors.white,
                           ),
-                          TextSpan(
-                            text: user.email,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'Inter',
-                              color: AppColors.white,
-                            ),
+                        ),
+                        TextSpan(
+                          text: user.email,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Inter',
+                            color: AppColors.white,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 80),
@@ -249,7 +275,7 @@ class _VerifyState extends State<Verify> {
                           color: AppColors.white,
                         ),
                       ),
-                      if (!isResendDisabled) // Show the Resend Gesture Detector if not disabled
+                      if (!isResendDisabled)
                         GestureDetector(
                           onTap: resendVerificationEmail,
                           child: const Text(
@@ -262,7 +288,7 @@ class _VerifyState extends State<Verify> {
                             ),
                           ),
                         )
-                      else // Show cooldown timer if disabled
+                      else
                         RichText(
                           text: TextSpan(
                             style: const TextStyle(
@@ -273,17 +299,10 @@ class _VerifyState extends State<Verify> {
                             children: [
                               TextSpan(
                                 text: '$resendCooldown ',
-                                style: const TextStyle(
-                                  fontWeight:
-                                      FontWeight.bold, // Bold for the countdown
-                                ),
+                                style: const TextStyle(fontWeight: FontWeight.bold),
                               ),
                               const TextSpan(
                                 text: 'seconds.',
-                                style: TextStyle(
-                                  fontWeight:
-                                      FontWeight.normal, // Normal for "seconds"
-                                ),
                               ),
                             ],
                           ),

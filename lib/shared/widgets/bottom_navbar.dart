@@ -31,16 +31,77 @@ class BottomNavBar extends StatelessWidget {
       case 'Admin':
         return [
           BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard),
-            label: 'Dashboard',
+            icon: Image.asset(
+              currentIndex == 0
+                  ? 'lib/assets/images/admin/home_selected.png'
+                  : 'lib/assets/images/admin/home.png',
+              width: 30,
+              height: 30,
+            ),
+            label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.people),
+            icon: Image.asset(
+              currentIndex == 1
+                  ? 'lib/assets/images/admin/users_selected.png'
+                  : 'lib/assets/images/admin/users.png',
+              width: 30,
+              height: 30,
+            ),
             label: 'Users',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Settings',
+            icon: Image.asset(
+              currentIndex == 2
+                  ? 'lib/assets/images/admin/profile_selected.png'
+                  : 'lib/assets/images/admin/profile.png',
+              width: 30,
+              height: 30,
+            ),
+            label: 'Profile',
+          ),
+        ];
+      case 'Doctor':
+        return [
+          BottomNavigationBarItem(
+            icon: Image.asset(
+              currentIndex == 0
+                  ? 'lib/assets/images/doctor/home_selected.png'
+                  : 'lib/assets/images/doctor/home.png',
+              width: 30,
+              height: 30,
+            ),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Image.asset(
+              currentIndex == 1
+                  ? 'lib/assets/images/doctor/users_selected.png'
+                  : 'lib/assets/images/doctor/users.png',
+              width: 30,
+              height: 30,
+            ),
+            label: 'Users',
+          ),
+          BottomNavigationBarItem(
+            icon: Image.asset(
+              currentIndex == 2
+                  ? 'lib/assets/images/doctor/tasks_selected.png'
+                  : 'lib/assets/images/doctor/tasks.png',
+              width: 30,
+              height: 30,
+            ),
+            label: 'Tasks',
+          ),
+          BottomNavigationBarItem(
+            icon: Image.asset(
+              currentIndex == 3
+                  ? 'lib/assets/images/doctor/profile_selected.png'
+                  : 'lib/assets/images/doctor/profile.png',
+              width: 30,
+              height: 30,
+            ),
+            label: 'Profile',
           ),
         ];
       case 'Caregiver':
@@ -68,8 +129,8 @@ class BottomNavBar extends StatelessWidget {
           BottomNavigationBarItem(
             icon: Image.asset(
               currentIndex == 2
-                  ? 'lib/assets/images/user/tracking_selected.png'
-                  : 'lib/assets/images/user/tracking.png',
+                  ? 'lib/assets/images/caregiver/tracking_selected.png'
+                  : 'lib/assets/images/caregiver/tracking.png',
               width: 30,
               height: 30,
             ),
@@ -78,8 +139,8 @@ class BottomNavBar extends StatelessWidget {
           BottomNavigationBarItem(
             icon: Image.asset(
               currentIndex == 3
-                  ? 'lib/assets/images/user/profile_selected.png'
-                  : 'lib/assets/images/user/profile.png',
+                  ? 'lib/assets/images/caregiver/profile_selected.png'
+                  : 'lib/assets/images/caregiver/profile.png',
               width: 30,
               height: 30,
             ),

@@ -60,6 +60,12 @@ class _ForgotState extends State<Forgot> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: Text('Back'),
+        backgroundColor: AppColors.neon,
+        scrolledUnderElevation: 0.0,
+        foregroundColor: AppColors.white,
+      ),
       backgroundColor: AppColors.neon,
       body: GestureDetector(
         onTap: () {

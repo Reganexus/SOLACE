@@ -1,6 +1,7 @@
 // ignore_for_file: avoid_print
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:solace/models/my_user.dart';
@@ -39,6 +40,7 @@ class DatabaseService {
     String? address,
     bool? isVerified,
     bool? newUser, // New field for update
+    DateTime? dateCreated, // New field for update
   }) async {
     Map<String, dynamic> updatedData = {};
 
@@ -60,6 +62,10 @@ class DatabaseService {
     }
     if (newUser != null) {
       updatedData['newUser'] = newUser; // Include newUser in the update
+    }
+    if (dateCreated != null) {
+      updatedData['dateCreated'] =
+          Timestamp.fromDate(dateCreated); // Add dateCreated
     }
 
     if (updatedData.isNotEmpty) {
@@ -95,6 +101,67 @@ class DatabaseService {
     }
   }
 
+  // Fetch the user role by userId
+  Stream<List<UserData>> getUsersByRole(String role) {
+    return userCollection
+        .where('userRole', isEqualTo: role) // Use 'userRole' instead of 'role'
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs
+          .map((doc) => UserData.fromDocument(
+              doc)) // Convert Firestore document to UserData
+          .toList();
+    });
+  }
+
+  Future<void> updateUserRole(String uid, UserRole role) async {
+    try {
+      await userCollection.doc(uid).update({
+        'userRole': UserData.getUserRoleString(
+            role), // Convert role to string for Firestore
+      });
+    } catch (e) {
+      print('Error updating user role: $e');
+      rethrow; // Handle error as needed
+    }
+  }
+
+  Future<void> deleteUser(String userId) async {
+    try {
+      // 1. Delete the Firestore user document
+      await FirebaseFirestore.instance.collection('users').doc(userId).delete();
+      print("User document deleted from Firestore.");
+
+      // 2. Delete records in the 'tracking' collection related to the user
+      await FirebaseFirestore.instance
+          .collection('tracking')
+          .where('userId', isEqualTo: userId)
+          .get()
+          .then((querySnapshot) {
+        for (var doc in querySnapshot.docs) {
+          doc.reference.delete(); // Deleting each document related to the user
+        }
+        print("User tracking records deleted from Firestore.");
+      });
+
+      // 3. Delete the user from Firebase Authentication
+      User? user = FirebaseAuth.instance.currentUser;
+
+      // Ensure we are deleting the correct user (the one who is logged in or the user specified)
+      if (user != null && user.uid == userId) {
+        // Re-authenticate if necessary, or delete directly if the current user is the one requesting deletion
+        await user.delete();
+        print(
+            "User account deleted successfully from Firebase Authentication.");
+      } else {
+        print(
+            "User is not the authenticated user or the user is not logged in.");
+      }
+    } catch (e) {
+      print("Error deleting user: $e");
+    }
+  }
+
   // Method to add a vital record
   Future<void> addVitalRecord(String vital, double inputRecord) async {
     if (uid != null) {
@@ -119,15 +186,17 @@ class DatabaseService {
   // Fetch user data from Firestore
   Future<UserData?> getUserData() async {
     try {
+      print("Fetching data for UID: $uid");
       DocumentSnapshot snapshot = await userCollection.doc(uid).get();
 
       if (snapshot.exists) {
         return UserData.fromDocument(snapshot);
       } else {
-        return null;
+        print("No document found for UID: $uid");
+        return null; // Handle missing document case
       }
     } catch (e) {
-      print('Error fetching user data: $e');
+      print('Error fetching user data for UID $uid: $e');
       return null;
     }
   }
@@ -236,7 +305,9 @@ class DatabaseService {
   Future<void> addNotification(
       String userId, String notificationMessage, String type) async {
     final timestamp = Timestamp.now();
-    final notificationId = DateTime.now().millisecondsSinceEpoch.toString(); // Generate a unique ID
+    final notificationId = DateTime.now()
+        .millisecondsSinceEpoch
+        .toString(); // Generate a unique ID
 
     try {
       await FirebaseFirestore.instance.collection('users').doc(userId).update({
@@ -254,7 +325,6 @@ class DatabaseService {
       print('Error adding notification: $e');
     }
   }
-
 
   // Fetch the schedule for a user
   Future<List<Map<String, dynamic>>> getScheduleForUser(String userId) async {

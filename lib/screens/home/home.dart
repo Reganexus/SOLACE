@@ -18,89 +18,126 @@ class Home extends StatefulWidget {
   const Home({super.key});
 
   @override
-  HomeState createState() => HomeState();
+  State<Home> createState() => _HomeState();
 }
 
-class HomeState extends State<Home> {
+class _HomeState extends State<Home> {
   final CollectionReference userCollection = DatabaseService().userCollection;
 
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<MyUser?>(context);
+
     debugPrint("Current user from Provider: $user");
 
+    // Redirect to the authentication screen if user is null
     if (user == null) {
       debugPrint("User is null, navigating to Authenticate screen.");
-      return Authenticate();
+      return const Authenticate();
     }
 
     return FutureBuilder<DocumentSnapshot>(
       future: userCollection.doc(user.uid).get(),
       builder: (context, snapshot) {
+        // Loading state
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(
-            child: CircularProgressIndicator(color: AppColors.neon),
-          );
-        }
-
-        if (snapshot.hasError) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text('Error fetching user data: ${snapshot.error}'),
-                SizedBox(height: 10),
-                ElevatedButton(
-                  onPressed: () {
-                    // Retry logic: trigger a rebuild to refetch data
-                    setState(() {});
-                  },
-                  child: Text('Retry'),
-                ),
-              ],
+          return Scaffold(
+            backgroundColor: AppColors.neon,
+            body: Center(
+              child: CircularProgressIndicator(color: AppColors.white),
             ),
           );
         }
 
+        // Error state
+        if (snapshot.hasError) {
+          debugPrint("Error fetching user data: ${snapshot.error}");
+          return Scaffold(
+            backgroundColor: AppColors.neon,
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    'An error occurred while fetching user data.',
+                    style: TextStyle(
+                      color: AppColors.white,
+                      fontSize: 18,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {}); // Retry logic: Trigger a rebuild
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.white,
+                      foregroundColor: AppColors.neon,
+                    ),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Success state: Parse user data
         if (snapshot.hasData && snapshot.data != null) {
           final userData = snapshot.data!.data() as Map<String, dynamic>?;
+
+          // If no user data is found, default to PatientHome
           if (userData == null) {
             debugPrint("User data is null, navigating to PatientHome.");
-            return PatientHome();
+            return const PatientHome();
           }
 
-          // Fetch user role, isVerified, and newUser flags
-          String userRole = userData['userRole'] ?? UserRole.patient.toString();
-          bool isVerified = userData['isVerified'] ?? false;
-          bool newUser = userData['newUser'] ?? false;
+          final String userRole = userData['userRole'] ?? UserRole.patient.toString();
+          final bool isVerified = userData['isVerified'] ?? false;
+          final bool newUser = userData['newUser'] ?? false;
 
-          // Handle unverified users with email verification enabled
+          // Unverified users
           if (emailVerificationEnabled && !isVerified) {
-            return Verify();
+            debugPrint("Email verification required, navigating to Verify screen.");
+            return const Verify();
           }
 
-          // Direct new users to the profile setup screen
+          // Redirect new users to profile setup
           if (newUser) {
-            return EditProfileScreen();
+            debugPrint("New user detected, navigating to EditProfileScreen.");
+            return const EditProfileScreen();
           }
 
-          // Route user based on their role
+          // Route based on user role
+          debugPrint("User role is $userRole, navigating to respective home screen.");
           switch (userRole) {
             case 'admin':
-              return AdminHome();
+              return const AdminHome();
             case 'family':
-              return FamilyHome();
+              return const FamilyHome();
             case 'caregiver':
-              return CaregiverHome();
+              return const CaregiverHome();
             case 'doctor':
-              return DoctorHome();
+              return const DoctorHome();
             default:
-              return PatientHome();
+              return const PatientHome();
           }
-        } else {
-          debugPrint("No user data found in Firestore.");
-          return Center(child: Text('User data not found'));
         }
+
+        // Default state: No data found
+        debugPrint("No user data found in Firestore.");
+        return Scaffold(
+          backgroundColor: AppColors.neon,
+          body: const Center(
+            child: Text(
+              'User data not found',
+              style: TextStyle(
+                fontSize: 18,
+                color: AppColors.white,
+              ),
+            ),
+          ),
+        );
       },
     );
   }

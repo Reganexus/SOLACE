@@ -20,6 +20,14 @@ class PatientProfile extends StatelessWidget {
       body: StreamBuilder<UserData?>(
         stream: DatabaseService(uid: user?.uid).userData,
         builder: (context, snapshot) {
+          // Check for loading or error states
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+
+          // Fallback user data in case of null snapshot data
           UserData userData = snapshot.data ??
               UserData(
                 uid: user?.uid ?? '',
@@ -31,9 +39,10 @@ class PatientProfile extends StatelessWidget {
                 address: 'Set Address',
                 gender: 'Set Gender',
                 birthday: null,
-                userRole: UserRole.patient,
+                userRole: UserRole.patient, // Default to 'patient' if no role found
                 isVerified: false,
                 newUser: true,
+                dateCreated: DateTime.now(), // Providing default dateCreated value
               );
 
           return SingleChildScrollView(

@@ -150,35 +150,39 @@ class CaregiverPatientsState extends State<CaregiverPatients> {
                     ],
                   ),
                   const SizedBox(height: 5.0),
-                  TextButton(
-                    onPressed: _toggleSortOrder,
-                    style: TextButton.styleFrom(
-                      backgroundColor: AppColors.purple,
-                      padding: const EdgeInsets.all(10.0),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10.0),
+                  SizedBox(
+                    height: 40.0, // Set fixed height for both buttons
+                    child: TextButton(
+                      onPressed: _toggleSortOrder,
+                      style: TextButton.styleFrom(
+                        backgroundColor: AppColors.purple,
+                        padding:
+                        const EdgeInsets.symmetric(horizontal: 10.0),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10.0),
+                        ),
                       ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          _sortOrder,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Inter',
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _sortOrder,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'Inter',
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 5.0),
-                        Icon(
-                          _sortOrder == 'A-Z'
-                              ? Icons.arrow_downward
-                              : Icons.arrow_upward,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ],
+                          const SizedBox(width: 5.0),
+                          Icon(
+                            _sortOrder == 'A-Z'
+                                ? Icons.arrow_downward
+                                : Icons.arrow_upward,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(height: 10.0),

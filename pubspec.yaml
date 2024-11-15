@@ -39,6 +39,8 @@ flutter:
     - lib/assets/images/auth/
     - lib/assets/images/caregiver/
     - lib/assets/images/user/
+    - lib/assets/images/doctor/
+    - lib/assets/images/admin/
     - lib/assets/images/shared/
     - lib/assets/images/shared/header/
     - lib/assets/images/shared/info/

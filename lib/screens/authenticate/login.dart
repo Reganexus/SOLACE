@@ -2,7 +2,7 @@
 
 import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/authenticate/forgot.dart';
-import 'package:solace/screens/home/home.dart';
+import 'package:solace/screens/authenticate/verify.dart';
 import 'package:solace/services/auth.dart';
 import 'package:flutter/material.dart';
 import 'package:solace/shared/globals.dart';
@@ -70,55 +70,6 @@ class _LogInState extends State<LogIn> {
     super.dispose();
   }
 
-  // Function to retry the sign-in process
-  Future<void> _retrySignIn() async {
-    await Future.delayed(Duration(seconds: 2)); // Delay before retry
-    if (mounted) {
-      setState(() {
-        _isLoading = true; // Reset loading state before retry
-      });
-    }
-    try {
-      MyUser? myUser = await _auth.signInWithGoogle();
-
-      if (myUser != null) {
-        // Successful retry, update local state and navigate
-        if (mounted) {
-          setState(() {
-            currentUser = myUser;
-          });
-        }
-
-        // Navigate to Home screen
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => Home(), // Navigate to home
-              ),
-            );
-          }
-        });
-      } else {
-        if (mounted) {
-          _showError("Google sign-in failed again. Please try later.", "");
-        }
-      }
-    } catch (error) {
-      // Handle retry error
-      if (mounted) {
-        _showError("Retry failed: $error. Please try later.", "");
-      }
-    }
-
-    if (mounted) {
-      setState(() {
-        _isLoading = false; // Reset loading state after retry
-      });
-    }
-  }
-
   void _showError(String message, String criteria) {
     showDialog(
       context: context,
@@ -133,9 +84,11 @@ class _LogInState extends State<LogIn> {
               children: <Widget>[
                 // Container for the error messages
                 Container(
-                  padding: const EdgeInsets.all(16), // Padding inside the container
+                  padding:
+                      const EdgeInsets.all(16), // Padding inside the container
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFF3F2), // Background color for errors
+                    color:
+                        const Color(0xFFFFF3F2), // Background color for errors
                     border: Border.all(
                       color: const Color(0xFFFEC5D0), // Border color for errors
                       width: 2, // Border width
@@ -160,12 +113,14 @@ class _LogInState extends State<LogIn> {
                       Text(
                         message
                             .split('\n')
-                            .where((error) => error.isNotEmpty) // Filter out empty messages
+                            .where((error) =>
+                                error.isNotEmpty) // Filter out empty messages
                             .map((error) => "• $error")
                             .join('\n'),
                         style: const TextStyle(
                           fontSize: 16,
-                          color: Color(0xFF690D02), // Text color for error messages
+                          color: Color(
+                              0xFF690D02), // Text color for error messages
                         ),
                       ),
                     ],
@@ -176,14 +131,18 @@ class _LogInState extends State<LogIn> {
                 // Only show the Password Criteria Container if criteria is not empty
                 if (criteria.isNotEmpty)
                   Container(
-                    padding: const EdgeInsets.all(16), // Padding inside the container
+                    padding: const EdgeInsets.all(
+                        16), // Padding inside the container
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE8F5E9), // Complementary background color for password criteria
+                      color: const Color(
+                          0xFFE8F5E9), // Complementary background color for password criteria
                       border: Border.all(
-                        color: const Color(0xFFC8E6C9), // Complementary border color for password criteria
+                        color: const Color(
+                            0xFFC8E6C9), // Complementary border color for password criteria
                         width: 2, // Border width
                       ),
-                      borderRadius: BorderRadius.circular(10), // Rounded corners
+                      borderRadius:
+                          BorderRadius.circular(10), // Rounded corners
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -203,7 +162,8 @@ class _LogInState extends State<LogIn> {
                         Text(
                           criteria
                               .split('\n')
-                              .where((criterion) => criterion.isNotEmpty) // Filter out empty criteria
+                              .where((criterion) => criterion
+                                  .isNotEmpty) // Filter out empty criteria
                               .map((criterion) => "• $criterion")
                               .join('\n'),
                           style: const TextStyle(
@@ -220,7 +180,8 @@ class _LogInState extends State<LogIn> {
           actions: <Widget>[
             TextButton(
               style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
                 backgroundColor: AppColors.neon,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -518,34 +479,35 @@ class _LogInState extends State<LogIn> {
                                 });
                               }
 
-                              // Wrap navigation in a post-frame callback to avoid issues with Navigator
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                if (mounted) {
-                                  Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => Home(), // Navigate to home
-                                    ),
-                                  );
-                                }
+                              // Ensure navigation happens after the current frame is rendered
+                              WidgetsBinding.instance
+                                  .addPostFrameCallback((_) async {
+                                // Add small delay before navigation
+                                await Future.delayed(
+                                    Duration(milliseconds: 100));
+
+                                // Navigate to the Verify screen
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) => const Verify()),
+                                );
                               });
                             } else {
                               // If sign-in fails, show error and allow retry
                               if (mounted) {
-                                _showError("Google sign-in failed. Please try again.", "");
+                                debugPrint('Exited Google Sign up');
                               }
-
-                              // Optionally retry the sign-in
-                              _retrySignIn();
                             }
                           } catch (error) {
                             // Handle errors during the sign-in process
                             if (mounted) {
-                              _showError("An error occurred: $error. Please try again.", "");
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text(
+                                        'An error occurred: $error. Please try again.')),
+                              );
                             }
-
-                            // Retry the sign-in on error
-                            _retrySignIn();
                           }
 
                           if (mounted) {

@@ -8,7 +8,6 @@ import 'package:solace/services/auth.dart';
 import 'package:solace/themes/colors.dart';
 import 'dart:convert';
 
-import 'package:solace/screens/home/home.dart';
 
 class SignUp extends StatefulWidget {
   final Function toggleView;
@@ -36,8 +35,7 @@ class _SignUpState extends State<SignUp> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  final passwordCriteria =
-      "Be at least 6 characters long.\n"
+  final passwordCriteria = "Be at least 6 characters long.\n"
       "Include at least one lowercase letter.\n"
       "Include at least one uppercase letter.\n"
       "Include at least one number.\n"
@@ -92,55 +90,6 @@ class _SignUpState extends State<SignUp> {
     return json.decode(response);
   }
 
-  // Function to retry the sign-in process
-  Future<void> _retrySignIn() async {
-    await Future.delayed(Duration(seconds: 2)); // Delay before retry
-    if (mounted) {
-      setState(() {
-        _isLoading = true; // Reset loading state before retry
-      });
-    }
-    try {
-      MyUser? myUser = await _auth.signInWithGoogle();
-
-      if (myUser != null) {
-        // Successful retry, update local state and navigate
-        if (mounted) {
-          setState(() {
-            currentUser = myUser;
-          });
-        }
-
-        // Navigate to Home screen
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => Home(), // Navigate to home
-              ),
-            );
-          }
-        });
-      } else {
-        if (mounted) {
-          _showError("Google sign-in failed again. Please try later.", passwordCriteria);
-        }
-      }
-    } catch (error) {
-      // Handle retry error
-      if (mounted) {
-        _showError("Retry failed: $error. Please try later.", passwordCriteria);
-      }
-    }
-
-    if (mounted) {
-      setState(() {
-        _isLoading = false; // Reset loading state after retry
-      });
-    }
-  }
-
   // Sign-up method in your sign-up screen
   Future<void> _handleSignUp() async {
     // Validation checks
@@ -190,7 +139,8 @@ class _SignUpState extends State<SignUp> {
         // Check if the email already exists
         bool emailExists = await _auth.emailExists(_email);
         if (emailExists) {
-          _showError("An account with this email already exists. Please log in.", "");
+          _showError(
+              "An account with this email already exists. Please log in.", "");
           return;
         }
 
@@ -216,7 +166,8 @@ class _SignUpState extends State<SignUp> {
         }
       }
     } else if (!_agreeToTerms) {
-      _showError("You must agree to the terms and conditions.", passwordCriteria);
+      _showError(
+          "You must agree to the terms and conditions.", passwordCriteria);
     }
   }
 
@@ -234,9 +185,11 @@ class _SignUpState extends State<SignUp> {
               children: <Widget>[
                 // Container for the error messages
                 Container(
-                  padding: const EdgeInsets.all(16), // Padding inside the container
+                  padding:
+                      const EdgeInsets.all(16), // Padding inside the container
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFF3F2), // Background color for errors
+                    color:
+                        const Color(0xFFFFF3F2), // Background color for errors
                     border: Border.all(
                       color: const Color(0xFFFEC5D0), // Border color for errors
                       width: 2, // Border width
@@ -259,13 +212,16 @@ class _SignUpState extends State<SignUp> {
                       const SizedBox(height: 10),
                       // Error Messages
                       Text(
-                        message.split('\n')
-                            .where((error) => error.isNotEmpty) // Filter out empty messages
+                        message
+                            .split('\n')
+                            .where((error) =>
+                                error.isNotEmpty) // Filter out empty messages
                             .map((error) => "• $error")
                             .join('\n'),
                         style: const TextStyle(
                           fontSize: 16,
-                          color: Color(0xFF690D02), // Text color for error messages
+                          color: Color(
+                              0xFF690D02), // Text color for error messages
                         ),
                       ),
                     ],
@@ -275,11 +231,14 @@ class _SignUpState extends State<SignUp> {
 
                 // Container for the Password Criteria
                 Container(
-                  padding: const EdgeInsets.all(16), // Padding inside the container
+                  padding:
+                      const EdgeInsets.all(16), // Padding inside the container
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE8F5E9), // Complementary background color for password criteria
+                    color: const Color(
+                        0xFFE8F5E9), // Complementary background color for password criteria
                     border: Border.all(
-                      color: const Color(0xFFC8E6C9), // Complementary border color for password criteria
+                      color: const Color(
+                          0xFFC8E6C9), // Complementary border color for password criteria
                       width: 2, // Border width
                     ),
                     borderRadius: BorderRadius.circular(10), // Rounded corners
@@ -300,11 +259,14 @@ class _SignUpState extends State<SignUp> {
                       const SizedBox(height: 10),
                       // Password Criteria List
                       Text(
-                        criteria.split('\n')
-                            .where((criterion) => criterion.isNotEmpty) // Filter out empty criteria
+                        criteria
+                            .split('\n')
+                            .where((criterion) => criterion
+                                .isNotEmpty) // Filter out empty criteria
                             .map((criterion) => "• $criterion")
                             .join('\n'),
-                        style: const TextStyle(fontSize: 16, color: AppColors.black),
+                        style: const TextStyle(
+                            fontSize: 16, color: AppColors.black),
                       ),
                     ],
                   ),
@@ -315,7 +277,8 @@ class _SignUpState extends State<SignUp> {
           actions: <Widget>[
             TextButton(
               style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
                 backgroundColor: AppColors.neon,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -339,7 +302,6 @@ class _SignUpState extends State<SignUp> {
       },
     );
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -663,34 +625,30 @@ class _SignUpState extends State<SignUp> {
                                 });
                               }
 
-                              // Wrap navigation in a post-frame callback to avoid issues with Navigator
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                if (mounted) {
-                                  Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => Home(), // Navigate to home
-                                    ),
-                                  );
-                                }
+                              // Ensure navigation happens after the current frame is rendered
+                              WidgetsBinding.instance.addPostFrameCallback((_) async {
+                                // Add small delay before navigation
+                                await Future.delayed(Duration(milliseconds: 100));
+
+                                // Navigate to the Verify screen
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const Verify()),
+                                );
                               });
                             } else {
                               // If sign-in fails, show error and allow retry
                               if (mounted) {
-                                _showError("Google sign-in failed. Please try again.", passwordCriteria);
+                                debugPrint('Exited Google Sign up');
                               }
-
-                              // Optionally retry the sign-in
-                              _retrySignIn();
                             }
                           } catch (error) {
                             // Handle errors during the sign-in process
                             if (mounted) {
-                              _showError("An error occurred: $error. Please try again.", passwordCriteria);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('An error occurred: $error. Please try again.')),
+                              );
                             }
-
-                            // Retry the sign-in on error
-                            _retrySignIn();
                           }
 
                           if (mounted) {
@@ -699,10 +657,8 @@ class _SignUpState extends State<SignUp> {
                             });
                           }
                         },
-
                         style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 50, vertical: 15),
+                          padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
                           backgroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
@@ -730,6 +686,8 @@ class _SignUpState extends State<SignUp> {
                         ),
                       ),
                     ),
+
+
                     const SizedBox(height: 20),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
