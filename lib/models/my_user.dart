@@ -1,13 +1,31 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/material.dart';
 
 enum UserRole { admin, patient, family, caregiver, doctor }
 
-class MyUser {
-  final String uid;
-  final bool isVerified; // Add isVerified
+class MyUser with ChangeNotifier {
+  String uid;
+  bool isVerified; // Add isVerified
+  bool newUser;
+  String profileImageUrl;
 
-  MyUser({required this.uid, required this.isVerified}); // Update constructor
+  MyUser({
+    required this.uid,
+    required this.isVerified,
+    this.newUser = true,
+    required this.profileImageUrl,
+  });
+
+  // Method to update user data
+  void setUser(String newUid, bool newIsVerified, bool isNewUser,
+      String newProfileImageUrl) {
+    uid = newUid;
+    isVerified = newIsVerified;
+    newUser = isNewUser;
+    profileImageUrl = newProfileImageUrl; // Update profileImageUrl
+    notifyListeners();
+  }
 }
 
 class UserData {
@@ -24,6 +42,7 @@ class UserData {
   final bool isVerified;
   final bool newUser;
   final DateTime dateCreated;
+  final String profileImageUrl;
 
   UserData({
     required this.userRole,
@@ -39,14 +58,15 @@ class UserData {
     required this.isVerified,
     required this.newUser,
     required this.dateCreated,
+    required this.profileImageUrl,
   });
 
   factory UserData.fromDocument(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     return UserData(
       uid: doc.id,
-      userRole: UserData.getUserRoleFromString(data['userRole']?.toString() ??
-          'patient'), // Ensure to convert to string
+      userRole: UserData.getUserRoleFromString(
+          data['userRole']?.toString() ?? 'patient'),
       firstName: data['firstName'] ?? '',
       middleName: data['middleName'] ?? '',
       lastName: data['lastName'] ?? '',
@@ -60,6 +80,7 @@ class UserData {
       isVerified: data['isVerified'] ?? false,
       newUser: data['newUser'] ?? true,
       dateCreated: (data['dateCreated'] as Timestamp).toDate(),
+      profileImageUrl: data['profileImageUrl'],
     );
   }
 
@@ -83,7 +104,7 @@ class UserData {
         other.gender == gender &&
         other.birthday == birthday &&
         other.address == address &&
-        other.isVerified == isVerified; // Include isVerified in equality check
+        other.isVerified == isVerified;
   }
 
   @override
@@ -98,22 +119,17 @@ class UserData {
         gender.hashCode ^
         (birthday?.hashCode ?? 0) ^
         address.hashCode ^
-        isVerified.hashCode; // Include isVerified in hash code
+        isVerified.hashCode;
   }
 
-  // Helper function to convert string to UserRole enum
   static UserRole getUserRoleFromString(String role) {
     return UserRole.values.firstWhere(
       (e) => e.toString().split('.').last == role,
-      orElse: () => UserRole.patient, // Default role if not found
+      orElse: () => UserRole.patient,
     );
   }
 
-  // Helper function to convert UserRole enum to string
   static String getUserRoleString(UserRole userRole) {
-    return userRole
-        .toString()
-        .split('.')
-        .last; // This will return the string representation
+    return userRole.toString().split('.').last;
   }
 }

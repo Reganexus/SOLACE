@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -54,16 +56,25 @@ class PatientHomeState extends State<PatientHome> {
       stream: DatabaseService(uid: user?.uid).userData,
       builder: (context, snapshot) {
         String firstName = '';
+        String profileImageUrl = 'lib/assets/images/shared/placeholder.png'; // Default image
+
         if (snapshot.hasData) {
-          firstName =
-              snapshot.data!.firstName.split(' ')[0]; // Use ! instead of ?.
+          final userData = snapshot.data!;
+          firstName = userData.firstName.split(' ')[0]; // Use first name
+          profileImageUrl = userData.profileImageUrl.isNotEmpty
+              ? userData.profileImageUrl // Use the profile image URL if it's not empty
+              : profileImageUrl; // Otherwise, use the default placeholder
         }
+
         return Row(
           children: [
-            const CircleAvatar(
+            CircleAvatar(
               radius: 20.0,
-              backgroundImage:
-                  AssetImage('lib/assets/images/shared/placeholder.png'),
+              backgroundImage: NetworkImage(profileImageUrl), // Display profile image from URL
+              onBackgroundImageError: (error, stackTrace) {
+                // Optional: Handle errors if the image URL is invalid
+                print('Error loading image: $error');
+              },
             ),
             const SizedBox(width: 10.0),
             Text(
@@ -79,6 +90,8 @@ class PatientHomeState extends State<PatientHome> {
       },
     );
   }
+
+
 
   Widget _buildRightAppBar(BuildContext context) {
     final user = Provider.of<MyUser?>(context); // Get the user using Provider.
@@ -186,8 +199,13 @@ class PatientHomeState extends State<PatientHome> {
                               ),
                               onPressed: () {
                                 _showQrModal(
-                                    context, fullName, user?.uid ?? '');
+                                  context,
+                                  fullName,
+                                  user?.uid ?? '',
+                                  user?.profileImageUrl ?? '',  // Make sure to pass the profileImageUrl
+                                );
                               },
+
                             ),
                           ],
                         )
@@ -226,14 +244,20 @@ class PatientHomeState extends State<PatientHome> {
   }
 
   // Function to show QR modal
-  void _showQrModal(BuildContext context, String fullName, String uid) {
+  void _showQrModal(BuildContext context, String fullName, String uid, String profileImageUrl) {
+    final imageUrl = profileImageUrl.isNotEmpty ? profileImageUrl : 'lib/assets/images/shared/placeholder.png';
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ShowQrPage(fullName: fullName, uid: uid),
+        builder: (context) => ShowQrPage(
+          fullName: fullName,
+          uid: uid,
+          profileImageUrl: imageUrl,  // Pass the profileImageUrl here
+        ),
       ),
     );
   }
+
 
   @override
   Widget build(BuildContext context) {

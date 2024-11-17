@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -46,16 +48,28 @@ class DoctorHomeState extends State<DoctorHome> {
       stream: DatabaseService(uid: user?.uid).userData,
       builder: (context, snapshot) {
         String firstName = '';
+        String profileImageUrl =
+            'lib/assets/images/shared/placeholder.png'; // Default image
+
         if (snapshot.hasData) {
-          firstName =
-          snapshot.data!.firstName.split(' ')[0]; // Use ! instead of ?.
+          final userData = snapshot.data!;
+          firstName = userData.firstName.split(' ')[0]; // Use first name
+          profileImageUrl = userData.profileImageUrl.isNotEmpty
+              ? userData
+                  .profileImageUrl // Use the profile image URL if it's not empty
+              : profileImageUrl; // Otherwise, use the default placeholder
         }
+
         return Row(
           children: [
-            const CircleAvatar(
+            CircleAvatar(
               radius: 20.0,
-              backgroundImage:
-              AssetImage('lib/assets/images/shared/placeholder.png'),
+              backgroundImage: NetworkImage(
+                  profileImageUrl), // Display profile image from URL
+              onBackgroundImageError: (error, stackTrace) {
+                // Optional: Handle errors if the image URL is invalid
+                print('Error loading image: $error');
+              },
             ),
             const SizedBox(width: 10.0),
             Text(
@@ -86,7 +100,10 @@ class DoctorHomeState extends State<DoctorHome> {
     }
 
     return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData || snapshot.data == null) {
           return IconButton(
@@ -130,8 +147,6 @@ class DoctorHomeState extends State<DoctorHome> {
     );
   }
 
-
-
   PreferredSizeWidget _buildAppBar() {
     final user = Provider.of<MyUser?>(context);
 
@@ -153,44 +168,49 @@ class DoctorHomeState extends State<DoctorHome> {
               padding: const EdgeInsets.fromLTRB(15.0, 20.0, 15.0, 10.0),
               child: _currentIndex == 0
                   ? Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildLeftAppBar(context),
-                  _buildRightAppBar(context),
-                ],
-              )
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildLeftAppBar(context),
+                        _buildRightAppBar(context),
+                      ],
+                    )
                   : _currentIndex == 3
-                  ? Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Profile',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Inter',
-                    ),
-                  ),
-                  IconButton(
-                    icon: Image.asset(
-                      'lib/assets/images/shared/profile/qr.png',
-                      height: 30,
-                    ),
-                    onPressed: () {
-                      _showQrModal(
-                          context, fullName, user?.uid ?? '');
-                    },
-                  ),
-                ],
-              )
-                  : Text(
-                _currentIndex == 1 ? 'Users' : 'Tasks',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Inter',
-                ),
-              ),
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Profile',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'Inter',
+                              ),
+                            ),
+                            IconButton(
+                              icon: Image.asset(
+                                'lib/assets/images/shared/profile/qr.png',
+                                height: 30,
+                              ),
+                              onPressed: () {
+                                _showQrModal(
+                                  context,
+                                  fullName,
+                                  user?.uid ?? '',
+                                  user?.profileImageUrl ??
+                                      '', // Make sure to pass the profileImageUrl
+                                );
+                              },
+                            ),
+                          ],
+                        )
+                      : Text(
+                          _currentIndex == 1 ? 'Users' : 'Tasks',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Inter',
+                          ),
+                        ),
             ),
           );
         },
@@ -200,7 +220,7 @@ class DoctorHomeState extends State<DoctorHome> {
 
   void _showNotifications(BuildContext context) {
     final user =
-    Provider.of<MyUser?>(context, listen: false); // Add listen: false
+        Provider.of<MyUser?>(context, listen: false); // Add listen: false
 
     if (user == null) {
       // Handle case where user is not available (optional)
@@ -218,11 +238,19 @@ class DoctorHomeState extends State<DoctorHome> {
   }
 
   // Function to show QR modal
-  void _showQrModal(BuildContext context, String fullName, String uid) {
+  void _showQrModal(BuildContext context, String fullName, String uid,
+      String profileImageUrl) {
+    final imageUrl = profileImageUrl.isNotEmpty
+        ? profileImageUrl
+        : 'lib/assets/images/shared/placeholder.png';
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ShowQrPage(fullName: fullName, uid: uid),
+        builder: (context) => ShowQrPage(
+          fullName: fullName,
+          uid: uid,
+          profileImageUrl: imageUrl, // Pass the profileImageUrl here
+        ),
       ),
     );
   }

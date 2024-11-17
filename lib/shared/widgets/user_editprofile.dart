@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_print, use_build_context_synchronously, deprecated_member_use
+// ignore_for_file: avoid_print, use_build_context_synchronously, deprecated_member_use, dead_code
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -8,8 +8,16 @@ import 'package:solace/services/database.dart';
 import 'package:solace/shared/widgets/user_data_form.dart';
 import 'package:solace/screens/home/home.dart';
 
-class EditProfileScreen extends StatelessWidget {
+class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
+
+  @override
+  State<EditProfileScreen> createState() => _EditProfileScreenState();
+}
+
+class _EditProfileScreenState extends State<EditProfileScreen> {
+  bool _alertShown = false;
+  bool _isUserFetched = false; // Track if user data has been fetched
 
   @override
   Widget build(BuildContext context) {
@@ -17,8 +25,10 @@ class EditProfileScreen extends StatelessWidget {
     debugPrint("User: ${user?.uid}");
 
     if (user == null) {
-      debugPrint("Loading edit user profile...");
-      return const Center(child: CircularProgressIndicator());
+      debugPrint("Loading user data...");
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
     }
 
     return FutureBuilder<UserData?>(
@@ -27,25 +37,45 @@ class EditProfileScreen extends StatelessWidget {
         debugPrint("Snapshot state: ${snapshot.connectionState}");
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         } else if (snapshot.hasError) {
-          return Center(child: Text("Error: ${snapshot.error}"));
-        } else if (!snapshot.hasData) {
-          return const Center(child: Text("No user data found"));
+          debugPrint("Error in FutureBuilder: ${snapshot.error}");
+          return Scaffold(
+            body: Center(
+              child: Text("Error: ${snapshot.error}"),
+            ),
+          );
+        } else if (!snapshot.hasData || snapshot.data == null) {
+          debugPrint("No data found in FutureBuilder");
+          return const Scaffold(
+            body: Center(child: Text("No user data found.")),
+          );
         }
 
         final userData = snapshot.data;
 
-        if (userData?.newUser ?? false) {
-          Future.delayed(Duration.zero, () {
-            _showNewUserAlert(context);
+        // Prevent navigating to EditProfileScreen multiple times by checking if the user is already fetched
+        if (userData?.newUser ?? false && !_isUserFetched) {
+          Future.delayed(Duration.zero, () async {
+            if (mounted && !_alertShown) {
+              _alertShown = true; // Prevent showing the alert repeatedly
+              await _showNewUserAlert(context); // Show alert only once
+              setState(() {
+                _isUserFetched = true; // Mark that user data has been fetched
+              });
+            }
           });
         }
 
         return WillPopScope(
           onWillPop: () async {
             if (userData?.newUser ?? false) {
-              _showAlertDialog(context);
+              if (mounted) {
+                await _showAlertDialog(
+                    context); // Check if mounted before showing dialog
+              }
               return false; // Prevent pop if the user is new
             }
             return true; // Allow pop if profile is completed
@@ -69,7 +99,7 @@ class EditProfileScreen extends StatelessWidget {
                       UserDataForm(
                         isSignUp: false,
                         userData: userData,
-                        newUser: true, // Set as true for new users
+                        newUser: userData?.newUser ?? false,
                         onButtonPressed: ({
                           required String firstName,
                           required String lastName,
@@ -78,6 +108,7 @@ class EditProfileScreen extends StatelessWidget {
                           required String gender,
                           required DateTime? birthday,
                           required String address,
+                          required String profileImageUrl,
                         }) async {
                           await DatabaseService(uid: user.uid).updateUserData(
                             firstName: firstName,
@@ -87,13 +118,19 @@ class EditProfileScreen extends StatelessWidget {
                             gender: gender,
                             birthday: birthday,
                             address: address,
-                            newUser: false,
+                            profileImageUrl:
+                                profileImageUrl, // Pass profileImageUrl to updateUserData
+                            newUser:
+                                false, // Update newUser flag to false after profile is saved
                           );
-                          if (context.mounted) {
+
+                          // After the async operation is complete, navigate
+                          if (mounted) {
                             Navigator.pushAndRemoveUntil(
                               context,
-                              MaterialPageRoute(builder: (context) => const Home()),
-                                  (Route<dynamic> route) => false,
+                              MaterialPageRoute(
+                                  builder: (context) => const Home()),
+                              (Route<dynamic> route) => false,
                             );
                           }
                         },
@@ -109,46 +146,51 @@ class EditProfileScreen extends StatelessWidget {
     );
   }
 
-  void _showNewUserAlert(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: AppColors.white,
-          title: const Text('Profile Setup Required'),
-          content: const Text('Please fill out the form to complete your profile.'),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('OK'),
-            ),
-          ],
-        );
-      },
-    );
+  Future<void> _showNewUserAlert(BuildContext context) async {
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            backgroundColor: AppColors.white,
+            title: const Text('Profile Setup Required'),
+            content: const Text(
+                'Please fill out the form to complete your profile.'),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
+    }
   }
 
-  void _showAlertDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: AppColors.white,
-          title: const Text('Profile Incomplete'),
-          content: const Text('Please fill out the entire form before proceeding.'),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('OK'),
-            ),
-          ],
-        );
-      },
-    );
+  Future<void> _showAlertDialog(BuildContext context) async {
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            backgroundColor: AppColors.white,
+            title: const Text('Profile Incomplete'),
+            content: const Text(
+                'Please fill out the entire form before proceeding.'),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
+    }
   }
 }
-

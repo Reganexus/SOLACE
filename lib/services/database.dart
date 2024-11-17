@@ -1,7 +1,10 @@
 // ignore_for_file: avoid_print
 
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:solace/models/my_user.dart';
@@ -38,6 +41,7 @@ class DatabaseService {
     DateTime? birthday,
     String? gender,
     String? address,
+    String? profileImageUrl, // Add this parameter for profile image URL
     bool? isVerified,
     bool? newUser, // New field for update
     DateTime? dateCreated, // New field for update
@@ -57,6 +61,12 @@ class DatabaseService {
     }
     if (gender != null) updatedData['gender'] = gender;
     if (address != null) updatedData['address'] = address;
+    if (profileImageUrl != null) {
+      updatedData['profileImageUrl'] = profileImageUrl;
+    } else {
+      updatedData['profileImageUrl'] = ''; // Default to empty string if no image URL is provided
+    }
+
     if (isVerified != null) {
       updatedData['isVerified'] = isVerified;
     }
@@ -64,14 +74,15 @@ class DatabaseService {
       updatedData['newUser'] = newUser; // Include newUser in the update
     }
     if (dateCreated != null) {
-      updatedData['dateCreated'] =
-          Timestamp.fromDate(dateCreated); // Add dateCreated
+      updatedData['dateCreated'] = Timestamp.fromDate(dateCreated); // Add dateCreated
     }
 
     if (updatedData.isNotEmpty) {
       await userCollection.doc(uid).set(updatedData, SetOptions(merge: true));
     }
   }
+
+
 
   Future<void> setUserVerificationStatus(String uid, bool isVerified) async {
     try {
@@ -219,6 +230,29 @@ class DatabaseService {
       }
     });
   }
+
+  static Future<String> uploadProfileImage({
+    required String userId,
+    required File file,
+  }) async {
+    try {
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('profile_pictures') // Profile pictures folder
+          .child('$userId.jpg'); // User-specific filename
+
+      final uploadTask = storageRef.putFile(file);
+
+      final snapshot = await uploadTask;
+      final downloadUrl = await snapshot.ref.getDownloadURL();
+
+      return downloadUrl; // Return the download URL of the uploaded file
+    } catch (e) {
+      throw Exception("Error uploading profile image: $e");
+    }
+  }
+
+
 
   Future<void> saveScheduleForCaregiver(
       String caregiverId, DateTime scheduledDateTime, String patientId) async {

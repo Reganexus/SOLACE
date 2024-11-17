@@ -43,7 +43,9 @@ class AdminSettings extends StatelessWidget {
                 isVerified: false,
                 newUser: true,
                 dateCreated: DateTime.now(), // Providing default dateCreated value
+                profileImageUrl: '', // Default profile image URL (empty string or placeholder)
               );
+
 
           return SingleChildScrollView(
             child: Container(

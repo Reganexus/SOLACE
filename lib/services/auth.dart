@@ -43,7 +43,12 @@ class AuthService {
 
       UserData? userData = await DatabaseService(uid: user.uid).getUserData();
       if (userData != null) {
-        _cachedUser = MyUser(uid: user.uid, isVerified: userData.isVerified);
+        _cachedUser = MyUser(
+          uid: user.uid,
+          isVerified: userData.isVerified,
+          newUser: userData.newUser,
+          profileImageUrl: userData.profileImageUrl, // Pass profileImageUrl
+        );
         return _cachedUser;
       } else {
         debugPrint("No user data found for UID: ${user.uid}");
@@ -56,30 +61,18 @@ class AuthService {
   }
 
   Stream<MyUser?> get user {
-    return _auth.authStateChanges().asyncMap((User? firebaseUser) async {
-      if (firebaseUser == null) return null;
-
-      // Check if the cached user exists and matches
-      if (_cachedUser != null && _cachedUser!.uid == firebaseUser.uid) {
-        return _cachedUser;
-      }
-
-      try {
-        // Fetch user data from the database
-        final userData = await DatabaseService(uid: firebaseUser.uid).getUserData();
-        if (userData != null) {
-          _cachedUser = MyUser(uid: firebaseUser.uid, isVerified: userData.isVerified);
-          return _cachedUser;
-        } else {
-          return null; // Handle the case where user data doesn't exist
-        }
-      } catch (e) {
-        print("Error fetching user data: $e");
+    return _auth.authStateChanges().map((User? user) {
+      if (user != null) {
+        return MyUser(
+          uid: user.uid,
+          isVerified: user.emailVerified,
+          profileImageUrl: user.photoURL ?? '', // Default to empty if no photo URL
+        );
+      } else {
         return null;
       }
     });
   }
-
 
   User? get currentUser {
     return _auth.currentUser;
@@ -124,6 +117,7 @@ class AuthService {
     required String email,
     required bool isVerified,
     required bool newUser,
+    String? profileImageUrl, // Optional parameter for profile image URL
   }) async {
     await DatabaseService(uid: uid).updateUserData(
       userRole: UserRole.patient,
@@ -131,8 +125,11 @@ class AuthService {
       isVerified: isVerified,
       newUser: newUser,
       dateCreated: DateTime.now(),
+      profileImageUrl:
+      profileImageUrl, // Add profileImageUrl to the updateUserData call
     );
 
+    // Initialize user document with profileImageUrl as empty string if null
     await _firestore.collection('users').doc(uid).set({
       'contacts': {
         'friends': {},
@@ -140,11 +137,13 @@ class AuthService {
         'requests': {},
       },
       'notifications': [],
+      'profileImageUrl':
+      profileImageUrl ?? '', // Initialize profileImageUrl as empty if null
     }, SetOptions(merge: true));
   }
 
-  Future<MyUser?> signUpWithEmailAndPassword(
-      String email, String password) async {
+  Future<MyUser?> signUpWithEmailAndPassword(String email, String password,
+      {String? profileImageUrl}) async {
     try {
       UserCredential result = await _auth.createUserWithEmailAndPassword(
         email: email,
@@ -153,14 +152,26 @@ class AuthService {
       User? user = result.user;
       if (user == null) return null;
 
+      // Clear the cache after successful sign-up
+      _cachedUser = null;
+
       await _initializeUserDocument(
         uid: user.uid,
         email: email,
         isVerified: false,
         newUser: true,
+        profileImageUrl: profileImageUrl, // Pass profileImageUrl here
       );
 
-      return MyUser(uid: user.uid, isVerified: false);
+      // Set cached user data
+      _cachedUser = MyUser(
+        uid: user.uid,
+        isVerified: false,
+        profileImageUrl: profileImageUrl ?? '', // Set profileImageUrl
+        newUser: true,
+      );
+
+      return _cachedUser; // Return cached user data
     } catch (e) {
       debugPrint("Sign up error: ${e.toString()}");
       return null;
@@ -169,18 +180,15 @@ class AuthService {
 
   Future<MyUser?> signInWithGoogle() async {
     try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      // Sign in with Google
+      GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
         debugPrint("Google sign-in aborted by user.");
         return null;
       }
 
-      final GoogleSignInAuthentication? googleAuth = await googleUser.authentication;
-      if (googleAuth == null) {
-        debugPrint("Failed to retrieve Google authentication data.");
-        return null;
-      }
-
+      final GoogleSignInAuthentication googleAuth =
+      await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
@@ -194,17 +202,43 @@ class AuthService {
         return null;
       }
 
-      final email = user.email;
-      if (email != null && !await emailExists(email)) {
-        await _initializeUserDocument(
-          uid: user.uid,
-          email: email,
-          isVerified: true,
-          newUser: true,
-        );
-      }
+      // Clear the cache when new user logs in
+      _cachedUser = null;
 
-      return await _userFromFirebaseUser(user);
+      final email = user.email;
+      if (email != null) {
+        bool userExists = await emailExists(email);
+
+        if (!userExists) {
+          // Set profileImageUrl to a default if no image is present
+          String? profileImageUrl =
+              googleUser.photoUrl ?? ''; // Default to empty if no photo URL
+          await _initializeUserDocument(
+            uid: user.uid,
+            email: email,
+            isVerified: true,
+            newUser: true, // Mark as new
+            profileImageUrl: profileImageUrl, // Pass profileImageUrl to initialize
+          );
+        }
+
+        UserData? userData = await DatabaseService(uid: user.uid).getUserData();
+
+        if (userData == null) {
+          debugPrint("No user data found for UID: ${user.uid}");
+          return null;
+        }
+
+        // Set cached user data
+        _cachedUser = MyUser(
+          uid: user.uid,
+          isVerified: userData.isVerified,
+          newUser: userData.newUser,
+          profileImageUrl: userData.profileImageUrl, // Pass profileImageUrl
+        );
+
+        return _cachedUser; // Return cached user data
+      }
     } catch (e) {
       debugPrint("Google sign-in error: ${e.toString()}");
     }
@@ -219,11 +253,12 @@ class AuthService {
 
   Future<void> signOut() async {
     try {
-      await _googleSignIn.signOut();
-      await _auth.signOut();
-      debugPrint('User successfully signed out.');
+      await FirebaseAuth.instance.signOut(); // Sign out from Firebase
+      await _googleSignIn.signOut(); // Sign out from Google
+      _cachedUser = null; // Clear cached user data
+      debugPrint("User signed out and cache cleared.");
     } catch (e) {
-      debugPrint("Sign out error: ${e.toString()}");
+      debugPrint("Error signing out: $e");
     }
   }
 

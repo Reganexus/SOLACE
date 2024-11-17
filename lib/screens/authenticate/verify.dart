@@ -37,22 +37,31 @@ class _VerifyState extends State<Verify> {
   }
 
   Future<void> createUserDocument(String uid) async {
-    final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
-    final userDoc = await userRef.get();
-    if (!userDoc.exists) {
-      await userRef.set({
-        'uid': uid,
-        'isVerified': false,
-        'newUser': true,
-        // Add other necessary fields here
-      });
+    try {
+      final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
+      final userDoc = await userRef.get();
+
+      if (!userDoc.exists) {
+        // Set user document only if it doesn't exist
+        await userRef.set({
+          'uid': uid,
+          'isVerified': false,
+          'newUser': true,
+          // Add other necessary fields
+        });
+        debugPrint('User document created for UID: $uid');
+      }
+    } catch (e) {
+      debugPrint('Error creating user document: $e');
     }
   }
 
   void determineSignUpMethod() {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
+      debugPrint('Current user: ${user.email}');
       for (var userInfo in user.providerData) {
+        debugPrint('Provider: ${userInfo.providerId}');
         if (userInfo.providerId == 'google.com') {
           if (!isGoogleSignUp) {
             setState(() {
@@ -70,15 +79,19 @@ class _VerifyState extends State<Verify> {
     if (!user.emailVerified) {
       try {
         await user.sendEmailVerification();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Verification email sent to ${user.email}')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Verification email sent to ${user.email}')),
+          );
+        }
         debugPrint('Verification email sent to: ${user.email}');
       } catch (e) {
         debugPrint('Failed to send verification email: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to send verification email')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to send verification email')),
+          );
+        }
       }
     }
   }
@@ -98,15 +111,17 @@ class _VerifyState extends State<Verify> {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       try {
+        debugPrint('Reloading user: ${user.email}');
         await user.reload();
         if (user.emailVerified) {
-          await DatabaseService(uid: user.uid).setUserVerificationStatus(user.uid, true);
+          debugPrint('User is verified');
+          await DatabaseService(uid: user.uid)
+              .setUserVerificationStatus(user.uid, true);
           handlePostVerification(user.uid);
         } else {
+          debugPrint('User is not verified');
           if (mounted) {
-            setState(() {
-              isVerifying = true;
-            });
+            setState(() {});
           }
         }
       } catch (e) {
@@ -115,45 +130,79 @@ class _VerifyState extends State<Verify> {
     }
   }
 
-  void handlePostVerification(String uid) async {
-    final userData = await DatabaseService(uid: uid).getUserData();
-    if (userData == null) {
-      // If no user data is found, try creating the user document
-      await createUserDocument(uid);
-      // Now fetch again after creation
-      final newUserData = await DatabaseService(uid: uid).getUserData();
-      if (newUserData?.newUser ?? false) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const EditProfileScreen()),
-              (route) => false,
-        );
+  // Example function for the verification process (step-by-step execution)
+  Future<void> handlePostVerification(String uid) async {
+    try {
+      // Step 1: Check if the user is verified in Firebase Auth
+      final updatedUser = FirebaseAuth.instance.currentUser;
+      if (updatedUser == null) {
+        _showError("No user found.");
+        return; // Exit early if no user is authenticated
+      }
+
+      // Step 2: Check if the user is verified
+      if (!updatedUser.emailVerified) {
+        _showError("User email is not verified.");
+        return; // Exit early if email is not verified
+      }
+
+      // Step 3: Proceed with Firestore data retrieval and update
+      final userRef =
+          FirebaseFirestore.instance.collection('users').doc(updatedUser.uid);
+      final userDoc =
+          await userRef.get(); // This waits for Firestore to fetch the user
+
+      // Step 4: If the user document exists and is not verified, update it
+      if (userDoc.exists && !userDoc['isVerified']) {
+        await userRef.update({'isVerified': true});
+        debugPrint('User verification status updated in Firestore.');
+      }
+
+      // Step 5: Navigate based on the user data (after Firestore update)
+      final userData =
+          await DatabaseService(uid: updatedUser.uid).getUserData();
+      if (userData?.newUser == true) {
+        navigateToEditProfile();
       } else {
         navigateToHome();
       }
-    } else if (userData?.newUser ?? false) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const EditProfileScreen()),
-            (route) => false,
-      );
-    } else {
-      navigateToHome();
+    } catch (e) {
+      debugPrint('Error in verification process: $e');
+      _showError("An error occurred during verification.");
     }
   }
 
-
-  void navigateToHome() {
+// Example function to handle navigation step-by-step
+  Future<void> navigateToHome() async {
+    // Ensure the widget is still mounted before attempting navigation
     if (mounted) {
-      Navigator.pushAndRemoveUntil(
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const Home()),
-            (route) => false,
       );
+    }
+  }
+
+  Future<void> navigateToEditProfile() async {
+    // Ensure the widget is still mounted before attempting navigation
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+      );
+    }
+  }
+
+// Method to show errors
+  void _showError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
   void resendVerificationEmail() {
+    if (isResendDisabled) return;
     setState(() {
       isResendDisabled = true;
     });
@@ -164,15 +213,19 @@ class _VerifyState extends State<Verify> {
   void startCooldown() {
     cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (resendCooldown > 0) {
-        setState(() {
-          resendCooldown--;
-        });
+        if (mounted && resendCooldown != resendCooldown) {
+          setState(() {
+            resendCooldown--;
+          });
+        }
       } else {
         timer.cancel();
-        setState(() {
-          isResendDisabled = false;
-          resendCooldown = 60;
-        });
+        if (mounted) {
+          setState(() {
+            isResendDisabled = false;
+            resendCooldown = 60;
+          });
+        }
       }
     });
   }
@@ -299,7 +352,8 @@ class _VerifyState extends State<Verify> {
                             children: [
                               TextSpan(
                                 text: '$resendCooldown ',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
                               ),
                               const TextSpan(
                                 text: 'seconds.',

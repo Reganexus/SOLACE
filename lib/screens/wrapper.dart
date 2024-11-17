@@ -1,19 +1,13 @@
-// ignore_for_file: unused_import
-
-import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:solace/models/my_user.dart';
-import 'package:solace/screens/authenticate/authenticate.dart';
 import 'package:solace/screens/authenticate/verify.dart';
 import 'package:solace/screens/home/home.dart';
-import 'package:solace/services/auth.dart';
+import 'package:solace/screens/authenticate/authenticate.dart';
+import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/shared/globals.dart';
 import 'package:solace/shared/widgets/user_editprofile.dart';
-import 'package:solace/themes/colors.dart';
 
 class Wrapper extends StatelessWidget {
   const Wrapper({super.key});
@@ -29,13 +23,12 @@ class Wrapper extends StatelessWidget {
       return const Authenticate();
     }
 
+    // Check if the user is verified, or if their profile is new
     return FutureBuilder<DocumentSnapshot>(
       future: DatabaseService(uid: user.uid).userCollection.doc(user.uid).get(),
       builder: (context, userSnapshot) {
         if (userSnapshot.connectionState == ConnectionState.waiting) {
-          return Center(
-            child: CircularProgressIndicator(color: AppColors.neon),
-          );
+          return Center(child: CircularProgressIndicator());
         }
 
         if (userSnapshot.hasError) {
@@ -44,22 +37,23 @@ class Wrapper extends StatelessWidget {
         }
 
         if (userSnapshot.hasData && userSnapshot.data != null) {
-          final userData = userSnapshot.data!.data() as Map<String, dynamic>? ?? {};
-          bool isVerified = userData['isVerified'] ?? false;
-          bool newUser = userData['newUser'] ?? false;
+          final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
+          bool isVerified = userData?['isVerified'] ?? false;
+          bool newUser = userData?['newUser'] ?? false;
 
           if (emailVerificationEnabled && !isVerified) {
+            // Redirect to the verification screen if not verified
             return const Verify();
           } else if (newUser) {
+            // If it's a new user, show the profile edit screen
             return const EditProfileScreen();
           } else {
+            // If the user is verified and not new, navigate to the home screen
             return const Home();
           }
         }
 
-        return Center(
-          child: CircularProgressIndicator(color: AppColors.neon),
-        );
+        return Center(child: CircularProgressIndicator());
       },
     );
   }

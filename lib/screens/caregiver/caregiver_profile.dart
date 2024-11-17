@@ -43,7 +43,9 @@ class CaregiverProfile extends StatelessWidget {
                 isVerified: false,
                 newUser: true,
                 dateCreated: DateTime.now(), // Providing default dateCreated value
+                profileImageUrl: '', // Default profile image URL (empty string or placeholder)
               );
+
 
           return SingleChildScrollView(
             child: Container(
@@ -57,15 +59,18 @@ class CaregiverProfile extends StatelessWidget {
                     child: Container(
                       width: 150,
                       height: 150,
-                      decoration: const BoxDecoration(
-                        borderRadius: BorderRadius.all(Radius.circular(50)),
+                      decoration: BoxDecoration(
+                        borderRadius: const BorderRadius.all(Radius.circular(50)),
                         image: DecorationImage(
-                          image: AssetImage('lib/assets/images/shared/placeholder.png'), // Placeholder image
+                          image: userData.profileImageUrl.isNotEmpty
+                              ? NetworkImage(userData.profileImageUrl) // Use the image from the URL if available
+                              : AssetImage('lib/assets/images/shared/placeholder.png') as ImageProvider, // Placeholder image if not
                           fit: BoxFit.cover,
                         ),
                       ),
                     ),
                   ),
+
                   const SizedBox(height: 10),
 
                   Center(

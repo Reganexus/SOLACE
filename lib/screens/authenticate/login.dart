@@ -2,10 +2,11 @@
 
 import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/authenticate/forgot.dart';
-import 'package:solace/screens/authenticate/verify.dart';
+import 'package:solace/screens/home/home.dart';
 import 'package:solace/services/auth.dart';
 import 'package:flutter/material.dart';
 import 'package:solace/shared/globals.dart';
+import 'package:solace/shared/widgets/user_editprofile.dart';
 import 'package:solace/themes/colors.dart';
 
 class LogIn extends StatefulWidget {
@@ -68,6 +69,45 @@ class _LogInState extends State<LogIn> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleSignUpWithGoogle() async {
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
+
+    try {
+      MyUser? user = await _auth.signInWithGoogle();
+      if (user != null) {
+        // Check if the user is new
+        if (user.newUser) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+          );
+        } else {
+          // If the user has already completed their profile
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const Home()),
+          );
+        }
+      } else {
+        _showError("Google sign-up failed. Please try again.", "");
+      }
+    } catch (e) {
+      _showError(
+          "An error occurred during Google sign-up. Please try again later.",
+          "");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   void _showError(String message, String criteria) {
@@ -460,62 +500,7 @@ class _LogInState extends State<LogIn> {
                     SizedBox(
                       width: double.infinity,
                       child: TextButton(
-                        onPressed: () async {
-                          if (mounted) {
-                            setState(() {
-                              _isLoading = true; // Set loading state
-                            });
-                          }
-
-                          try {
-                            // Attempt sign-in with Google
-                            MyUser? myUser = await _auth.signInWithGoogle();
-
-                            if (myUser != null) {
-                              // If the user is signed in, update local state and proceed
-                              if (mounted) {
-                                setState(() {
-                                  currentUser = myUser;
-                                });
-                              }
-
-                              // Ensure navigation happens after the current frame is rendered
-                              WidgetsBinding.instance
-                                  .addPostFrameCallback((_) async {
-                                // Add small delay before navigation
-                                await Future.delayed(
-                                    Duration(milliseconds: 100));
-
-                                // Navigate to the Verify screen
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) => const Verify()),
-                                );
-                              });
-                            } else {
-                              // If sign-in fails, show error and allow retry
-                              if (mounted) {
-                                debugPrint('Exited Google Sign up');
-                              }
-                            }
-                          } catch (error) {
-                            // Handle errors during the sign-in process
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                    content: Text(
-                                        'An error occurred: $error. Please try again.')),
-                              );
-                            }
-                          }
-
-                          if (mounted) {
-                            setState(() {
-                              _isLoading = false; // Reset loading state
-                            });
-                          }
-                        },
+                        onPressed: _handleSignUpWithGoogle,
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 50, vertical: 15),

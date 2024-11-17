@@ -225,6 +225,30 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.9.4"
+  firebase_storage:
+    dependency: "direct main"
+    description:
+      name: firebase_storage
+      sha256: def84a1cb27e725b9d53337b0e3d0066c7f1e429f70b7c6d6e0612f49361f347
+      url: "https://pub.dev"
+    source: hosted
+    version: "12.3.6"
+  firebase_storage_platform_interface:
+    dependency: transitive
+    description:
+      name: firebase_storage_platform_interface
+      sha256: "1108af14afa04e1fd070d42a0bec4d2e0feafced303b2b62513481c8890edce2"
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.1.33"
+  firebase_storage_web:
+    dependency: transitive
+    description:
+      name: firebase_storage_web
+      sha256: e99aa6f46c0a6e418012cc05abef045465f4845052b02730f6675c81dabfe270
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.10.5"
   flutter:
     dependency: "direct main"
     description: flutter
@@ -276,10 +300,10 @@ packages:
     dependency: transitive
     description:
       name: google_identity_services_web
-      sha256: "304e2a4c25d84c287df6d7ebf5b93d8bbd4ceb817d96c2686d44f6a346f227b6"
+      sha256: "55580f436822d64c8ff9a77e37d61f5fb1e6c7ec9d632a43ee324e2a05c3c6c9"
       url: "https://pub.dev"
     source: hosted
-    version: "0.3.1+5"
+    version: "0.3.3"
   google_sign_in:
     dependency: "direct main"
     description:
