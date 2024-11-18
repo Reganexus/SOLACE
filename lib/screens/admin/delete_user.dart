@@ -30,7 +30,7 @@ class DeleteUserDialog extends StatelessWidget {
         ),
       ),
       content: Text(
-        'Are you sure you want to delete $userName?',
+        'Are you sure you want to delete $userName from the database?',
         style: const TextStyle(
           fontSize: 18,
           fontFamily: 'Inter',

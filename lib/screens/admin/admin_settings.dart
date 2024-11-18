@@ -1,6 +1,7 @@
 // ignore_for_file: avoid_print, unused_element
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:solace/screens/admin/export_data.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/services/auth.dart';
@@ -59,10 +60,12 @@ class AdminSettings extends StatelessWidget {
                     child: Container(
                       width: 150,
                       height: 150,
-                      decoration: const BoxDecoration(
-                        borderRadius: BorderRadius.all(Radius.circular(50)),
+                      decoration: BoxDecoration(
+                        borderRadius: const BorderRadius.all(Radius.circular(50)),
                         image: DecorationImage(
-                          image: AssetImage('lib/assets/images/shared/placeholder.png'), // Placeholder image
+                          image: userData.profileImageUrl.isNotEmpty
+                              ? NetworkImage(userData.profileImageUrl) // Use the image from the URL if available
+                              : AssetImage('lib/assets/images/shared/placeholder.png') as ImageProvider, // Placeholder image if not
                           fit: BoxFit.cover,
                         ),
                       ),
@@ -162,7 +165,7 @@ class AdminSettings extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => Contacts(currentUserId: userData.uid,), // Navigate to Contacts view
+                              builder: (context) => ExportDataScreen(filterValue: 'patient', title: 'Export Patient Data',),
                             ),
                           );
                         },
@@ -177,12 +180,14 @@ class AdminSettings extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 10),
+
+                      // Export Caregiver Data
                       GestureDetector(
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => Contacts(currentUserId: userData.uid,), // Navigate to Contacts view
+                              builder: (context) => ExportDataScreen(filterValue: 'caregiver', title: 'Export Caregiver Data',),
                             ),
                           );
                         },
@@ -197,12 +202,14 @@ class AdminSettings extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 10),
+
+                      // Export Doctor Data
                       GestureDetector(
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => Contacts(currentUserId: userData.uid,), // Navigate to Contacts view
+                              builder: (context) => ExportDataScreen(filterValue: 'doctor', title: 'Export Doctor Data',),
                             ),
                           );
                         },
@@ -217,12 +224,13 @@ class AdminSettings extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 10),
+
                       GestureDetector(
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => Contacts(currentUserId: userData.uid,), // Navigate to Contacts view
+                              builder: (context) => ExportDataScreen(filterValue: 'good', title: 'Export No Risk Patients Data',),
                             ),
                           );
                         },
@@ -237,12 +245,14 @@ class AdminSettings extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 10),
+
+                      // Export Low Risk Patients
                       GestureDetector(
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => Contacts(currentUserId: userData.uid,), // Navigate to Contacts view
+                              builder: (context) => ExportDataScreen(filterValue: 'low', title: 'Export Low Risk Patients Data',),
                             ),
                           );
                         },
@@ -257,12 +267,14 @@ class AdminSettings extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 10),
+
+                      // Export High Risk Patients
                       GestureDetector(
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => Contacts(currentUserId: userData.uid,), // Navigate to Contacts view
+                              builder: (context) => ExportDataScreen(filterValue: 'high', title: 'Export High Risk Patients Data',),
                             ),
                           );
                         },
@@ -276,6 +288,7 @@ class AdminSettings extends StatelessWidget {
                           ),
                         ),
                       ),
+
                     ],
                   ),
 

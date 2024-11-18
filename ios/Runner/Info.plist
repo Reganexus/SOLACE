@@ -63,6 +63,8 @@
         <string>We need access to your photo library.</string>
         <key>NSCameraUsageDescription</key>
         <string>We need access to your camera for scanning QR codes</string>
+        <key>NSDocumentsFolderUsageDescription</key>
+        <string>Your custom description here.</string>
 
 	</dict>
 </plist>

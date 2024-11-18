@@ -1,4 +1,4 @@
-// ignore_for_file: unrelated_type_equality_checks, avoid_print
+// ignore_for_file: unrelated_type_equality_checks, avoid_print, use_build_context_synchronously
 
 import 'package:flutter/material.dart';
 import 'package:solace/models/my_user.dart';
@@ -154,9 +154,9 @@ class AdminUsersState extends State<AdminUsers> {
           },
           // In delete_user_dialog.dart (inside onConfirm callback)
           onConfirm: () async {
-            Navigator.of(context).pop(); // Close the dialog
             await DatabaseService()
                 .deleteUser(patient.uid); // Call deleteUser method
+            Navigator.of(context).pop(); // Close the dialog
             _refreshPatientList(); // Refresh the list
           },
         );

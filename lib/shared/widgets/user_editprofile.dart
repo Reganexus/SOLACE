@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_print, use_build_context_synchronously, deprecated_member_use, dead_code
+// ignore_for_file: avoid_print, use_build_context_synchronously, deprecated_member_use, dead_code, unnecessary_const
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -153,15 +153,46 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         builder: (BuildContext context) {
           return AlertDialog(
             backgroundColor: AppColors.white,
-            title: const Text('Profile Setup Required'),
+            title: const Text(
+              'Profile Setup Required',
+              style: const TextStyle(
+                fontSize: 24,
+                fontFamily: 'Outfit',
+                fontWeight: FontWeight.bold,
+                color: AppColors.black,
+              ),
+            ),
             content: const Text(
-                'Please fill out the form to complete your profile.'),
+              'Please fill out the form to complete your profile.',
+              style: const TextStyle(
+                fontSize: 18,
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.normal,
+                color: AppColors.black,
+              ),
+            ),
             actions: <Widget>[
               TextButton(
                 onPressed: () {
                   Navigator.of(context).pop();
                 },
-                child: const Text('OK'),
+                style: TextButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                  backgroundColor: AppColors.neon,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: const Text(
+                  'OK',
+                  style: TextStyle(
+                    fontSize: 16.0,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Inter',
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ],
           );
@@ -177,15 +208,46 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         builder: (BuildContext context) {
           return AlertDialog(
             backgroundColor: AppColors.white,
-            title: const Text('Profile Incomplete'),
+            title: const Text(
+              'Profile Incomplete',
+              style: const TextStyle(
+                fontSize: 24,
+                fontFamily: 'Outfit',
+                fontWeight: FontWeight.bold,
+                color: AppColors.black,
+              ),
+            ),
             content: const Text(
-                'Please fill out the entire form before proceeding.'),
+              'Please fill out the entire form before proceeding.',
+              style: const TextStyle(
+                fontSize: 18,
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.normal,
+                color: AppColors.black,
+              ),
+            ),
             actions: <Widget>[
               TextButton(
                 onPressed: () {
                   Navigator.of(context).pop();
                 },
-                child: const Text('OK'),
+                style: TextButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                  backgroundColor: AppColors.neon,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: const Text(
+                  'OK',
+                  style: TextStyle(
+                    fontSize: 16.0,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Inter',
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ],
           );

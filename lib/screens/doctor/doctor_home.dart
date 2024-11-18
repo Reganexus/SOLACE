@@ -5,12 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/doctor/doctor_dashboard.dart';
-import 'package:solace/screens/doctor/doctor_profile.dart';
 import 'package:solace/screens/doctor/doctor_tasks.dart';
 import 'package:solace/screens/doctor/doctor_users.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/shared/widgets/bottom_navbar.dart';
 import 'package:solace/shared/widgets/notifications.dart';
+import 'package:solace/shared/widgets/profile.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/shared/widgets/show_qr.dart';
 
@@ -32,7 +32,7 @@ class DoctorHomeState extends State<DoctorHome> {
       DoctorDashboard(),
       DoctorUsers(),
       DoctorTasks(),
-      DoctorProfile(),
+      Profile(),
     ];
   }
 

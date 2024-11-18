@@ -8,9 +8,9 @@ import 'package:solace/services/database.dart';
 import 'package:solace/screens/caregiver/caregiver_dashboard.dart';
 import 'package:solace/screens/caregiver/caregiver_patients.dart';
 import 'package:solace/screens/caregiver/caregiver_tracking.dart';
-import 'package:solace/screens/caregiver/caregiver_profile.dart';
 import 'package:solace/shared/widgets/bottom_navbar.dart';
 import 'package:solace/shared/widgets/notifications.dart';
+import 'package:solace/shared/widgets/profile.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/shared/widgets/show_qr.dart';
 
@@ -32,7 +32,7 @@ class _CaregiverHomeState extends State<CaregiverHome> {
       CaregiverDashboard(),
       CaregiverPatients(),
       CaregiverTracking(),
-      CaregiverProfile(),
+      Profile(),
     ];
   }
 

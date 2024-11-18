@@ -63,9 +63,8 @@ class DatabaseService {
     if (address != null) updatedData['address'] = address;
     if (profileImageUrl != null) {
       updatedData['profileImageUrl'] = profileImageUrl;
-    } else {
-      updatedData['profileImageUrl'] = ''; // Default to empty string if no image URL is provided
     }
+
 
     if (isVerified != null) {
       updatedData['isVerified'] = isVerified;
@@ -144,16 +143,17 @@ class DatabaseService {
       print("User document deleted from Firestore.");
 
       // 2. Delete records in the 'tracking' collection related to the user
-      await FirebaseFirestore.instance
+      final batch = FirebaseFirestore.instance.batch();
+      final trackingDocs = await FirebaseFirestore.instance
           .collection('tracking')
           .where('userId', isEqualTo: userId)
-          .get()
-          .then((querySnapshot) {
-        for (var doc in querySnapshot.docs) {
-          doc.reference.delete(); // Deleting each document related to the user
-        }
-        print("User tracking records deleted from Firestore.");
-      });
+          .get();
+
+      for (var doc in trackingDocs.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+
 
       // 3. Delete the user from Firebase Authentication
       User? user = FirebaseAuth.instance.currentUser;
@@ -511,6 +511,22 @@ class DatabaseService {
     } catch (e) {
       print("Error getting user name: $e");
       return 'Error'; // Return 'Error' if there's an exception
+    }
+  }
+
+  // Check if the phone number is already registered in Firestore
+  Future<bool> isPhoneNumberUnique(String phoneNumber) async {
+    try {
+      // Query the 'users' collection to check for the given phone number
+      QuerySnapshot querySnapshot = await userCollection
+          .where('phoneNumber', isEqualTo: phoneNumber)
+          .get();
+
+      // If the query returns any documents, the phone number is already in use
+      return querySnapshot.docs.isEmpty;
+    } catch (e) {
+      print("Error checking phone number uniqueness: $e");
+      return false; // In case of error, assume the phone number is not unique
     }
   }
 }

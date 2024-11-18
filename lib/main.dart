@@ -5,12 +5,19 @@ import 'package:flutter/services.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/wrapper.dart';
 import 'package:solace/services/auth.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Firebase
   await Firebase.initializeApp();
+
+  // Activate Firebase App Check for development (using debug token)
+  FirebaseAppCheck appCheck = FirebaseAppCheck.instance;
+
+  // Use a debug token for testing (remove this for production)
+  await appCheck.activate();
 
   // Optionally sign out any user (if you need this)
   await AuthService().signOut();

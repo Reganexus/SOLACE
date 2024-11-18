@@ -7,10 +7,10 @@ import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/screens/patient/patient_dashboard.dart';
 import 'package:solace/screens/patient/patient_history.dart';
-import 'package:solace/screens/patient/patient_profile.dart';
 import 'package:solace/screens/patient/patient_tracking.dart';
 import 'package:solace/shared/widgets/bottom_navbar.dart';
 import 'package:solace/shared/widgets/notifications.dart';
+import 'package:solace/shared/widgets/profile.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/shared/widgets/show_qr.dart';
 
@@ -34,7 +34,7 @@ class PatientHomeState extends State<PatientHome> {
       ),
       PatientHistory(),
       PatientTracking(),
-      PatientProfile(),
+      Profile(),
     ];
   }
 

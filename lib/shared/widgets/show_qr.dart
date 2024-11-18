@@ -23,17 +23,24 @@ class ShowQrPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.white,
+      backgroundColor: AppColors.neon,
       appBar: AppBar(
         title: const Text('QR Code'),
-        backgroundColor: AppColors.white,
+        backgroundColor: AppColors.neon,
         scrolledUnderElevation: 0.0,
         elevation: 0.0,
+        iconTheme: IconThemeData(color: AppColors.white), // Set back button color to white
+        titleTextStyle: TextStyle(
+          color: AppColors.white, // Set title text color to white
+          fontSize: 20, // You can customize the font size if needed
+          fontWeight: FontWeight.bold, // You can adjust the font weight as well
+        ),
       ),
+
       body: Container(
         height: MediaQuery.of(context).size.height,
         decoration: const BoxDecoration(
-          color: AppColors.white,
+          color: AppColors.neon,
         ),
         child: SafeArea(
           child: StreamBuilder<DocumentSnapshot>(
@@ -62,12 +69,12 @@ class ShowQrPage extends StatelessWidget {
                 alignment: AlignmentDirectional.topCenter,
                 children: [
                   Positioned(
-                    top: 150,
+                    top: 200,
                     child: Container(
                       width: MediaQuery.of(context).size.width * 0.7,
-                      height: 400,
+                      height: 380,
                       decoration: BoxDecoration(
-                        color: AppColors.gray,
+                        color: AppColors.white,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Column(
@@ -90,11 +97,15 @@ class ShowQrPage extends StatelessWidget {
                                 Text(
                                   fullName,
                                   style: TextStyle(
-                                    fontSize: 18.0,
+                                    fontSize: 20.0,
                                     fontWeight: FontWeight.bold,
                                     fontFamily: 'Inter',
                                     color: Colors.black,
                                   ),
+                                  overflow: TextOverflow
+                                      .ellipsis, // This will add ellipsis for overflowed text
+                                  maxLines:
+                                  1, // This ensures the text will be in one line and overflow as needed
                                 ),
                               ],
                             ),
@@ -104,17 +115,25 @@ class ShowQrPage extends StatelessWidget {
                     ),
                   ),
                   Positioned(
-                    top: 90,
+                    top: 110,
                     child: Container(
-                      width: 100,
-                      height: 100,
+                      width: 150,
+                      height: 150,
                       decoration: BoxDecoration(
-                        borderRadius: const BorderRadius.all(Radius.circular(50)),
+                        borderRadius:
+                        const BorderRadius.all(Radius.circular(50)),
                         image: DecorationImage(
                           image: profileImageUrl.isNotEmpty
                               ? NetworkImage(profileImageUrl)
-                              : const AssetImage('lib/assets/images/shared/placeholder.png') as ImageProvider,
+                              : const AssetImage(
+                              'lib/assets/images/shared/placeholder.png')
+                          as ImageProvider,
                           fit: BoxFit.cover,
+                        ),
+                        border: Border.all(
+                          color:
+                          AppColors.white, // Set the border color to white
+                          width: 10, // Set the border width to at least 2
                         ),
                       ),
                     ),

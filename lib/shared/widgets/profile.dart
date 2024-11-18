@@ -8,8 +8,8 @@ import 'package:solace/shared/widgets/user_editprofile.dart';
 import 'package:solace/shared/widgets/contacts.dart';
 import 'package:solace/models/my_user.dart';
 
-class CaregiverProfile extends StatelessWidget {
-  const CaregiverProfile({super.key});
+class Profile extends StatelessWidget {
+  const Profile({super.key});
 
   @override
   Widget build(BuildContext context) {
