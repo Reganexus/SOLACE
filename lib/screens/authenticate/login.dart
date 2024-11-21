@@ -312,7 +312,7 @@ class _LogInState extends State<LogIn> {
                     ),
                     const SizedBox(height: 40),
                     const Text(
-                      'Welcome Back!',
+                      'Login',
                       style: TextStyle(
                         fontFamily: 'Outfit',
                         fontWeight: FontWeight.bold,
@@ -467,9 +467,14 @@ class _LogInState extends State<LogIn> {
                         ),
                         child:
                             _isLoading // Show CircularProgressIndicator if loading
-                                ? const Center(
-                                    child: CircularProgressIndicator(
-                                        color: Colors.white))
+                                ? SizedBox(
+                                    width: 26,
+                                    height: 26,
+                                    child: const CircularProgressIndicator(
+                                      color: AppColors.white,
+                                      strokeWidth: 4.0,
+                                    ),
+                                  )
                                 : const Text(
                                     'Login',
                                     style: TextStyle(

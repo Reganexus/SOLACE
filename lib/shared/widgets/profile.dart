@@ -56,18 +56,11 @@ class Profile extends StatelessWidget {
                 children: [
                   // Profile Image
                   Center(
-                    child: Container(
-                      width: 150,
-                      height: 150,
-                      decoration: BoxDecoration(
-                        borderRadius: const BorderRadius.all(Radius.circular(50)),
-                        image: DecorationImage(
-                          image: userData.profileImageUrl.isNotEmpty
-                              ? NetworkImage(userData.profileImageUrl) // Use the image from the URL if available
-                              : AssetImage('lib/assets/images/shared/placeholder.png') as ImageProvider, // Placeholder image if not
-                          fit: BoxFit.cover,
-                        ),
-                      ),
+                    child: CircleAvatar(
+                      radius: 75,
+                      backgroundImage: userData.profileImageUrl.isNotEmpty
+                          ? NetworkImage(userData.profileImageUrl) // Use the image from the URL if available
+                          : AssetImage('lib/assets/images/shared/placeholder.png') as ImageProvider,
                     ),
                   ),
 

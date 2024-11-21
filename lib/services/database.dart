@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_print
+// ignore_for_file: avoid_print, unnecessary_brace_in_string_interps
 
 import 'dart:io';
 
@@ -17,18 +17,6 @@ class DatabaseService {
   // Collection reference
   final CollectionReference userCollection =
       FirebaseFirestore.instance.collection('users');
-
-  // Stream to get all patients
-  Stream<List<UserData>> get patients {
-    return userCollection
-        .where('userRole', isEqualTo: 'patient')
-        .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) {
-              // Attach document ID to UserData
-              final userData = UserData.fromDocument(doc);
-              return userData;
-            }).toList());
-  }
 
   // Update user data in Firestore
   Future<void> updateUserData({
@@ -65,7 +53,6 @@ class DatabaseService {
       updatedData['profileImageUrl'] = profileImageUrl;
     }
 
-
     if (isVerified != null) {
       updatedData['isVerified'] = isVerified;
     }
@@ -73,7 +60,8 @@ class DatabaseService {
       updatedData['newUser'] = newUser; // Include newUser in the update
     }
     if (dateCreated != null) {
-      updatedData['dateCreated'] = Timestamp.fromDate(dateCreated); // Add dateCreated
+      updatedData['dateCreated'] =
+          Timestamp.fromDate(dateCreated); // Add dateCreated
     }
 
     if (updatedData.isNotEmpty) {
@@ -81,7 +69,17 @@ class DatabaseService {
     }
   }
 
-
+  // Stream to get all patients
+  Stream<List<UserData>> get patients {
+    return userCollection
+        .where('userRole', isEqualTo: 'patient')
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) {
+              // Attach document ID to UserData
+              final userData = UserData.fromDocument(doc);
+              return userData;
+            }).toList());
+  }
 
   Future<void> setUserVerificationStatus(String uid, bool isVerified) async {
     try {
@@ -153,7 +151,6 @@ class DatabaseService {
         batch.delete(doc.reference);
       }
       await batch.commit();
-
 
       // 3. Delete the user from Firebase Authentication
       User? user = FirebaseAuth.instance.currentUser;
@@ -250,9 +247,209 @@ class DatabaseService {
     } catch (e) {
       throw Exception("Error uploading profile image: $e");
     }
+  } // Function to add a notification for the user
+
+  Future<void> addNotification(
+      String userId, String notificationMessage, String type) async {
+    final timestamp = Timestamp.now();
+    final notificationId =
+        DateTime.now().millisecondsSinceEpoch.toString(); // Unique ID
+
+    // Check if the notification is for a doctor assigning a task
+    if (type == 'task' && notificationMessage.contains("assigned by Dr.")) {
+      notificationMessage =
+          notificationMessage.replaceFirst('New task', 'Task Assigned');
+    }
+
+    try {
+      await userCollection.doc(userId).update({
+        'notifications': FieldValue.arrayUnion([
+          {
+            'notificationId': notificationId,
+            'message': notificationMessage,
+            'timestamp': timestamp,
+            'type': type,
+            'read': false, // Default to unread
+          }
+        ]),
+      });
+    } catch (e) {
+      print('Error adding notification: $e');
+    }
   }
 
+  Future<void> saveTaskForPatient(
+    String patientId,
+    String taskId, // Task ID passed as a parameter
+    String taskTitle,
+    String taskDescription,
+    String category,
+    Timestamp startDate,
+    Timestamp endDate,
+    String doctorId,
+  ) async {
+    final Timestamp timestamp = Timestamp.now();
 
+    // Fetch doctor name
+    final doctorSnapshot = await userCollection.doc(doctorId).get();
+    String doctorName = '';
+    if (doctorSnapshot.exists) {
+      final data = doctorSnapshot.data() as Map<String, dynamic>;
+      doctorName = data['firstName']?.trim() ?? '';
+      String lastName = data['lastName']?.trim() ?? '';
+      doctorName = '$doctorName $lastName'.trim();
+    }
+
+    // Convert Timestamps to Date Strings
+    final String startDateString =
+        '${startDate.toDate().year}-${startDate.toDate().month.toString().padLeft(2, '0')}-${startDate.toDate().day.toString().padLeft(2, '0')}';
+    final String endDateString =
+        '${endDate.toDate().year}-${endDate.toDate().month.toString().padLeft(2, '0')}-${endDate.toDate().day.toString().padLeft(2, '0')}';
+
+    try {
+      // Add task to the patient's document
+      await userCollection.doc(patientId).update({
+        'tasks': FieldValue.arrayUnion([
+          {
+            'id': taskId, // Task ID passed here
+            'title': taskTitle,
+            'description': taskDescription,
+            'category': category,
+            'timestamp': timestamp,
+            'startDate': startDate,
+            'endDate': endDate,
+            'isCompleted': false,
+          }
+        ]),
+      });
+
+      // Send notification to the patient
+      await addNotification(
+        patientId,
+        "New task assigned by Dr. $doctorName: $taskTitle ($startDateString to $endDateString).",
+        'task',
+      );
+
+      // Send notification to the doctor
+      await addNotification(
+        doctorId,
+        "You assigned a task to patient $doctorName: $taskTitle ($startDateString to $endDateString).",
+        'task',
+      );
+    } catch (e) {
+      throw Exception('Error saving task: $e');
+    }
+  }
+
+  Future<void> saveTaskForDoctor(
+    String doctorId,
+    String taskId, // Task ID passed as a parameter
+    String taskTitle,
+    String taskDescription,
+    String category,
+    dynamic startDate,
+    dynamic endDate,
+    String patientId,
+  ) async {
+    final Timestamp timestamp = Timestamp.now();
+
+    // Fetch patient name
+    String patientName = '';
+    final patientSnapshot = await userCollection.doc(patientId).get();
+    if (patientSnapshot.exists) {
+      final data = patientSnapshot.data() as Map<String, dynamic>;
+      patientName =
+          '${data['firstName']?.trim() ?? ''} ${data['lastName']?.trim() ?? ''}'
+              .trim();
+    }
+
+    // Ensure startDate and endDate are stored as Timestamps
+    Timestamp startTimestamp =
+        startDate is Timestamp ? startDate : Timestamp.fromDate(startDate);
+    Timestamp endTimestamp =
+        endDate is Timestamp ? endDate : Timestamp.fromDate(endDate);
+
+    // Convert Timestamps to Date Strings
+    final String startDateString =
+        '${startTimestamp.toDate().year}-${startTimestamp.toDate().month.toString().padLeft(2, '0')}-${startTimestamp.toDate().day.toString().padLeft(2, '0')}';
+    final String endDateString =
+        '${endTimestamp.toDate().year}-${endTimestamp.toDate().month.toString().padLeft(2, '0')}-${endTimestamp.toDate().day.toString().padLeft(2, '0')}';
+
+    try {
+      // Add task to the doctor's document
+      await userCollection.doc(doctorId).update({
+        'assignedTasks': FieldValue.arrayUnion([
+          {
+            'id': taskId, // Task ID passed here
+            'title': taskTitle,
+            'description': taskDescription,
+            'category': category,
+            'timestamp': timestamp,
+            'startDate': startTimestamp,
+            'endDate': endTimestamp,
+            'patientId': patientId,
+            'startDateString': startDateString,
+            'endDateString': endDateString,
+          }
+        ]),
+      });
+
+      // Send notification to the doctor
+      await addNotification(
+        doctorId,
+        "You assigned a task to $patientName: $taskTitle ($startDateString to $endDateString).",
+        'task',
+      );
+    } catch (e) {
+      throw Exception('Error saving task for doctor: $e');
+    }
+  }
+
+// Remove task for the patient
+  Future<void> removeTaskForPatient(String patientId, String taskId) async {
+    try {
+      await userCollection
+          .doc(patientId)
+          .collection('tasks')
+          .doc(taskId)
+          .delete();
+
+      // Optionally send notification about task removal
+      await addNotification(patientId, 'Task removed', 'task');
+    } catch (e) {
+      throw Exception('Error removing task: $e');
+    }
+  }
+
+  Future<void> removeTaskForDoctor(String doctorId, String taskId) async {
+    try {
+      await userCollection
+          .doc(doctorId)
+          .collection('tasks')
+          .doc(taskId)
+          .delete();
+
+      // Optionally send a notification about task removal
+      await addNotification(doctorId, 'Task removed from your tasks', 'task');
+    } catch (e) {
+      throw Exception('Error removing task for doctor: $e');
+    }
+  }
+
+  // Fetch tasks for a user (both doctor and patient)
+  Future<List<Map<String, dynamic>>> getTasksForUser(String userId) async {
+    try {
+      DocumentSnapshot snapshot = await userCollection.doc(userId).get();
+      if (snapshot.exists) {
+        return List<Map<String, dynamic>>.from(snapshot.get('tasks') ?? []);
+      } else {
+        return [];
+      }
+    } catch (e) {
+      print('Error fetching tasks: $e');
+      return [];
+    }
+  }
 
   Future<void> saveScheduleForCaregiver(
       String caregiverId, DateTime scheduledDateTime, String patientId) async {
@@ -333,31 +530,6 @@ class DatabaseService {
       "Scheduled appointment with caregiver $caregiverName at $formattedDateTime.",
       'schedule',
     );
-  }
-
-// Function to add a notification for the user, with the correct timestamp
-  Future<void> addNotification(
-      String userId, String notificationMessage, String type) async {
-    final timestamp = Timestamp.now();
-    final notificationId = DateTime.now()
-        .millisecondsSinceEpoch
-        .toString(); // Generate a unique ID
-
-    try {
-      await FirebaseFirestore.instance.collection('users').doc(userId).update({
-        'notifications': FieldValue.arrayUnion([
-          {
-            'notificationId': notificationId, // Unique ID for the notification
-            'message': notificationMessage,
-            'timestamp': timestamp,
-            'type': type,
-            'read': false, // Default to unread
-          }
-        ]),
-      });
-    } catch (e) {
-      print('Error adding notification: $e');
-    }
   }
 
   // Fetch the schedule for a user

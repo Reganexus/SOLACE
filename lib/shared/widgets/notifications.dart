@@ -213,6 +213,16 @@ class NotificationsListState extends State<NotificationsList> {
                   _getNotificationIcon(notification['type']);
               final notificationBadge = _buildNotificationBadge(notification);
 
+              // Modify the title based on the notification type
+              String notificationTitle = notification['type'] == 'task'
+                  ? notification['message']?.contains('You assigned') ??
+                          false
+                      ? 'Task Assigned'
+                      : 'Task Available'
+                  : notification['type'] == 'schedule'
+                      ? 'Schedule Confirmation'
+                      : 'Notification';
+
               // Return your UI widget
               return GestureDetector(
                 onTap: () async {
@@ -239,11 +249,7 @@ class NotificationsListState extends State<NotificationsList> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  notification['type'] == 'schedule'
-                                      ? 'Schedule Confirmation'
-                                      : notification['type'] == 'task'
-                                          ? 'Task Available'
-                                          : 'Notification',
+                                  notificationTitle, // Updated title
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontFamily: 'Outfit',

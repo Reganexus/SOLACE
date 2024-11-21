@@ -33,6 +33,7 @@ dependencies:
   excel: ^2.0.5
   path_provider: ^2.0.10
   pdf: ^3.6.0
+  fl_chart: ^0.69.0
 
 
 dev_dependencies:
@@ -50,6 +51,7 @@ flutter:
     - lib/assets/images/doctor/
     - lib/assets/images/admin/
     - lib/assets/images/shared/
+    - lib/assets/images/shared/placeholder.png
     - lib/assets/images/shared/header/
     - lib/assets/images/shared/info/
     - lib/assets/images/shared/functions/

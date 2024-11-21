@@ -371,7 +371,7 @@ class _SignUpState extends State<SignUp> {
                     ),
                     const SizedBox(height: 40),
                     const Text(
-                      'Hello!',
+                      'Sign Up',
                       style: TextStyle(
                         fontFamily: 'Outfit',
                         fontWeight: FontWeight.bold,
@@ -608,8 +608,14 @@ class _SignUpState extends State<SignUp> {
                               borderRadius: BorderRadius.circular(10)),
                         ),
                         child: _isLoading
-                            ? const CircularProgressIndicator(
-                                color: AppColors.white) // Loading indicator
+                            ? SizedBox(
+                                width: 26,
+                                height: 26,
+                                child: const CircularProgressIndicator(
+                                  color: AppColors.white,
+                                  strokeWidth: 4.0,
+                                ),
+                              ) // Loading indicator
                             : const Text(
                                 'Sign up',
                                 style: TextStyle(

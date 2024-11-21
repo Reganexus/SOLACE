@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:solace/models/my_user.dart';
-import 'package:solace/screens/caregiver/caregiver_view_status.dart';
+import 'package:solace/shared/widgets/caregiver_view_status.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/themes/colors.dart';
 

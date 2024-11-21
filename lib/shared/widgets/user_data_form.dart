@@ -41,7 +41,6 @@ typedef UserDataCallback = Future<void> Function({
 class UserDataFormState extends State<UserDataForm> {
   final _formKey = GlobalKey<FormState>();
 
-
   late TextEditingController firstNameController;
   late TextEditingController lastNameController;
   late TextEditingController middleNameController;
@@ -212,12 +211,15 @@ class UserDataFormState extends State<UserDataForm> {
     }
   }
 
-
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Check if phone number is unique
-    final phoneNumber = phoneNumberController.text.trim();
+    // Ensure phone number starts with "09"
+    String phoneNumber = phoneNumberController.text.trim();
+    if (!phoneNumber.startsWith('9')) {
+      phoneNumber = '09${phoneNumber.substring(1)}'; // Correct the prefix to "09"
+    }
+
     final isUnique = await _isPhoneNumberUnique(phoneNumber);
 
     if (!isUnique) {
@@ -241,21 +243,20 @@ class UserDataFormState extends State<UserDataForm> {
           content: Row(
             children: [
               SizedBox(
-                width: 24, // Set the desired width
-                height: 24, // Set the desired height
+                width: 24,
+                height: 24,
                 child: CircularProgressIndicator(
                   color: AppColors.neon,
-                  strokeWidth: 4.0, // Optional: Adjust the thickness of the indicator
+                  strokeWidth: 4.0,
                 ),
               ),
               SizedBox(width: 15),
               Text('Uploading profile image...'),
             ],
           ),
-          duration: Duration(minutes: 1), // Long duration to ensure visibility during upload
+          duration: Duration(minutes: 1),
         ),
       );
-
 
       try {
         profileImageUrl = await DatabaseService.uploadProfileImage(
@@ -266,7 +267,6 @@ class UserDataFormState extends State<UserDataForm> {
         // Dismiss the snackbar once the upload is successful
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
       } catch (e) {
-        // Show error snackbar if the upload fails
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to upload profile image. Please try again.')),
@@ -292,6 +292,14 @@ class UserDataFormState extends State<UserDataForm> {
     );
   }
 
+
+  String capitalizeEachWord(String text) {
+    return text
+        .split(' ')
+        .map((word) =>
+            word.isNotEmpty ? word[0].toUpperCase() + word.substring(1) : '')
+        .join(' ');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -382,11 +390,12 @@ class UserDataFormState extends State<UserDataForm> {
                   color: AppColors.black,
                 ),
                 decoration:
-                    _buildInputDecoration('Phone Number', _focusNodes[3]),
+                _buildInputDecoration('Phone Number', _focusNodes[3]),
                 keyboardType: TextInputType.phone,
                 validator: (val) =>
-                    val!.isEmpty ? 'Phone number cannot be empty' : null,
+                val!.isEmpty ? 'Phone number cannot be empty' : null,
               ),
+              // Birthday Field
               const SizedBox(height: 20),
               TextFormField(
                 controller: birthdayController,
@@ -397,7 +406,33 @@ class UserDataFormState extends State<UserDataForm> {
                   fontWeight: FontWeight.normal,
                   color: AppColors.black,
                 ),
-                decoration: _buildInputDecoration('Birthday', _focusNodes[4]),
+                decoration: InputDecoration(
+                  labelText: 'Birthday',
+                  filled: true,
+                  fillColor: AppColors.gray,
+                  suffixIcon: Icon(
+                    Icons.calendar_today,
+                    color: _focusNodes[4].hasFocus
+                        ? AppColors.neon
+                        : AppColors.black,
+                  ),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none),
+                  focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: AppColors.neon, width: 2)),
+                  labelStyle: TextStyle(
+                    fontSize: 16,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.normal,
+                    color: _focusNodes[4].hasFocus
+                        ? AppColors.neon
+                        : AppColors.black,
+                  ),
+                ),
+                validator: (val) =>
+                    val!.isEmpty ? 'Birthday cannot be empty' : null,
                 readOnly: true,
                 onTap: () => _selectDate(context),
               ),
@@ -461,6 +496,7 @@ class UserDataFormState extends State<UserDataForm> {
                   ),
                 ),
               ),
+
               const SizedBox(height: 20),
             ],
           ),
