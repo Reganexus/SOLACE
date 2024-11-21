@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
+import 'package:solace/models/hive_boxes.dart';
+import 'package:solace/models/local_user.dart';
 
 enum UserRole { admin, patient, family, caregiver, doctor }
 
@@ -29,36 +31,36 @@ class MyUser with ChangeNotifier {
 }
 
 class UserData {
-  final UserRole userRole;
   final String uid;
+  final UserRole userRole;
+  final String email;
   final String firstName;
   final String middleName;
   final String lastName;
-  final String email;
   final String phoneNumber;
   final DateTime? birthday;
   final String gender;
   final String address;
+  final String profileImageUrl;
   final bool isVerified;
   final bool newUser;
-  final DateTime dateCreated;
-  final String profileImageUrl;
+  final DateTime? dateCreated;
 
   UserData({
-    required this.userRole,
     required this.uid,
+    required this.userRole,
+    required this.email,
     required this.firstName,
     required this.middleName,
     required this.lastName,
-    required this.email,
     required this.phoneNumber,
     this.birthday,
     required this.gender,
     required this.address,
+    required this.profileImageUrl,
     required this.isVerified,
     required this.newUser,
-    required this.dateCreated,
-    required this.profileImageUrl,
+    this.dateCreated,
   });
 
   factory UserData.fromDocument(DocumentSnapshot doc) {
@@ -67,26 +69,66 @@ class UserData {
       uid: doc.id,
       userRole: UserData.getUserRoleFromString(
           data['userRole']?.toString() ?? 'patient'),
+      email: data['email'] ?? '',
       firstName: data['firstName'] ?? '',
       middleName: data['middleName'] ?? '',
       lastName: data['lastName'] ?? '',
-      email: data['email'] ?? '',
       phoneNumber: data['phoneNumber'] ?? '',
       birthday: data['birthday'] != null
           ? (data['birthday'] as Timestamp).toDate()
           : null,
       gender: data['gender'] ?? '',
       address: data['address'] ?? '',
+      profileImageUrl: data['profileImageUrl'],
       isVerified: data['isVerified'] ?? false,
       newUser: data['newUser'] ?? true,
       dateCreated: (data['dateCreated'] as Timestamp).toDate(),
-      profileImageUrl: data['profileImageUrl'],
     );
   }
 
+  factory UserData.fromLocal(String uid) {
+    LocalUser? existingUser = localUsersBox.get(uid);
+    if (existingUser != null) {
+      return UserData(
+        uid: existingUser.uid ?? '',
+        userRole: getUserRoleFromString(existingUser.userRole ?? ''),
+        email: existingUser.email ?? '',
+        firstName: existingUser.firstName ?? '',
+        middleName: existingUser.middleName ?? '',
+        lastName: existingUser.lastName ?? '',
+        phoneNumber: existingUser.phoneNumber ?? '',
+        birthday: existingUser.birthday?.toDate(),
+        gender: existingUser.gender ?? '',
+        address: existingUser.address ?? '',
+        profileImageUrl: existingUser.profileImageUrl ?? '',
+        isVerified: existingUser.isVerified ?? false,
+        newUser: existingUser.newUser ?? false,
+        dateCreated: existingUser.dateCreated!.toDate(),
+      );
+    } else {
+      return UserData(
+        uid: '',
+        userRole: UserRole.patient,
+        email: '',
+        firstName: '',
+        middleName: '',
+        lastName: '',
+        phoneNumber: '',
+        birthday: null,
+        gender: '',
+        address: '',
+        profileImageUrl: '',
+        isVerified: false,
+        newUser: false,
+        dateCreated: null,
+      );
+    }
+  }
+
+
   @override
   String toString() {
-    return 'UserData{uid: $uid, userRole: $userRole, email: $email, lastName: $lastName, firstName: $firstName, middleName: $middleName, phoneNumber: $phoneNumber, gender: $gender, birthday: ${birthday != null ? DateFormat('yyyy-MM-dd').format(birthday!) : 'N/A'}, address: $address, isVerified: $isVerified}';
+    return 'UserData{uid: $uid, userRole: $userRole, email: $email, firstName: $firstName, middleName: $middleName, lastName: $lastName, phoneNumber: $phoneNumber, birthday: ${birthday != null ? DateFormat('yyyy-MM-dd').format(birthday!) : 'N/A'}, gender: $gender, address: $address, profileImageUrl: $profileImageUrl, isVerified: $isVerified, newUser: $newUser, dateCreated: ${dateCreated != null ? DateFormat('yyyy-MM-dd').format(dateCreated!) : 'N/A'}}';
   }
 
   @override
@@ -97,14 +139,17 @@ class UserData {
         other.uid == uid &&
         other.userRole == userRole &&
         other.email == email &&
-        other.lastName == lastName &&
         other.firstName == firstName &&
         other.middleName == middleName &&
+        other.lastName == lastName &&
         other.phoneNumber == phoneNumber &&
-        other.gender == gender &&
         other.birthday == birthday &&
+        other.gender == gender &&
         other.address == address &&
-        other.isVerified == isVerified;
+        other.profileImageUrl == profileImageUrl &&
+        other.isVerified == isVerified && 
+        other.newUser == newUser &&
+        other.dateCreated == dateCreated;
   }
 
   @override
@@ -112,14 +157,16 @@ class UserData {
     return uid.hashCode ^
         userRole.hashCode ^
         email.hashCode ^
-        lastName.hashCode ^
         firstName.hashCode ^
         middleName.hashCode ^
+        lastName.hashCode ^
         phoneNumber.hashCode ^
+        birthday.hashCode ^
         gender.hashCode ^
-        (birthday?.hashCode ?? 0) ^
         address.hashCode ^
-        isVerified.hashCode;
+        isVerified.hashCode ^
+        newUser.hashCode ^
+        dateCreated.hashCode;
   }
 
   static UserRole getUserRoleFromString(String role) {
@@ -129,7 +176,7 @@ class UserData {
     );
   }
 
-  static String getUserRoleString(UserRole userRole) {
+  static String? getUserRoleString(UserRole userRole) {
     return userRole.toString().split('.').last;
   }
 }

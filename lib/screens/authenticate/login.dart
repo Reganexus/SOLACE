@@ -247,12 +247,13 @@ class _LogInState extends State<LogIn> {
   }
 
   Future<void> _autoLogin() async {
-    String testEmail = 'john@gmail.com';
+    String testEmail = 'earl@gmail.com';
     String testPassword = 'test123';
 
     dynamic result =
         await _auth.logInWithEmailAndPassword(testEmail, testPassword);
     if (result == null && mounted) {
+      debugPrint("Auto login failed");
       setState(() => error = 'Auto login failed');
     }
   }

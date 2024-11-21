@@ -1,8 +1,13 @@
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:solace/models/hive_boxes.dart';
+import 'package:solace/models/local_user.dart';
+import 'package:solace/models/local_users.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/services.dart';
 import 'package:solace/models/my_user.dart';
+import 'package:solace/models/time_stamp_adapter.dart';
 import 'package:solace/screens/wrapper.dart';
 import 'package:solace/services/auth.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
@@ -22,6 +27,16 @@ void main() async {
   // Optionally sign out any user (if you need this)
   await AuthService().signOut();
 
+  await Hive.initFlutter();
+
+  // Register the adapters
+  Hive.registerAdapter(LocalUserAdapter());
+  Hive.registerAdapter(LocalUsersAdapter());
+  Hive.registerAdapter(TimestampAdapter());  // Register the Timestamp adapter
+
+  // Open the box
+  localUsersBox = await Hive.openBox<LocalUser>('LocalUsers');
+  
   // Lock orientation to portrait mode
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -30,6 +45,7 @@ void main() async {
 
   runApp(const MyApp());
 }
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});

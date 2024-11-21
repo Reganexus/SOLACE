@@ -3,14 +3,19 @@
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:solace/models/hive_boxes.dart';
+import 'package:solace/models/local_user.dart';
 import 'package:solace/models/my_user.dart';
+import 'package:solace/services/local_database.dart';
 
 class DatabaseService {
   final String? uid;
+  final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
   DatabaseService({this.uid});
 
@@ -34,9 +39,9 @@ class DatabaseService {
   Future<void> updateUserData({
     UserRole? userRole,
     String? email,
-    String? lastName,
     String? firstName,
     String? middleName,
+    String? lastName,
     String? phoneNumber,
     DateTime? birthday,
     String? gender,
@@ -46,15 +51,96 @@ class DatabaseService {
     bool? newUser, // New field for update
     DateTime? dateCreated, // New field for update
   }) async {
-    Map<String, dynamic> updatedData = {};
 
+    final List<ConnectivityResult> connectivityResult = await (Connectivity().checkConnectivity());
+
+    if(connectivityResult.contains(ConnectivityResult.none)) {
+      LocalDatabaseService(uid: uid).updateLocalUserData(
+        userRole: userRole ?? UserRole.patient, // Assuming a default role
+        email: FirebaseAuth.instance.currentUser!.email ?? '',
+        firstName: firstName ?? '',
+        middleName: middleName ?? '',
+        lastName: lastName ?? '',
+        phoneNumber: phoneNumber ?? '',
+        birthday: birthday, 
+        gender: gender ?? '',
+        address: address ?? '',
+        profileImageUrl: profileImageUrl ?? '',
+        isVerified: isVerified ?? false,
+        newUser: newUser ?? false,
+        dateCreated: dateCreated,
+      );
+    } else {
+      syncUserData();
+      updateRemoteUserData(
+        userRole: userRole ?? UserRole.patient,
+        email: FirebaseAuth.instance.currentUser!.email ?? '',
+        firstName: firstName ?? '',
+        middleName: middleName ?? '',
+        lastName: lastName ?? '',
+        phoneNumber: phoneNumber ?? '',
+        birthday: birthday, 
+        gender: gender ?? '',
+        address: address ?? '',
+        profileImageUrl: profileImageUrl ?? '',
+        isVerified: isVerified ?? false,
+        newUser: newUser ?? false,
+        dateCreated: dateCreated,
+      );
+    }
+  }
+
+  Future<void> syncUserData() async {
+    // Get the user's local data from Hive
+    LocalUser? existingUser = localUsersBox.get(uid);
+    debugPrint("sync First name: ${existingUser!.firstName}");
+
+    if (existingUser != null) {
+      // Call updateRemoteUserData with the data from the local storage
+      DatabaseService().updateRemoteUserData(
+        userRole: UserData.getUserRoleFromString(existingUser.userRole!),
+        email: existingUser.email,
+        firstName: existingUser.firstName,
+        middleName: existingUser.middleName,
+        lastName: existingUser.lastName,
+        phoneNumber: existingUser.phoneNumber,
+        birthday: existingUser.birthday?.toDate(), // Convert Timestamp to DateTime
+        gender: existingUser.gender,
+        address: existingUser.address,
+        profileImageUrl: existingUser.profileImageUrl,
+        isVerified: existingUser.isVerified,
+        newUser: existingUser.newUser,
+        dateCreated: existingUser.dateCreated?.toDate(), // Convert Timestamp to DateTime
+      );
+    }
+  }
+
+  Future<void> updateRemoteUserData({
+    UserRole? userRole,
+    String? email,
+    String? firstName,
+    String? middleName,
+    String? lastName,
+    String? phoneNumber,
+    DateTime? birthday,
+    String? gender,
+    String? address,
+    String? profileImageUrl,
+    bool? isVerified,
+    bool? newUser,
+    DateTime? dateCreated,
+  }) async {
+    Map<String, dynamic> updatedData = {};
+    debugPrint("updateRemote First name: $firstName");
+
+    // Update user data in firestore
     if (userRole != null) {
       updatedData['userRole'] = UserData.getUserRoleString(userRole);
     }
     if (email != null) updatedData['email'] = email;
-    if (lastName != null) updatedData['lastName'] = lastName;
     if (firstName != null) updatedData['firstName'] = firstName;
     if (middleName != null) updatedData['middleName'] = middleName;
+    if (lastName != null) updatedData['lastName'] = lastName;
     if (phoneNumber != null) updatedData['phoneNumber'] = phoneNumber;
     if (birthday != null) {
       updatedData['birthday'] = Timestamp.fromDate(birthday);
@@ -64,8 +150,6 @@ class DatabaseService {
     if (profileImageUrl != null) {
       updatedData['profileImageUrl'] = profileImageUrl;
     }
-
-
     if (isVerified != null) {
       updatedData['isVerified'] = isVerified;
     }
@@ -80,8 +164,6 @@ class DatabaseService {
       await userCollection.doc(uid).set(updatedData, SetOptions(merge: true));
     }
   }
-
-
 
   Future<void> setUserVerificationStatus(String uid, bool isVerified) async {
     try {
@@ -196,6 +278,7 @@ class DatabaseService {
 
   // Fetch user data from Firestore
   Future<UserData?> getUserData() async {
+    final List<ConnectivityResult> connectivityResult = await (Connectivity().checkConnectivity());
     try {
       print("Fetching data for UID: $uid");
       DocumentSnapshot snapshot = await userCollection.doc(uid).get();
@@ -251,8 +334,6 @@ class DatabaseService {
       throw Exception("Error uploading profile image: $e");
     }
   }
-
-
 
   Future<void> saveScheduleForCaregiver(
       String caregiverId, DateTime scheduledDateTime, String patientId) async {

@@ -102,21 +102,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         newUser: userData?.newUser ?? false,
                         onButtonPressed: ({
                           required String firstName,
-                          required String lastName,
                           required String middleName,
+                          required String lastName,
                           required String phoneNumber,
-                          required String gender,
                           required DateTime? birthday,
+                          required String gender,
                           required String address,
                           required String profileImageUrl,
                         }) async {
                           await DatabaseService(uid: user.uid).updateUserData(
                             firstName: firstName,
-                            lastName: lastName,
                             middleName: middleName,
+                            lastName: lastName,
                             phoneNumber: phoneNumber,
-                            gender: gender,
                             birthday: birthday,
+                            gender: gender,
                             address: address,
                             profileImageUrl:
                                 profileImageUrl, // Pass profileImageUrl to updateUserData
