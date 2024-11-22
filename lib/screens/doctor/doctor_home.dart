@@ -73,7 +73,7 @@ class DoctorHomeState extends State<DoctorHome> {
             ),
             const SizedBox(width: 10.0),
             Text(
-              'Hello, $firstName',
+              'Hello, Dr. $firstName',
               style: const TextStyle(
                 fontSize: 18.0,
                 fontWeight: FontWeight.bold,

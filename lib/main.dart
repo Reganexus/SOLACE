@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/services.dart';
 import 'package:solace/models/my_user.dart';
-import 'package:solace/screens/wrapper.dart';
+import 'package:solace/screens/authenticate/get_started.dart';
 import 'package:solace/services/auth.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 
@@ -46,7 +46,7 @@ class MyApp extends StatelessWidget {
           primarySwatch: Colors.blue,
           visualDensity: VisualDensity.adaptivePlatformDensity,
         ),
-        home: const Wrapper(), // Main entry point widget
+        home: const GetStarted(), // Main entry point widget
       ),
     );
   }

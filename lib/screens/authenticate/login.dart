@@ -98,9 +98,16 @@ class _LogInState extends State<LogIn> {
         _showError("Google sign-up failed. Please try again.", "");
       }
     } catch (e) {
-      _showError(
+      // Check if the error is because the user canceled the Google sign-in
+      if (e.toString().contains("Google sign-in aborted by user")) {
+        // User canceled the sign-in, no need to show an error
+        return;
+      } else {
+        _showError(
           "An error occurred during Google sign-up. Please try again later.",
-          "");
+          "",
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -111,138 +118,15 @@ class _LogInState extends State<LogIn> {
   }
 
   void _showError(String message, String criteria) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          backgroundColor: Colors.white,
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                // Container for the error messages
-                Container(
-                  padding:
-                      const EdgeInsets.all(16), // Padding inside the container
-                  decoration: BoxDecoration(
-                    color:
-                        const Color(0xFFFFF3F2), // Background color for errors
-                    border: Border.all(
-                      color: const Color(0xFFFEC5D0), // Border color for errors
-                      width: 2, // Border width
-                    ),
-                    borderRadius: BorderRadius.circular(10), // Rounded corners
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Error Title
-                      const Text(
-                        'Error/s Occurred!',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontFamily: 'Outfit',
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF690D02), // Text color for title
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      // Error Messages
-                      Text(
-                        message
-                            .split('\n')
-                            .where((error) =>
-                                error.isNotEmpty) // Filter out empty messages
-                            .map((error) => "• $error")
-                            .join('\n'),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: Color(
-                              0xFF690D02), // Text color for error messages
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Only show the Password Criteria Container if criteria is not empty
-                if (criteria.isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.all(
-                        16), // Padding inside the container
-                    decoration: BoxDecoration(
-                      color: const Color(
-                          0xFFE8F5E9), // Complementary background color for password criteria
-                      border: Border.all(
-                        color: const Color(
-                            0xFFC8E6C9), // Complementary border color for password criteria
-                        width: 2, // Border width
-                      ),
-                      borderRadius:
-                          BorderRadius.circular(10), // Rounded corners
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Password Criteria Title
-                        const Text(
-                          'Password Criteria',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontFamily: 'Outfit',
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.black,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        // Password Criteria List
-                        Text(
-                          criteria
-                              .split('\n')
-                              .where((criterion) => criterion
-                                  .isNotEmpty) // Filter out empty criteria
-                              .map((criterion) => "• $criterion")
-                              .join('\n'),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            color: AppColors.black,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              style: TextButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-                backgroundColor: AppColors.neon,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text(
-                'Close',
-                style: TextStyle(
-                  fontSize: 16.0,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Inter',
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+    // Display error using a Snackbar or Toast instead of AlertDialog
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: const TextStyle(color: Colors.white),
+        ),
+        backgroundColor: Colors.red,
+      ),
     );
   }
 
@@ -552,8 +436,7 @@ class _LogInState extends State<LogIn> {
                           width: 5,
                         ),
                         GestureDetector(
-                          onTap: () => widget
-                              .toggleView(), // Call toggleView as a function
+                          onTap: () => widget.toggleView(),
                           child: const Text(
                             'Sign Up',
                             style: TextStyle(
@@ -563,7 +446,7 @@ class _LogInState extends State<LogIn> {
                               color: AppColors.neon,
                             ),
                           ),
-                        ),
+                        )
                       ],
                     ),
                   ],

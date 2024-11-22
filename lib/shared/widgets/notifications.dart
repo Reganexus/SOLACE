@@ -9,8 +9,10 @@ import 'package:solace/themes/colors.dart';
 
 class NotificationList extends StatelessWidget {
   final String userId;
+  final GlobalKey<NotificationsListState> notificationsListKey =
+      GlobalKey<NotificationsListState>();
 
-  const NotificationList({super.key, required this.userId});
+  NotificationList({super.key, required this.userId});
 
   @override
   Widget build(BuildContext context) {
@@ -20,12 +22,94 @@ class NotificationList extends StatelessWidget {
         title: const Text('Notifications'),
         backgroundColor: AppColors.white,
         scrolledUnderElevation: 0.0,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.delete),
+            iconSize: 30.0,
+            onPressed: () {
+              // Show confirmation dialog before deleting all notifications
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  backgroundColor: AppColors.white,
+                  title: const Text(
+                    'Delete all Notifications?',
+                    style: TextStyle(
+                      fontFamily: 'Outfit',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 24,
+                      color: AppColors.black,
+                    ),
+                  ),
+                  content: const Text(
+                    'This will permanently delete all notifications. Are you sure?',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.normal,
+                      fontSize: 18,
+                      color: AppColors.black,
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: TextButton.styleFrom(
+                        padding:
+                        const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                        backgroundColor: AppColors.neon,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: AppColors.white,
+                          fontFamily: 'Inter',
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold, // Bold text style
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        // Use the key to access the method in NotificationsListState
+                        notificationsListKey.currentState
+                            ?.deleteAllNotifications();
+                        Navigator.of(context).pop(); // Close the dialog
+                      },
+                      style: TextButton.styleFrom(
+                        padding:
+                        const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                        backgroundColor: AppColors.red,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: const Text(
+                        'Delete All',
+                        style: TextStyle(
+                          color: AppColors.white,
+                          fontFamily: 'Inter',
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold, // Bold text style
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Container(
           color: AppColors.white,
           padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-          child: NotificationsList(userId: userId),
+          child: NotificationsList(
+              userId: userId,
+              key: notificationsListKey), // Pass the key to the child widget
         ),
       ),
     );
@@ -48,6 +132,70 @@ class NotificationsListState extends State<NotificationsList> {
   void initState() {
     super.initState();
     fetchNotifications();
+  }
+
+  Future<void> deleteAllNotifications() async {
+    debugPrint("Function got called!");
+    try {
+      final userRef =
+          FirebaseFirestore.instance.collection('users').doc(widget.userId);
+
+      // Fetch the user's notifications
+      final userDocSnapshot = await userRef.get();
+      if (!userDocSnapshot.exists) {
+        print('User document does not exist!');
+        return;
+      }
+
+      // Get the current notifications as a list
+      var notifications = List<Map<String, dynamic>>.from(
+          userDocSnapshot.data()?['notifications'] ?? []);
+      debugPrint("$notifications");
+
+      if (notifications.isEmpty) {
+        // If there are no notifications, show a snackbar
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No notifications to clear.'),
+          ),
+        );
+        return;
+      }
+
+      // Create a list of notificationIds to delete
+      final notificationIdsToDelete = notifications
+          .map((notification) => notification['notificationId'] as String)
+          .toList();
+
+      // Log the notification IDs to be deleted
+      print('Deleting notifications with IDs: $notificationIdsToDelete');
+
+      // Iterate through all notificationIds and delete each one
+      for (var notificationId in notificationIdsToDelete) {
+        await deleteNotification(
+            context, notificationId); // Call deleteNotification for each ID
+      }
+
+      // Clear the local notifications list
+      setState(() {
+        this.notifications.clear(); // Refresh local state
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('All notifications deleted successfully.'),
+        ),
+      );
+
+      print('All notifications deleted.');
+    } catch (e) {
+      print('Error deleting all notifications: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to delete notifications. Please try again.'),
+        ),
+      );
+    }
   }
 
   Future<void> fetchNotifications() async {
@@ -141,57 +289,6 @@ class NotificationsListState extends State<NotificationsList> {
     }
   }
 
-  Future<void> deleteNotification(
-      BuildContext context, String notificationId) async {
-    final user =
-        Provider.of<MyUser?>(context, listen: false); // Get the current user
-    if (user == null) return;
-
-    try {
-      // Get the user document reference
-      final userDocRef =
-          FirebaseFirestore.instance.collection('users').doc(user.uid);
-
-      // Fetch the current notifications
-      final userDocSnapshot = await userDocRef.get();
-
-      if (!userDocSnapshot.exists) {
-        print('User document does not exist!');
-        return;
-      }
-
-      // Cast notifications to List<Map<String, dynamic>>
-      var notifications = List<Map<String, dynamic>>.from(
-          userDocSnapshot.data()?['notifications'] ?? []);
-
-      // Find the index of the notification by notificationId
-      final notificationIndex = notifications
-          .indexWhere((n) => n['notificationId'] == notificationId);
-
-      if (notificationIndex != -1) {
-        // Remove the notification from the list
-        notifications.removeAt(notificationIndex);
-
-        // Update the notifications field in Firestore (this will remove the notification)
-        await userDocRef.update({
-          'notifications':
-              notifications, // Update notifications array without the deleted notification
-        });
-
-        // Update the local notifications list by calling setState()
-        setState(() {
-          this.notifications = notifications; // Refresh the local state
-        });
-
-        print("Notification successfully deleted");
-      } else {
-        print('Notification not found');
-      }
-    } catch (e) {
-      print('Error deleting notification: $e');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return notifications.isEmpty
@@ -215,13 +312,14 @@ class NotificationsListState extends State<NotificationsList> {
 
               // Modify the title based on the notification type
               String notificationTitle = notification['type'] == 'task'
-                  ? notification['message']?.contains('You assigned') ??
-                          false
+                  ? notification['message']?.contains('You assigned') ?? false
                       ? 'Task Assigned'
                       : 'Task Available'
                   : notification['type'] == 'schedule'
                       ? 'Schedule Confirmation'
-                      : 'Notification';
+                      : notification['type'] == 'friend_request'
+                          ? 'Friend Request'
+                          : 'Notification';
 
               // Return your UI widget
               return GestureDetector(
@@ -284,8 +382,62 @@ class NotificationsListState extends State<NotificationsList> {
         return Icon(Icons.calendar_today, color: AppColors.black, size: 24);
       case 'task':
         return Icon(Icons.assignment, color: AppColors.black, size: 24);
+      case 'friend_request':
+        return Icon(Icons.group_add,
+            color: AppColors.black, size: 24); // New icon for friend request
       default:
         return Icon(Icons.notifications, color: AppColors.black, size: 24);
+    }
+  }
+
+  Future<void> deleteNotification(
+      BuildContext context, String notificationId) async {
+    final user =
+        Provider.of<MyUser?>(context, listen: false); // Get the current user
+    if (user == null) return;
+
+    try {
+      // Get the user document reference
+      final userDocRef =
+          FirebaseFirestore.instance.collection('users').doc(user.uid);
+
+      // Fetch the current notifications
+      final userDocSnapshot = await userDocRef.get();
+
+      if (!userDocSnapshot.exists) {
+        print('User document does not exist!');
+        return;
+      }
+
+      // Cast notifications to List<Map<String, dynamic>>
+      var notifications = List<Map<String, dynamic>>.from(
+          userDocSnapshot.data()?['notifications'] ?? []);
+
+      // Find the index of the notification by notificationId
+      final notificationIndex = notifications
+          .indexWhere((n) => n['notificationId'] == notificationId);
+
+      if (notificationIndex != -1) {
+        // Remove the notification from the list
+        notifications.removeAt(notificationIndex);
+
+        // Update the notifications field in Firestore (this will remove the notification)
+        await userDocRef.update({
+          'notifications':
+              notifications, // Update notifications array without the deleted notification
+        });
+
+        // Update the local notifications list by calling setState()
+        setState(() {
+          this.notifications = notifications; // Refresh the local state
+        });
+
+        print("Notification successfully deleted");
+      } else {
+        print('Notification not found');
+      }
+    } catch (e) {
+      print('Error deleting notification: $e');
     }
   }
 

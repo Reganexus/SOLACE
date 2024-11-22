@@ -8,6 +8,7 @@ import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/shared/globals.dart';
 import 'package:solace/shared/widgets/user_editprofile.dart';
+import 'package:solace/themes/colors.dart';
 
 class Wrapper extends StatelessWidget {
   const Wrapper({super.key});
@@ -24,37 +25,49 @@ class Wrapper extends StatelessWidget {
     }
 
     // Check if the user is verified, or if their profile is new
-    return FutureBuilder<DocumentSnapshot>(
-      future: DatabaseService(uid: user.uid).userCollection.doc(user.uid).get(),
-      builder: (context, userSnapshot) {
-        if (userSnapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
-        }
-
-        if (userSnapshot.hasError) {
-          debugPrint('Error fetching user data: ${userSnapshot.error}');
-          return Center(child: Text('Error: ${userSnapshot.error}'));
-        }
-
-        if (userSnapshot.hasData && userSnapshot.data != null) {
-          final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
-          bool isVerified = userData?['isVerified'] ?? false;
-          bool newUser = userData?['newUser'] ?? false;
-
-          if (emailVerificationEnabled && !isVerified) {
-            // Redirect to the verification screen if not verified
-            return const Verify();
-          } else if (newUser) {
-            // If it's a new user, show the profile edit screen
-            return const EditProfileScreen();
-          } else {
-            // If the user is verified and not new, navigate to the home screen
-            return const Home();
+    return Scaffold(
+      backgroundColor: AppColors.neon, // Set white background
+      body: FutureBuilder<DocumentSnapshot>(
+        future: DatabaseService(uid: user.uid).userCollection.doc(user.uid).get(),
+        builder: (context, userSnapshot) {
+          if (userSnapshot.connectionState == ConnectionState.waiting) {
+            // Change the color of the CircularProgressIndicator to AppColors.neon
+            return Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation(AppColors.white),
+              ),
+            );
           }
-        }
 
-        return Center(child: CircularProgressIndicator());
-      },
+          if (userSnapshot.hasError) {
+            debugPrint('Error fetching user data: ${userSnapshot.error}');
+            return Center(child: Text('Error: ${userSnapshot.error}'));
+          }
+
+          if (userSnapshot.hasData && userSnapshot.data != null) {
+            final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
+            bool isVerified = userData?['isVerified'] ?? false;
+            bool newUser = userData?['newUser'] ?? false;
+
+            if (emailVerificationEnabled && !isVerified) {
+              // Redirect to the verification screen if not verified
+              return const Verify();
+            } else if (newUser) {
+              // If it's a new user, show the profile edit screen
+              return const EditProfileScreen();
+            } else {
+              // If the user is verified and not new, navigate to the home screen
+              return const Home();
+            }
+          }
+
+          return Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation(AppColors.white),
+            ),
+          );
+        },
+      ),
     );
   }
 }

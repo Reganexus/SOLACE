@@ -170,6 +170,27 @@ class DatabaseService {
     }
   }
 
+  Future<String> getProfileImageUrl(String userId) async {
+    try {
+      // Fetch the user document by userId
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+
+      // If the document exists, retrieve the profileImageUrl field
+      if (userDoc.exists) {
+        return userDoc['profileImageUrl'] ??
+            ''; // Return the URL if it exists, otherwise return an empty string
+      } else {
+        return ''; // Return an empty string if no document is found
+      }
+    } catch (e) {
+      print("Error fetching profile image URL: $e");
+      return ''; // Return an empty string in case of error
+    }
+  }
+
   // Method to add a vital record
   Future<void> addVitalRecord(String vital, double inputRecord) async {
     if (uid != null) {
@@ -553,10 +574,34 @@ class DatabaseService {
     final timestamp = FieldValue.serverTimestamp();
 
     try {
-      await userCollection.doc(targetUserId).update({
+      // Fetch the current user's name
+      final currentUserSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUserId)
+          .get();
+      String currentUserName = '';
+      if (currentUserSnapshot.exists) {
+        currentUserName =
+            currentUserSnapshot.data()?['firstName']?.trim() ?? '';
+        String lastName = currentUserSnapshot.data()?['lastName']?.trim() ?? '';
+        currentUserName = '$currentUserName $lastName'.trim();
+      }
+
+      // Send the friend request
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(targetUserId)
+          .update({
         'contacts.requests.$currentUserId': {'timestamp': timestamp}
       });
       print('Friend request sent from $currentUserId to $targetUserId');
+
+      // Add notification for the target user
+      await addNotification(
+        targetUserId,
+        "You have a new friend request from $currentUserName.", // Replaced UID with the name
+        'friend_request',
+      );
     } catch (e) {
       print('Error sending friend request: $e');
     }
@@ -568,9 +613,36 @@ class DatabaseService {
     final timestamp = FieldValue.serverTimestamp();
 
     try {
+      // Fetch the current user's name
+      final currentUserSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUserId)
+          .get();
+      String currentUserName = '';
+      if (currentUserSnapshot.exists) {
+        currentUserName =
+            currentUserSnapshot.data()?['firstName']?.trim() ?? '';
+        String lastName = currentUserSnapshot.data()?['lastName']?.trim() ?? '';
+        currentUserName = '$currentUserName $lastName'.trim();
+      }
+
+      // Fetch the sender user's name
+      final senderUserSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(senderUserId)
+          .get();
+      String senderUserName = '';
+      if (senderUserSnapshot.exists) {
+        senderUserName = senderUserSnapshot.data()?['firstName']?.trim() ?? '';
+        String lastName = senderUserSnapshot.data()?['lastName']?.trim() ?? '';
+        senderUserName = '$senderUserName $lastName'.trim();
+      }
+
       await FirebaseFirestore.instance.runTransaction((transaction) async {
-        final userRef = userCollection.doc(currentUserId);
-        final senderRef = userCollection.doc(senderUserId);
+        final userRef =
+            FirebaseFirestore.instance.collection('users').doc(currentUserId);
+        final senderRef =
+            FirebaseFirestore.instance.collection('users').doc(senderUserId);
 
         // Remove request from the current user's requests and add to friends
         transaction.update(userRef, {
@@ -585,6 +657,13 @@ class DatabaseService {
       });
 
       print('Accepted friend request from $senderUserId for $currentUserId');
+
+      // Add notification for the sender user
+      await addNotification(
+        senderUserId,
+        "Your friend request to $currentUserName has been accepted.", // Replaced UID with the name
+        'friend_request',
+      );
     } catch (e) {
       print('Error accepting friend request: $e');
     }

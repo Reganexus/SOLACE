@@ -136,7 +136,7 @@ class CaregiverPatientsState extends State<CaregiverPatients> {
                                   color: _focusNode.hasFocus
                                       ? AppColors.neon
                                       : Colors
-                                          .grey, // Change color based on focus
+                                      .grey, // Change color based on focus
                                 ),
                                 onPressed: () {
                                   _filterPatients(_searchController.text);
@@ -216,8 +216,9 @@ class CaregiverPatientsState extends State<CaregiverPatients> {
                             child: Row(
                               children: [
                                 CircleAvatar(
-                                  backgroundImage: AssetImage(
-                                      'lib/assets/images/shared/placeholder.png'),
+                                  backgroundImage: (patient.profileImageUrl.isNotEmpty)
+                                      ? NetworkImage(patient.profileImageUrl)  // Use NetworkImage if the profile image URL exists
+                                      : const AssetImage('lib/assets/images/shared/placeholder.png') as ImageProvider, // Fallback to placeholder image
                                   radius: 24.0,
                                 ),
                                 const SizedBox(width: 10.0),

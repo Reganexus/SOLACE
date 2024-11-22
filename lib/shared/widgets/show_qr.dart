@@ -32,7 +32,7 @@ class ShowQrPage extends StatelessWidget {
         iconTheme: IconThemeData(color: AppColors.white), // Set back button color to white
         titleTextStyle: TextStyle(
           color: AppColors.white, // Set title text color to white
-          fontSize: 20, // You can customize the font size if needed
+          fontSize: 24, // You can customize the font size if needed
           fontWeight: FontWeight.bold, // You can adjust the font weight as well
         ),
       ),

@@ -48,7 +48,7 @@ class _CaregiverHomeState extends State<CaregiverHome> {
       stream: DatabaseService(uid: user?.uid).userData,
       builder: (context, snapshot) {
         String firstName = '';
-        String profileImageUrl = 'lib/assets/images/shared/placeholder.png'; // Default image
+        String profileImageUrl = 'lib/assets/images/auth/solace-rounded.png'; // Default image
 
         if (snapshot.hasData) {
           final userData = snapshot.data!;
@@ -235,7 +235,7 @@ class _CaregiverHomeState extends State<CaregiverHome> {
 
   // Function to show QR modal
   void _showQrModal(BuildContext context, String fullName, String uid, String profileImageUrl) {
-    final imageUrl = profileImageUrl.isNotEmpty ? profileImageUrl : 'lib/assets/images/shared/placeholder.png';
+    final imageUrl = profileImageUrl.isNotEmpty ? profileImageUrl : 'lib/assets/images/auth/solace-rounded.png';
     Navigator.push(
       context,
       MaterialPageRoute(

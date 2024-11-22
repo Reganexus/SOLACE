@@ -112,9 +112,9 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
             colorScheme: ColorScheme.light(
               primary: AppColors.neon, // Customize primary color
               onPrimary:
-                  AppColors.white, // Customize text color on primary color
+              AppColors.white, // Customize text color on primary color
               onSurface:
-                  AppColors.black, // Customize text color on surface color
+              AppColors.black, // Customize text color on surface color
             ),
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
@@ -138,9 +138,9 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
               colorScheme: ColorScheme.light(
                 primary: AppColors.neon, // Customize primary color
                 onPrimary:
-                    AppColors.white, // Customize text color on primary color
+                AppColors.white, // Customize text color on primary color
                 onSurface:
-                    AppColors.black, // Customize text color on surface color
+                AppColors.black, // Customize text color on surface color
               ),
             ),
             child: child!,
@@ -284,8 +284,9 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
                                 headerPadding: const EdgeInsets.symmetric(
                                     vertical: 10, horizontal: 15),
                                 leftIcon: CircleAvatar(
-                                  backgroundImage: AssetImage(
-                                      'lib/assets/images/shared/placeholder.png'),
+                                  backgroundImage: (patient?.profileImageUrl != null && patient!.profileImageUrl.isNotEmpty)
+                                      ? NetworkImage(patient.profileImageUrl)  // Use NetworkImage if the profile image URL exists
+                                      : const AssetImage('lib/assets/images/shared/placeholder.png') as ImageProvider, // Fallback to placeholder image
                                   radius: 24.0,
                                 ),
                                 rightIcon: ValueListenableBuilder<int?>(
@@ -312,9 +313,9 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
                                         '${patient?.firstName ?? 'Unknown'} ${patient?.lastName ?? 'Unknown'}',
                                         style: headerStyle.copyWith(
                                           color:
-                                              value == patients.indexOf(patient)
-                                                  ? AppColors.white
-                                                  : AppColors.black,
+                                          value == patients.indexOf(patient)
+                                              ? AppColors.white
+                                              : AppColors.black,
                                           fontSize: 18.0,
                                           fontFamily: 'Inter',
                                           fontWeight: FontWeight.normal,
@@ -340,13 +341,13 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
                                     const SizedBox(height: 20.0),
                                     Row(
                                       mainAxisAlignment:
-                                          MainAxisAlignment.start,
+                                      MainAxisAlignment.start,
                                       children: [
                                         _buildActionButton(
                                           'Schedule',
                                           'lib/assets/images/shared/functions/schedule.png',
                                           AppColors.darkblue,
-                                          () => _scheduleAppointment(
+                                              () => _scheduleAppointment(
                                               caregiverId, patient?.uid ?? ''),
                                         ),
                                         const SizedBox(width: 10),
@@ -354,7 +355,7 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
                                           'Call',
                                           'lib/assets/images/shared/functions/call.png',
                                           AppColors.red,
-                                          () => _makeCall(
+                                              () => _makeCall(
                                               patient?.phoneNumber ?? ''),
                                         ),
                                       ],
@@ -377,3 +378,4 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
     );
   }
 }
+

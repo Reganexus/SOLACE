@@ -1,10 +1,7 @@
-// ignore_for_file: unused_import
-
 import 'package:flutter/material.dart';
 import 'package:solace/models/my_user.dart';
-import 'package:solace/shared/widgets/caregiver_view_status.dart';
-import 'package:solace/services/database.dart';
 import 'package:solace/shared/widgets/view_patient_task.dart';
+import 'package:solace/services/database.dart';
 import 'package:solace/themes/colors.dart';
 
 class DoctorTasks extends StatefulWidget {
@@ -140,7 +137,7 @@ class DoctorTasksState extends State<DoctorTasks> {
                                   color: _focusNode.hasFocus
                                       ? AppColors.neon
                                       : Colors
-                                          .grey, // Change color based on focus
+                                      .grey, // Change color based on focus
                                 ),
                                 onPressed: () {
                                   _filterPatients(_searchController.text);
@@ -201,10 +198,9 @@ class DoctorTasksState extends State<DoctorTasks> {
                               context,
                               MaterialPageRoute(
                                 builder: (context) => ViewPatientTask(
-                                  patientId: patient
-                                      .uid, // Pass the patient's unique ID
+                                  patientId: patient.uid, // Pass the patient's unique ID
                                   patientName:
-                                      '${patient.firstName} ${patient.lastName}', // Pass the full name
+                                  '${patient.firstName} ${patient.lastName}', // Pass the full name
                                 ),
                               ),
                             );
@@ -220,8 +216,9 @@ class DoctorTasksState extends State<DoctorTasks> {
                             child: Row(
                               children: [
                                 CircleAvatar(
-                                  backgroundImage: AssetImage(
-                                      'lib/assets/images/shared/placeholder.png'),
+                                  backgroundImage: (patient.profileImageUrl.isNotEmpty)
+                                      ? NetworkImage(patient.profileImageUrl) // Use NetworkImage if the profile image URL exists
+                                      : const AssetImage('lib/assets/images/shared/placeholder.png') as ImageProvider, // Fallback to placeholder image
                                   radius: 24.0,
                                 ),
                                 const SizedBox(width: 10.0),

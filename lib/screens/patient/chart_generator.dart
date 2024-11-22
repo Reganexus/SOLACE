@@ -67,7 +67,7 @@ class ChartTesting extends StatelessWidget {
     double maxY = leftTitles[0].toDouble() + 5; // Add padding above max
 
     return SizedBox(
-      height: 250, // Set the height of the graph
+      height: 200, // Set the height of the graph
       child: LineChart(
         LineChartData(
           lineTouchData: LineTouchData(

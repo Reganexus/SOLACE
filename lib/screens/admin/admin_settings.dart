@@ -1,12 +1,12 @@
-// ignore_for_file: avoid_print, unused_element
+// ignore_for_file: avoid_print, unused_element, use_build_context_synchronously
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:solace/screens/admin/export_data.dart';
 import 'package:solace/services/database.dart';
+import 'package:solace/shared/widgets/help_page.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/services/auth.dart';
 import 'package:solace/shared/widgets/user_editprofile.dart';
-import 'package:solace/shared/widgets/contacts.dart';
 import 'package:solace/models/my_user.dart';
 
 class AdminSettings extends StatelessWidget {
@@ -40,13 +40,15 @@ class AdminSettings extends StatelessWidget {
                 address: 'Set Address',
                 gender: 'Set Gender',
                 birthday: null,
-                userRole: UserRole.patient, // Default to 'patient' if no role found
+                userRole:
+                    UserRole.patient, // Default to 'patient' if no role found
                 isVerified: false,
                 newUser: true,
-                dateCreated: DateTime.now(), // Providing default dateCreated value
-                profileImageUrl: '', // Default profile image URL (empty string or placeholder)
+                dateCreated:
+                    DateTime.now(), // Providing default dateCreated value
+                profileImageUrl:
+                    '', // Default profile image URL (empty string or placeholder)
               );
-
 
           return SingleChildScrollView(
             child: Container(
@@ -61,11 +63,15 @@ class AdminSettings extends StatelessWidget {
                       width: 150,
                       height: 150,
                       decoration: BoxDecoration(
-                        borderRadius: const BorderRadius.all(Radius.circular(50)),
+                        borderRadius:
+                            const BorderRadius.all(Radius.circular(50)),
                         image: DecorationImage(
                           image: userData.profileImageUrl.isNotEmpty
-                              ? NetworkImage(userData.profileImageUrl) // Use the image from the URL if available
-                              : AssetImage('lib/assets/images/shared/placeholder.png') as ImageProvider, // Placeholder image if not
+                              ? NetworkImage(userData
+                                  .profileImageUrl) // Use the image from the URL if available
+                              : AssetImage(
+                                      'lib/assets/images/shared/placeholder.png')
+                                  as ImageProvider, // Placeholder image if not
                           fit: BoxFit.cover,
                         ),
                       ),
@@ -77,7 +83,8 @@ class AdminSettings extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Flexible( // Use Flexible to avoid overflow
+                        Flexible(
+                          // Use Flexible to avoid overflow
                           child: Text(
                             '${userData.firstName} ${userData.middleName} ${userData.lastName}',
                             style: const TextStyle(
@@ -86,7 +93,8 @@ class AdminSettings extends StatelessWidget {
                               fontFamily: 'Inter',
                               color: Colors.black,
                             ),
-                            overflow: TextOverflow.ellipsis, // Handle text overflow
+                            overflow:
+                                TextOverflow.ellipsis, // Handle text overflow
                           ),
                         ),
                       ],
@@ -106,7 +114,8 @@ class AdminSettings extends StatelessWidget {
                           );
                         },
                         style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 15, vertical: 5),
                           backgroundColor: AppColors.neon,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
@@ -137,7 +146,6 @@ class AdminSettings extends StatelessWidget {
                     ),
                   ),
 
-
                   const SizedBox(height: 10),
                   const Divider(thickness: 1.0),
                   const SizedBox(height: 10),
@@ -165,7 +173,10 @@ class AdminSettings extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => ExportDataScreen(filterValue: 'patient', title: 'Export Patient Data',),
+                              builder: (context) => ExportDataScreen(
+                                filterValue: 'patient',
+                                title: 'Export Patient Data',
+                              ),
                             ),
                           );
                         },
@@ -187,7 +198,10 @@ class AdminSettings extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => ExportDataScreen(filterValue: 'caregiver', title: 'Export Caregiver Data',),
+                              builder: (context) => ExportDataScreen(
+                                filterValue: 'caregiver',
+                                title: 'Export Caregiver Data',
+                              ),
                             ),
                           );
                         },
@@ -209,7 +223,10 @@ class AdminSettings extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => ExportDataScreen(filterValue: 'doctor', title: 'Export Doctor Data',),
+                              builder: (context) => ExportDataScreen(
+                                filterValue: 'doctor',
+                                title: 'Export Doctor Data',
+                              ),
                             ),
                           );
                         },
@@ -230,7 +247,10 @@ class AdminSettings extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => ExportDataScreen(filterValue: 'good', title: 'Export No Risk Patients Data',),
+                              builder: (context) => ExportDataScreen(
+                                filterValue: 'good',
+                                title: 'Export No Risk Patients Data',
+                              ),
                             ),
                           );
                         },
@@ -252,7 +272,10 @@ class AdminSettings extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => ExportDataScreen(filterValue: 'low', title: 'Export Low Risk Patients Data',),
+                              builder: (context) => ExportDataScreen(
+                                filterValue: 'low',
+                                title: 'Export Low Risk Patients Data',
+                              ),
                             ),
                           );
                         },
@@ -274,7 +297,10 @@ class AdminSettings extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => ExportDataScreen(filterValue: 'high', title: 'Export High Risk Patients Data',),
+                              builder: (context) => ExportDataScreen(
+                                filterValue: 'high',
+                                title: 'Export High Risk Patients Data',
+                              ),
                             ),
                           );
                         },
@@ -288,42 +314,7 @@ class AdminSettings extends StatelessWidget {
                           ),
                         ),
                       ),
-
                     ],
-                  ),
-
-                  const SizedBox(height: 10),
-                  const Divider(thickness: 1.0),
-                  const SizedBox(height: 10),
-
-                  const Text(
-                    'System Settings',
-                    style: TextStyle(
-                      fontSize: 18.0,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Inter',
-                      color: Colors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => Contacts(currentUserId: userData.uid,), // Navigate to Contacts view
-                        ),
-                      );
-                    },
-                    child: const Text(
-                      "Change System Settings",
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.normal,
-                        fontSize: 16.0,
-                        color: AppColors.black,
-                      ),
-                    ),
                   ),
 
                   const SizedBox(height: 10),
@@ -341,8 +332,11 @@ class AdminSettings extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   GestureDetector(
-                    onTap: () async {
-                      await AuthService().signOut();
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const HelpPage()),
+                      );
                     },
                     child: const Text(
                       "Help",
@@ -375,6 +369,26 @@ class AdminSettings extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+
+  void _showErrorDialog(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Error'),
+          content: Text(message),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
     );
   }
 
