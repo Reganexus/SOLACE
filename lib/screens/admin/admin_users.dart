@@ -105,12 +105,15 @@ class AdminUsersState extends State<AdminUsers> {
       ),
       child: Row(
         children: [
+          // Display profile image if available, otherwise show a placeholder
           CircleAvatar(
-            backgroundImage:
-                AssetImage('lib/assets/images/shared/placeholder.png'),
+            backgroundImage: patient.profileImageUrl.isNotEmpty
+                ? NetworkImage(patient.profileImageUrl)  // Use network image if available
+                : AssetImage('lib/assets/images/shared/placeholder.png') as ImageProvider,  // Fallback to placeholder
             radius: 24.0,
           ),
           const SizedBox(width: 10.0),
+          // Display patient's full name
           Text(
             '${patient.firstName} ${patient.lastName}',
             style: const TextStyle(

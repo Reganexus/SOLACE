@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 
-enum UserRole { admin, patient, family, caregiver, doctor }
+enum UserRole { admin, patient, caregiver, doctor }
 
 class MyUser with ChangeNotifier {
   String uid;
