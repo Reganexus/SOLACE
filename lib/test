@@ -1,0 +1,25 @@
+Future signUpWithEmailAndPassword(String email, String password) async {
+    try {
+      UserCredential result = await _auth.createUserWithEmailAndPassword(email: email, password: password);
+      User? user = result.user;
+      print('New user: ${user?.uid}'); // Check UID
+
+      // Attempt to write initial data to Firestore
+      await DatabaseService(uid: user!.uid).updateUserData(
+        lastName: 'none',
+        firstName: 'none',
+        middleName: 'none',
+        phoneNumber: 'none',
+        sex: 'Other',
+        birthMonth: 'January',
+        birthDay: '1',
+        birthYear: DateTime.now().year.toString(),
+      );
+
+      print('Firestore update complete for UID ${user.uid}'); // Confirm if this line is reached
+      return _userFromFirebaseUser(user);
+    } catch (e) {
+      print('Error in sign-up or Firestore: $e');
+      return null;
+    }
+}

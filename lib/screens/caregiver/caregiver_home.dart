@@ -1,461 +1,264 @@
 // ignore_for_file: avoid_print
 
-import 'package:accordion/controllers.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:provider/provider.dart';
+import 'package:solace/models/my_user.dart';
+import 'package:solace/services/database.dart';
+import 'package:solace/screens/caregiver/caregiver_dashboard.dart';
+import 'package:solace/screens/caregiver/caregiver_patients.dart';
+import 'package:solace/screens/caregiver/caregiver_tracking.dart';
+import 'package:solace/shared/widgets/bottom_navbar.dart';
+import 'package:solace/shared/widgets/notifications.dart';
+import 'package:solace/shared/widgets/profile.dart';
 import 'package:solace/themes/colors.dart';
-import 'package:accordion/accordion.dart';
+import 'package:solace/shared/widgets/show_qr.dart';
 
-class CaregiverHomeScreen extends StatefulWidget {
-  const CaregiverHomeScreen({super.key});
+class CaregiverHome extends StatefulWidget {
+  const CaregiverHome({super.key});
 
   @override
-  CaregiverHomeScreenState createState() => CaregiverHomeScreenState();
+  State<CaregiverHome> createState() => _CaregiverHomeState();
 }
 
-class CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
-  final ValueNotifier<int?> _openSectionIndex = ValueNotifier<int?>(null);
-  final ScrollController _scrollController = ScrollController();
+class _CaregiverHomeState extends State<CaregiverHome> {
+  int _currentIndex = 3;
+  late final List<Widget> _screens;
 
   @override
-  void dispose() {
-    _openSectionIndex.dispose();
-    _scrollController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _screens = [
+      CaregiverDashboard(),
+      CaregiverPatients(),
+      CaregiverTracking(),
+      Profile(),
+    ];
   }
 
-  void _handleOpenSection(int index) {
-    _openSectionIndex.value = index;
-
-    // Calculate the position to scroll based on the index
-    _scrollToSection(index);
+  void _onTap(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
   }
 
-  void _handleCloseSection() {
-    _openSectionIndex.value = null;
-  }
+  Widget _buildLeftAppBar(BuildContext context) {
+    final user = Provider.of<MyUser?>(context);
+    return StreamBuilder<UserData?>(
+      stream: DatabaseService(uid: user?.uid).userData,
+      builder: (context, snapshot) {
+        String firstName = '';
+        String profileImageUrl = 'lib/assets/images/auth/solace-rounded.png'; // Default image
 
-  // Function to scroll to the center of the screen
-  void _scrollToSection(int index) {
-    // Approximate height of each section (modify as per actual heights)
-    double sectionHeight =
-        100.0; // Adjust this according to your section height
-    double headerHeight = 80.0; // Approximate height of the header section
+        if (snapshot.hasData) {
+          final userData = snapshot.data!;
+          firstName = userData.firstName.split(' ')[0]; // Use first name
+          profileImageUrl = userData.profileImageUrl.isNotEmpty
+              ? userData.profileImageUrl // Use the profile image URL if it's not empty
+              : profileImageUrl; // Otherwise, use the default placeholder
+        }
 
-    // Calculate the offset
-    double targetOffset = headerHeight + (index * sectionHeight);
-
-    // Scroll the section into view (with some padding to center it)
-    _scrollController.animateTo(
-      targetOffset - (MediaQuery.of(context).size.height / 3),
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeInOut,
+        return Row(
+          children: [
+            CircleAvatar(
+              radius: 20.0,
+              backgroundImage: NetworkImage(profileImageUrl), // Display profile image from URL
+              onBackgroundImageError: (error, stackTrace) {
+                // Optional: Handle errors if the image URL is invalid
+                print('Error loading image: $error');
+              },
+            ),
+            const SizedBox(width: 10.0),
+            Text(
+              'Hello, $firstName',
+              style: const TextStyle(
+                fontSize: 18.0,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Inter',
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
-  static const headerStyle = TextStyle(
-    color: Colors.black,
-    fontSize: 16,
-    fontFamily: 'Inter',
-    fontWeight: FontWeight.bold,
-  );
 
-  static const contentStyle = TextStyle(
-    color: Colors.black,
-    fontSize: 14,
-    fontWeight: FontWeight.normal,
-  );
+  Widget _buildRightAppBar(BuildContext context) {
+    final user = Provider.of<MyUser?>(context); // Get the user using Provider.
 
-  // Sample patients data for accordion
-  final List<Map<String, dynamic>> patients = [
-    {
-      'name': 'Patient 1',
-      'profilePic': 'lib/assets/images/shared/placeholder.png',
-      'conditions': ['High blood pressure', 'Diabetes', 'Arthritis']
-    },
-    {
-      'name': 'Patient 2',
-      'profilePic': 'lib/assets/images/shared/placeholder.png',
-      'conditions': ['Asthma', 'Allergies', 'Back pain']
-    },
-    {
-      'name': 'Patient 3',
-      'profilePic': 'lib/assets/images/shared/placeholder.png',
-      'conditions': ['Heart disease', 'Migraines', 'Vision loss']
-    },
-    {
-      'name': 'Patient 4',
-      'profilePic': 'lib/assets/images/shared/placeholder.png',
-      'conditions': ['High blood pressure', 'Diabetes', 'Arthritis']
-    },
-    {
-      'name': 'Patient 5',
-      'profilePic': 'lib/assets/images/shared/placeholder.png',
-      'conditions': ['Asthma', 'Allergies', 'Back pain']
-    },
-    {
-      'name': 'Patient 6',
-      'profilePic': 'lib/assets/images/shared/placeholder.png',
-      'conditions': ['Heart disease', 'Migraines', 'Vision loss']
-    },
-    {
-      'name': 'Patient 7',
-      'profilePic': 'lib/assets/images/shared/placeholder.png',
-      'conditions': ['High blood pressure', 'Diabetes', 'Arthritis']
-    },
-    {
-      'name': 'Patient 8',
-      'profilePic': 'lib/assets/images/shared/placeholder.png',
-      'conditions': ['Asthma', 'Allergies', 'Back pain']
-    },
-    {
-      'name': 'Patient 9',
-      'profilePic': 'lib/assets/images/shared/placeholder.png',
-      'conditions': ['Heart disease', 'Migraines', 'Vision loss']
-    },
-    {
-      'name': 'Patient 10',
-      'profilePic': 'lib/assets/images/shared/placeholder.png',
-      'conditions': ['High blood pressure', 'Diabetes', 'Arthritis']
-    },
-    {
-      'name': 'Patient 11',
-      'profilePic': 'lib/assets/images/shared/placeholder.png',
-      'conditions': ['Asthma', 'Allergies', 'Back pain']
-    },
-    {
-      'name': 'Patient 12',
-      'profilePic': 'lib/assets/images/shared/placeholder.png',
-      'conditions': ['Heart disease', 'Migraines', 'Vision loss']
-    },
-  ];
-
-  // Function to launch a phone call
-  Future<void> _makeCall(String phoneNumber) async {
-    final Uri launchUri = Uri(
-      scheme: 'tel',
-      path: phoneNumber,
-    );
-    if (await canLaunchUrl(launchUri)) {
-      await launchUrl(launchUri);
-    } else {
-      throw 'Could not launch $launchUri';
+    if (user == null) {
+      return IconButton(
+        icon: Image.asset(
+          'lib/assets/images/shared/header/notification.png',
+          height: 30,
+        ),
+        onPressed: () => _showNotifications(context),
+      );
     }
-  }
 
-  // Function to send a message
-  Future<void> _sendMessage(String phoneNumber) async {
-    final Uri launchUri = Uri(
-      scheme: 'sms',
-      path: phoneNumber,
-      queryParameters: {'body': 'Hello! How can I assist you?'},
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data == null) {
+          return IconButton(
+            icon: Image.asset(
+              'lib/assets/images/shared/header/notification.png',
+              height: 30,
+            ),
+            onPressed: () => _showNotifications(context),
+          );
+        }
+
+        // Check if there are unread notifications
+        List<dynamic> notifications = snapshot.data!['notifications'] ?? [];
+        bool hasUnread = notifications.any((n) => n['read'] == false);
+
+        return Stack(
+          children: [
+            IconButton(
+              icon: Image.asset(
+                'lib/assets/images/shared/header/notification.png',
+                height: 30,
+              ),
+              onPressed: () => _showNotifications(context),
+            ),
+            if (hasUnread)
+              Positioned(
+                right: 0,
+                top: 0,
+                child: Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
-    if (await canLaunchUrl(launchUri)) {
-      await launchUrl(launchUri);
-    } else {
-      throw 'Could not launch $launchUri';
-    }
   }
 
-  // Function to schedule an appointment (placeholder)
-  void _scheduleAppointment() {
-    // Implement scheduling functionality
-    print('Scheduling appointment...');
+
+  PreferredSizeWidget _buildAppBar() {
+    final user = Provider.of<MyUser?>(context);
+
+    return PreferredSize(
+      preferredSize: const Size.fromHeight(60.0),
+      child: StreamBuilder<UserData?>(
+        stream: DatabaseService(uid: user?.uid).userData,
+        builder: (context, snapshot) {
+          String fullName = snapshot.hasData
+              ? '${snapshot.data?.firstName ?? 'User'} ${snapshot.data?.middleName ?? ''} ${snapshot.data?.lastName ?? 'User'}'
+              : 'User';
+
+          return AppBar(
+            backgroundColor: AppColors.white,
+            scrolledUnderElevation: 0.0,
+            automaticallyImplyLeading: false,
+            elevation: 0.0,
+            title: Padding(
+              padding: const EdgeInsets.fromLTRB(15.0, 20.0, 15.0, 10.0),
+              child: _currentIndex == 0
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildLeftAppBar(context),
+                        _buildRightAppBar(context),
+                      ],
+                    )
+                  : _currentIndex == 3
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Profile',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'Inter',
+                              ),
+                            ),
+                            IconButton(
+                              icon: Image.asset(
+                                'lib/assets/images/shared/profile/qr.png',
+                                height: 30,
+                              ),
+                              onPressed: () {
+                                _showQrModal(
+                                  context,
+                                  fullName,
+                                  user?.uid ?? '',
+                                  user?.profileImageUrl ?? '',  // Make sure to pass the profileImageUrl
+                                );
+                              },
+
+                            ),
+                          ],
+                        )
+                      : Text(
+                          _currentIndex == 1 ? 'Patients' : 'Tracking',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Inter',
+                          ),
+                        ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   void _showNotifications(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Notifications'),
-          content: const SingleChildScrollView(
-            child: ListBody(
-              children: [
-                Text('Notification 1: System update available.'),
-                Text('Notification 2: New message received.'),
-                Text('Notification 3: Your profile has been updated.'),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              child: const Text('Close'),
-              onPressed: () {
-                Navigator.of(context).pop(); // Close modal
-              },
-            ),
-          ],
-        );
-      },
+    final user =
+        Provider.of<MyUser?>(context, listen: false); // Add listen: false
+
+    if (user == null) {
+      // Handle case where user is not available (optional)
+      return;
+    }
+
+    // Pass user.uid to NotificationList widget
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => NotificationList(
+            userId: user.uid), // Pass userId to NotificationView
+      ),
     );
   }
 
-  // Messages modal
-  void _showMessages(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Messages'),
-          content: const SingleChildScrollView(
-            child: ListBody(
-              children: [
-                Text('Message 1: Welcome to Solace!'),
-                Text('Message 2: Don’t forget to update your profile.'),
-                Text('Message 3: Your password has been changed.'),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              child: const Text('Close'),
-              onPressed: () {
-                Navigator.of(context).pop(); // Close modal
-              },
-            ),
-          ],
-        );
-      },
+  // Function to show QR modal
+  void _showQrModal(BuildContext context, String fullName, String uid, String profileImageUrl) {
+    final imageUrl = profileImageUrl.isNotEmpty ? profileImageUrl : 'lib/assets/images/auth/solace-rounded.png';
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ShowQrPage(
+          fullName: fullName,
+          uid: uid,
+          profileImageUrl: imageUrl,  // Pass the profileImageUrl here
+        ),
+      ),
     );
   }
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        color: Colors.white,
-        padding: const EdgeInsets.all(30),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header section
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 20.0,
-                      backgroundImage: AssetImage(
-                          'lib/assets/images/shared/placeholder.png'),
-                    ),
-                    SizedBox(width: 10.0),
-                    Text(
-                      'Hello, Caregiver',
-                      style: TextStyle(
-                        fontSize: 16.0,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Inter',
-                      ),
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    _buildIconButton(
-                      'lib/assets/images/shared/header/message.png',
-                      () => _showMessages(context), // Show messages modal
-                    ),
-                    const SizedBox(width: 10.0),
-                    _buildIconButton(
-                      'lib/assets/images/shared/header/notification.png',
-                      () => _showNotifications(
-                          context), // Show notifications modal
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 30.0),
-
-            // Priority Patients section
-            const Text(
-              'Priority Patients',
-              style: TextStyle(
-                fontSize: 24.0,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Outfit',
-              ),
-            ),
-            const SizedBox(height: 20.0),
-
-            // Accordion section
-            Expanded(
-              child: SingleChildScrollView(
-                controller: _scrollController, // Attach scroll controller
-                child: Accordion(
-                  scrollIntoViewOfItems: ScrollIntoViewOfItems.fast,
-                  scaleWhenAnimating: false,
-                  paddingListHorizontal: 0.0,
-                  paddingListTop: 0.0,
-                  paddingListBottom: 0.0,
-                  maxOpenSections: 1,
-                  headerBackgroundColor: AppColors.gray,
-                  headerBackgroundColorOpened: AppColors.neon,
-                  contentBackgroundColor: AppColors.gray,
-                  contentBorderColor: AppColors.gray,
-                  contentHorizontalPadding: 20,
-                  contentVerticalPadding: 10,
-                  headerPadding:
-                      const EdgeInsets.symmetric(vertical: 7, horizontal: 15),
-                  children: patients.asMap().entries.map((entry) {
-                    int index = entry.key;
-                    var patient = entry.value;
-                    return AccordionSection(
-                      onOpenSection: () =>
-                          _handleOpenSection(index), // Handle opening section
-                      onCloseSection:
-                          _handleCloseSection, // Handle closing section
-                      headerBackgroundColor: AppColors.gray,
-                      headerBackgroundColorOpened: AppColors.neon,
-                      contentBackgroundColor: AppColors.gray,
-                      contentBorderColor: AppColors.gray,
-                      contentHorizontalPadding: 20,
-                      contentVerticalPadding: 10,
-                      headerPadding: const EdgeInsets.symmetric(
-                          vertical: 7, horizontal: 15),
-                      leftIcon: CircleAvatar(
-                        backgroundImage: AssetImage(patient['profilePic']),
-                        radius: 16.0,
-                      ),
-                      rightIcon: ValueListenableBuilder<int?>(
-                        valueListenable: _openSectionIndex,
-                        builder: (context, value, child) {
-                          return Icon(
-                            Icons.keyboard_arrow_down,
-                            color: value == index
-                                ? AppColors.white
-                                : AppColors
-                                    .black, // Change color based on state
-                            size: 20,
-                          );
-                        },
-                      ),
-                      isOpen: _openSectionIndex.value == index,
-                      header: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 10.0),
-                        child: ValueListenableBuilder<int?>(
-                          valueListenable: _openSectionIndex,
-                          builder: (context, value, child) {
-                            return Text(
-                              patient['name'],
-                              style: headerStyle.copyWith(
-                                color: value == index
-                                    ? AppColors.white
-                                    : AppColors.black,
-                                fontFamily: 'Inter',
-                                fontSize: 14.0,
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      content: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Identified Conditions',
-                            style: TextStyle(
-                              fontSize: 14.0,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'Inter',
-                            ),
-                          ),
-                          const SizedBox(height: 10.0),
-                          ...patient['conditions'].map((condition) {
-                            return Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('• ',
-                                    style: TextStyle(fontSize: 16)), // Bullet
-                                Expanded(
-                                    child:
-                                        Text(condition, style: contentStyle)),
-                              ],
-                            );
-                          }).toList(),
-                          const SizedBox(height: 20.0), // Space before buttons
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              _buildActionButton(
-                                'Schedule',
-                                'lib/assets/images/shared/functions/schedule.png',
-                                AppColors.darkblue,
-                                () => _scheduleAppointment(),
-                              ),
-                              _buildActionButton(
-                                'Message',
-                                'lib/assets/images/shared/functions/message.png',
-                                AppColors.blue,
-                                () => _sendMessage(
-                                    '1234567890'), // Placeholder number
-                              ),
-                              _buildActionButton(
-                                'Call',
-                                'lib/assets/images/shared/functions/call.png',
-                                AppColors.red,
-                                () => _makeCall(
-                                    '1234567890'), // Placeholder number
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionButton(
-      String label, String iconPath, Color bgColor, VoidCallback onPressed) {
-    return Container(
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 0.0, vertical: 0.0),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(5.0),
-      ),
-      child: TextButton(
-        onPressed: onPressed,
-        child: Row(
-          children: [
-            Image.asset(iconPath, height: 20, width: 20), // Icon
-            const SizedBox(width: 5), // Space between icon and text
-            Text(
-              label,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildIconButton(String imagePath, VoidCallback onPressed) {
-    return Container(
-      padding: const EdgeInsets.all(2.0),
-      decoration: const BoxDecoration(
-        color: AppColors.gray,
-        shape: BoxShape.circle,
-      ),
-      child: IconButton(
-        icon: Image.asset(
-          imagePath,
-          height: 20,
-        ),
-        onPressed: onPressed,
+      backgroundColor: AppColors.white,
+      appBar: _buildAppBar(),
+      body: _screens[_currentIndex],
+      bottomNavigationBar: BottomNavBar(
+        currentIndex: _currentIndex,
+        onTap: _onTap,
+        role: 'Caregiver',
       ),
     );
   }

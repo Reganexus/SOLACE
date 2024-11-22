@@ -7,7 +7,9 @@ class AppColors {
   static const Color darkpurple = Color(0xFF5719DD);
   static const Color red = Color(0xFFFF0000);
   static const Color blue = Color(0xFF1B59F8);
+  static const Color yellow = Color(0xFFD3CF58);
   static const Color darkblue = Color(0xFF2F2E43);
+  static const Color darkgray = Color(0xFF454545);
   static const Color gray = Color(0x80ECECEC);
 
   // Text colors
