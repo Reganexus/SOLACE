@@ -86,7 +86,7 @@ class _GetStartedState extends State<GetStarted> {
                     const SizedBox(
                       width: double.infinity,
                       child: Text(
-                        'Where we bridge the gap in palliative and hospice care',
+                        'Bridging the gap in palliative and hospice care',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontWeight: FontWeight.normal,

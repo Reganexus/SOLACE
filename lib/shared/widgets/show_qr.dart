@@ -33,7 +33,6 @@ class ShowQrPage extends StatelessWidget {
         titleTextStyle: TextStyle(
           color: AppColors.white, // Set title text color to white
           fontSize: 24, // You can customize the font size if needed
-          fontWeight: FontWeight.bold, // You can adjust the font weight as well
         ),
       ),
 
@@ -115,13 +114,13 @@ class ShowQrPage extends StatelessWidget {
                     ),
                   ),
                   Positioned(
-                    top: 110,
+                    top: 100,
                     child: Container(
                       width: 150,
                       height: 150,
                       decoration: BoxDecoration(
                         borderRadius:
-                        const BorderRadius.all(Radius.circular(50)),
+                        const BorderRadius.all(Radius.circular(100)),
                         image: DecorationImage(
                           image: profileImageUrl.isNotEmpty
                               ? NetworkImage(profileImageUrl)

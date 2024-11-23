@@ -214,18 +214,27 @@ class UserDataFormState extends State<UserDataForm> {
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Ensure phone number starts with "09"
     String phoneNumber = phoneNumberController.text.trim();
-    if (!phoneNumber.startsWith('9')) {
-      phoneNumber = '09${phoneNumber.substring(1)}'; // Correct the prefix to "09"
+
+    // Ensure the number is formatted correctly
+    if (!RegExp(r'^09\d{9}$').hasMatch(phoneNumber)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:
+              Text('Phone number must start with "09" and be 11 digits long'),
+        ),
+      );
+      return;
     }
 
+    // Check if the phone number is unique
     final isUnique = await _isPhoneNumberUnique(phoneNumber);
 
     if (!isUnique) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Phone number already exists. Please use a different one.'),
+          content:
+              Text('Phone number already exists. Please use a different one.'),
         ),
       );
       return;
@@ -269,7 +278,9 @@ class UserDataFormState extends State<UserDataForm> {
       } catch (e) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to upload profile image. Please try again.')),
+          SnackBar(
+              content:
+                  Text('Failed to upload profile image. Please try again.')),
         );
         return;
       }
@@ -291,7 +302,6 @@ class UserDataFormState extends State<UserDataForm> {
       SnackBar(content: Text('Profile updated successfully!')),
     );
   }
-
 
   String capitalizeEachWord(String text) {
     return text
@@ -390,11 +400,19 @@ class UserDataFormState extends State<UserDataForm> {
                   color: AppColors.black,
                 ),
                 decoration:
-                _buildInputDecoration('Phone Number', _focusNodes[3]),
+                    _buildInputDecoration('Phone Number', _focusNodes[3]),
                 keyboardType: TextInputType.phone,
-                validator: (val) =>
-                val!.isEmpty ? 'Phone number cannot be empty' : null,
+                validator: (val) {
+                if (val == null || val.isEmpty) {
+                  return 'Phone number cannot be empty';
+                }
+                if (!RegExp(r'^09\d{9}$').hasMatch(val)) {
+                  return 'Invalid Phone Number';
+                }
+                return null;
+              },
               ),
+
               // Birthday Field
               const SizedBox(height: 20),
               TextFormField(

@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_print, unused_import
+// ignore_for_file: avoid_print, unused_import, use_build_context_synchronously
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:solace/services/database.dart';
@@ -44,11 +44,24 @@ class Profile extends StatelessWidget {
                 userRole: UserRole.patient, // Default to 'patient' if no role found
                 isVerified: false,
                 newUser: true,
-                dateCreated: DateTime.now(), // Providing default dateCreated value
-                profileImageUrl: '', // Default profile image URL (empty string or placeholder)
+                dateCreated: DateTime.now(),
+                profileImageUrl: '',
               );
 
+          // Redirect to EditProfileScreen if newUser is true
+          if (userData.newUser) {
+            Future.microtask(() {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const EditProfileScreen(),
+                ),
+              );
+            });
+            return const SizedBox(); // Return an empty widget while redirecting
+          }
 
+          // Main Profile Screen if newUser is false
           return SingleChildScrollView(
             child: Container(
               color: AppColors.white,
@@ -61,8 +74,9 @@ class Profile extends StatelessWidget {
                     child: CircleAvatar(
                       radius: 75,
                       backgroundImage: userData.profileImageUrl.isNotEmpty
-                          ? NetworkImage(userData.profileImageUrl) // Use the image from the URL if available
-                          : AssetImage('lib/assets/images/shared/placeholder.png') as ImageProvider,
+                          ? NetworkImage(userData.profileImageUrl)
+                          : AssetImage('lib/assets/images/shared/placeholder.png')
+                      as ImageProvider,
                     ),
                   ),
 
@@ -72,7 +86,7 @@ class Profile extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Flexible( // Use Flexible to avoid overflow
+                        Flexible(
                           child: Text(
                             '${userData.firstName} ${userData.middleName} ${userData.lastName}',
                             style: const TextStyle(
@@ -81,7 +95,7 @@ class Profile extends StatelessWidget {
                               fontFamily: 'Inter',
                               color: Colors.black,
                             ),
-                            overflow: TextOverflow.ellipsis, // Handle text overflow
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -101,7 +115,8 @@ class Profile extends StatelessWidget {
                           );
                         },
                         style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 15, vertical: 5),
                           backgroundColor: AppColors.neon,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
@@ -132,7 +147,6 @@ class Profile extends StatelessWidget {
                     ),
                   ),
 
-
                   const SizedBox(height: 10),
                   const Divider(thickness: 1.0),
                   const SizedBox(height: 10),
@@ -156,12 +170,16 @@ class Profile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildProfileInfoSection('Email Address', userData.email),
-                      _buildProfileInfoSection('Phone Number', userData.phoneNumber),
-                      _buildProfileInfoSection('House Address', userData.address),
+                      _buildProfileInfoSection(
+                          'Phone Number', userData.phoneNumber),
+                      _buildProfileInfoSection(
+                          'House Address', userData.address),
                       _buildProfileInfoSection('Gender', userData.gender),
-                      _buildProfileInfoSection('Birthdate',
-                          userData.birthday != null ?
-                          '${userData.birthday!.month}/${userData.birthday!.day}/${userData.birthday!.year}' : ''),
+                      _buildProfileInfoSection(
+                          'Birthdate',
+                          userData.birthday != null
+                              ? '${userData.birthday!.month}/${userData.birthday!.day}/${userData.birthday!.year}'
+                              : ''),
                     ],
                   ),
 
@@ -184,7 +202,9 @@ class Profile extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => Contacts(currentUserId: userData.uid,), // Navigate to Contacts view
+                          builder: (context) => Contacts(
+                            currentUserId: userData.uid,
+                          ),
                         ),
                       );
                     },
@@ -217,7 +237,8 @@ class Profile extends StatelessWidget {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const HelpPage()),
+                        MaterialPageRoute(
+                            builder: (context) => const HelpPage()),
                       );
                     },
                     child: const Text(
@@ -283,3 +304,4 @@ class Profile extends StatelessWidget {
     );
   }
 }
+
