@@ -112,9 +112,9 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
             colorScheme: ColorScheme.light(
               primary: AppColors.neon, // Customize primary color
               onPrimary:
-              AppColors.white, // Customize text color on primary color
+                  AppColors.white, // Customize text color on primary color
               onSurface:
-              AppColors.black, // Customize text color on surface color
+                  AppColors.black, // Customize text color on surface color
             ),
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
@@ -138,9 +138,9 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
               colorScheme: ColorScheme.light(
                 primary: AppColors.neon, // Customize primary color
                 onPrimary:
-                AppColors.white, // Customize text color on primary color
+                    AppColors.white, // Customize text color on primary color
                 onSurface:
-                AppColors.black, // Customize text color on surface color
+                    AppColors.black, // Customize text color on surface color
               ),
             ),
             child: child!,
@@ -242,6 +242,17 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
 
                     final patients = snapshot.data ?? [];
 
+                    // Filter patients whose status is "unstable"
+                    final unstablePatients = patients
+                        .where((patient) => patient?.status == 'unstable')
+                        .toList();
+
+                    if (unstablePatients.isEmpty) {
+                      return const Center(
+                        child: Text('No unstable patients available'),
+                      );
+                    }
+
                     return SingleChildScrollView(
                       controller: _scrollController,
                       child: Column(
@@ -270,10 +281,10 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
                             contentVerticalPadding: 10,
                             headerPadding: const EdgeInsets.symmetric(
                                 vertical: 7, horizontal: 15),
-                            children: patients.map((patient) {
+                            children: unstablePatients.map((patient) {
                               return AccordionSection(
                                 onOpenSection: () => _handleOpenSection(
-                                    patients.indexOf(patient)),
+                                    unstablePatients.indexOf(patient)),
                                 onCloseSection: _handleCloseSection,
                                 headerBackgroundColor: AppColors.gray,
                                 headerBackgroundColorOpened: AppColors.neon,
@@ -284,9 +295,14 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
                                 headerPadding: const EdgeInsets.symmetric(
                                     vertical: 10, horizontal: 15),
                                 leftIcon: CircleAvatar(
-                                  backgroundImage: (patient?.profileImageUrl != null && patient!.profileImageUrl.isNotEmpty)
-                                      ? NetworkImage(patient.profileImageUrl)  // Use NetworkImage if the profile image URL exists
-                                      : const AssetImage('lib/assets/images/shared/placeholder.png') as ImageProvider, // Fallback to placeholder image
+                                  backgroundImage: (patient?.profileImageUrl !=
+                                              null &&
+                                          patient!.profileImageUrl.isNotEmpty)
+                                      ? NetworkImage(patient
+                                          .profileImageUrl) // Use NetworkImage if the profile image URL exists
+                                      : const AssetImage(
+                                              'lib/assets/images/shared/placeholder.png')
+                                          as ImageProvider, // Fallback to placeholder image
                                   radius: 24.0,
                                 ),
                                 rightIcon: ValueListenableBuilder<int?>(
@@ -294,7 +310,8 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
                                   builder: (context, value, child) {
                                     return Icon(
                                       Icons.keyboard_arrow_down,
-                                      color: value == patients.indexOf(patient)
+                                      color: value ==
+                                              unstablePatients.indexOf(patient)
                                           ? AppColors.white
                                           : AppColors.black,
                                       size: 20,
@@ -302,7 +319,7 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
                                   },
                                 ),
                                 isOpen: _openSectionIndex.value ==
-                                    patients.indexOf(patient),
+                                    unstablePatients.indexOf(patient),
                                 header: Padding(
                                   padding: const EdgeInsets.symmetric(
                                       vertical: 10.0),
@@ -312,8 +329,9 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
                                       return Text(
                                         '${patient?.firstName ?? 'Unknown'} ${patient?.lastName ?? 'Unknown'}',
                                         style: headerStyle.copyWith(
-                                          color:
-                                          value == patients.indexOf(patient)
+                                          color: value ==
+                                                  unstablePatients
+                                                      .indexOf(patient)
                                               ? AppColors.white
                                               : AppColors.black,
                                           fontSize: 18.0,
@@ -341,13 +359,13 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
                                     const SizedBox(height: 20.0),
                                     Row(
                                       mainAxisAlignment:
-                                      MainAxisAlignment.start,
+                                          MainAxisAlignment.start,
                                       children: [
                                         _buildActionButton(
                                           'Schedule',
                                           'lib/assets/images/shared/functions/schedule.png',
                                           AppColors.darkblue,
-                                              () => _scheduleAppointment(
+                                          () => _scheduleAppointment(
                                               caregiverId, patient?.uid ?? ''),
                                         ),
                                         const SizedBox(width: 10),
@@ -355,7 +373,7 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
                                           'Call',
                                           'lib/assets/images/shared/functions/call.png',
                                           AppColors.red,
-                                              () => _makeCall(
+                                          () => _makeCall(
                                               patient?.phoneNumber ?? ''),
                                         ),
                                       ],
@@ -378,4 +396,3 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
     );
   }
 }
-

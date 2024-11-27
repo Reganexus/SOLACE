@@ -66,7 +66,8 @@ class AuthService {
         return MyUser(
           uid: user.uid,
           isVerified: user.emailVerified,
-          profileImageUrl: user.photoURL ?? '', // Default to empty if no photo URL
+          profileImageUrl:
+              user.photoURL ?? '', // Default to empty if no photo URL
         );
       } else {
         return null;
@@ -125,11 +126,10 @@ class AuthService {
       isVerified: isVerified,
       newUser: newUser,
       dateCreated: DateTime.now(),
-      profileImageUrl:
-      profileImageUrl, // Add profileImageUrl to the updateUserData call
+      profileImageUrl: profileImageUrl,
     );
 
-    // Initialize user document with profileImageUrl as empty string if null
+    // Initialize user document with status field and profileImageUrl as empty string if null
     await _firestore.collection('users').doc(uid).set({
       'contacts': {
         'friends': {},
@@ -137,8 +137,8 @@ class AuthService {
         'requests': {},
       },
       'notifications': [],
-      'profileImageUrl':
-      profileImageUrl ?? '', // Initialize profileImageUrl as empty if null
+      'profileImageUrl': profileImageUrl ?? '',
+      'status': 'stable',
     }, SetOptions(merge: true));
   }
 
@@ -188,7 +188,7 @@ class AuthService {
       }
 
       final GoogleSignInAuthentication googleAuth =
-      await googleUser.authentication;
+          await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
@@ -205,7 +205,7 @@ class AuthService {
       // Clear the cache when new user logs in
       _cachedUser = null;
 
-      final email = user.email;
+      final email = user.email; // Access email directly from the User object
       if (email != null) {
         bool userExists = await emailExists(email);
 
@@ -218,7 +218,8 @@ class AuthService {
             email: email,
             isVerified: true,
             newUser: true, // Mark as new
-            profileImageUrl: profileImageUrl, // Pass profileImageUrl to initialize
+            profileImageUrl:
+                profileImageUrl, // Pass profileImageUrl to initialize
           );
         }
 
@@ -229,7 +230,7 @@ class AuthService {
           return null;
         }
 
-        // Set cached user data
+        // Set cached user data without email in MyUser
         _cachedUser = MyUser(
           uid: user.uid,
           isVerified: userData.isVerified,

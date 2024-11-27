@@ -37,12 +37,43 @@ class ChartTesting extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint("Vital Array: $vitalArray");
-    debugPrint("Timestamp Array: $timestampArray");
-
+    // Check if vitalArray or timestampArray is empty or has 3 or fewer entries
     if (vitalArray.isEmpty || timestampArray.isEmpty) {
-      return const Center(
-        child: Text('No data available for chart'),
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 15.0, horizontal: 15.0),
+        decoration: BoxDecoration(
+          color: AppColors.gray,
+          borderRadius: BorderRadius.circular(10.0),
+        ),
+        child: Text(
+          "No data available for chart",
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 18.0,
+            fontWeight: FontWeight.normal,
+          ),
+        ),
+      );
+    } else if (vitalArray.length <= 3) {
+      // If there are 3 or fewer entries
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 15.0, horizontal: 15.0),
+        decoration: BoxDecoration(
+          color: AppColors.gray,
+          borderRadius: BorderRadius.circular(10.0),
+        ),
+        child: Text(
+          "Insufficient entry for this vital\nRecorded (${vitalArray.length} values)",
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 18.0,
+            fontWeight: FontWeight.normal,
+          ),
+        ),
       );
     }
 
@@ -57,7 +88,7 @@ class ChartTesting extends StatelessWidget {
     double interval =
         (leftTitles[0] - leftTitles[2]) / 3.0; // 3 intervals for 3 labels
 
-// Ensure that the interval is not zero
+    // Ensure that the interval is not zero
     if (interval == 0) {
       interval = 1; // Default to 1 if interval is zero
     }

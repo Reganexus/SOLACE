@@ -47,26 +47,30 @@ class _CaregiverHomeState extends State<CaregiverHome> {
     return StreamBuilder<UserData?>(
       stream: DatabaseService(uid: user?.uid).userData,
       builder: (context, snapshot) {
-        String firstName = '';
-        String profileImageUrl = 'lib/assets/images/auth/solace-rounded.png'; // Default image
+        String firstName = 'User';
+        String profileImageUrl = '';
 
         if (snapshot.hasData) {
           final userData = snapshot.data!;
           firstName = userData.firstName.split(' ')[0]; // Use first name
-          profileImageUrl = userData.profileImageUrl.isNotEmpty
-              ? userData.profileImageUrl // Use the profile image URL if it's not empty
-              : profileImageUrl; // Otherwise, use the default placeholder
+          profileImageUrl = userData.profileImageUrl; // Set profile image URL
         }
 
         return Row(
           children: [
             CircleAvatar(
               radius: 20.0,
-              backgroundImage: NetworkImage(profileImageUrl), // Display profile image from URL
+              backgroundImage: profileImageUrl.isNotEmpty
+                  ? NetworkImage(profileImageUrl)
+                  : const AssetImage('lib/assets/images/shared/placeholder.png')
+              as ImageProvider,
               onBackgroundImageError: (error, stackTrace) {
-                // Optional: Handle errors if the image URL is invalid
                 print('Error loading image: $error');
               },
+              child: profileImageUrl.isEmpty
+                  ? const Icon(Icons.person,
+                  color: Colors.grey) // Placeholder icon
+                  : null,
             ),
             const SizedBox(width: 10.0),
             Text(

@@ -4,6 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import 'package:solace/models/my_user.dart';
+import 'package:solace/services/database.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/screens/patient/upcoming_schedules.dart'; // Import UpcomingSchedules
 
@@ -42,7 +45,6 @@ class PatientDashboardState extends State<PatientDashboard> {
     DateTime startDate, // Task Start Date
     DateTime endDate, // Task End Date
   ) {
-
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -405,119 +407,231 @@ class PatientDashboardState extends State<PatientDashboard> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
+    final user = Provider.of<MyUser?>(context);
+
     return Scaffold(
       backgroundColor: AppColors.white,
       body: SingleChildScrollView(
         child: Container(
           color: AppColors.white,
           padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Status Section (same as before)
-              const Text(
-                'Status',
-                style: TextStyle(
-                  fontSize: 24.0,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Outfit',
-                ),
-              ),
-              const SizedBox(height: 10.0),
+          child: StreamBuilder<UserData?>(
+            stream: DatabaseService(uid: user?.uid).userData,
+            builder: (context, snapshot) {
+              // Default values for status card
+              String status = 'stable';
+              String statusMessage =
+                  'ⓘ No symptoms detected. Keep up the good work!';
+              Color backgroundColor = AppColors.neon;
 
-              // Status Card (same as before)
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: AppColors.neon,
-                  borderRadius: BorderRadius.circular(10.0),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 30.0, horizontal: 15.0),
-                      color: Colors.transparent,
-                      child: const Text(
-                        'Good',
-                        style: TextStyle(
-                          fontSize: 50.0,
-                          fontFamily: 'Outfit',
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                        textAlign: TextAlign.left,
-                      ),
-                    ),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12.0),
-                      decoration: const BoxDecoration(
-                        color: AppColors.blackTransparent,
-                        borderRadius: BorderRadius.only(
-                          bottomLeft: Radius.circular(10.0),
-                          bottomRight: Radius.circular(10.0),
-                        ),
-                      ),
-                      child: const Text(
-                        'ⓘ No symptoms detected. Keep up the good work!',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12.0,
-                          color: Colors.white,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 10.0),
+              if (snapshot.hasData) {
+                final userData = snapshot.data!;
+                status = userData.status;
 
-              // Clickable Link to History (same as before)
-              Center(
-                child: GestureDetector(
-                  onTap: () {
-                    widget.navigateToHistory();
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    child: const Text(
-                      'See more about your status',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.normal,
-                        fontSize: 16.0,
-                        color: AppColors.black,
-                        decoration: TextDecoration.underline,
+                if (status == 'unstable') {
+                  statusMessage =
+                      '⚠️ Symptoms detected. Please consult your doctor.';
+                  backgroundColor = AppColors.red;
+                }
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Status Section
+                  const Text(
+                    'Status',
+                    style: TextStyle(
+                      fontSize: 24.0,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Outfit',
+                    ),
+                  ),
+                  const SizedBox(height: 10.0),
+
+                  // Status Card
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: backgroundColor,
+                      borderRadius: BorderRadius.circular(10.0),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 30.0, horizontal: 15.0),
+                          color: Colors.transparent,
+                          child: Text(
+                            status == 'stable' ? 'Stable' : 'Unstable',
+                            style: const TextStyle(
+                              fontSize: 50.0,
+                              fontFamily: 'Outfit',
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                            textAlign: TextAlign.left,
+                          ),
+                        ),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12.0),
+                          decoration: const BoxDecoration(
+                            color: AppColors.blackTransparent,
+                            borderRadius: BorderRadius.only(
+                              bottomLeft: Radius.circular(10.0),
+                              bottomRight: Radius.circular(10.0),
+                            ),
+                          ),
+                          child: Text(
+                            statusMessage,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12.0,
+                              color: Colors.white,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10.0),
+
+                  // Clickable Link to History
+                  Center(
+                    child: GestureDetector(
+                      onTap: () {
+                        widget.navigateToHistory();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        child: const Text(
+                          'See more about your status',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.normal,
+                            fontSize: 16.0,
+                            color: AppColors.black,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 30.0),
+                  const SizedBox(height: 30.0),
 
-              // Schedule Section (same as before)
-              const Text(
-                'Schedule',
-                style: TextStyle(
-                  fontSize: 24.0,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Outfit',
-                ),
-              ),
-              const SizedBox(height: 10.0),
+                  // Schedule Section
+                  const Text(
+                    'Schedule',
+                    style: TextStyle(
+                      fontSize: 24.0,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Outfit',
+                    ),
+                  ),
+                  const SizedBox(height: 10.0),
 
-              // Schedule Display (same as before)
-              upcomingSchedules.isNotEmpty
-                  ? Column(
-                      children: [
-                        Container(
+                  // Schedule Display
+                  upcomingSchedules.isNotEmpty
+                      ? Column(
+                          children: [
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 15.0, horizontal: 15.0),
+                              decoration: BoxDecoration(
+                                color: AppColors.gray,
+                                borderRadius: BorderRadius.circular(10.0),
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 40,
+                                        height: 40,
+                                        decoration: BoxDecoration(
+                                          border:
+                                              Border.all(color: Colors.black),
+                                          borderRadius:
+                                              BorderRadius.circular(5.0),
+                                        ),
+                                        padding: const EdgeInsets.all(5.0),
+                                        child: Center(
+                                          child: Text(
+                                            upcomingSchedules[0]['date'] != null
+                                                ? '${upcomingSchedules[0]['date']!.day}'
+                                                : '',
+                                            style: const TextStyle(
+                                              fontFamily: 'Inter',
+                                              fontSize: 14.0,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10.0),
+                                      Text(
+                                        upcomingSchedules[0]['date'] != null
+                                            ? DateFormat('MMMM').format(
+                                                upcomingSchedules[0]['date'])
+                                            : 'No date available',
+                                        style: const TextStyle(
+                                          fontFamily: 'Inter',
+                                          fontSize: 18.0,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Text(
+                                    upcomingSchedules[0]['time'] ??
+                                        'No time available',
+                                    style: const TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 18.0,
+                                      fontWeight: FontWeight.normal,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Center(
+                              child: GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const UpcomingSchedules(),
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(10),
+                                  child: const Text(
+                                    'See all upcoming schedules',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontWeight: FontWeight.normal,
+                                      fontSize: 16.0,
+                                      color: AppColors.black,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      : Container(
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(
                               vertical: 15.0, horizontal: 15.0),
@@ -525,241 +639,136 @@ class PatientDashboardState extends State<PatientDashboard> {
                             color: AppColors.gray,
                             borderRadius: BorderRadius.circular(10.0),
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      border: Border.all(color: Colors.black),
-                                      borderRadius: BorderRadius.circular(5.0),
+                          child: Text(
+                            "No upcoming appointments",
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 18.0,
+                              fontWeight: FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                  const SizedBox(height: 30.0),
+
+                  // Tasks Section
+                  const Text(
+                    'Tasks',
+                    style: TextStyle(
+                      fontSize: 24.0,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Outfit',
+                    ),
+                  ),
+                  const SizedBox(height: 10.0),
+
+                  ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 10.0),
+                    itemCount: tasks.isEmpty ? 1 : tasks.length,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemBuilder: (context, index) {
+                      if (tasks.isEmpty) {
+                        return Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 15.0, horizontal: 15.0),
+                          decoration: BoxDecoration(
+                            color: AppColors.gray,
+                            borderRadius: BorderRadius.circular(10.0),
+                          ),
+                          child: Text(
+                            "No tasks for today",
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 18.0,
+                              fontWeight: FontWeight.normal,
+                            ),
+                          ),
+                        );
+                      }
+
+                      final task = tasks[index];
+                      final patientId = FirebaseAuth.instance.currentUser!.uid;
+                      String taskIcon = getIconForCategory(task['category']);
+
+                      return GestureDetector(
+                        onTap: () {
+                          _showTaskModal(
+                            context,
+                            patientId,
+                            task['id'],
+                            task['title'],
+                            task['description'],
+                            task['startDate'],
+                            task['endDate'],
+                          );
+                        },
+                        child: Card(
+                          margin: const EdgeInsets.only(bottom: 15.0),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10.0),
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 20.0,
+                              horizontal: 15.0,
+                            ),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10.0),
+                              color: AppColors.purple,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Image.asset(
+                                      taskIcon,
+                                      height: 30,
                                     ),
-                                    padding: const EdgeInsets.all(5.0),
-                                    child: Center(
+                                    const SizedBox(width: 10.0),
+                                    Expanded(
                                       child: Text(
-                                        upcomingSchedules[0]['date'] != null
-                                            ? '${upcomingSchedules[0]['date']!.day}'
-                                            : '',
+                                        task['title'],
                                         style: const TextStyle(
-                                          fontFamily: 'Inter',
-                                          fontSize: 14.0,
+                                          color: AppColors.white,
+                                          fontFamily: 'Outfit',
+                                          fontSize: 24.0,
                                           fontWeight: FontWeight.bold,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 10.0),
-                                  Text(
-                                    upcomingSchedules[0]['date'] != null
-                                        ? DateFormat('MMMM').format(
-                                            upcomingSchedules[0]['date'])
-                                        : 'No date available',
-                                    style: const TextStyle(
-                                      fontFamily: 'Inter',
-                                      fontSize: 18.0,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              Text(
-                                upcomingSchedules[0]['time'] ??
-                                    'No time available',
-                                style: const TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 18.0,
-                                  fontWeight: FontWeight.normal,
+                                    if (task['isCompleted'] == true)
+                                      Icon(
+                                        Icons.check_circle,
+                                        color: AppColors.neon,
+                                      ),
+                                  ],
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Center(
-                          child: GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      const UpcomingSchedules(),
-                                ),
-                              );
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.all(10),
-                              child: const Text(
-                                'See all upcoming schedules',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontWeight: FontWeight.normal,
-                                  fontSize: 16.0,
-                                  color: AppColors.black,
-                                  decoration: TextDecoration.underline,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    )
-                  : Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 15.0, horizontal: 15.0),
-                      decoration: BoxDecoration(
-                        color: AppColors.gray,
-                        borderRadius: BorderRadius.circular(10.0),
-                      ),
-                      child: Text(
-                        "No upcoming appointments",
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 18.0,
-                          fontWeight: FontWeight.normal,
-                        ),
-                      ),
-                    ),
-              const SizedBox(height: 30.0),
-
-              // Tasks Section
-              const Text(
-                'Tasks',
-                style: TextStyle(
-                  fontSize: 24.0,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Outfit',
-                ),
-              ),
-              const SizedBox(height: 10.0),
-
-              ListView.builder(
-                padding: const EdgeInsets.only(bottom: 10.0),
-                itemCount: tasks.isEmpty
-                    ? 1
-                    : tasks.length, // Check if tasks are empty
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemBuilder: (context, index) {
-                  if (tasks.isEmpty) {
-                    // Display "No tasks for today" if tasks list is empty
-                    return Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 15.0, horizontal: 15.0),
-                      decoration: BoxDecoration(
-                        color: AppColors.gray,
-                        borderRadius: BorderRadius.circular(10.0),
-                      ),
-                      child: Text(
-                        "No tasks for today",
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 18.0,
-                          fontWeight: FontWeight.normal,
-                        ),
-                      ),
-                    );
-                  }
-
-                  final task = tasks[index]; // Get the task for this index
-                  final patientId = FirebaseAuth.instance.currentUser!
-                      .uid; // Ensure patientId is available
-                  String taskIcon = getIconForCategory(task['category']);
-
-                  return GestureDetector(
-                    onTap: () {
-                      // Pass the full task details to the modal
-                      _showTaskModal(
-                        context,
-                        patientId, // Pass the patientId for context
-                        task['id'], // Pass taskId
-                        task['title'], // Pass title
-                        task['description'], // Pass description
-                        task['startDate'], // Pass startDate
-                        task['endDate'], // Pass endDate
-                      );
-                    },
-                    child: Card(
-                      margin: const EdgeInsets.only(bottom: 15.0),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10.0),
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 20.0,
-                          horizontal: 15.0,
-                        ),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10.0),
-                          color: AppColors.purple,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Image.asset(
-                                  taskIcon,
-                                  height: 30,
-                                ),
-                                const SizedBox(width: 10.0),
-                                Expanded(
-                                  child: Text(
-                                    task['title'],
-                                    style: const TextStyle(
-                                      color: AppColors.white,
-                                      fontFamily: 'Outfit',
-                                      fontSize: 24.0,
-                                      fontWeight: FontWeight.bold,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                                const SizedBox(height: 10.0),
+                                Text(
+                                  task['description'],
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: AppColors.white,
+                                    fontFamily: 'Inter',
+                                    fontSize: 16.0,
                                   ),
                                 ),
-                                // Checkmark icon if the task is completed
-                                if (task['isCompleted'] == true)
-                                  Icon(
-                                    Icons.check_circle,
-                                    color: AppColors.neon,
-                                    size: 30,
-                                  )
-                                else
-                                  Icon(
-                                    Icons.cancel,
-                                    color: AppColors.red,
-                                    size: 30,
-                                  ),
                               ],
                             ),
-                            const SizedBox(height: 10.0),
-                            Text(
-                              task['description'],
-                              style: const TextStyle(
-                                color: AppColors.white,
-                                fontFamily: 'Inter',
-                                fontSize: 16.0,
-                              ),
-                            ),
-                            Text(
-                              "Due: ${dateFormat.format(task['endDate'])}",
-                              style: const TextStyle(
-                                color: AppColors.white,
-                                fontFamily: 'Inter',
-                                fontSize: 16.0,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ),
-                  );
-                },
-              )
-            ],
+                      );
+                    },
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),

@@ -17,11 +17,12 @@ class PatientHistoryState extends State<PatientHistory> {
   String _selectedTimeFrame = 'This Week'; // Declare selected timeframe
   bool _isLoading = false; // Track loading state
   List<DateTime> timestamps = [];
-  List<double> bloodPressure = [];
   List<double> heartRate = [];
+  List<double> bloodPressure = [];
+  List<double> saturation = [];
+  List<double> respiration = [];
   List<double> temperature = [];
-  List<double> weight = [];
-  List<double> bloodOxygen = [];
+  List<double> painLevel = [];
 
   @override
   void initState() {
@@ -47,17 +48,40 @@ class PatientHistoryState extends State<PatientHistory> {
 
   List<DateTime> filterTimestamps(List<DateTime> timestamps, String timeFrame) {
     DateTime now = DateTime.now();
-    if (timeFrame == 'This Week') {
-      DateTime startOfWeek = getStartOfWeek(now);
-      return timestamps.where((timestamp) => timestamp.isAfter(startOfWeek)).toList();
-    } else if (timeFrame == 'This Month') {
-      DateTime startOfMonth = getStartOfMonth(now);
-      DateTime endOfMonth = getEndOfMonth(now);
-      return timestamps.where((timestamp) => timestamp.isAfter(startOfMonth) && timestamp.isBefore(endOfMonth)).toList();
+
+    if (timeFrame == 'Every Hour') {
+      // Filter data for today, per hour
+      DateTime startOfDay = DateTime(now.year, now.month, now.day);  // Midnight of today
+      DateTime endOfDay = startOfDay.add(Duration(days: 1)); // Start of the next day (exclusive)
+
+      // Filter timestamps that are within today and fall within the current hour
+      return timestamps.where((timestamp) {
+        return timestamp.isAfter(startOfDay) && timestamp.isBefore(endOfDay) &&
+            timestamp.hour == now.hour; // Ensure the hour matches the current hour
+      }).toList();
+
+    } else if (timeFrame == 'This Day') {
+      // Filter data for today (same date)
+      DateTime startOfDay = DateTime(now.year, now.month, now.day);
+      DateTime endOfDay = startOfDay.add(Duration(days: 1));
+      return timestamps
+          .where((timestamp) => timestamp.isAfter(startOfDay) && timestamp.isBefore(endOfDay))
+          .toList();
+
+    } else if (timeFrame == 'This Week') {
+      // Filter data for this week (from the start of the week to now)
+      DateTime startOfWeek = getStartOfWeek(now); // Get the first Monday of the week
+      DateTime endOfWeek = startOfWeek.add(Duration(days: 7)); // Sunday (end of week)
+
+      return timestamps
+          .where((timestamp) => timestamp.isAfter(startOfWeek) && timestamp.isBefore(endOfWeek))
+          .toList();
+
     } else {
-      return timestamps; // 'All Time' - no filtering
+      return timestamps; // Default case: return all timestamps
     }
   }
+
 
   Future<void> _fetchVitalsData() async {
     setState(() {
@@ -83,29 +107,28 @@ class PatientHistoryState extends State<PatientHistory> {
         return;
       }
 
-      debugPrint('Fetched document: ${snapshot.data()}'); // Print the document to see its structure
+      debugPrint(
+          'Fetched document: ${snapshot.data()}'); // Print the document to see its structure
 
-      final trackingData = snapshot.data()?['tracking']; // Access the 'tracking' array
+      final trackingData =
+          snapshot.data()?['tracking']; // Access the 'tracking' array
       if (trackingData == null) {
         debugPrint('No tracking data found');
         return;
       }
 
       List<DateTime> timestamps = [];
-      List<double> bloodPressure = [];
       List<double> heartRate = [];
+      List<double> bloodPressure = [];
+      List<double> saturation = [];
+      List<double> respiration = [];
       List<double> temperature = [];
-      List<double> weight = [];
-      List<double> bloodOxygen = [];
+      List<double> painLevel = [];
 
       // Iterate over the tracking data
       for (var track in trackingData) {
         final vitals = track['Vitals']; // Access the 'Vitals' field
         final timestamp = track['timestamp']; // Access the 'timestamp'
-
-        // Debugging the extracted data
-        debugPrint('Vitals: $vitals');
-        debugPrint('Timestamp: $timestamp');
 
         if (timestamp != null) {
           // Parse the timestamp from Firestore Timestamp
@@ -113,63 +136,31 @@ class PatientHistoryState extends State<PatientHistory> {
           timestamps.add(parsedTimestamp);
         }
 
-        // Extract individual vitals and add them to their respective lists
         if (vitals != null) {
-          // Blood Pressure is in the format "120/80", so we'll split it
-          final bloodPressureValue = vitals['Blood Pressure'];
-          if (bloodPressureValue != null && bloodPressureValue is String) {
-            final parts = bloodPressureValue.split('/');
-            if (parts.length == 2) {
-              final systolic = double.tryParse(parts[0]);
-              final diastolic = double.tryParse(parts[1]);
-              if (systolic != null && diastolic != null) {
-                // Store the average of systolic and diastolic values
-                bloodPressure.add((systolic + diastolic) / 2);
-              }
-            }
-          }
-
-          // For the rest of the vitals, just store the numerical values
+          // Parse vitals values (Heart Rate, Blood Pressure, etc.)
           final heartRateValue = vitals['Heart Rate'];
-          if (heartRateValue != null && heartRateValue is String) {
-            final parsedHeartRate = double.tryParse(heartRateValue);
-            if (parsedHeartRate != null) {
-              heartRate.add(parsedHeartRate);
-            } else {
-              debugPrint('Invalid heart rate value: $heartRateValue');
-            }
-          }
+          final parsedHeartRate = _parseVital(heartRateValue);
+          if (parsedHeartRate != null) heartRate.add(parsedHeartRate);
+
+          final bloodPressureValue = vitals['Blood Pressure'];
+          final parsedBP = _parseVital(bloodPressureValue);
+          if (parsedBP != null) bloodPressure.add(parsedBP);
+
+          final saturationValue = vitals['Oxygen Saturation'];
+          final parsedSaturation = _parseVital(saturationValue);
+          if (parsedSaturation != null) saturation.add(parsedSaturation);
+
+          final respirationValue = vitals['Respiration'];
+          final parsedRespiration = _parseVital(respirationValue);
+          if (parsedRespiration != null) respiration.add(parsedRespiration);
 
           final temperatureValue = vitals['Temperature'];
-          if (temperatureValue != null && temperatureValue is String) {
-            final parsedTemperature = double.tryParse(temperatureValue);
-            if (parsedTemperature != null) {
-              temperature.add(parsedTemperature);
-            } else {
-              debugPrint('Invalid temperature value: $temperatureValue');
-            }
-          }
+          final parsedTemperature = _parseVital(temperatureValue);
+          if (parsedTemperature != null) temperature.add(parsedTemperature);
 
-          final weightValue = vitals['Weight'];
-          if (weightValue != null && weightValue is String) {
-            final parsedWeight = double.tryParse(weightValue);
-            if (parsedWeight != null) {
-              weight.add(parsedWeight);
-            } else {
-              debugPrint('Invalid weight value: $weightValue');
-            }
-          }
-
-          // Parsing for Blood Oxygen (with tryParse)
-          final bloodOxygenValue = vitals['Blood Oxygen'];
-          if (bloodOxygenValue != null && bloodOxygenValue is String) {
-            final parsedBloodOxygen = double.tryParse(bloodOxygenValue);
-            if (parsedBloodOxygen != null) {
-              bloodOxygen.add(parsedBloodOxygen);
-            } else {
-              debugPrint('Invalid blood oxygen value: $bloodOxygenValue');
-            }
-          }
+          final painLevelValue = vitals['Pain'];
+          final parsedPainLevel = _parseVital(painLevelValue);
+          if (parsedPainLevel != null) painLevel.add(parsedPainLevel);
         }
       }
 
@@ -178,17 +169,19 @@ class PatientHistoryState extends State<PatientHistory> {
       debugPrint('Blood Pressure: $bloodPressure');
       debugPrint('Heart Rate: $heartRate');
       debugPrint('Temperature: $temperature');
-      debugPrint('Weight: $weight');
-      debugPrint('Blood Oxygen: $bloodOxygen');
+      debugPrint('Heart Rate: $respiration');
+      debugPrint('Oxygen Saturation: $saturation');
+      debugPrint('Pain Level: $painLevel');
 
-      // Trigger UI update
       setState(() {
-        this.timestamps = timestamps; // Assign fetched timestamps
+        // Assign fetched vitals data to the state
+        this.timestamps = timestamps;
         this.bloodPressure = bloodPressure;
         this.heartRate = heartRate;
         this.temperature = temperature;
-        this.weight = weight;
-        this.bloodOxygen = bloodOxygen;
+        this.saturation = saturation;
+        this.respiration = respiration;
+        this.painLevel = painLevel;
         _isLoading = false; // Stop loading
       });
 
@@ -209,15 +202,49 @@ class PatientHistoryState extends State<PatientHistory> {
     }
   }
 
+  double? _parseVital(dynamic vitalValue) {
+    if (vitalValue != null && vitalValue is String) {
+      // Special case for Blood Pressure
+      if (vitalValue.contains('/')) {
+        // Split the string into systolic and diastolic
+        List<String> parts = vitalValue.split('/');
+        if (parts.length == 2) {
+          // Try to parse both systolic and diastolic values
+          double? systolic = double.tryParse(parts[0].trim());
+          double? diastolic = double.tryParse(parts[1].trim());
+
+          // If both are valid, return a suitable representation (e.g., a List or Object)
+          if (systolic != null && diastolic != null) {
+            // You can store both values or calculate the average
+            // For now, we'll return the systolic value, but you could return both.
+            return systolic;
+          }
+        }
+      } else {
+        // Handle other vitals as usual
+        return double.tryParse(vitalValue);
+      }
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     // Filter vitals data based on selected time frame
-    List<DateTime> filteredTimestamps = filterTimestamps(timestamps, _selectedTimeFrame);
-    List<double> filteredBloodPressure = filterVitalsData(filteredTimestamps, bloodPressure);
-    List<double> filteredHeartRate = filterVitalsData(filteredTimestamps, heartRate);
-    List<double> filteredTemperature = filterVitalsData(filteredTimestamps, temperature);
-    List<double> filteredWeight = filterVitalsData(filteredTimestamps, weight);
-    List<double> filteredBloodOxygen = filterVitalsData(filteredTimestamps, bloodOxygen);
+    List<DateTime> filteredTimestamps =
+        filterTimestamps(timestamps, _selectedTimeFrame);
+    List<double> filteredHeartRate =
+        filterVitalsData(filteredTimestamps, heartRate);
+    List<double> filteredBloodPressure =
+        filterVitalsData(filteredTimestamps, bloodPressure);
+    List<double> filteredSaturation =
+        filterVitalsData(filteredTimestamps, saturation);
+    List<double> filteredRespiration =
+        filterVitalsData(filteredTimestamps, respiration);
+    List<double> filteredTemperature =
+        filterVitalsData(filteredTimestamps, temperature);
+    List<double> filteredPainLevel =
+        filterVitalsData(filteredTimestamps, painLevel);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -232,97 +259,131 @@ class PatientHistoryState extends State<PatientHistory> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  _buildRadioButton('Every Hour'),
+                  const SizedBox(width: 10.0),
+                  _buildRadioButton('This Day'),
+                  const SizedBox(width: 10.0),
                   _buildRadioButton('This Week'),
-                  const SizedBox(width: 10.0),
-                  _buildRadioButton('This Month'),
-                  const SizedBox(width: 10.0),
-                  _buildRadioButton('All Time'),
                 ],
               ),
-              const SizedBox(height: 20.0),
 
-              const Text(
-                'Blood Pressure',
-                style: TextStyle(
-                  fontSize: 24.0,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Outfit',
-                ),
-              ),
               const SizedBox(height: 20.0),
 
               // Show loading indicator if data is being fetched
               _isLoading
                   ? Center(child: CircularProgressIndicator())
                   : Column(
-                children: [
-                  ChartTesting(
-                    vitalArray: filteredBloodPressure,
-                    timestampArray: filteredTimestamps,
-                  ),
-                  const SizedBox(height: 20.0),
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start, // Align content to the left
+                      children: [
+                        // Blood Pressure
+                        const Text(
+                          'Blood Pressure',
+                          style: TextStyle(
+                            fontSize: 24.0,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Outfit',
+                          ),
+                          textAlign: TextAlign
+                              .left, // Explicitly align text to the left
+                        ),
+                        const SizedBox(height: 20.0),
+                        ChartTesting(
+                          vitalArray: filteredBloodPressure,
+                          timestampArray: filteredTimestamps,
+                        ),
+                        const SizedBox(height: 20.0),
 
-                  const Text(
-                    'Heart Rate',
-                    style: TextStyle(
-                      fontSize: 24.0,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Outfit',
-                    ),
-                  ),
-                  const SizedBox(height: 20.0),
-                  ChartTesting(
-                    vitalArray: filteredHeartRate,
-                    timestampArray: filteredTimestamps,
-                  ),
-                  const SizedBox(height: 20.0),
+                        // Heart Rate
+                        const Text(
+                          'Heart Rate',
+                          style: TextStyle(
+                            fontSize: 24.0,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Outfit',
+                          ),
+                          textAlign: TextAlign
+                              .left, // Explicitly align text to the left
+                        ),
+                        const SizedBox(height: 20.0),
+                        ChartTesting(
+                          vitalArray: filteredHeartRate,
+                          timestampArray: filteredTimestamps,
+                        ),
+                        const SizedBox(height: 20.0),
 
-                  const Text(
-                    'Temperature',
-                    style: TextStyle(
-                      fontSize: 24.0,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Outfit',
-                    ),
-                  ),
-                  const SizedBox(height: 20.0),
-                  ChartTesting(
-                    vitalArray: filteredTemperature,
-                    timestampArray: filteredTimestamps,
-                  ),
-                  const SizedBox(height: 20.0),
+                        // Temperature
+                        const Text(
+                          'Temperature',
+                          style: TextStyle(
+                            fontSize: 24.0,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Outfit',
+                          ),
+                          textAlign: TextAlign
+                              .left, // Explicitly align text to the left
+                        ),
+                        const SizedBox(height: 20.0),
+                        ChartTesting(
+                          vitalArray: filteredTemperature,
+                          timestampArray: filteredTimestamps,
+                        ),
+                        const SizedBox(height: 20.0),
 
-                  const Text(
-                    'Weight',
-                    style: TextStyle(
-                      fontSize: 24.0,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Outfit',
-                    ),
-                  ),
-                  const SizedBox(height: 20.0),
-                  ChartTesting(
-                    vitalArray: filteredWeight,
-                    timestampArray: filteredTimestamps,
-                  ),
-                  const SizedBox(height: 20.0),
+                        // Oxygen Saturation
+                        const Text(
+                          'Oxygen Saturation',
+                          style: TextStyle(
+                            fontSize: 24.0,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Outfit',
+                          ),
+                          textAlign: TextAlign
+                              .left, // Explicitly align text to the left
+                        ),
+                        const SizedBox(height: 20.0),
+                        ChartTesting(
+                          vitalArray: filteredSaturation, // Corrected variable
+                          timestampArray: filteredTimestamps,
+                        ),
+                        const SizedBox(height: 20.0),
 
-                  const Text(
-                    'Blood Oxygen',
-                    style: TextStyle(
-                      fontSize: 24.0,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Outfit',
+                        // Respiration
+                        const Text(
+                          'Respiration',
+                          style: TextStyle(
+                            fontSize: 24.0,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Outfit',
+                          ),
+                          textAlign: TextAlign
+                              .left, // Explicitly align text to the left
+                        ),
+                        const SizedBox(height: 20.0),
+                        ChartTesting(
+                          vitalArray: filteredRespiration, // Corrected variable
+                          timestampArray: filteredTimestamps,
+                        ),
+                        const SizedBox(height: 20.0),
+
+                        // Pain Level
+                        const Text(
+                          'Pain Level',
+                          style: TextStyle(
+                            fontSize: 24.0,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Outfit',
+                          ),
+                          textAlign: TextAlign
+                              .left, // Explicitly align text to the left
+                        ),
+                        const SizedBox(height: 20.0),
+                        ChartTesting(
+                          vitalArray: filteredPainLevel, // Corrected variable
+                          timestampArray: filteredTimestamps,
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 20.0),
-                  ChartTesting(
-                    vitalArray: filteredBloodOxygen,
-                    timestampArray: filteredTimestamps,
-                  ),
-                  const SizedBox(height: 20.0),
-                ],
-              ),
             ],
           ),
         ),
@@ -345,7 +406,8 @@ class PatientHistoryState extends State<PatientHistory> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 5.0),
           decoration: BoxDecoration(
-            color: _selectedTimeFrame == title ? AppColors.neon : AppColors.purple,
+            color:
+                _selectedTimeFrame == title ? AppColors.neon : AppColors.purple,
             borderRadius: BorderRadius.circular(10.0),
           ),
           child: Center(
@@ -367,7 +429,8 @@ class PatientHistoryState extends State<PatientHistory> {
   }
 
   // Helper function to filter vitals based on timestamps
-  List<double> filterVitalsData(List<DateTime> filteredTimestamps, List<double> vitalData) {
+  List<double> filterVitalsData(
+      List<DateTime> filteredTimestamps, List<double> vitalData) {
     return List.generate(filteredTimestamps.length, (index) {
       final timestamp = filteredTimestamps[index];
       final indexInAllData = timestamps.indexOf(timestamp);
@@ -375,4 +438,3 @@ class PatientHistoryState extends State<PatientHistory> {
     });
   }
 }
-

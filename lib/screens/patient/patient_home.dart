@@ -55,26 +55,30 @@ class PatientHomeState extends State<PatientHome> {
     return StreamBuilder<UserData?>(
       stream: DatabaseService(uid: user?.uid).userData,
       builder: (context, snapshot) {
-        String firstName = '';
-        String profileImageUrl = 'lib/assets/images/shared/placeholder.png'; // Default image
+        String firstName = 'User';
+        String profileImageUrl = '';
 
         if (snapshot.hasData) {
           final userData = snapshot.data!;
           firstName = userData.firstName.split(' ')[0]; // Use first name
-          profileImageUrl = userData.profileImageUrl.isNotEmpty
-              ? userData.profileImageUrl // Use the profile image URL if it's not empty
-              : profileImageUrl; // Otherwise, use the default placeholder
+          profileImageUrl = userData.profileImageUrl; // Set profile image URL
         }
 
         return Row(
           children: [
             CircleAvatar(
               radius: 20.0,
-              backgroundImage: NetworkImage(profileImageUrl), // Display profile image from URL
+              backgroundImage: profileImageUrl.isNotEmpty
+                  ? NetworkImage(profileImageUrl)
+                  : const AssetImage('lib/assets/images/shared/placeholder.png')
+                      as ImageProvider,
               onBackgroundImageError: (error, stackTrace) {
-                // Optional: Handle errors if the image URL is invalid
                 print('Error loading image: $error');
               },
+              child: profileImageUrl.isEmpty
+                  ? const Icon(Icons.person,
+                      color: Colors.grey) // Placeholder icon
+                  : null,
             ),
             const SizedBox(width: 10.0),
             Text(
@@ -91,8 +95,6 @@ class PatientHomeState extends State<PatientHome> {
     );
   }
 
-
-
   Widget _buildRightAppBar(BuildContext context) {
     final user = Provider.of<MyUser?>(context); // Get the user using Provider.
 
@@ -107,7 +109,10 @@ class PatientHomeState extends State<PatientHome> {
     }
 
     return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData || snapshot.data == null) {
           return IconButton(
@@ -150,8 +155,6 @@ class PatientHomeState extends State<PatientHome> {
       },
     );
   }
-
-
 
   PreferredSizeWidget _buildAppBar() {
     final user = Provider.of<MyUser?>(context);
@@ -202,10 +205,10 @@ class PatientHomeState extends State<PatientHome> {
                                   context,
                                   fullName,
                                   user?.uid ?? '',
-                                  user?.profileImageUrl ?? '',  // Make sure to pass the profileImageUrl
+                                  user?.profileImageUrl ??
+                                      '', // Make sure to pass the profileImageUrl
                                 );
                               },
-
                             ),
                           ],
                         )
@@ -244,20 +247,22 @@ class PatientHomeState extends State<PatientHome> {
   }
 
   // Function to show QR modal
-  void _showQrModal(BuildContext context, String fullName, String uid, String profileImageUrl) {
-    final imageUrl = profileImageUrl.isNotEmpty ? profileImageUrl : 'lib/assets/images/shared/placeholder.png';
+  void _showQrModal(BuildContext context, String fullName, String uid,
+      String profileImageUrl) {
+    final imageUrl = profileImageUrl.isNotEmpty
+        ? profileImageUrl
+        : 'lib/assets/images/shared/placeholder.png';
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ShowQrPage(
           fullName: fullName,
           uid: uid,
-          profileImageUrl: imageUrl,  // Pass the profileImageUrl here
+          profileImageUrl: imageUrl, // Pass the profileImageUrl here
         ),
       ),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {

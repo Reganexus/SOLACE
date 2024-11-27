@@ -36,11 +36,18 @@ dependencies:
   fl_chart: ^0.69.0
   flutter_email_sender: ^6.0.3
 
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  image_path: "lib/assets/images/auth/app_icon.png"
+  name: "Solace"
 
 flutter:
   uses-material-design: true

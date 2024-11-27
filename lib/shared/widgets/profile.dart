@@ -46,6 +46,7 @@ class Profile extends StatelessWidget {
                 newUser: true,
                 dateCreated: DateTime.now(),
                 profileImageUrl: '',
+                status: 'stable', // Default status
               );
 
           // Redirect to EditProfileScreen if newUser is true
@@ -73,10 +74,7 @@ class Profile extends StatelessWidget {
                   Center(
                     child: CircleAvatar(
                       radius: 75,
-                      backgroundImage: userData.profileImageUrl.isNotEmpty
-                          ? NetworkImage(userData.profileImageUrl)
-                          : AssetImage('lib/assets/images/shared/placeholder.png')
-                      as ImageProvider,
+                      backgroundImage: NetworkImage(userData.profileImageUrl),
                     ),
                   ),
 

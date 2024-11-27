@@ -43,6 +43,7 @@ class UserData {
   final bool newUser;
   final DateTime dateCreated;
   final String profileImageUrl;
+  final String status; // Add the status field
 
   UserData({
     required this.userRole,
@@ -59,6 +60,7 @@ class UserData {
     required this.newUser,
     required this.dateCreated,
     required this.profileImageUrl,
+    required this.status, // Initialize status
   });
 
   factory UserData.fromDocument(DocumentSnapshot doc) {
@@ -81,12 +83,13 @@ class UserData {
       newUser: data['newUser'] ?? true,
       dateCreated: (data['dateCreated'] as Timestamp).toDate(),
       profileImageUrl: data['profileImageUrl'],
+      status: data['status'] ?? 'stable', // Default status to 'stable'
     );
   }
 
   @override
   String toString() {
-    return 'UserData{uid: $uid, userRole: $userRole, email: $email, lastName: $lastName, firstName: $firstName, middleName: $middleName, phoneNumber: $phoneNumber, gender: $gender, birthday: ${birthday != null ? DateFormat('yyyy-MM-dd').format(birthday!) : 'N/A'}, address: $address, isVerified: $isVerified}';
+    return 'UserData{uid: $uid, userRole: $userRole, email: $email, lastName: $lastName, firstName: $firstName, middleName: $middleName, phoneNumber: $phoneNumber, gender: $gender, birthday: ${birthday != null ? DateFormat('yyyy-MM-dd').format(birthday!) : 'N/A'}, address: $address, isVerified: $isVerified, status: $status}';
   }
 
   @override
@@ -104,27 +107,29 @@ class UserData {
         other.gender == gender &&
         other.birthday == birthday &&
         other.address == address &&
-        other.isVerified == isVerified;
+        other.isVerified == isVerified &&
+        other.status == status;
   }
 
   @override
   int get hashCode {
     return uid.hashCode ^
-        userRole.hashCode ^
-        email.hashCode ^
-        lastName.hashCode ^
-        firstName.hashCode ^
-        middleName.hashCode ^
-        phoneNumber.hashCode ^
-        gender.hashCode ^
-        (birthday?.hashCode ?? 0) ^
-        address.hashCode ^
-        isVerified.hashCode;
+    userRole.hashCode ^
+    email.hashCode ^
+    lastName.hashCode ^
+    firstName.hashCode ^
+    middleName.hashCode ^
+    phoneNumber.hashCode ^
+    gender.hashCode ^
+    (birthday?.hashCode ?? 0) ^
+    address.hashCode ^
+    isVerified.hashCode ^
+    status.hashCode;
   }
 
   static UserRole getUserRoleFromString(String role) {
     return UserRole.values.firstWhere(
-      (e) => e.toString().split('.').last == role,
+          (e) => e.toString().split('.').last == role,
       orElse: () => UserRole.patient,
     );
   }

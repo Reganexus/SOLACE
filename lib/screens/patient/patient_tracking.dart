@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:solace/models/my_user.dart';
-import 'package:solace/shared/widgets/input_summary.dart';
+import 'package:solace/screens/patient/input_summary.dart';
 import 'package:solace/themes/colors.dart'; // Assuming AppColors is defined here
 
 class PatientTracking extends StatefulWidget {
@@ -20,20 +20,21 @@ class PatientTrackingState extends State<PatientTracking> {
   final Map<String, String> _vitalInputs = {
     'Heart Rate': '',
     'Blood Pressure': '',
-    'Blood Oxygen': '',
+    'Oxygen Saturation': '',
+    'Respiration': '',
     'Temperature': '',
-    'Weight': '',
+    'Pain': '',
   };
 
-  double _painValue = 5.0;
-  double _exhaustionValue = 5.0;
-  double _nauseaValue = 5.0;
-  double _depressionValue = 5.0;
-  double _anxietyValue = 5.0;
-  double _drowsinessValue = 5.0;
-  double _appetiteValue = 5.0;
-  double _wellBeingValue = 5.0;
-  double _shortnessOfBreathValue = 5.0;
+  int _diarrheaValue = 1;
+  int _fatigueValue = 1;
+  int _nauseaValue = 1;
+  int _depressionValue = 1;
+  int _anxietyValue = 1;
+  int _drowsinessValue = 1;
+  int _appetiteValue = 1;
+  int _wellBeingValue = 1;
+  int _shortnessOfBreathValue = 1;
 
   late Map<String, dynamic> _combinedInputs; // Holds data for submission
 
@@ -69,15 +70,15 @@ class PatientTrackingState extends State<PatientTracking> {
                 const Divider(thickness: 1.0),
                 const SizedBox(height: 20.0),
                 const Text(
-                  'Pain Assessment',
+                  'Symptom Assessment',
                   style: TextStyle(
                     fontSize: 24.0,
                     fontWeight: FontWeight.bold,
                     fontFamily: 'Outfit',
                   ),
                 ),
-                const SizedBox(height: 10.0),
-                _buildPainSliders(),
+                const SizedBox(height: 20.0),
+                _buildSliders(),
                 const SizedBox(height: 20.0),
                 Center(
                   child: TextButton(
@@ -182,155 +183,244 @@ class PatientTrackingState extends State<PatientTracking> {
     );
   }
 
-  Widget _buildPainSliders() {
-    final List<Map<String, dynamic>> sliders = [
-      {'title': 'Pain', 'value': _painValue},
-      {'title': 'Exhaustion', 'value': _exhaustionValue},
+  Widget _buildSliders() {
+    final List<Map<String, dynamic>> physicalSliders = [
+      {'title': 'Diarrhea', 'value': _diarrheaValue},
+      {'title': 'Fatigue', 'value': _fatigueValue},
+      {'title': 'Shortness of Breath', 'value': _shortnessOfBreathValue},
+      {'title': 'Appetite', 'value': _appetiteValue},
+      {'title': 'Well-being', 'value': _wellBeingValue},
+    ];
+
+    final List<Map<String, dynamic>> emotionalSliders = [
       {'title': 'Nausea', 'value': _nauseaValue},
       {'title': 'Depression', 'value': _depressionValue},
       {'title': 'Anxiety', 'value': _anxietyValue},
       {'title': 'Drowsiness', 'value': _drowsinessValue},
-      {'title': 'Appetite', 'value': _appetiteValue},
-      {'title': 'Well-being', 'value': _wellBeingValue},
-      {'title': 'Shortness of Breath', 'value': _shortnessOfBreathValue},
     ];
 
     return Column(
-      children: sliders.map((slider) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                slider['title'],
-                style: const TextStyle(
-                    fontSize: 16.0, fontWeight: FontWeight.bold),
-              ),
-              Row(
-                children: [
-                  // Slider widget
-                  Expanded(
-                    child: Slider(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Physical Symptoms
+        const Text(
+          'Physical',
+          style: TextStyle(
+              fontSize: 20.0, fontWeight: FontWeight.bold, fontFamily: "Outfit"),
+        ),
+        const SizedBox(height: 10),
+        ...physicalSliders.map((slider) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  slider['title'],
+                  style: const TextStyle(
+                      fontSize: 16.0, fontWeight: FontWeight.bold),
+                ),
+                Row(
+                  children: [
+                    // Slider widget
+                    Expanded(
+                      child: Slider(
+                        value: slider['value'].toDouble(),
+                        min: 1,
+                        max: 10,
+                        divisions: 9,
+                        label: slider['value'].toString(),
+                        activeColor: AppColors.neon,
+                        onChanged: (value) {
+                          setState(() {
+                            // Update slider value
+                            if (slider['title'] == 'Diarrhea') {
+                              _diarrheaValue = value.toInt();
+                            }
+                            if (slider['title'] == 'Fatigue') {
+                              _fatigueValue = value.toInt();
+                            }
+                            if (slider['title'] == 'Shortness of Breath') {
+                              _shortnessOfBreathValue = value.toInt();
+                            }
+                            if (slider['title'] == 'Appetite') {
+                              _appetiteValue = value.toInt();
+                            }
+                            if (slider['title'] == 'Well-being') {
+                              _wellBeingValue = value.toInt();
+                            }
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    // Dropdown beside the slider
+                    DropdownButton<int>(
+                      dropdownColor: AppColors.white,
                       value: slider['value'],
-                      min: 1,
-                      max: 10,
-                      divisions: 9,
-                      label: slider['value'].toString(),
-                      activeColor: AppColors.neon,
+                      items: List.generate(10, (index) => index + 1).map((value) {
+                        return DropdownMenuItem<int>(
+                          value: value,
+                          child: Text(value.toString()),
+                        );
+                      }).toList(),
                       onChanged: (value) {
                         setState(() {
-                          // Update slider value
-                          if (slider['title'] == 'Pain') _painValue = value;
-                          if (slider['title'] == 'Exhaustion') {
-                            _exhaustionValue = value;
+                          if (slider['title'] == 'Diarrhea') {
+                            _diarrheaValue = value!;
                           }
-                          if (slider['title'] == 'Nausea') _nauseaValue = value;
-                          if (slider['title'] == 'Depression') {
-                            _depressionValue = value;
-                          }
-                          if (slider['title'] == 'Anxiety') {
-                            _anxietyValue = value;
-                          }
-                          if (slider['title'] == 'Drowsiness') {
-                            _drowsinessValue = value;
-                          }
-                          if (slider['title'] == 'Appetite') {
-                            _appetiteValue = value;
-                          }
-                          if (slider['title'] == 'Well-being') {
-                            _wellBeingValue = value;
+                          if (slider['title'] == 'Fatigue') {
+                            _fatigueValue = value!;
                           }
                           if (slider['title'] == 'Shortness of Breath') {
-                            _shortnessOfBreathValue = value;
+                            _shortnessOfBreathValue = value!;
+                          }
+                          if (slider['title'] == 'Appetite') {
+                            _appetiteValue = value!;
+                          }
+                          if (slider['title'] == 'Well-being') {
+                            _wellBeingValue = value!;
                           }
                         });
                       },
                     ),
-                  ),
-                  const SizedBox(
-                      width: 20), // Space between Slider and Dropdown
-                  // Dropdown beside the slider
-                  DropdownButton<int>(
-                    dropdownColor: AppColors.white,
-                    value: slider['value']
-                        .toInt(), // Show slider value in dropdown
-                    items: List.generate(10, (index) => index + 1).map((value) {
-                      return DropdownMenuItem<int>(
-                        value: value,
-                        child: Text(value.toString()),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        // Update slider value when dropdown value changes
-                        if (slider['title'] == 'Pain') {
-                          _painValue = value!.toDouble();
-                        }
-                        if (slider['title'] == 'Exhaustion') {
-                          _exhaustionValue = value!.toDouble();
-                        }
-                        if (slider['title'] == 'Nausea') {
-                          _nauseaValue = value!.toDouble();
-                        }
-                        if (slider['title'] == 'Depression') {
-                          _depressionValue = value!.toDouble();
-                        }
-                        if (slider['title'] == 'Anxiety') {
-                          _anxietyValue = value!.toDouble();
-                        }
-                        if (slider['title'] == 'Drowsiness') {
-                          _drowsinessValue = value!.toDouble();
-                        }
-                        if (slider['title'] == 'Appetite') {
-                          _appetiteValue = value!.toDouble();
-                        }
-                        if (slider['title'] == 'Well-being') {
-                          _wellBeingValue = value!.toDouble();
-                        }
-                        if (slider['title'] == 'Shortness of Breath') {
-                          _shortnessOfBreathValue = value!.toDouble();
-                        }
-                      });
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      }).toList(),
+                  ],
+                ),
+              ],
+            ),
+          );
+        }),
+
+        const SizedBox(height: 20.0),
+        const Divider(thickness: 1.0),
+        const SizedBox(height: 20.0),
+
+        // Emotional Symptoms
+        const Text(
+          'Emotional',
+          style: TextStyle(
+              fontSize: 20.0, fontWeight: FontWeight.bold, fontFamily: "Outfit"),
+        ),
+        const SizedBox(height: 10),
+        ...emotionalSliders.map((slider) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  slider['title'],
+                  style: const TextStyle(
+                      fontSize: 16.0, fontWeight: FontWeight.bold),
+                ),
+                Row(
+                  children: [
+                    // Slider widget
+                    Expanded(
+                      child: Slider(
+                        value: slider['value'].toDouble(),
+                        min: 1,
+                        max: 10,
+                        divisions: 9,
+                        label: slider['value'].toString(),
+                        activeColor: AppColors.purple,
+                        onChanged: (value) {
+                          setState(() {
+                            // Update slider value
+                            if (slider['title'] == 'Nausea') {
+                              _nauseaValue = value.toInt();
+                            }
+                            if (slider['title'] == 'Depression') {
+                              _depressionValue = value.toInt();
+                            }
+                            if (slider['title'] == 'Anxiety') {
+                              _anxietyValue = value.toInt();
+                            }
+                            if (slider['title'] == 'Drowsiness') {
+                              _drowsinessValue = value.toInt();
+                            }
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    // Dropdown beside the slider
+                    DropdownButton<int>(
+                      dropdownColor: AppColors.white,
+                      value: slider['value'].toInt(),
+                      items: List.generate(10, (index) => index + 1).map((value) {
+                        return DropdownMenuItem<int>(
+                          value: value,
+                          child: Text(value.toString()),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          if (slider['title'] == 'Nausea') {
+                            _nauseaValue = value!;
+                          }
+                          if (slider['title'] == 'Depression') {
+                            _depressionValue = value!;
+                          }
+                          if (slider['title'] == 'Anxiety') {
+                            _anxietyValue = value!;
+                          }
+                          if (slider['title'] == 'Drowsiness') {
+                            _drowsinessValue = value!;
+                          }
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
     );
   }
 
   void _submit(String uid) {
-    if (_formKey.currentState!.validate()) {
-      // Only after successful validation, prepare data
-      _combinedInputs = {
-        'Vitals': _vitalInputs,
-        'Pain Assessment': {
-          'Pain': _painValue,
-          'Exhaustion': _exhaustionValue,
-          'Nausea': _nauseaValue,
-          'Depression': _depressionValue,
-          'Anxiety': _anxietyValue,
-          'Drowsiness': _drowsinessValue,
-          'Appetite': _appetiteValue,
-          'Well-being': _wellBeingValue,
-          'Shortness of Breath': _shortnessOfBreathValue,
-        },
-      };
-
-      // Navigate to the summary screen
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ReceiptScreen(
-            inputs: _combinedInputs,
-            uid: uid,
+    if (!_formKey.currentState!.validate()) {
+      // Validation failed, show error SnackBar
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Please correct the highlighted errors in the vitals form.',
           ),
+          backgroundColor: Colors.red,
         ),
       );
+      return;
     }
+
+    // Only after successful validation, prepare data
+    _combinedInputs = {
+      'Vitals': _vitalInputs,
+      'Symptom Assessment': {
+        'Diarrhea': _diarrheaValue,
+        'Fatigue': _fatigueValue,
+        'Nausea': _nauseaValue,
+        'Depression': _depressionValue,
+        'Anxiety': _anxietyValue,
+        'Drowsiness': _drowsinessValue,
+        'Appetite': _appetiteValue,
+        'Well-being': _wellBeingValue,
+        'Shortness of Breath': _shortnessOfBreathValue,
+      },
+    };
+
+    // Navigate to the summary screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ReceiptScreen(
+          inputs: _combinedInputs,
+          uid: uid,
+        ),
+      ),
+    );
   }
+
 }

@@ -10,7 +10,7 @@
 
 
     <application
-        android:label="solace"
+        android:label="Solace"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
