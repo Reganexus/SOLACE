@@ -132,4 +132,37 @@ class UserData {
   static String getUserRoleString(UserRole userRole) {
     return userRole.toString().split('.').last;
   }
+
+  // Method to calculate the user's age as a list [years, months, days].
+  List<int>? calculateAge() {
+    if (birthday == null) return null; // Return null if birthday is not set
+
+    DateTime today = DateTime.now();
+    int years = today.year - birthday!.year;
+    int months = today.month - birthday!.month;
+    int days = today.day - birthday!.day;
+
+    // Adjust for negative days
+    if (days < 0) {
+      months--;
+      DateTime prevMonth = DateTime(today.year, today.month, 0); // Previous month
+      days += prevMonth.day;
+    }
+
+    // Adjust for negative months
+    if (months < 0) {
+      years--;
+      months += 12;
+    }
+
+    return [years, months, days];
+  }
+
+  // Getter to calculate the age as a string (e.g., "25 years, 3 months, 12 days")
+  int? get age {
+    final ageList = calculateAge();
+    if (ageList == null) return null;
+    // return '${ageList[0]} years, ${ageList[1]} months, ${ageList[2]} days';
+    return ageList[0];
+  }
 }

@@ -1,10 +1,14 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:solace/models/my_user.dart';
+import 'package:solace/services/database.dart';
 import 'package:solace/shared/widgets/input_summary.dart';
 import 'package:solace/themes/colors.dart'; // Assuming AppColors is defined here
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class PatientTracking extends StatefulWidget {
   const PatientTracking({super.key});
@@ -15,6 +19,9 @@ class PatientTracking extends StatefulWidget {
 
 class PatientTrackingState extends State<PatientTracking> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final GlobalKey<FormState> _formKeyAlgo = GlobalKey<FormState>();
+  final DatabaseService databaseService = DatabaseService();
+  String _predictionResult = "Press the button to get a prediction";
 
   // State variables for all inputs
   final Map<String, String> _vitalInputs = {
@@ -23,6 +30,17 @@ class PatientTrackingState extends State<PatientTracking> {
     'Blood Oxygen': '',
     'Temperature': '',
     'Weight': '',
+  };
+
+  final Map<String, dynamic> _algoInputs = {
+    "Fever": false,
+    "Cough": false,
+    "Fatigue": false,
+    "Difficulty Breathing": false,
+    "Age": null,
+    "Gender": null,
+    "Blood Pressure": null,
+    "Cholesterol Level": null,
   };
 
   double _painValue = 5.0;
@@ -55,6 +73,40 @@ class PatientTrackingState extends State<PatientTracking> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const Text(
+                  'Algo Inputs',
+                  style: TextStyle(
+                    fontSize: 24.0,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Outfit',
+                  ),
+                ),
+                const SizedBox(height: 20.0),
+                _buildAlgoInputs(),
+                const SizedBox(height: 20.0),
+                Text(_predictionResult),
+                const SizedBox(height: 20.0),
+                Center(
+                  child: TextButton(
+                    onPressed: () => _submitAlgoInputs(user!.uid),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 50, vertical: 10),
+                      backgroundColor: AppColors.neon,
+                    ),
+                    child: const Text(
+                      'Submit Algo Inputs',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: AppColors.white,
+                      ),
+                    ),
+                  ),
+                ),
+                const Divider(thickness: 1.0),
+                const SizedBox(height: 20.0),
                 const Text(
                   'Vitals',
                   style: TextStyle(
@@ -124,6 +176,59 @@ class PatientTrackingState extends State<PatientTracking> {
       ),
       labelStyle: TextStyle(
         color: AppColors.black,
+      ),
+    );
+  }
+
+  Widget _buildAlgoInputs() {
+    return Form(
+      key: _formKeyAlgo,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Boolean inputs
+          const Text(
+            'Symptoms:',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          ...["Fever", "Cough", "Fatigue", "Difficulty Breathing"].map((key) {
+            return CheckboxListTile(
+              title: Text(key),
+              value: _algoInputs[key] as bool,
+              onChanged: (value) {
+                setState(() {
+                  _algoInputs[key] = value ?? false;
+                });
+              },
+            );
+          }),
+          const SizedBox(height: 20),
+
+          // Number inputs for Blood Pressure and Cholesterol Level
+          ...["Blood Pressure", "Cholesterol Level"].map((key) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10.0),
+              child: TextFormField(
+                decoration: InputDecoration(
+                  labelText: key,
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter $key';
+                  } else if (!RegExp(r'^-?\d+(\.\d+)?$').hasMatch(value)) {
+                    return 'Enter a valid number';
+                  }
+                  return null;
+                },
+                onChanged: (value) {
+                  _algoInputs[key] = value;
+                },
+              ),
+            );
+          }),
+        ],
       ),
     );
   }
@@ -303,6 +408,89 @@ class PatientTrackingState extends State<PatientTracking> {
     );
   }
 
+  void _submitAlgoInputs(String uid) async {
+    final userData = await DatabaseService(uid: uid).getUserData();
+    if (userData == null) {
+      debugPrint('Submit Algo Input No User Data');
+      return;
+    }
+    if (_formKeyAlgo.currentState!.validate()) {
+      try {
+        // Combine and format the algo inputs
+        final timestamp = Timestamp.now();
+
+        final combinedInputs = {
+          'timestamp': timestamp,
+          'Fever': _algoInputs['Fever'],
+          'Cough': _algoInputs['Cough'],
+          'Fatigue': _algoInputs['Fatigue'],
+          'Difficulty Breathing': _algoInputs['Difficulty Breathing'],
+          'Age': userData.age,
+          'Gender': userData.gender,
+          'Blood Pressure': _algoInputs['Blood Pressure'],
+          'Cholesterol Level': _algoInputs['Cholesterol Level'],
+        };
+
+        // Reference to the user's document in the 'tracking' collection
+        final trackingRef = FirebaseFirestore.instance.collection('tracking').doc(uid);
+
+        // Get the document snapshot
+        final docSnapshot = await trackingRef.get();
+
+        List<dynamic> algoInputs = [];
+
+        if (docSnapshot.exists) {
+          // Ensure 'algo' exists and is a List
+          if (docSnapshot['algo'] is List) {
+            algoInputs = List.from(docSnapshot['algo']);
+          } else {
+            debugPrint("Algo field is not a list or is missing.");
+            algoInputs = []; // Initialize as empty list
+          }
+
+          // Update 'algo' field
+          await trackingRef.update({
+            'algo': FieldValue.arrayUnion([combinedInputs]),
+          });
+        } else {
+          // Initialize 'algo' field if document doesn't exist
+          await trackingRef.set({
+            'algo': [combinedInputs],
+          });
+          algoInputs = [combinedInputs];  // Add initial input
+        }
+
+        // If there are fewer than 10 inputs, repeat the last one
+        if (algoInputs.length < 10) {
+          final latestInput = algoInputs.isNotEmpty ? algoInputs.last : combinedInputs;
+          while (algoInputs.length < 10) {
+            algoInputs.add(latestInput);
+          }
+        }
+
+        // Send the inputs for prediction
+        await getPrediction(algoInputs);
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Data submitted successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        // Handle any unexpected errors
+        debugPrint("Unexpected error: $e");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('An unexpected error occurred: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+  
   void _submit(String uid) {
     if (_formKey.currentState!.validate()) {
       // Only after successful validation, prepare data
@@ -331,6 +519,79 @@ class PatientTrackingState extends State<PatientTracking> {
           ),
         ),
       );
+    }
+  }
+
+  Future<void> getPrediction(List<dynamic> algoInputs) async {
+    // choose from these depending on testing device
+    final localHostAddress = '127.0.0.1'; // default
+    final virtualAddress = '10.0.2.2';    // if using virtual device
+    // if using physical device, use computer’s IP address instead of 127.0.0.1 or localhost.
+
+    final url = Uri.parse('http://$virtualAddress:5000/predict');
+    final headers = {"Content-Type": "application/json"};
+
+    // Format algoInputs to match the input size expected by the model (6 features)
+    List<List<double>> formattedInputs = algoInputs.map((input) {
+      return [
+        input['Fever'] ? 1.0 : 0.0,
+        input['Cough'] ? 1.0 : 0.0,
+        input['Fatigue'] ? 1.0 : 0.0,
+        input['Difficulty Breathing'] ? 1.0 : 0.0,
+        // double.parse(input['Age'].toString()),                // not yet scaled since I don't know the scaling method used in the dataset
+        // input['Gender'] == 'Male' ? 1.0 : 0.0,
+        double.parse(input['Blood Pressure'].toString()),     // not yet scaled since I don't know the scaling method used in the dataset
+        double.parse(input['Cholesterol Level'].toString()),  // not yet scaled since I don't know the scaling method used in the dataset
+      ];
+    }).toList();
+
+    debugPrint('Formatted Inputs: $formattedInputs');
+
+    try {
+      // Wrap formattedInputs in a JSON object with the 'data' key
+      final body = json.encode({'data': [formattedInputs]});
+      // final body = json.encode({
+      //   "data": [
+      //     [
+      //       [1, 0, 0, 1, 0.5, -0.7],
+      //       [0, 1, 1, 0, -0.3, 1.2],
+      //       [1, 0, 1, 0, 0.1, 0.2],
+      //       [1, 1, 0, 1, -0.5, 0.4],
+      //       [0, 0, 1, 1, 0.6, -0.3],
+      //       [1, 1, 1, 0, -0.4, 0.9],
+      //       [0, 1, 0, 1, 0.3, -0.2],
+      //       [1, 0, 1, 0, -0.1, 0.5],
+      //       [0, 1, 0, 1, 0.4, -0.8],
+      //       [1, 1, 1, 0, 0.2, 0.6],
+      //     ]
+      //   ]
+      // });
+
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: body,
+      );
+
+      debugPrint("Json body: $body");
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        final String status = responseData['prediction'][0] == 0 ? "Stable" : "Unstable";
+        debugPrint("Status: ${responseData['prediction']}  Type: ${(responseData['prediction']).runtimeType}");
+        setState(() {
+          _predictionResult = "Status: $status";
+        });
+        // set status to either stable or unstable here
+      } else {
+        setState(() {
+          _predictionResult = "Error: ${response.statusCode}";
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _predictionResult = "Error: $e";
+      });
     }
   }
 }
