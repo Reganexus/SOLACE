@@ -204,26 +204,31 @@ class PatientTrackingState extends State<PatientTracking> {
           }),
           const SizedBox(height: 20),
 
-          // Number inputs for Blood Pressure and Cholesterol Level
+          // Dropdown inputs for Blood Pressure and Cholesterol Level
           ...["Blood Pressure", "Cholesterol Level"].map((key) {
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 10.0),
-              child: TextFormField(
+              child: DropdownButtonFormField<String>(
                 decoration: InputDecoration(
                   labelText: key,
                   border: OutlineInputBorder(),
                 ),
-                keyboardType: TextInputType.number,
+                value: _algoInputs[key], // Set the current value
+                items: [
+                  DropdownMenuItem(value: "Low", child: Text("Low")),
+                  DropdownMenuItem(value: "Normal", child: Text("Normal")),
+                  DropdownMenuItem(value: "High", child: Text("High")),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _algoInputs[key] = value; // Update the state
+                  });
+                },
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter $key';
-                  } else if (!RegExp(r'^-?\d+(\.\d+)?$').hasMatch(value)) {
-                    return 'Enter a valid number';
+                    return 'Please select $key';
                   }
                   return null;
-                },
-                onChanged: (value) {
-                  _algoInputs[key] = value;
                 },
               ),
             );
@@ -412,9 +417,13 @@ class PatientTrackingState extends State<PatientTracking> {
     final userData = await DatabaseService(uid: uid).getUserData();
     if (userData == null) {
       debugPrint('Submit Algo Input No User Data');
-      return;
-    }
-    if (_formKeyAlgo.currentState!.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No User Data'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } else if (_formKeyAlgo.currentState!.validate()) {
       try {
         // Combine and format the algo inputs
         final timestamp = Timestamp.now();
@@ -531,6 +540,19 @@ class PatientTrackingState extends State<PatientTracking> {
     final url = Uri.parse('http://$virtualAddress:5000/predict');
     final headers = {"Content-Type": "application/json"};
 
+    // Define mappings for Blood Pressure and Cholesterol Level
+    const bloodPressureMapping = {
+      "Low": -2.347682445195591,
+      "Normal": -0.6882095111211662,
+      "High": 0.9712634229532582,
+    };
+
+    const cholesterolMapping = {
+      "Low": -2.0753216368811644,
+      "Normal": -0.5544364176961935,
+      "High": 0.9664488014887777,
+    };
+
     // Format algoInputs to match the input size expected by the model (6 features)
     List<List<double>> formattedInputs = algoInputs.map((input) {
       return [
@@ -538,10 +560,10 @@ class PatientTrackingState extends State<PatientTracking> {
         input['Cough'] ? 1.0 : 0.0,
         input['Fatigue'] ? 1.0 : 0.0,
         input['Difficulty Breathing'] ? 1.0 : 0.0,
-        // double.parse(input['Age'].toString()),                // not yet scaled since I don't know the scaling method used in the dataset
+        // double.parse(input['Age'].toString()),
         // input['Gender'] == 'Male' ? 1.0 : 0.0,
-        double.parse(input['Blood Pressure'].toString()),     // not yet scaled since I don't know the scaling method used in the dataset
-        double.parse(input['Cholesterol Level'].toString()),  // not yet scaled since I don't know the scaling method used in the dataset
+        bloodPressureMapping[input['Blood Pressure']] ?? 0.0,
+        cholesterolMapping[input['Cholesterol Level']] ?? 0.0,
       ];
     }).toList();
 
@@ -550,22 +572,6 @@ class PatientTrackingState extends State<PatientTracking> {
     try {
       // Wrap formattedInputs in a JSON object with the 'data' key
       final body = json.encode({'data': [formattedInputs]});
-      // final body = json.encode({
-      //   "data": [
-      //     [
-      //       [1, 0, 0, 1, 0.5, -0.7],
-      //       [0, 1, 1, 0, -0.3, 1.2],
-      //       [1, 0, 1, 0, 0.1, 0.2],
-      //       [1, 1, 0, 1, -0.5, 0.4],
-      //       [0, 0, 1, 1, 0.6, -0.3],
-      //       [1, 1, 1, 0, -0.4, 0.9],
-      //       [0, 1, 0, 1, 0.3, -0.2],
-      //       [1, 0, 1, 0, -0.1, 0.5],
-      //       [0, 1, 0, 1, 0.4, -0.8],
-      //       [1, 1, 1, 0, 0.2, 0.6],
-      //     ]
-      //   ]
-      // });
 
       final response = await http.post(
         url,
