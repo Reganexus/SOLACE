@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/admin/delete_user.dart';
 import 'package:solace/screens/admin/edit_role.dart';
-import 'package:solace/screens/admin/user_details.dart';
+import 'package:solace/shared/widgets/user_details.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/themes/colors.dart';
 
@@ -105,12 +105,15 @@ class AdminUsersState extends State<AdminUsers> {
       ),
       child: Row(
         children: [
+          // Display profile image if available, otherwise show a placeholder
           CircleAvatar(
-            backgroundImage:
-                AssetImage('lib/assets/images/shared/placeholder.png'),
+            backgroundImage: patient.profileImageUrl.isNotEmpty
+                ? NetworkImage(patient.profileImageUrl)  // Use network image if available
+                : AssetImage('lib/assets/images/shared/placeholder.png') as ImageProvider,  // Fallback to placeholder
             radius: 24.0,
           ),
           const SizedBox(width: 10.0),
+          // Display patient's full name
           Text(
             '${patient.firstName} ${patient.lastName}',
             style: const TextStyle(
@@ -130,6 +133,7 @@ class AdminUsersState extends State<AdminUsers> {
       builder: (context) {
         return UserDetailsDialog(
           user: patient,
+          isAdminView: true,
           onEditRole: () {
             _showEditRoleDialog(context, patient); // Show Edit Role Dialog
           },

@@ -47,8 +47,10 @@ class Contacts extends StatelessWidget {
 
     // Send the friend request if all checks pass
     await db.sendFriendRequest(currentUserId, result);
+
+    // Show a snackbar indicating the friend request was successfully sent
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Friend request sent!')),
+      SnackBar(content: Text('Friend request successfully sent!')),
     );
   }
 
@@ -205,42 +207,54 @@ class Contacts extends StatelessWidget {
 
                   String friendName = nameSnapshot.data ?? 'Unknown';
 
-                  return Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-                    margin: EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(
-                      color: AppColors.gray,
-                      borderRadius: BorderRadius.circular(10.0),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        CircleAvatar(
-                          radius: 24,
-                          backgroundImage: AssetImage(
-                              'lib/assets/images/shared/placeholder.png'),
+                  return FutureBuilder<String>(
+                    future: db.getProfileImageUrl(
+                        friendId), // Assuming this method fetches the profile image URL
+                    builder: (context, imageSnapshot) {
+                      String profileImageUrl = imageSnapshot.data ?? '';
+
+                      return Container(
+                        width: double.infinity,
+                        padding:
+                            EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+                        margin: EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.gray,
+                          borderRadius: BorderRadius.circular(10.0),
                         ),
-                        SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            friendName,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontFamily: 'Inter',
-                              fontWeight: FontWeight.normal,
-                              color: AppColors.black,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            CircleAvatar(
+                              radius: 24,
+                              backgroundImage: profileImageUrl.isNotEmpty
+                                  ? NetworkImage(profileImageUrl)
+                                  : AssetImage(
+                                          'lib/assets/images/shared/placeholder.png')
+                                      as ImageProvider,
                             ),
-                          ),
+                            SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                friendName,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontFamily: 'Inter',
+                                  fontWeight: FontWeight.normal,
+                                  color: AppColors.black,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.more_vert),
+                              onPressed: () =>
+                                  _showFriendOptions(context, friendId),
+                            ),
+                          ],
                         ),
-                        IconButton(
-                          icon: Icon(Icons.more_vert),
-                          onPressed: () =>
-                              _showFriendOptions(context, friendId),
-                        ),
-                      ],
-                    ),
+                      );
+                    },
                   );
                 },
               );
@@ -315,51 +329,63 @@ class Contacts extends StatelessWidget {
 
                   String requesterName = nameSnapshot.data ?? 'Unknown';
 
-                  return Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-                    margin: EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(
-                      color: AppColors.gray,
-                      borderRadius: BorderRadius.circular(10.0),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        CircleAvatar(
-                          radius: 24,
-                          backgroundImage: AssetImage(
-                              'lib/assets/images/shared/placeholder.png'),
+                  return FutureBuilder<String>(
+                    future: db.getProfileImageUrl(
+                        requestId), // Assuming this method fetches the profile image URL
+                    builder: (context, imageSnapshot) {
+                      String profileImageUrl = imageSnapshot.data ?? '';
+
+                      return Container(
+                        width: double.infinity,
+                        padding:
+                            EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+                        margin: EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.gray,
+                          borderRadius: BorderRadius.circular(10.0),
                         ),
-                        SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            requesterName,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontFamily: 'Inter',
-                              fontWeight: FontWeight.normal,
-                              color: AppColors.black,
-                            ),
-                          ),
-                        ),
-                        Row(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            IconButton(
-                              icon: Icon(Icons.check, color: Colors.green),
-                              onPressed: () => db.acceptFriendRequest(
-                                  currentUserId, requestId),
+                            CircleAvatar(
+                              radius: 24,
+                              backgroundImage: profileImageUrl.isNotEmpty
+                                  ? NetworkImage(profileImageUrl)
+                                  : AssetImage(
+                                          'lib/assets/images/shared/placeholder.png')
+                                      as ImageProvider,
                             ),
-                            IconButton(
-                              icon: Icon(Icons.clear, color: Colors.red),
-                              onPressed: () => db.declineFriendRequest(
-                                  currentUserId, requestId),
+                            SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                requesterName,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontFamily: 'Inter',
+                                  fontWeight: FontWeight.normal,
+                                  color: AppColors.black,
+                                ),
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                IconButton(
+                                  icon: Icon(Icons.check, color: Colors.green),
+                                  onPressed: () => db.acceptFriendRequest(
+                                      currentUserId, requestId),
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.clear, color: Colors.red),
+                                  onPressed: () => db.declineFriendRequest(
+                                      currentUserId, requestId),
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                      ],
-                    ),
+                      );
+                    },
                   );
                 },
               );

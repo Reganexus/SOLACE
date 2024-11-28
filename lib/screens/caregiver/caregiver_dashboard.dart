@@ -242,6 +242,17 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
 
                     final patients = snapshot.data ?? [];
 
+                    // Filter patients whose status is "unstable"
+                    final unstablePatients = patients
+                        .where((patient) => patient?.status == 'unstable')
+                        .toList();
+
+                    if (unstablePatients.isEmpty) {
+                      return const Center(
+                        child: Text('No unstable patients available'),
+                      );
+                    }
+
                     return SingleChildScrollView(
                       controller: _scrollController,
                       child: Column(
@@ -270,10 +281,10 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
                             contentVerticalPadding: 10,
                             headerPadding: const EdgeInsets.symmetric(
                                 vertical: 7, horizontal: 15),
-                            children: patients.map((patient) {
+                            children: unstablePatients.map((patient) {
                               return AccordionSection(
                                 onOpenSection: () => _handleOpenSection(
-                                    patients.indexOf(patient)),
+                                    unstablePatients.indexOf(patient)),
                                 onCloseSection: _handleCloseSection,
                                 headerBackgroundColor: AppColors.gray,
                                 headerBackgroundColorOpened: AppColors.neon,
@@ -284,8 +295,14 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
                                 headerPadding: const EdgeInsets.symmetric(
                                     vertical: 10, horizontal: 15),
                                 leftIcon: CircleAvatar(
-                                  backgroundImage: AssetImage(
-                                      'lib/assets/images/shared/placeholder.png'),
+                                  backgroundImage: (patient?.profileImageUrl !=
+                                              null &&
+                                          patient!.profileImageUrl.isNotEmpty)
+                                      ? NetworkImage(patient
+                                          .profileImageUrl) // Use NetworkImage if the profile image URL exists
+                                      : const AssetImage(
+                                              'lib/assets/images/shared/placeholder.png')
+                                          as ImageProvider, // Fallback to placeholder image
                                   radius: 24.0,
                                 ),
                                 rightIcon: ValueListenableBuilder<int?>(
@@ -293,7 +310,8 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
                                   builder: (context, value, child) {
                                     return Icon(
                                       Icons.keyboard_arrow_down,
-                                      color: value == patients.indexOf(patient)
+                                      color: value ==
+                                              unstablePatients.indexOf(patient)
                                           ? AppColors.white
                                           : AppColors.black,
                                       size: 20,
@@ -301,7 +319,7 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
                                   },
                                 ),
                                 isOpen: _openSectionIndex.value ==
-                                    patients.indexOf(patient),
+                                    unstablePatients.indexOf(patient),
                                 header: Padding(
                                   padding: const EdgeInsets.symmetric(
                                       vertical: 10.0),
@@ -311,10 +329,11 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
                                       return Text(
                                         '${patient?.firstName ?? 'Unknown'} ${patient?.lastName ?? 'Unknown'}',
                                         style: headerStyle.copyWith(
-                                          color:
-                                              value == patients.indexOf(patient)
-                                                  ? AppColors.white
-                                                  : AppColors.black,
+                                          color: value ==
+                                                  unstablePatients
+                                                      .indexOf(patient)
+                                              ? AppColors.white
+                                              : AppColors.black,
                                           fontSize: 18.0,
                                           fontFamily: 'Inter',
                                           fontWeight: FontWeight.normal,

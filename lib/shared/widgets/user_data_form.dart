@@ -41,7 +41,6 @@ typedef UserDataCallback = Future<void> Function({
 class UserDataFormState extends State<UserDataForm> {
   final _formKey = GlobalKey<FormState>();
 
-
   late TextEditingController firstNameController;
   late TextEditingController lastNameController;
   late TextEditingController middleNameController;
@@ -121,7 +120,7 @@ class UserDataFormState extends State<UserDataForm> {
       context: context,
       initialDate: initialDate,
       firstDate: DateTime(1900),
-      lastDate: DateTime.now(),
+      lastDate: DateTime.now(), // Restrict to past and current dates
       builder: (BuildContext context, Widget? child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -212,50 +211,114 @@ class UserDataFormState extends State<UserDataForm> {
     }
   }
 
-
   Future<void> _submitForm() async {
-    if (!_formKey.currentState!.validate()) return;
+    // Validation for first name, middle name, and last name
+    final nameRegExp = RegExp(r"^[\p{L}\s]+(?:\.\s?[\p{L}]+)*$", unicode: true);
 
-    // Check if phone number is unique
-    final phoneNumber = phoneNumberController.text.trim();
-    final isUnique = await _isPhoneNumberUnique(phoneNumber);
-
-    if (!isUnique) {
+    if (firstNameController.text.trim().isEmpty ||
+        !nameRegExp.hasMatch(firstNameController.text.trim())) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Phone number already exists. Please use a different one.'),
-        ),
+            content: Text(
+                'Invalid first name. Only letters, spaces, and suffixes like Sr. or Jr. are allowed.')),
       );
       return;
     }
 
+    if (middleNameController.text.trim().isNotEmpty &&
+        !nameRegExp.hasMatch(middleNameController.text.trim())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(
+                'Invalid middle name. Only letters, spaces, and suffixes like Sr. or Jr. are allowed.')),
+      );
+      return;
+    }
+
+    if (lastNameController.text.trim().isEmpty ||
+        !nameRegExp.hasMatch(lastNameController.text.trim())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(
+                'Invalid last name. Only letters, spaces, and suffixes are allowed.')),
+      );
+      return;
+    }
+
+    // Validation for the phone number
+    final phoneNumber = phoneNumberController.text.trim();
+    final phoneRegExp = RegExp(r'^09\d{9}$');
+    if (phoneNumber.isEmpty || !phoneRegExp.hasMatch(phoneNumber)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(
+                'Phone number must start with "09" and be 11 digits long.')),
+      );
+      return;
+    }
+
+    // Check if the phone number is unique
+    final isUnique = await _isPhoneNumberUnique(phoneNumber);
+    if (!isUnique) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(
+                'Phone number already exists. Please use a different one.')),
+      );
+      return;
+    }
+
+    // Validation for birthday
+    if (birthday == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please select a valid birthday.')),
+      );
+      return;
+    }
+
+    // Validation for gender
+    if (gender.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please select your gender.')),
+      );
+      return;
+    }
+
+    // Validation for address
+    if (addressController.text.trim().length < 5) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Address must be at least 5 characters long.')),
+      );
+      return;
+    }
+
+    // Get user ID
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return;
 
     String? profileImageUrl = _profileImageUrl;
 
+    // Profile image upload
     if (_profileImage != null) {
-      // Show snackbar while uploading the image
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
             children: [
               SizedBox(
-                width: 24, // Set the desired width
-                height: 24, // Set the desired height
+                width: 24,
+                height: 24,
                 child: CircularProgressIndicator(
                   color: AppColors.neon,
-                  strokeWidth: 4.0, // Optional: Adjust the thickness of the indicator
+                  strokeWidth: 4.0,
                 ),
               ),
               SizedBox(width: 15),
               Text('Uploading profile image...'),
             ],
           ),
-          duration: Duration(minutes: 1), // Long duration to ensure visibility during upload
+          duration: Duration(minutes: 1),
         ),
       );
-
 
       try {
         profileImageUrl = await DatabaseService.uploadProfileImage(
@@ -263,26 +326,27 @@ class UserDataFormState extends State<UserDataForm> {
           file: _profileImage!,
         );
 
-        // Dismiss the snackbar once the upload is successful
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
       } catch (e) {
-        // Show error snackbar if the upload fails
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to upload profile image. Please try again.')),
+          SnackBar(
+              content:
+              Text('Failed to upload profile image. Please try again.')),
         );
         return;
       }
     }
 
+    // Save the form data with properly capitalized fields
     await widget.onButtonPressed(
-      firstName: firstNameController.text.trim(),
-      lastName: lastNameController.text.trim(),
-      middleName: middleNameController.text.trim(),
+      firstName: capitalizeEachWord(firstNameController.text.trim()),
+      lastName: capitalizeEachWord(lastNameController.text.trim()),
+      middleName: capitalizeEachWord(middleNameController.text.trim()),
       phoneNumber: phoneNumber,
       gender: gender,
       birthday: birthday,
-      address: addressController.text.trim(),
+      address: capitalizeEachWord(addressController.text.trim()),
       profileImageUrl: profileImageUrl ?? '',
     );
 
@@ -290,6 +354,14 @@ class UserDataFormState extends State<UserDataForm> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Profile updated successfully!')),
     );
+  }
+
+  String capitalizeEachWord(String text) {
+    return text
+        .split(' ')
+        .map((word) =>
+    word.isNotEmpty ? word[0].toUpperCase() + word.substring(1).toLowerCase() : '')
+        .join(' ');
   }
 
 
@@ -384,9 +456,18 @@ class UserDataFormState extends State<UserDataForm> {
                 decoration:
                     _buildInputDecoration('Phone Number', _focusNodes[3]),
                 keyboardType: TextInputType.phone,
-                validator: (val) =>
-                    val!.isEmpty ? 'Phone number cannot be empty' : null,
+                validator: (val) {
+                  if (val == null || val.isEmpty) {
+                    return 'Phone number cannot be empty';
+                  }
+                  if (!RegExp(r'^09\d{9}$').hasMatch(val)) {
+                    return 'Invalid Phone Number';
+                  }
+                  return null;
+                },
               ),
+
+              // Birthday Field
               const SizedBox(height: 20),
               TextFormField(
                 controller: birthdayController,
@@ -397,7 +478,33 @@ class UserDataFormState extends State<UserDataForm> {
                   fontWeight: FontWeight.normal,
                   color: AppColors.black,
                 ),
-                decoration: _buildInputDecoration('Birthday', _focusNodes[4]),
+                decoration: InputDecoration(
+                  labelText: 'Birthday',
+                  filled: true,
+                  fillColor: AppColors.gray,
+                  suffixIcon: Icon(
+                    Icons.calendar_today,
+                    color: _focusNodes[4].hasFocus
+                        ? AppColors.neon
+                        : AppColors.black,
+                  ),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none),
+                  focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: AppColors.neon, width: 2)),
+                  labelStyle: TextStyle(
+                    fontSize: 16,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.normal,
+                    color: _focusNodes[4].hasFocus
+                        ? AppColors.neon
+                        : AppColors.black,
+                  ),
+                ),
+                validator: (val) =>
+                    val!.isEmpty ? 'Birthday cannot be empty' : null,
                 readOnly: true,
                 onTap: () => _selectDate(context),
               ),
@@ -461,6 +568,7 @@ class UserDataFormState extends State<UserDataForm> {
                   ),
                 ),
               ),
+
               const SizedBox(height: 20),
             ],
           ),

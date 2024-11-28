@@ -1,4 +1,4 @@
-// ignore_for_file: use_build_context_synchronously
+// ignore_for_file: use_build_context_synchronously, unused_import
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,6 +9,7 @@ import 'package:solace/services/auth.dart';
 import 'package:solace/shared/widgets/user_editprofile.dart';
 import 'package:solace/themes/colors.dart';
 import 'dart:convert';
+import 'package:fluttertoast/fluttertoast.dart'; // For Toast if needed
 
 class SignUp extends StatefulWidget {
   final Function toggleView;
@@ -92,40 +93,59 @@ class _SignUpState extends State<SignUp> {
   }
 
   // Sign-up method in your sign-up screen
+  void _showError(List<String> errorMessages) {
+    // First, check if there are multiple errors or just one
+    if (errorMessages.isNotEmpty) {
+      // Show error messages in a Snackbar one by one
+      for (var error in errorMessages) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              error,
+              style: const TextStyle(fontSize: 16),
+            ),
+            duration: const Duration(seconds: 3), // Customize the duration
+            backgroundColor: Colors.red, // Background color of the Snackbar
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _handleSignUp() async {
     // Validation checks
-    String errorMessage = '';
+    List<String> errorMessages = [];
 
     // Validate Email
     if (_emailController.text.isEmpty) {
-      errorMessage += "Enter an email.\n";
+      errorMessages.add("Enter an email.");
     } else if (!RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
         .hasMatch(_emailController.text)) {
-      errorMessage += "Enter a valid email address.\n";
+      errorMessages.add("Enter a valid email address.");
     }
 
     // Validate Password
     if (_passwordController.text.isEmpty) {
-      errorMessage += "Enter a password.\n";
+      errorMessages.add("Enter a password.");
     } else if (_passwordController.text.length < 6) {
-      errorMessage += "Password must be at least 6 characters long.\n";
+      errorMessages.add("Password must be at least 6 characters long.");
     } else if (_passwordController.text.length > 4096) {
-      errorMessage += "Password must be no more than 4096 characters long.\n";
+      errorMessages.add("Password must be no more than 4096 characters long.");
     } else if (!RegExp(r'(?=.*[a-z])').hasMatch(_passwordController.text)) {
-      errorMessage += "Password must include at least one lowercase letter.\n";
+      errorMessages.add("Password must include at least one lowercase letter.");
     } else if (!RegExp(r'(?=.*[A-Z])').hasMatch(_passwordController.text)) {
-      errorMessage += "Password must include at least one uppercase letter.\n";
+      errorMessages.add("Password must include at least one uppercase letter.");
     } else if (!RegExp(r'(?=.*\d)').hasMatch(_passwordController.text)) {
-      errorMessage += "Password must include at least one number.\n";
+      errorMessages.add("Password must include at least one number.");
     } else if (!RegExp(r'(?=.*[!@#\$%\^&\*_])')
         .hasMatch(_passwordController.text)) {
-      errorMessage += "Password must include at least one special character.\n";
+      errorMessages
+          .add("Password must include at least one special character.");
     }
 
     // Show errors if there are any
-    if (errorMessage.isNotEmpty) {
-      // Call _showError with both error messages and criteria
-      _showError(errorMessage, passwordCriteria);
+    if (errorMessages.isNotEmpty) {
+      _showError(errorMessages);
       return; // Exit early if there are validation errors
     }
 
@@ -141,7 +161,7 @@ class _SignUpState extends State<SignUp> {
         bool emailExists = await _auth.emailExists(_email);
         if (emailExists) {
           _showError(
-              "An account with this email already exists. Please log in.", "");
+              ["An account with this email already exists. Please log in."]);
           return;
         }
 
@@ -155,10 +175,10 @@ class _SignUpState extends State<SignUp> {
             );
           }
         } else {
-          _showError("Registration failed. Please try again.", "");
+          _showError(["Registration failed. Please try again."]);
         }
       } catch (e) {
-        _showError("Network error. Please try again later.", "");
+        _showError(["Network error. Please try again later."]);
       } finally {
         if (mounted) {
           setState(() {
@@ -167,8 +187,7 @@ class _SignUpState extends State<SignUp> {
         }
       }
     } else if (!_agreeToTerms) {
-      _showError(
-          "You must agree to the terms and conditions.", passwordCriteria);
+      _showError(["You must agree to the terms and conditions."]);
     }
   }
 
@@ -181,166 +200,51 @@ class _SignUpState extends State<SignUp> {
 
     try {
       MyUser? user = await _auth.signInWithGoogle();
-      if (user != null) {
-        // Check if the user is new
-        if (user.newUser) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const EditProfileScreen()),
-          );
+
+      // Only continue if the widget is still mounted and the user is not null
+      if (mounted) {
+        if (user != null) {
+          // Check if the user is new
+          if (user.newUser) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const EditProfileScreen()),
+            );
+          } else {
+            // If the user has already completed their profile
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const Home()),
+            );
+          }
         } else {
-          // If the user has already completed their profile
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const Home()),
-          );
+          // If the user sign-in was aborted (null user)
+          // Don't show an error since the user just cancelled the sign-in
+          return;
         }
-      } else {
-        _showError("Google sign-up failed. Please try again.", "");
       }
     } catch (e) {
-      _showError(
-          "An error occurred during Google sign-up. Please try again later.",
-          "");
+      // Check if the error is specifically the Google sign-in cancellation
+      if (e.toString().contains("google_sign_in_aborted")) {
+        // If the user explicitly aborted, we don't show an error
+        return;
+      }
+
+      // Otherwise, show a generic error for unexpected issues
+      if (mounted) {
+        _showError([
+          "An error occurred during Google sign-in. Please try again later."
+        ]);
+      }
     } finally {
+      // Ensure we only update loading state if widget is still mounted
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
       }
     }
-  }
-
-  void _showError(String message, String criteria) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          backgroundColor: Colors.white,
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                // Container for the error messages
-                Container(
-                  padding:
-                      const EdgeInsets.all(16), // Padding inside the container
-                  decoration: BoxDecoration(
-                    color:
-                        const Color(0xFFFFF3F2), // Background color for errors
-                    border: Border.all(
-                      color: const Color(0xFFFEC5D0), // Border color for errors
-                      width: 2, // Border width
-                    ),
-                    borderRadius: BorderRadius.circular(10), // Rounded corners
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Error Title
-                      const Text(
-                        'Error/s Occurred!',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontFamily: 'Outfit',
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF690D02), // Text color for title
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      // Error Messages
-                      Text(
-                        message
-                            .split('\n')
-                            .where((error) =>
-                                error.isNotEmpty) // Filter out empty messages
-                            .map((error) => "• $error")
-                            .join('\n'),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: Color(
-                              0xFF690D02), // Text color for error messages
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Container for the Password Criteria
-                Container(
-                  padding:
-                      const EdgeInsets.all(16), // Padding inside the container
-                  decoration: BoxDecoration(
-                    color: const Color(
-                        0xFFE8F5E9), // Complementary background color for password criteria
-                    border: Border.all(
-                      color: const Color(
-                          0xFFC8E6C9), // Complementary border color for password criteria
-                      width: 2, // Border width
-                    ),
-                    borderRadius: BorderRadius.circular(10), // Rounded corners
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Password Criteria Title
-                      const Text(
-                        'Password Criteria',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontFamily: 'Outfit',
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.black,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      // Password Criteria List
-                      Text(
-                        criteria
-                            .split('\n')
-                            .where((criterion) => criterion
-                                .isNotEmpty) // Filter out empty criteria
-                            .map((criterion) => "• $criterion")
-                            .join('\n'),
-                        style: const TextStyle(
-                            fontSize: 16, color: AppColors.black),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              style: TextButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-                backgroundColor: AppColors.neon,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text(
-                'Close',
-                style: TextStyle(
-                  fontSize: 16.0,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Inter',
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   @override
@@ -371,7 +275,7 @@ class _SignUpState extends State<SignUp> {
                     ),
                     const SizedBox(height: 40),
                     const Text(
-                      'Hello!',
+                      'Sign Up',
                       style: TextStyle(
                         fontFamily: 'Outfit',
                         fontWeight: FontWeight.bold,
@@ -608,8 +512,14 @@ class _SignUpState extends State<SignUp> {
                               borderRadius: BorderRadius.circular(10)),
                         ),
                         child: _isLoading
-                            ? const CircularProgressIndicator(
-                                color: AppColors.white) // Loading indicator
+                            ? SizedBox(
+                                width: 26,
+                                height: 26,
+                                child: const CircularProgressIndicator(
+                                  color: AppColors.white,
+                                  strokeWidth: 4.0,
+                                ),
+                              ) // Loading indicator
                             : const Text(
                                 'Sign up',
                                 style: TextStyle(
@@ -693,8 +603,7 @@ class _SignUpState extends State<SignUp> {
                           width: 5,
                         ),
                         GestureDetector(
-                          onTap: () => widget
-                              .toggleView(), // Call toggleView as a function
+                          onTap: () => widget.toggleView(),
                           child: const Text(
                             'Login',
                             style: TextStyle(
@@ -704,7 +613,7 @@ class _SignUpState extends State<SignUp> {
                               color: AppColors.neon,
                             ),
                           ),
-                        ),
+                        )
                       ],
                     ),
                   ],

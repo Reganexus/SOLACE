@@ -40,45 +40,81 @@ class ReceiptScreen extends StatelessWidget {
               Text(
                 'Vitals:',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 20,
                   fontFamily: 'Inter',
                   fontWeight: FontWeight.bold,
                   color: AppColors.black,
                 ),
               ),
-              ...inputs['Vitals'].entries.map((entry) {
-                return Text(
-                  '${entry.key}: ${entry.value}',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.normal,
-                    color: AppColors.black,
-                  ),
-                );
-              }).toList(), // Ensure the map is properly converted to a list
+              if (inputs.containsKey('Vitals'))
+                ...inputs['Vitals'].entries.map((entry) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 5.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${entry.key}:',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.normal,
+                            color: AppColors.black,
+                          ),
+                        ),
+                        Text(
+                          '${entry.value}',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.normal,
+                            color: AppColors.black,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
               const SizedBox(height: 20.0),
               Text(
-                'Pain Assessment:',
+                'Symptom Assessment:',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 20,
                   fontFamily: 'Inter',
                   fontWeight: FontWeight.bold,
                   color: AppColors.black,
                 ),
               ),
               const SizedBox(height: 10.0),
-              ...inputs['Pain Assessment'].entries.map((entry) {
-                return Text(
-                  '${entry.key}: ${entry.value}',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.normal,
-                    color: AppColors.black,
-                  ),
-                );
-              }).toList(), // Ensure the map is properly converted to a list
+              if (inputs.containsKey('Symptom Assessment'))
+                ...inputs['Symptom Assessment'].entries.map((entry) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 5.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${entry.key}:',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.normal,
+                            color: AppColors.black,
+                          ),
+                        ),
+                        Text(
+                          '${entry.value}',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.normal,
+                            color: AppColors.black,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
               const SizedBox(height: 20),
               const Divider(thickness: 1.0),
               const SizedBox(height: 20),
@@ -93,7 +129,7 @@ class ReceiptScreen extends StatelessWidget {
                       final trackingData = {
                         'timestamp': timestamp,
                         'Vitals': inputs['Vitals'],
-                        'Pain Assessment': inputs['Pain Assessment'],
+                        'Symptom Assessment': inputs['Symptom Assessment'],
                       };
 
                       // Get reference to the patient's document in the 'tracking' collection

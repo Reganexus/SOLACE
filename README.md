@@ -1,16 +1,4 @@
-# solace
+# SOLACE
 
-A new Flutter project.
+SOLACE is an undergraduate thesis project made for palliative and hospice care. This application facilitates pain management and predictive intervention by utilizing artifical intelligence to predict symptoms for intuitve patient monitoring and intervention.
 
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
