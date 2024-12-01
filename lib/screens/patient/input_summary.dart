@@ -2,13 +2,115 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:solace/shared/globals.dart';
 import 'package:solace/themes/colors.dart';
 
 class ReceiptScreen extends StatelessWidget {
   final Map<String, dynamic> inputs;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final String uid;
 
-  const ReceiptScreen({super.key, required this.inputs, required this.uid});
+  ReceiptScreen({super.key, required this.inputs, required this.uid});
+
+  void _identifySymptoms() async {
+    List<String> symptoms = [];
+
+    // Clear symptoms in Firestore
+    try {
+      await _firestore.collection('users').doc(uid).update({
+        'symptoms': [],
+      });
+      debugPrint('Symptoms list cleared successfully.');
+    } catch (e) {
+      debugPrint('Error clearing symptoms list: $e');
+    }
+
+    // Analyze vital inputs
+    Map<String, String> vitals = Map<String, String>.from(inputs['Vitals']);
+    vitals.forEach((key, value) {
+      if (value.isEmpty) return;
+
+      double vitalValue;
+      try {
+        vitalValue = double.parse(value);
+      } catch (e) {
+        debugPrint('$key value is invalid');
+        return;
+      }
+
+      switch (key) {
+        case 'Heart Rate':
+          if (vitalValue < minHeartRate) {
+            symptoms.add('Low heart rate');
+          } else if (vitalValue > maxHeartRate) {
+            symptoms.add('High heart rate');
+          }
+          break;
+
+        case 'Oxygen Saturation':
+          if (vitalValue < minOxygenSaturation) {
+            symptoms.add('Low oxygen saturation');
+          }
+          break;
+
+        case 'Respiration':
+          if (vitalValue < minRespirationRate) {
+            symptoms.add('Low respiration rate');
+          } else if (vitalValue > maxRespirationRate) {
+            symptoms.add('High respiration rate');
+          }
+          break;
+
+        case 'Temperature':
+          if (vitalValue < minTemperature) {
+            symptoms.add('Low temperature');
+          } else if (vitalValue > maxTemperature) {
+            symptoms.add('High temperature');
+          }
+          break;
+
+        default:
+          debugPrint('$key: Unable to determine status');
+      }
+    });
+
+    // Analyze symptom inputs
+    Map<String, int> symptomAssessment =
+        Map<String, int>.from(inputs['Symptom Assessment']);
+
+    // Remove symptoms with a value of 0
+    symptomAssessment.removeWhere((key, value) => value == 0);
+
+    // Sort symptoms in descending order by value
+    List<MapEntry<String, int>> sortedSymptoms = symptomAssessment.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    for (var entry in sortedSymptoms) {
+      symptoms.add(entry.key);
+    }
+
+    // Update the Firestore document
+    try {
+      await _firestore.collection('users').doc(uid).update({
+        'symptoms': FieldValue.arrayUnion(symptoms),
+      });
+      debugPrint('Identified symptoms successfully updated in Firestore');
+
+      String status = '';
+      if(symptoms.isEmpty) {
+        status = 'stable';
+        debugPrint('Status set to stable');
+      } else {
+        status = 'unstable';
+        debugPrint('Status set to stable');
+      }
+      await _firestore.collection('users').doc(uid).update({
+        'status': status,
+      });
+    } catch (e) {
+      debugPrint('Error updating Firestore: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -122,6 +224,9 @@ class ReceiptScreen extends StatelessWidget {
                 child: TextButton(
                   onPressed: () async {
                     try {
+                      // Identify current symptoms based on inputs and save it in FireStore
+                      _identifySymptoms();
+
                       // Get the current timestamp
                       final timestamp = Timestamp.now();
 

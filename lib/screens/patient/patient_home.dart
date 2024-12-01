@@ -22,7 +22,7 @@ class PatientHome extends StatefulWidget {
 }
 
 class PatientHomeState extends State<PatientHome> {
-  int _currentIndex = 3;
+  int _currentIndex = 2;
   late final List<Widget> _screens;
 
   @override

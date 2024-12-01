@@ -139,6 +139,7 @@ class AuthService {
       'notifications': [],
       'profileImageUrl': profileImageUrl ?? '',
       'status': 'stable',
+      'symptoms': [],
     }, SetOptions(merge: true));
   }
 

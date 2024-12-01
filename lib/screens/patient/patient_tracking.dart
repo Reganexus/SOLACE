@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/patient/input_summary.dart';
+import 'package:solace/shared/globals.dart';
 import 'package:solace/themes/colors.dart'; // Assuming AppColors is defined here
 
 class PatientTracking extends StatefulWidget {
@@ -26,15 +27,15 @@ class PatientTrackingState extends State<PatientTracking> {
     'Pain': '',
   };
 
-  int _diarrheaValue = 1;
-  int _fatigueValue = 1;
-  int _nauseaValue = 1;
-  int _depressionValue = 1;
-  int _anxietyValue = 1;
-  int _drowsinessValue = 1;
-  int _appetiteValue = 1;
-  int _wellBeingValue = 1;
-  int _shortnessOfBreathValue = 1;
+  int _diarrheaValue = 0;
+  int _fatigueValue = 0;
+  int _nauseaValue = 0;
+  int _depressionValue = 0;
+  int _anxietyValue = 0;
+  int _drowsinessValue = 0;
+  int _appetiteValue = 0;
+  int _wellBeingValue = 0;
+  int _shortnessOfBreathValue = 0;
 
   late Map<String, dynamic> _combinedInputs; // Holds data for submission
 
@@ -226,9 +227,9 @@ class PatientTrackingState extends State<PatientTracking> {
                     Expanded(
                       child: Slider(
                         value: slider['value'].toDouble(),
-                        min: 1,
+                        min: 0,
                         max: 10,
-                        divisions: 9,
+                        divisions: 10,
                         label: slider['value'].toString(),
                         activeColor: AppColors.neon,
                         onChanged: (value) {
@@ -258,7 +259,7 @@ class PatientTrackingState extends State<PatientTracking> {
                     DropdownButton<int>(
                       dropdownColor: AppColors.white,
                       value: slider['value'],
-                      items: List.generate(10, (index) => index + 1).map((value) {
+                      items: List.generate(11, (index) => index).map((value) {
                         return DropdownMenuItem<int>(
                           value: value,
                           child: Text(value.toString()),
@@ -319,9 +320,9 @@ class PatientTrackingState extends State<PatientTracking> {
                     Expanded(
                       child: Slider(
                         value: slider['value'].toDouble(),
-                        min: 1,
+                        min: 0,
                         max: 10,
-                        divisions: 9,
+                        divisions: 10,
                         label: slider['value'].toString(),
                         activeColor: AppColors.purple,
                         onChanged: (value) {
@@ -348,7 +349,7 @@ class PatientTrackingState extends State<PatientTracking> {
                     DropdownButton<int>(
                       dropdownColor: AppColors.white,
                       value: slider['value'].toInt(),
-                      items: List.generate(10, (index) => index + 1).map((value) {
+                      items: List.generate(11, (index) => index).map((value) {
                         return DropdownMenuItem<int>(
                           value: value,
                           child: Text(value.toString()),
@@ -422,5 +423,4 @@ class PatientTrackingState extends State<PatientTracking> {
       ),
     );
   }
-
 }
