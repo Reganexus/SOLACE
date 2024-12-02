@@ -33,6 +33,7 @@ dependencies:
   excel: ^2.0.5
   path_provider: ^2.0.10
   pdf: ^3.6.0
+  http: ^1.2.2
   fl_chart: ^0.69.0
   flutter_email_sender: ^6.0.3
 
