@@ -79,8 +79,7 @@ class ReceiptScreen extends StatelessWidget {
         Map<String, int>.from(inputs['Symptom Assessment']);
 
     // Remove symptoms with a value of 0
-    symptomAssessment.removeWhere((key, value) => value == 0);
-
+    symptomAssessment.removeWhere((key, value) => value == 0 || key == 'Well-being');
     // Sort symptoms in descending order by value
     List<MapEntry<String, int>> sortedSymptoms = symptomAssessment.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));

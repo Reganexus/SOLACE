@@ -21,6 +21,7 @@ class PatientTrackingState extends State<PatientTracking> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final GlobalKey<FormState> _formKeyAlgo = GlobalKey<FormState>();
   final DatabaseService databaseService = DatabaseService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   String _predictionResult = "Press the button to get a prediction";
 
   // State variables for all inputs
@@ -57,6 +58,88 @@ class PatientTrackingState extends State<PatientTracking> {
   late Map<String, dynamic> _combinedInputs; // Holds data for submission
 
   final FocusNode _bloodPressureFocusNode = FocusNode();
+  
+  TextEditingController _heartRateController = TextEditingController();
+  TextEditingController _bloodPressureController = TextEditingController();
+  TextEditingController _oxygenSaturationController = TextEditingController();
+  TextEditingController _respirationController = TextEditingController();
+  TextEditingController _temperatureController = TextEditingController();
+  TextEditingController _painController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchLatestTrackingData();
+  }
+
+  Future<void> _fetchLatestTrackingData() async {
+    final user = Provider.of<MyUser?>(context, listen: false);
+
+    if (user == null){
+      debugPrint("User is null");
+      return;
+    };
+
+    try {
+      final DocumentSnapshot documentSnapshot = await _firestore
+        .collection('tracking')
+        .doc(user.uid)
+        .get();
+        
+      if (documentSnapshot.exists) {
+        final data = documentSnapshot.data() as Map<String, dynamic>;
+        final List<dynamic> trackingArray = data['tracking'] ?? [];
+
+        // Sort the array by `timestamp` (assuming each item has a `timestamp` field)
+        trackingArray.sort((a, b) {
+          final aTimestamp = a['timestamp'] ?? 0;
+          final bTimestamp = b['timestamp'] ?? 0;
+          return bTimestamp.compareTo(aTimestamp); // Descending order
+        });
+
+        // Get the latest tracking item (if it exists)
+        if (trackingArray.isNotEmpty) {
+          final latestTracking = trackingArray.first;
+          debugPrint('Latest tracking: $latestTracking');
+
+          setState(() {
+            // Update the _vitalInputs and controllers
+            final vitals = latestTracking['Vitals'] as Map<String, dynamic>? ?? {};
+            _vitalInputs['Heart Rate'] = vitals['Heart Rate']?.toString() ?? '';
+            _vitalInputs['Blood Pressure'] = vitals['Blood Pressure']?.toString() ?? '';
+            _vitalInputs['Oxygen Saturation'] = vitals['Oxygen Saturation']?.toString() ?? '';
+            _vitalInputs['Respiration'] = vitals['Respiration']?.toString() ?? '';
+            _vitalInputs['Temperature'] = vitals['Temperature']?.toString() ?? '';
+            _vitalInputs['Pain'] = vitals['Pain']?.toString() ?? '';
+
+            _heartRateController.text = _vitalInputs['Heart Rate'] ?? '';
+            _bloodPressureController.text = _vitalInputs['Blood Pressure'] ?? '';
+            _oxygenSaturationController.text = _vitalInputs['Oxygen Saturation'] ?? '';
+            _respirationController.text = _vitalInputs['Respiration'] ?? '';
+            _temperatureController.text = _vitalInputs['Temperature'] ?? '';
+            _painController.text = _vitalInputs['Pain'] ?? '';
+
+            final symptoms = latestTracking['Symptom Assessment'] as Map<String, dynamic>? ?? {};
+            _diarrheaValue = symptoms['Diarrhea'] ?? 0;
+            _fatigueValue = symptoms['Fatigue'] ?? 0;
+            _nauseaValue = symptoms['Nausea'] ?? 0;
+            _depressionValue = symptoms['Depression'] ?? 0;
+            _anxietyValue = symptoms['Anxiety'] ?? 0;
+            _drowsinessValue = symptoms['Drowsiness'] ?? 0;
+            _appetiteValue = symptoms['Appetite'] ?? 0;
+            _wellBeingValue = symptoms['Well-being'] ?? 0;
+            _shortnessOfBreathValue = symptoms['Shortness of Breath'] ?? 0;
+          });
+        } else {
+          debugPrint('No tracking data found.');
+        }
+      } else {
+        debugPrint('Snapshot is empty');
+      }
+    } catch (e) {
+      debugPrint('Error fetching latest tracking data: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -244,9 +327,35 @@ class PatientTrackingState extends State<PatientTracking> {
       key: _formKey,
       child: Column(
         children: _vitalInputs.keys.map((key) {
+          TextEditingController controller;
+        
+          // Assign the correct controller based on the key
+          switch (key) {
+            case 'Heart Rate':
+              controller = _heartRateController;
+              break;
+            case 'Blood Pressure':
+              controller = _bloodPressureController;
+              break;
+            case 'Oxygen Saturation':
+              controller = _oxygenSaturationController;
+              break;
+            case 'Respiration':
+              controller = _respirationController;
+              break;
+            case 'Temperature':
+              controller = _temperatureController;
+              break;
+            case 'Pain':
+              controller = _painController;
+              break;
+            default:
+              controller = TextEditingController();
+          }
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 10.0),
             child: TextFormField(
+              controller: controller,
               focusNode:
                   key == 'Blood Pressure' ? _bloodPressureFocusNode : null,
               decoration: _inputDecoration(key, _bloodPressureFocusNode),
@@ -519,7 +628,7 @@ class PatientTrackingState extends State<PatientTracking> {
         };
 
         // Reference to the user's document in the 'tracking' collection
-        final trackingRef = FirebaseFirestore.instance.collection('tracking').doc(uid);
+        final trackingRef = _firestore.collection('tracking').doc(uid);
 
         // Get the document snapshot
         final docSnapshot = await trackingRef.get();
