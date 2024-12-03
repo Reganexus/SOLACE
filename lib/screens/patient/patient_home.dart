@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:solace/models/my_user.dart';
+import 'package:solace/screens/patient/patient_intervention.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/screens/patient/patient_dashboard.dart';
 import 'package:solace/screens/patient/patient_history.dart';
@@ -22,7 +23,7 @@ class PatientHome extends StatefulWidget {
 }
 
 class PatientHomeState extends State<PatientHome> {
-  int _currentIndex = 2;
+  int _currentIndex = 0;
   late final List<Widget> _screens;
 
   @override
@@ -32,6 +33,7 @@ class PatientHomeState extends State<PatientHome> {
       PatientDashboard(
         navigateToHistory: _navigateToHistory,
       ),
+      PatientIntervention(),
       PatientHistory(),
       PatientTracking(),
       Profile(),
@@ -40,7 +42,7 @@ class PatientHomeState extends State<PatientHome> {
 
   void _navigateToHistory() {
     setState(() {
-      _currentIndex = 1;
+      _currentIndex = 2;
     });
   }
 
@@ -183,7 +185,7 @@ class PatientHomeState extends State<PatientHome> {
                         _buildRightAppBar(context),
                       ],
                     )
-                  : _currentIndex == 3
+                  : _currentIndex == 4
                       ? Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -213,7 +215,11 @@ class PatientHomeState extends State<PatientHome> {
                           ],
                         )
                       : Text(
-                          _currentIndex == 1 ? 'History' : 'Tracking',
+                          _currentIndex == 1
+                              ? 'Intervention'
+                              : _currentIndex == 2
+                                  ? 'History'
+                                  : 'Tracking',
                           style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,

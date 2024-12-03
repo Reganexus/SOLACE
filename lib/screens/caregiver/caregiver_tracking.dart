@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_print
+// ignore_for_file: use_build_context_synchronously, avoid_print
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -15,155 +15,145 @@ class CaregiverTracking extends StatefulWidget {
 }
 
 class CaregiverTrackingState extends State<CaregiverTracking> {
-  List<Map<String, dynamic>> upcomingSchedules = [];
+  List<Map<String, dynamic>> notes = [];
   DateTime selectedDay = DateTime.now();
-  bool isLoading = true; // Add a loading state
+  DateTime? userCreatedDate;
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    fetchUpcomingSchedules();
+    fetchNotesForDay(selectedDay);
+    fetchUserCreationDate();
   }
 
-  Future<void> fetchUpcomingSchedules() async {
+  Future<void> fetchUserCreationDate() async {
+    final User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (snapshot.exists && snapshot.data() != null) {
+        final userData = snapshot.data()!;
+        final dateCreatedTimestamp = userData['dateCreated'] as Timestamp?;
+
+        if (dateCreatedTimestamp != null) {
+          setState(() {
+            userCreatedDate = dateCreatedTimestamp.toDate();
+          });
+        }
+      }
+    }
+  }
+
+  Future<void> fetchNotesForDay(DateTime day) async {
     setState(() {
-      isLoading = true; // Set loading state to true
+      isLoading = true;
+      notes = [];
     });
 
     final User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final String caregiverId = user.uid;
+
+      // Fetch the user document containing the notes array
       final snapshot = await FirebaseFirestore.instance
           .collection('users')
           .doc(caregiverId)
           .get();
 
-      if (snapshot.exists) {
-        final List<dynamic> schedulesData = snapshot.data()?['schedule'] ?? [];
+      // Check if the document exists and contains notes
+      if (snapshot.exists && snapshot.data() != null) {
+        final userData = snapshot.data()!;
 
-        final List<Map<String, dynamic>> schedules = [];
-        for (var schedule in schedulesData) {
-          final scheduleDate = (schedule['date'] as Timestamp).toDate();
-          final time = schedule['time']; // Ensure your Firestore has this
-          final patientId = schedule['patientId'];
+        // Ensure that 'notes' is a List and not null
+        final notesArray = userData['notes'] as List<dynamic>?;
 
-          // Fetch patient details to get address and phone number
-          final patientSnapshot = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(patientId)
-              .get();
+        if (notesArray != null) {
+          // Filter notes that match the selected day
+          final selectedDateString = DateFormat('yyyy-MM-dd').format(day);
+          final filteredNotes = notesArray.where((note) {
+            final timestamp = (note['timestamp'] as Timestamp).toDate();
+            final formattedDate = DateFormat('yyyy-MM-dd').format(timestamp);
+            return formattedDate == selectedDateString;
+          }).toList();
 
-          if (patientSnapshot.exists) {
-            final patientData = patientSnapshot.data()!;
-            schedules.add({
-              'date': scheduleDate,
-              'time': time, // Assuming time is stored in your Firestore
-              'patientId': patientId,
-              'address': patientData['address'],
-              'phoneNumber': patientData['phoneNumber'],
-              'patientName':
-                  '${patientData['firstName']} ${patientData['lastName']}',
-            });
-          }
+          setState(() {
+            notes = filteredNotes
+                .map((note) => {
+                      'noteId': note['noteId'], // Include the noteId field
+                      'timestamp': (note['timestamp'] as Timestamp).toDate(),
+                      'note': note['note'],
+                      'title': note['title'],
+                    })
+                .toList();
+          });
+        } else {
+          setState(() {
+            notes = [];
+          });
         }
-
-        schedules.sort((a, b) => a['date'].compareTo(b['date']));
-
-        setState(() {
-          upcomingSchedules = schedules;
-          isLoading = false; // Set loading state to false once data is loaded
-        });
       }
     }
+
+    setState(() {
+      isLoading = false;
+    });
   }
 
-  void _showAppointmentDetails(BuildContext context, Map<String, dynamic> schedule) {
+  void _showAddNoteDialog() {
+    final TextEditingController noteController = TextEditingController();
+    final TextEditingController titleController =
+        TextEditingController(); // New title controller
+
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: AppColors.white, // Set background color
-          title: Text(
-            schedule['patientName'],
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.calendar_today, color: Colors.black54),
-                    const SizedBox(width: 8),
-                    Text(
-                      DateFormat('MMMM d, y').format(schedule['date']),
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                  ],
+          title: const Text('Add Note for Today'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Title TextField
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(
+                  labelText: 'Title',
+                  border: OutlineInputBorder(),
                 ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    const Icon(Icons.access_time, color: Colors.black54),
-                    const SizedBox(width: 8),
-                    Text(
-                      schedule['time'] ?? 'Time not available',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                  ],
+              ),
+              const SizedBox(height: 10.0),
+              // Note TextField
+              TextField(
+                controller: noteController,
+                decoration: const InputDecoration(
+                  labelText: 'Note',
+                  border: OutlineInputBorder(),
                 ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    const Icon(Icons.location_on, color: Colors.black54),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        schedule['address'] ?? 'Address not available',
-                        style: const TextStyle(fontSize: 16),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 2,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    const Icon(Icons.phone, color: Colors.black54),
-                    const SizedBox(width: 8),
-                    Text(
-                      schedule['phoneNumber'] ?? 'Phone not available',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
           actions: [
             TextButton(
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-                backgroundColor: AppColors.neon,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: const Text(
-                'Close',
-                style: TextStyle(
-                  fontSize: 16.0,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Inter',
-                  color: Colors.white,
-                ),
-              ),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                final noteText = noteController.text.trim();
+                final titleText =
+                    titleController.text.trim(); // Get the title text
+                if (noteText.isNotEmpty && titleText.isNotEmpty) {
+                  await addNoteForToday(
+                      titleText, noteText); // Pass both title and note
+                  Navigator.of(context).pop();
+                }
+              },
+              child: const Text('Save'),
             ),
           ],
         );
@@ -171,146 +161,295 @@ class CaregiverTrackingState extends State<CaregiverTracking> {
     );
   }
 
+  Future<void> addNoteForToday(String title, String noteText) async {
+    final User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final String caregiverId = user.uid;
+
+      try {
+        // Use selectedDay as the reference date for the note
+        final DateTime selectedDate = selectedDay;
+        final String uniqueId = '${selectedDate.millisecondsSinceEpoch}';
+
+        // Create the new note
+        final newNote = {
+          'noteId': uniqueId, // Add the unique ID
+          'timestamp': Timestamp.fromDate(
+              selectedDate), // Use selectedDate for the timestamp
+          'date': DateFormat('yyyy-MM-dd')
+              .format(selectedDate), // Format the selected date
+          'title': title.isNotEmpty ? title : 'Untitled',
+          'note': noteText.isNotEmpty ? noteText : 'No content provided',
+        };
+
+        // Reference to the user document
+        final userRef =
+            FirebaseFirestore.instance.collection('users').doc(caregiverId);
+
+        // Update the notes field of the user document
+        await userRef.update({
+          'notes': FieldValue.arrayUnion(
+              [newNote]), // Add the new note to the 'notes' array
+        });
+
+        fetchNotesForDay(selectedDay);
+        print('Note added successfully!');
+      } catch (e) {
+        print("Error adding note: $e"); // Print any error
+      }
+    } else {
+      print("User is not authenticated.");
+    }
+  }
+
+  void _showNoteDetailsDialog(Map<String, dynamic> note, String formattedTime) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Note Details - $formattedTime'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Time: $formattedTime',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10.0),
+              Text(
+                note['note'], // Display the note content as text
+                style: const TextStyle(fontSize: 16),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Close'),
+            ),
+            TextButton(
+              onPressed: () async {
+                await _deleteNote(note);
+                Navigator.of(context).pop();
+              },
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _deleteNote(Map<String, dynamic> note) async {
+    final User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final String caregiverId = user.uid;
+
+      try {
+        // Reference to the user document
+        final userRef =
+            FirebaseFirestore.instance.collection('users').doc(caregiverId);
+
+        // Fetch the user document to get the current notes array
+        final userDocSnapshot = await userRef.get();
+
+        if (!userDocSnapshot.exists) {
+          print('User document does not exist!');
+          return;
+        }
+
+        // Get the current notes array
+        var notes = List<Map<String, dynamic>>.from(
+            userDocSnapshot.data()?['notes'] ?? []);
+
+        // Find the index of the note by noteId
+        final noteIndex =
+            notes.indexWhere((n) => n['noteId'] == note['noteId']);
+
+        if (noteIndex != -1) {
+          // Remove the note from the list
+          notes.removeAt(noteIndex);
+
+          // Update the notes field in Firestore to remove the note
+          await userRef.update({
+            'notes': notes, // Update the notes array without the deleted note
+          });
+
+          // After deleting, fetch updated notes for the day
+          fetchNotesForDay(selectedDay);
+
+          print('Note deleted successfully!');
+        } else {
+          print('Note not found');
+        }
+      } catch (e) {
+        print('Error deleting note: $e'); // Print any error
+      }
+    } else {
+      print('User is not authenticated.');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: isLoading // Show loading indicator when data is being fetched
-          ? Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              // Wrap the entire content in SingleChildScrollView
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  children: [
-                    TableCalendar(
-                      focusedDay: selectedDay,
-                      firstDay: DateTime.now(),
-                      lastDay: DateTime.now().add(const Duration(days: 90)),
-                      selectedDayPredicate: (day) {
-                        return upcomingSchedules.any((schedule) =>
-                            DateFormat('yyyy-MM-dd').format(schedule['date']) ==
-                            DateFormat('yyyy-MM-dd').format(day));
-                      },
-                      onDaySelected: (selectedDay, focusedDay) {
-                        setState(() {
-                          this.selectedDay = selectedDay;
-                        });
-                      },
-                      calendarStyle: CalendarStyle(
-                        selectedDecoration: const BoxDecoration(
-                          color: AppColors.neon,
-                          shape: BoxShape.circle,
-                        ),
-                        todayDecoration: BoxDecoration(
-                          color: AppColors.purple,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      headerStyle: const HeaderStyle(
-                        formatButtonVisible: false,
-                        titleCentered: true,
-                        leftChevronIcon: Icon(Icons.arrow_back),
-                        rightChevronIcon: Icon(Icons.arrow_forward),
-                      ),
-                    ),
-                    const SizedBox(height: 20.0),
-                    SizedBox(
-                      width: double.infinity,
-                      child: const Text(
-                        'Upcoming Appointments',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'Outfit',
-                        ),
-                        textAlign: TextAlign.left,
-                      ),
-                    ),
-                    const SizedBox(height: 20.0),
-                    // Remove Expanded and let the ListView take up space naturally
-                    upcomingSchedules.isNotEmpty
-                        ? ListView.builder(
-                            physics:
-                                const NeverScrollableScrollPhysics(), // Prevent scrolling within the list
-                            shrinkWrap:
-                                true, // Allows ListView to take only the required height
-                            itemCount: upcomingSchedules.length,
-                            itemBuilder: (context, index) {
-                              final schedule = upcomingSchedules[index];
-                              final date = schedule['date'] as DateTime;
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showAddNoteDialog,
+        backgroundColor: AppColors.neon,
+        foregroundColor: AppColors.white,
+        child: const Icon(Icons.add),
+      ),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
+          child: Column(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  border:
+                      Border.all(color: AppColors.blackTransparent, width: 1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: TableCalendar(
+                  focusedDay: selectedDay,
+                  firstDay: userCreatedDate ?? DateTime.now().subtract(const Duration(days: 30)), // Default to 30 days ago
+                  lastDay: DateTime.now(),
+                  selectedDayPredicate: (day) => isSameDay(day, selectedDay),
+                  enabledDayPredicate: (day) {
+                    if (userCreatedDate == null) {
+                      return true; // Temporarily enable all dates for testing
+                    }
+                    return day.isAfter(userCreatedDate!.subtract(const Duration(days: 1))) &&
+                        day.isBefore(DateTime.now().add(const Duration(days: 1)));
+                  },
 
-                              return GestureDetector(
-                                onTap: () {
-                                  _showAppointmentDetails(context, schedule);
-                                },
-                                child: Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 10.0, horizontal: 15.0),
-                                  margin: const EdgeInsets.only(bottom: 10.0),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.gray,
-                                    borderRadius: BorderRadius.circular(10.0),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Container(
-                                            width: 30,
-                                            height: 30,
-                                            decoration: BoxDecoration(
-                                              border: Border.all(
-                                                  color: Colors.black),
-                                              borderRadius:
-                                                  BorderRadius.circular(5.0),
-                                            ),
-                                            padding: const EdgeInsets.all(5.0),
-                                            child: Center(
-                                              child: Text(
-                                                DateFormat('d').format(date),
-                                                style: const TextStyle(
-                                                  fontFamily: 'Inter',
-                                                  fontSize: 12.0,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 10.0),
-                                          Text(
-                                            DateFormat('MMMM').format(date),
-                                            style: const TextStyle(
-                                              fontSize: 16.0,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(width: 10.0),
-                                      Text(
-                                        schedule['time'] ??
-                                            'Time not available',
-                                        style: const TextStyle(
-                                          fontSize: 16.0,
-                                          fontWeight: FontWeight.normal,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          )
-                        : const Center(child: Text('No upcoming appointments')),
-                  ],
+                  onDaySelected: (selectedDay, focusedDay) {
+                    setState(() {
+                      this.selectedDay = selectedDay;
+                    });
+                    fetchNotesForDay(selectedDay);
+                  },
+                  calendarStyle: CalendarStyle(
+                    selectedDecoration: const BoxDecoration(
+                      color: AppColors.neon,
+                      shape: BoxShape.circle,
+                    ),
+                    todayDecoration: BoxDecoration(
+                      color: AppColors.purple,
+                      shape: BoxShape.circle,
+                    ),
+                    outsideDaysVisible:
+                        false, // Hide dates outside the current month
+                  ),
+                  headerStyle: const HeaderStyle(
+                    formatButtonVisible: false,
+                    titleCentered: true,
+                    leftChevronIcon: Icon(Icons.arrow_back),
+                    rightChevronIcon: Icon(Icons.arrow_forward),
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(height: 20.0),
+              SizedBox(
+                width: double.infinity,
+                child: Text(
+                  'Notes for ${DateFormat('MMM d, y (EEEE)').format(selectedDay)}',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Outfit',
+                  ),
+                  textAlign: TextAlign.left,
+                ),
+              ),
+              const SizedBox(height: 20.0),
+              isLoading
+                  ? Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.symmetric(vertical: 18),
+                      decoration: BoxDecoration(
+                        color: AppColors.gray,
+                        borderRadius: BorderRadius.circular(10.0),
+                      ),
+                      child: Text(
+                        "No available notes",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.normal,
+                          color: AppColors.black,
+                        ),
+                      ),
+                    )
+                  : notes.isNotEmpty
+                      ? ListView.builder(
+                          physics: const NeverScrollableScrollPhysics(),
+                          shrinkWrap: true,
+                          itemCount: notes.length,
+                          itemBuilder: (context, index) {
+                            final note = notes[index];
+                            final timestamp = note['timestamp'];
+                            final formattedTime = DateFormat('h:mm a')
+                                .format(timestamp); // Time only format
+
+                            return GestureDetector(
+                              onTap: () =>
+                                  _showNoteDetailsDialog(note, formattedTime),
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 10.0),
+                                padding: const EdgeInsets.all(15.0),
+                                decoration: BoxDecoration(
+                                  color: AppColors.gray,
+                                  borderRadius: BorderRadius.circular(10.0),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Check if 'title' exists and provide a default value if it's null
+                                    Text(
+                                      note['title'] ??
+                                          'No Title', // Default value for null
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 5.0),
+                                    // Check if 'note' exists and provide a default value if it's null
+                                    Text(note['note'] ??
+                                        'No content available'), // Default value for null
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        )
+                      : Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.symmetric(vertical: 18),
+                          decoration: BoxDecoration(
+                            color: AppColors.gray,
+                            borderRadius: BorderRadius.circular(10.0),
+                          ),
+                          child: Text(
+                            "No available notes",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontFamily: 'Inter',
+                              fontWeight: FontWeight.normal,
+                              color: AppColors.black,
+                            ),
+                          ),
+                        ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

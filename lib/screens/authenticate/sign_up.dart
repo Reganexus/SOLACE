@@ -6,7 +6,8 @@ import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/authenticate/verify.dart';
 import 'package:solace/screens/home/home.dart';
 import 'package:solace/services/auth.dart';
-import 'package:solace/shared/widgets/user_editprofile.dart';
+import 'package:solace/shared/accountflow/rolechooser.dart';
+import 'package:solace/shared/accountflow/user_editprofile.dart';
 import 'package:solace/themes/colors.dart';
 import 'dart:convert';
 import 'package:fluttertoast/fluttertoast.dart'; // For Toast if needed
@@ -209,7 +210,7 @@ class _SignUpState extends State<SignUp> {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                  builder: (context) => const EditProfileScreen()),
+                  builder: (context) => const RoleChooser()),
             );
           } else {
             // If the user has already completed their profile

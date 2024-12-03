@@ -14,13 +14,17 @@ class UserDataForm extends StatefulWidget {
   final UserDataCallback onButtonPressed;
   final bool isSignUp;
   final bool newUser;
+  final int age;
+  final UserRole userRole;
 
   const UserDataForm({
     super.key,
+    this.isSignUp = true,
     required this.onButtonPressed,
     required this.userData,
-    this.isSignUp = true,
+    required this.userRole,
     required this.newUser,
+    required this.age,
   });
 
   @override
@@ -36,29 +40,52 @@ typedef UserDataCallback = Future<void> Function({
   required DateTime? birthday,
   required String address,
   required String profileImageUrl,
+  required String religion,
+  required int age, // Add age here
+  required String will, // Add will here
+  required String fixedWishes, // Add fixedWishes here
+  required String organDonation,
 });
 
 class UserDataFormState extends State<UserDataForm> {
   final _formKey = GlobalKey<FormState>();
 
+  late List<FocusNode> _focusNodes;
   late TextEditingController firstNameController;
   late TextEditingController lastNameController;
   late TextEditingController middleNameController;
   late TextEditingController phoneNumberController;
   late TextEditingController addressController;
   late TextEditingController birthdayController;
+  late TextEditingController willController;
+  late TextEditingController fixedWishesController;
 
   File? _profileImage;
   String? _profileImageUrl;
   String gender = '';
+  String religion = '';
+  String organDonation = '';
   DateTime? birthday;
 
-  final _focusNodes = List.generate(7, (_) => FocusNode());
   final _imagePicker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
+
+    int focusNodeCount = 8; // Base fields (7 common + 1 address)
+
+    // Add focus nodes for conditional fields
+    if (widget.userData?.userRole == UserRole.patient) {
+      focusNodeCount += 3; // 3 extra fields: will, fixedWishes, organDonation
+    }
+
+    // Initialize focus nodes with correct count
+    _focusNodes = List.generate(focusNodeCount, (_) => FocusNode());
+    debugPrint('Initialized focus nodes: ${_focusNodes.length}'); // Debug log
+
+    _focusNodes = List.generate(focusNodeCount, (_) => FocusNode());
+    debugPrint('Focus nodes count: ${_focusNodes.length}');
 
     firstNameController =
         TextEditingController(text: widget.userData?.firstName ?? '');
@@ -77,16 +104,17 @@ class UserDataFormState extends State<UserDataForm> {
           : '',
     );
     gender = widget.userData?.gender ?? '';
+    religion = widget.userData?.religion ?? '';
     _profileImageUrl = widget.userData?.profileImageUrl;
+    willController = TextEditingController(text: widget.userData?.will ?? '');
+    fixedWishesController =
+        TextEditingController(text: widget.userData?.fixedWishes ?? '');
+    organDonation = widget.userData?.organDonation ?? '';
 
     // Add focus listeners
-    _focusNodes[0].addListener(() => setState(() {}));
-    _focusNodes[1].addListener(() => setState(() {}));
-    _focusNodes[2].addListener(() => setState(() {}));
-    _focusNodes[3].addListener(() => setState(() {}));
-    _focusNodes[4].addListener(() => setState(() {}));
-    _focusNodes[5].addListener(() => setState(() {}));
-    _focusNodes[6].addListener(() => setState(() {}));
+    for (int i = 0; i < _focusNodes.length; i++) {
+      _focusNodes[i].addListener(() => setState(() {}));
+    }
   }
 
   @override
@@ -100,9 +128,57 @@ class UserDataFormState extends State<UserDataForm> {
     phoneNumberController.dispose();
     addressController.dispose();
     birthdayController.dispose();
+    willController.dispose();
+    fixedWishesController.dispose();
 
     super.dispose();
   }
+
+  String _getMonthName(int month) {
+    const monthNames = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December'
+    ];
+    return monthNames[month - 1];
+  }
+
+  static const List<String> religions = [
+    'Roman Catholic',
+    'Islam',
+    'Protestant',
+    'Iglesia ni Cristo',
+    'Buddhism',
+    'Hinduism',
+    'Judaism',
+    'Jehovah\'s Witnesses',
+    'Seventh-day Adventist',
+    'Evangelical',
+    'Other',
+  ];
+
+  static const List<String> organs = [
+    'Heart',
+    'Liver',
+    'Kidney',
+    'Lung',
+    'Pancreas',
+    'Intestine',
+    'Cornea',
+    'Bone Marrow',
+    'Skin',
+    'Other',
+    'None',
+  ];
 
   Future<void> _pickProfileImage() async {
     final XFile? pickedFile =
@@ -142,24 +218,6 @@ class UserDataFormState extends State<UserDataForm> {
             '${_getMonthName(picked.month)} ${picked.day}, ${picked.year}';
       });
     }
-  }
-
-  String _getMonthName(int month) {
-    const monthNames = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December'
-    ];
-    return monthNames[month - 1];
   }
 
   InputDecoration _buildInputDecoration(String label, FocusNode focusNode) {
@@ -212,133 +270,119 @@ class UserDataFormState extends State<UserDataForm> {
   }
 
   Future<void> _submitForm() async {
-    // Validation for first name, middle name, and last name
+    // Assuming `userRole` is passed as a property
+    final isPatient = widget.userRole == UserRole.patient;
+
     final nameRegExp = RegExp(r"^[\p{L}\s]+(?:\.\s?[\p{L}]+)*$", unicode: true);
 
+    // Validate name fields
     if (firstNameController.text.trim().isEmpty ||
         !nameRegExp.hasMatch(firstNameController.text.trim())) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(
-                'Invalid first name. Only letters, spaces, and suffixes like Sr. or Jr. are allowed.')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Invalid first name.')));
       return;
     }
-
     if (middleNameController.text.trim().isNotEmpty &&
         !nameRegExp.hasMatch(middleNameController.text.trim())) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(
-                'Invalid middle name. Only letters, spaces, and suffixes like Sr. or Jr. are allowed.')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Invalid middle name.')));
       return;
     }
-
     if (lastNameController.text.trim().isEmpty ||
         !nameRegExp.hasMatch(lastNameController.text.trim())) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(
-                'Invalid last name. Only letters, spaces, and suffixes are allowed.')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Invalid last name.')));
       return;
     }
 
-    // Validation for the phone number
+    // Phone number validation
     final phoneNumber = phoneNumberController.text.trim();
     final phoneRegExp = RegExp(r'^09\d{9}$');
     if (phoneNumber.isEmpty || !phoneRegExp.hasMatch(phoneNumber)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(
-                'Phone number must start with "09" and be 11 digits long.')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Invalid phone number.')));
       return;
     }
 
-    // Check if the phone number is unique
     final isUnique = await _isPhoneNumberUnique(phoneNumber);
     if (!isUnique) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(
-                'Phone number already exists. Please use a different one.')),
-      );
+          SnackBar(content: Text('Phone number already exists.')));
       return;
     }
 
-    // Validation for birthday
     if (birthday == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please select a valid birthday.')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Please select a birthday.')));
       return;
     }
 
-    // Validation for gender
+    final age = _calculateAge(birthday);
+
     if (gender.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please select your gender.')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Please select your gender.')));
       return;
     }
 
-    // Validation for address
+    if (religion.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Please select your religion.')));
+      return;
+    }
+
     if (addressController.text.trim().length < 5) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Address must be at least 5 characters long.')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Address must be at least 5 characters long.')));
       return;
     }
 
-    // Get user ID
+    // Validate new fields only if userRole is patient
+    final will = willController.text.trim();
+    final fixedWishes = fixedWishesController.text.trim();
+
+    if (isPatient) {
+      // Ensure that will and fixedWishes are not empty for patients
+      if (will.isEmpty) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Please specify your will.')));
+        return;
+      }
+
+      if (fixedWishes.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Please specify your fixed wishes.')));
+        return;
+      }
+
+      if (organDonation.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Please select your organ donation if any.')));
+        return;
+      }
+    }
+
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return;
 
     String? profileImageUrl = _profileImageUrl;
 
-    // Profile image upload
     if (_profileImage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  color: AppColors.neon,
-                  strokeWidth: 4.0,
-                ),
-              ),
-              SizedBox(width: 15),
-              Text('Uploading profile image...'),
-            ],
-          ),
-          duration: Duration(minutes: 1),
-        ),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Uploading profile image...')));
 
       try {
         profileImageUrl = await DatabaseService.uploadProfileImage(
           userId: userId,
           file: _profileImage!,
         );
-
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
       } catch (e) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content:
-              Text('Failed to upload profile image. Please try again.')),
-        );
+            SnackBar(content: Text('Failed to upload profile image.')));
         return;
       }
     }
 
-    // Save the form data with properly capitalized fields
     await widget.onButtonPressed(
       firstName: capitalizeEachWord(firstNameController.text.trim()),
       lastName: capitalizeEachWord(lastNameController.text.trim()),
@@ -346,24 +390,36 @@ class UserDataFormState extends State<UserDataForm> {
       phoneNumber: phoneNumber,
       gender: gender,
       birthday: birthday,
-      address: capitalizeEachWord(addressController.text.trim()),
+      address: addressController.text.trim(),
       profileImageUrl: profileImageUrl ?? '',
+      religion: religion, // Ensure religion is passed here
+      age: age,
+      will: isPatient ? will : "",
+      fixedWishes: isPatient ? fixedWishes : "",
+      organDonation: isPatient ? organDonation : "None",
     );
+  }
 
-    // Show success snackbar
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Profile updated successfully!')),
-    );
+// Helper method to calculate age
+  int _calculateAge(DateTime? birthday) {
+    if (birthday == null) return 0;
+    final now = DateTime.now();
+    int age = now.year - birthday.year;
+    if (now.month < birthday.month ||
+        (now.month == birthday.month && now.day < birthday.day)) {
+      age--;
+    }
+    return age;
   }
 
   String capitalizeEachWord(String text) {
     return text
         .split(' ')
-        .map((word) =>
-    word.isNotEmpty ? word[0].toUpperCase() + word.substring(1).toLowerCase() : '')
+        .map((word) => word.isNotEmpty
+            ? word[0].toUpperCase() + word.substring(1).toLowerCase()
+            : '')
         .join(' ');
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -382,11 +438,11 @@ class UserDataFormState extends State<UserDataForm> {
                       radius: 75,
                       backgroundImage: _profileImage != null
                           ? FileImage(_profileImage!)
-                          : (_profileImageUrl != null
-                                  ? NetworkImage(_profileImageUrl!)
-                                  : AssetImage(
-                                      'lib/assets/images/shared/placeholder.png'))
-                              as ImageProvider,
+                          : (_profileImageUrl != null &&
+                                  _profileImageUrl!.isNotEmpty
+                              ? NetworkImage(_profileImageUrl!)
+                              : AssetImage(
+                                  'lib/assets/images/shared/placeholder.png')),
                     ),
                     Container(
                       decoration: BoxDecoration(
@@ -401,6 +457,23 @@ class UserDataFormState extends State<UserDataForm> {
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(height: 20),
+              const Divider(thickness: 1.0),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Personal Information',
+                    style: TextStyle(
+                      fontSize: 18.0,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Inter',
+                      color: Colors.black,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 20),
               TextFormField(
@@ -510,7 +583,10 @@ class UserDataFormState extends State<UserDataForm> {
               ),
               const SizedBox(height: 20),
               DropdownButtonFormField<String>(
-                value: gender.isNotEmpty ? gender : null,
+                value: gender.isNotEmpty &&
+                        ['Male', 'Female', 'Other'].contains(gender)
+                    ? gender
+                    : null,
                 focusNode: _focusNodes[5],
                 style: TextStyle(
                   fontSize: 16,
@@ -537,8 +613,10 @@ class UserDataFormState extends State<UserDataForm> {
                 dropdownColor: AppColors.white,
               ),
               const SizedBox(height: 20),
-              TextFormField(
-                controller: addressController,
+              DropdownButtonFormField<String>(
+                value: religion.isNotEmpty && religions.contains(religion)
+                    ? religion
+                    : null,
                 focusNode: _focusNodes[6],
                 style: TextStyle(
                   fontSize: 16,
@@ -546,25 +624,139 @@ class UserDataFormState extends State<UserDataForm> {
                   fontWeight: FontWeight.normal,
                   color: AppColors.black,
                 ),
-                decoration: _buildInputDecoration('Address', _focusNodes[6]),
+                decoration: _buildInputDecoration('Religion', _focusNodes[6]),
+                items: religions
+                    .map(
+                      (religionItem) => DropdownMenuItem(
+                        value: religionItem,
+                        child: Text(
+                          religionItem,
+                          style:
+                              TextStyle(color: AppColors.black, fontSize: 16),
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (val) => setState(() {
+                  religion = val ?? ''; // Update the selected religion value
+                }),
+                validator: (val) =>
+                    val == null || val.isEmpty ? 'Select Religion' : null,
+                dropdownColor: AppColors.white,
+              ),
+              const SizedBox(height: 20),
+
+              TextFormField(
+                controller: addressController,
+                focusNode: _focusNodes[7],
+                style: TextStyle(
+                  fontSize: 16,
+                  fontFamily: 'Inter',
+                  fontWeight: FontWeight.normal,
+                  color: AppColors.black,
+                ),
+                decoration: _buildInputDecoration('Address', _focusNodes[7]),
                 validator: (val) =>
                     val!.isEmpty ? 'Address cannot be empty' : null,
               ),
-              const SizedBox(height: 20),
-              TextButton(
-                onPressed: _submitForm,
-                style: TextButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  backgroundColor: AppColors.neon,
+
+              // Conditionally show these fields for patients and if newUser is false
+              if (widget.userData?.userRole == UserRole.patient) ...[
+                const SizedBox(height: 10),
+                const Divider(thickness: 1.0),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Additional Information',
+                      style: TextStyle(
+                        fontSize: 18.0,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Inter',
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
                 ),
-                child: Text(
-                  'Update Profile',
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: willController,
+                  focusNode: _focusNodes[8],
+                  decoration: _buildInputDecoration('Will', _focusNodes[8]),
+                  validator: (val) =>
+                      val!.isEmpty ? 'Will cannot be empty' : null,
+                ),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: fixedWishesController,
+                  focusNode: _focusNodes[9],
+                  decoration:
+                      _buildInputDecoration('Fixed Wishes', _focusNodes[9]),
+                  validator: (val) =>
+                      val!.isEmpty ? 'Fixed Wishes cannot be empty' : null,
+                ),
+                const SizedBox(height: 20),
+                DropdownButtonFormField<String>(
+                  value:
+                      organDonation.isNotEmpty && organs.contains(organDonation)
+                          ? organDonation
+                          : null,
+                  focusNode: _focusNodes[10],
                   style: TextStyle(
+                    fontSize: 16,
                     fontFamily: 'Inter',
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: AppColors.white,
+                    fontWeight: FontWeight.normal,
+                    color: AppColors.black,
+                  ),
+                  decoration:
+                      _buildInputDecoration('Organ Donation', _focusNodes[10]),
+                  items: organs
+                      .map(
+                        (organ) => DropdownMenuItem(
+                          value: organ,
+                          child: Text(
+                            organ,
+                            style:
+                                TextStyle(color: AppColors.black, fontSize: 16),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (val) => setState(() {
+                    organDonation =
+                        val ?? 'None'; // Ensure it falls back to 'None' if null
+                  }),
+                  validator: (val) => val == null || val.isEmpty
+                      ? 'Select Organ Donation'
+                      : null,
+                  dropdownColor: AppColors.white,
+                ),
+              ],
+
+              const SizedBox(height: 10),
+              const Divider(thickness: 1.0),
+              const SizedBox(height: 10),
+
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: _submitForm,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+                    backgroundColor: AppColors.neon,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text(
+                    'Update Profile',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),

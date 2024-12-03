@@ -124,7 +124,7 @@ class BottomNavBar extends StatelessWidget {
               width: 30,
               height: 30,
             ),
-            label: 'Patients',
+            label: 'Intervention',
           ),
           BottomNavigationBarItem(
             icon: Image.asset(
@@ -134,7 +134,7 @@ class BottomNavBar extends StatelessWidget {
               width: 30,
               height: 30,
             ),
-            label: 'Tracking',
+            label: 'Notes',
           ),
           BottomNavigationBarItem(
             icon: Image.asset(
@@ -162,6 +162,16 @@ class BottomNavBar extends StatelessWidget {
           BottomNavigationBarItem(
             icon: Image.asset(
               currentIndex == 1
+                  ? 'lib/assets/images/caregiver/patients_selected.png'
+                  : 'lib/assets/images/caregiver/patients.png',
+              width: 30,
+              height: 30,
+            ),
+            label: 'Intervention',
+          ),
+          BottomNavigationBarItem(
+            icon: Image.asset(
+              currentIndex == 2
                   ? 'lib/assets/images/user/history_selected.png'
                   : 'lib/assets/images/user/history.png',
               width: 30,
@@ -171,7 +181,7 @@ class BottomNavBar extends StatelessWidget {
           ),
           BottomNavigationBarItem(
             icon: Image.asset(
-              currentIndex == 2
+              currentIndex == 3
                   ? 'lib/assets/images/user/tracking_selected.png'
                   : 'lib/assets/images/user/tracking.png',
               width: 30,
@@ -181,7 +191,7 @@ class BottomNavBar extends StatelessWidget {
           ),
           BottomNavigationBarItem(
             icon: Image.asset(
-              currentIndex == 3
+              currentIndex == 4
                   ? 'lib/assets/images/user/profile_selected.png'
                   : 'lib/assets/images/user/profile.png',
               width: 30,

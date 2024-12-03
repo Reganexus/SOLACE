@@ -6,7 +6,7 @@ import 'package:solace/services/database.dart';
 import 'package:solace/shared/widgets/help_page.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/services/auth.dart';
-import 'package:solace/shared/widgets/user_editprofile.dart';
+import 'package:solace/shared/accountflow/user_editprofile.dart';
 import 'package:solace/models/my_user.dart';
 
 class AdminSettings extends StatelessWidget {
@@ -48,7 +48,8 @@ class AdminSettings extends StatelessWidget {
                     DateTime.now(), // Providing default dateCreated value
                 profileImageUrl:
                     '', // Default profile image URL (empty string or placeholder)
-                status: 'stable'
+                status: 'stable', // Default status
+                religion: 'Not specified', // Default religion value
               );
 
           return SingleChildScrollView(
@@ -336,7 +337,8 @@ class AdminSettings extends StatelessWidget {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const HelpPage()),
+                        MaterialPageRoute(
+                            builder: (context) => const HelpPage()),
                       );
                     },
                     child: const Text(

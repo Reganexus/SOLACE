@@ -6,6 +6,7 @@ import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/authenticate/get_started.dart';
 import 'package:solace/services/auth.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:solace/shared/accountflow/requirements.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,6 +48,8 @@ class MyApp extends StatelessWidget {
           visualDensity: VisualDensity.adaptivePlatformDensity,
         ),
         home: const GetStarted(), // Main entry point widget
+        // home: const RoleChooser(),
+        // home: const RequirementsScreen(),
       ),
     );
   }

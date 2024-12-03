@@ -59,12 +59,12 @@ class PatientTrackingState extends State<PatientTracking> {
 
   final FocusNode _bloodPressureFocusNode = FocusNode();
   
-  TextEditingController _heartRateController = TextEditingController();
-  TextEditingController _bloodPressureController = TextEditingController();
-  TextEditingController _oxygenSaturationController = TextEditingController();
-  TextEditingController _respirationController = TextEditingController();
-  TextEditingController _temperatureController = TextEditingController();
-  TextEditingController _painController = TextEditingController();
+  final TextEditingController _heartRateController = TextEditingController();
+  final TextEditingController _bloodPressureController = TextEditingController();
+  final TextEditingController _oxygenSaturationController = TextEditingController();
+  final TextEditingController _respirationController = TextEditingController();
+  final TextEditingController _temperatureController = TextEditingController();
+  final TextEditingController _painController = TextEditingController();
 
   @override
   void initState() {
@@ -78,7 +78,7 @@ class PatientTrackingState extends State<PatientTracking> {
     if (user == null){
       debugPrint("User is null");
       return;
-    };
+    }
 
     try {
       final DocumentSnapshot documentSnapshot = await _firestore

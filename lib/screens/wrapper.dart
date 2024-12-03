@@ -6,8 +6,8 @@ import 'package:solace/screens/home/home.dart';
 import 'package:solace/screens/authenticate/authenticate.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
+import 'package:solace/shared/accountflow/rolechooser.dart';
 import 'package:solace/shared/globals.dart';
-import 'package:solace/shared/widgets/user_editprofile.dart';
 import 'package:solace/themes/colors.dart';
 
 class Wrapper extends StatelessWidget {
@@ -54,7 +54,7 @@ class Wrapper extends StatelessWidget {
               return const Verify();
             } else if (newUser) {
               // If it's a new user, show the profile edit screen
-              return const EditProfileScreen();
+              return const RoleChooser();
             } else {
               // If the user is verified and not new, navigate to the home screen
               return const Home();

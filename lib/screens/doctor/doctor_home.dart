@@ -22,7 +22,7 @@ class DoctorHome extends StatefulWidget {
 }
 
 class DoctorHomeState extends State<DoctorHome> {
-  int _currentIndex = 3;
+  int _currentIndex = 0;
   late final List<Widget> _screens;
 
   @override
@@ -63,13 +63,13 @@ class DoctorHomeState extends State<DoctorHome> {
               backgroundImage: profileImageUrl.isNotEmpty
                   ? NetworkImage(profileImageUrl)
                   : const AssetImage('lib/assets/images/shared/placeholder.png')
-              as ImageProvider,
+                      as ImageProvider,
               onBackgroundImageError: (error, stackTrace) {
                 print('Error loading image: $error');
               },
               child: profileImageUrl.isEmpty
                   ? const Icon(Icons.person,
-                  color: Colors.grey) // Placeholder icon
+                      color: Colors.grey) // Placeholder icon
                   : null,
             ),
             const SizedBox(width: 10.0),

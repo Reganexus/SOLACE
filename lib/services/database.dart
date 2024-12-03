@@ -29,10 +29,15 @@ class DatabaseService {
     DateTime? birthday,
     String? gender,
     String? address,
-    String? profileImageUrl, // Add this parameter for profile image URL
+    String? profileImageUrl, // Parameter for profile image URL
     bool? isVerified,
     bool? newUser, // New field for update
     DateTime? dateCreated, // New field for update
+    String? religion, // New parameter for religion
+    int? age, // Optional age parameter
+    String? will, // Add will parameter
+    String? fixedWishes, // Add fixedWishes parameter
+    String? organDonation, // Add organDonation parameter
   }) async {
     Map<String, dynamic> updatedData = {};
 
@@ -46,13 +51,25 @@ class DatabaseService {
     if (phoneNumber != null) updatedData['phoneNumber'] = phoneNumber;
     if (birthday != null) {
       updatedData['birthday'] = Timestamp.fromDate(birthday);
+
+      // Calculate the age if not provided
+      if (age == null) {
+        DateTime today = DateTime.now();
+        int years = today.year - birthday.year;
+        if (today.month < birthday.month ||
+            (today.month == birthday.month && today.day < birthday.day)) {
+          years--; // Adjust for incomplete year
+        }
+        updatedData['age'] = years;
+      } else {
+        updatedData['age'] = age; // Use the passed age if provided
+      }
     }
     if (gender != null) updatedData['gender'] = gender;
     if (address != null) updatedData['address'] = address;
     if (profileImageUrl != null) {
       updatedData['profileImageUrl'] = profileImageUrl;
     }
-
     if (isVerified != null) {
       updatedData['isVerified'] = isVerified;
     }
@@ -62,6 +79,19 @@ class DatabaseService {
     if (dateCreated != null) {
       updatedData['dateCreated'] =
           Timestamp.fromDate(dateCreated); // Add dateCreated
+    }
+    if (religion != null) {
+      updatedData['religion'] = religion; // Include religion in the update
+    }
+
+    if (will?.isNotEmpty ?? false) {
+      updatedData['will'] = will;
+    }
+    if (fixedWishes?.isNotEmpty ?? false) {
+      updatedData['fixedWishes'] = fixedWishes;
+    }
+    if (organDonation?.isNotEmpty ?? false) {
+      updatedData['organDonation'] = organDonation;
     }
 
     if (updatedData.isNotEmpty) {
@@ -669,6 +699,122 @@ class DatabaseService {
     }
   }
 
+  Future<void> sendHealthcareRequest(
+      String currentUserId, String targetUserId) async {
+    final timestamp = FieldValue.serverTimestamp();
+
+    try {
+      // Fetch the current user's name
+      final currentUserSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUserId)
+          .get();
+      String currentUserName = '';
+      if (currentUserSnapshot.exists) {
+        currentUserName =
+            currentUserSnapshot.data()?['firstName']?.trim() ?? '';
+        String lastName = currentUserSnapshot.data()?['lastName']?.trim() ?? '';
+        currentUserName = '$currentUserName $lastName'.trim();
+      }
+
+      // Send the healthcare request (for caregiver-patient validation)
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(targetUserId)
+          .update({
+        'contacts.healthcare.requests.$currentUserId': {'timestamp': timestamp}
+      });
+      print('Healthcare request sent from $currentUserId to $targetUserId');
+
+      // Add notification for the target user
+      await addNotification(
+        targetUserId,
+        "You have a new caregiver request from $currentUserName.",
+        'healthcare_request',
+      );
+    } catch (e) {
+      print('Error sending healthcare request: $e');
+    }
+  }
+
+  Future<void> acceptHealthcareRequest(
+      String currentUserId, String senderUserId) async {
+    final timestamp = FieldValue.serverTimestamp();
+
+    try {
+      // Fetch the current user's name
+      final currentUserSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUserId)
+          .get();
+      String currentUserName = '';
+      if (currentUserSnapshot.exists) {
+        currentUserName =
+            currentUserSnapshot.data()?['firstName']?.trim() ?? '';
+        String lastName = currentUserSnapshot.data()?['lastName']?.trim() ?? '';
+        currentUserName = '$currentUserName $lastName'.trim();
+      }
+
+      // Fetch the sender user's name
+      final senderUserSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(senderUserId)
+          .get();
+      String senderUserName = '';
+      if (senderUserSnapshot.exists) {
+        senderUserName = senderUserSnapshot.data()?['firstName']?.trim() ?? '';
+        String lastName = senderUserSnapshot.data()?['lastName']?.trim() ?? '';
+        senderUserName = '$senderUserName $lastName'.trim();
+      }
+
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final userRef =
+            FirebaseFirestore.instance.collection('users').doc(currentUserId);
+        final senderRef =
+            FirebaseFirestore.instance.collection('users').doc(senderUserId);
+
+        // Remove the request and add to healthcare
+        transaction.update(userRef, {
+          'contacts.healthcare.requests.$senderUserId': FieldValue.delete(),
+          'contacts.healthcare.$senderUserId': {'timestamp': timestamp}
+        });
+
+        // Add caregiver-patient relationship in sender's healthcare list
+        transaction.update(senderRef, {
+          'contacts.healthcare.$currentUserId': {'timestamp': timestamp}
+        });
+      });
+
+      print(
+          'Accepted healthcare request from $senderUserId for $currentUserId');
+
+      // Add notification for the sender user
+      await addNotification(
+        senderUserId,
+        "Your caregiver request to $currentUserName has been accepted.",
+        'healthcare_request',
+      );
+    } catch (e) {
+      print('Error accepting healthcare request: $e');
+    }
+  }
+
+  Future<void> declineHealthcareRequest(
+      String currentUserId, String senderUserId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUserId)
+          .update({
+        'contacts.healthcare.requests.$senderUserId': FieldValue.delete(),
+      });
+      print(
+          'Declined healthcare request from $senderUserId for $currentUserId');
+    } catch (e) {
+      print('Error declining healthcare request: $e');
+    }
+  }
+
   // Decline a friend request
   Future<void> declineFriendRequest(
       String currentUserId, String senderUserId) async {
@@ -704,6 +850,34 @@ class DatabaseService {
     }
   }
 
+  Future<void> removeCaregiver(
+      String currentUserId, String caregiverUserId) async {
+    try {
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final userRef =
+            FirebaseFirestore.instance.collection('users').doc(currentUserId);
+        final caregiverRef =
+            FirebaseFirestore.instance.collection('users').doc(caregiverUserId);
+
+        // Remove caregiver from current user's healthcare list
+        transaction.update(
+          userRef,
+          {'contacts.healthcare.$caregiverUserId': FieldValue.delete()},
+        );
+
+        // Optionally, you can remove the current user from the caregiver's healthcare list as well
+        transaction.update(
+          caregiverRef,
+          {'contacts.healthcare.$currentUserId': FieldValue.delete()},
+        );
+      });
+
+      print('Removed caregiver $caregiverUserId from $currentUserId');
+    } catch (e) {
+      print('Error removing caregiver: $e');
+    }
+  }
+
   // Check if the user exists by UID
   Future<bool> checkUserExists(String userId) async {
     try {
@@ -711,6 +885,32 @@ class DatabaseService {
       return userDoc.exists;
     } catch (e) {
       print('Error checking user existence: $e');
+      return false;
+    }
+  }
+
+  // Check if the user is a healthcare contact (caregiver-patient relationship)
+  Future<bool> isUserHealthcareContact(
+      String currentUserId, String targetUserId) async {
+    try {
+      var userDoc = await userCollection.doc(currentUserId).get();
+      var healthcare = userDoc['contacts']['healthcare'];
+      return healthcare.containsKey(targetUserId);
+    } catch (e) {
+      print('Error checking if user is a healthcare contact: $e');
+      return false;
+    }
+  }
+
+  // Check if the user already has a pending healthcare request
+  Future<bool> hasPendingHealthcareRequest(
+      String currentUserId, String targetUserId) async {
+    try {
+      var userDoc = await userCollection.doc(currentUserId).get();
+      var requests = userDoc['contacts']['healthcare_requests'];
+      return requests.contains(targetUserId);
+    } catch (e) {
+      print('Error checking for pending healthcare request: $e');
       return false;
     }
   }

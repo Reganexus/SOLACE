@@ -1,17 +1,26 @@
-// ignore_for_file: avoid_print, unused_import, use_build_context_synchronously
+// ignore_for_file: avoid_print, unused_import, use_build_context_synchronously, library_private_types_in_public_api
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/shared/widgets/help_page.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/services/auth.dart';
-import 'package:solace/shared/widgets/user_editprofile.dart';
+import 'package:solace/shared/accountflow/user_editprofile.dart';
 import 'package:solace/shared/widgets/contacts.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class Profile extends StatelessWidget {
+class Profile extends StatefulWidget {
   const Profile({super.key});
+
+  @override
+  _ProfileState createState() => _ProfileState();
+}
+
+class _ProfileState extends State<Profile> {
+  File? _profileImage;
 
   @override
   Widget build(BuildContext context) {
@@ -41,12 +50,16 @@ class Profile extends StatelessWidget {
                 address: 'Set Address',
                 gender: 'Set Gender',
                 birthday: null,
-                userRole: UserRole.patient, // Default to 'patient' if no role found
+                userRole:
+                    UserRole.patient, // Default to 'patient' if no role found
                 isVerified: false,
                 newUser: true,
-                dateCreated: DateTime.now(),
-                profileImageUrl: '',
+                dateCreated:
+                    DateTime.now(), // Providing default dateCreated value
+                profileImageUrl:
+                    '', // Default profile image URL (empty string or placeholder)
                 status: 'stable', // Default status
+                religion: 'Not specified', // Default religion value
               );
 
           // Redirect to EditProfileScreen if newUser is true
@@ -74,7 +87,12 @@ class Profile extends StatelessWidget {
                   Center(
                     child: CircleAvatar(
                       radius: 75,
-                      backgroundImage: NetworkImage(userData.profileImageUrl),
+                      backgroundImage: _profileImage != null
+                          ? FileImage(_profileImage!)
+                          : (userData.profileImageUrl.isNotEmpty
+                              ? NetworkImage(userData.profileImageUrl)
+                              : const AssetImage(
+                                  'lib/assets/images/shared/placeholder.png')),
                     ),
                   ),
 
@@ -180,6 +198,34 @@ class Profile extends StatelessWidget {
                               : ''),
                     ],
                   ),
+
+                  // Add this conditional check before displaying the Additional Information section
+                  if (userData.userRole == UserRole.patient) ...[
+                    const SizedBox(height: 10),
+                    const Divider(thickness: 1.0),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Additional Information',
+                      style: TextStyle(
+                        fontSize: 18.0,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Inter',
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildProfileInfoSection('Will/Living Will',
+                            userData.will ?? 'Not Provided'),
+                        _buildProfileInfoSection('Fixed Wishes of Patient',
+                            userData.fixedWishes ?? 'Not Provided'),
+                        _buildProfileInfoSection('Organ Donation',
+                            userData.organDonation ?? 'Not Provided'),
+                      ],
+                    ),
+                  ],
 
                   const SizedBox(height: 10),
                   const Divider(thickness: 1.0),
@@ -302,4 +348,3 @@ class Profile extends StatelessWidget {
     );
   }
 }
-

@@ -6,8 +6,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:solace/screens/home/home.dart';
 import 'package:solace/services/database.dart';
+import 'package:solace/shared/accountflow/rolechooser.dart';
 import 'package:solace/shared/globals.dart';
-import 'package:solace/shared/widgets/user_editprofile.dart';
 import 'package:solace/themes/colors.dart';
 
 class Verify extends StatefulWidget {
@@ -162,7 +162,8 @@ class _VerifyState extends State<Verify> {
       final userData =
           await DatabaseService(uid: updatedUser.uid).getUserData();
       if (userData?.newUser == true) {
-        navigateToEditProfile();
+        // Redirect to RoleChooser for new users to select their role
+        navigateToRoleChooser();
       } else {
         navigateToHome();
       }
@@ -183,12 +184,12 @@ class _VerifyState extends State<Verify> {
     }
   }
 
-  Future<void> navigateToEditProfile() async {
+  Future<void> navigateToRoleChooser() async {
     // Ensure the widget is still mounted before attempting navigation
     if (mounted) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+        MaterialPageRoute(builder: (context) => const RoleChooser()),
       );
     }
   }

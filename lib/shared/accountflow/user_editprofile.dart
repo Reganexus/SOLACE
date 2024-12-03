@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
-import 'package:solace/shared/widgets/user_data_form.dart';
+import 'package:solace/shared/accountflow/user_data_form.dart';
 import 'package:solace/screens/home/home.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -71,7 +71,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
         return WillPopScope(
           onWillPop: () async {
-            if (userData?.newUser ?? false) {
+            if (userData.newUser) {
               if (mounted) {
                 await _showAlertDialog(
                     context); // Check if mounted before showing dialog
@@ -100,6 +100,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         isSignUp: false,
                         userData: userData,
                         newUser: userData?.newUser ?? false,
+                        userRole: userData!.userRole,
                         onButtonPressed: ({
                           required String firstName,
                           required String lastName,
@@ -109,23 +110,51 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           required DateTime? birthday,
                           required String address,
                           required String profileImageUrl,
+                          required String religion,
+                          required int age,
+                          String? will, // Nullable
+                          String? fixedWishes, // Nullable
+                          String? organDonation, // Nullable
                         }) async {
-                          await DatabaseService(uid: user.uid).updateUserData(
-                            firstName: firstName,
-                            lastName: lastName,
-                            middleName: middleName,
-                            phoneNumber: phoneNumber,
-                            gender: gender,
-                            birthday: birthday,
-                            address: address,
-                            profileImageUrl:
-                                profileImageUrl, // Pass profileImageUrl to updateUserData
-                            newUser:
-                                false, // Update newUser flag to false after profile is saved
-                          );
+                          // Now use userRole here
+                          if (userData.userRole == UserRole.patient) {
+                            await DatabaseService(uid: user.uid).updateUserData(
+                              firstName: firstName,
+                              lastName: lastName,
+                              middleName: middleName,
+                              phoneNumber: phoneNumber,
+                              gender: gender,
+                              birthday: birthday,
+                              address: address,
+                              profileImageUrl: profileImageUrl,
+                              religion: religion,
+                              newUser: false,
+                              age: age,
+                              will: will, // Pass will if patient
+                              fixedWishes:
+                                  fixedWishes, // Pass fixedWishes if patient
+                              organDonation:
+                                  organDonation, // Pass organDonation if patient
+                            );
+                          } else {
+                            await DatabaseService(uid: user.uid).updateUserData(
+                              firstName: firstName,
+                              lastName: lastName,
+                              middleName: middleName,
+                              phoneNumber: phoneNumber,
+                              gender: gender,
+                              birthday: birthday,
+                              address: address,
+                              profileImageUrl: profileImageUrl,
+                              religion: religion,
+                              newUser: false,
+                              age: age,
+                            );
+                          }
 
-                          // After the async operation is complete, navigate
                           if (mounted) {
+                            ScaffoldMessenger.of(context)
+                                .showSnackBar(SnackBar(content: Text('Profile updated successfully')));
                             Navigator.pushAndRemoveUntil(
                               context,
                               MaterialPageRoute(
@@ -134,6 +163,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             );
                           }
                         },
+                        age:
+                            userData.age ?? 0, // Pass the correct value for age
                       ),
                     ],
                   ),

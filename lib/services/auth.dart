@@ -118,7 +118,7 @@ class AuthService {
     required String email,
     required bool isVerified,
     required bool newUser,
-    String? profileImageUrl, // Optional parameter for profile image URL
+    String? profileImageUrl,
   }) async {
     await DatabaseService(uid: uid).updateUserData(
       userRole: UserRole.patient,
@@ -129,12 +129,12 @@ class AuthService {
       profileImageUrl: profileImageUrl,
     );
 
-    // Initialize user document with status field and profileImageUrl as empty string if null
+    // Initialize user document with contacts field for healthcare relationships
     await _firestore.collection('users').doc(uid).set({
       'contacts': {
         'friends': {},
-        'pending': {},
         'requests': {},
+        'healthcare': {},
       },
       'notifications': [],
       'profileImageUrl': profileImageUrl ?? '',

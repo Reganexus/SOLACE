@@ -6,7 +6,7 @@ import 'package:solace/screens/home/home.dart';
 import 'package:solace/services/auth.dart';
 import 'package:flutter/material.dart';
 import 'package:solace/shared/globals.dart';
-import 'package:solace/shared/widgets/user_editprofile.dart';
+import 'package:solace/shared/accountflow/user_editprofile.dart';
 import 'package:solace/themes/colors.dart';
 
 class LogIn extends StatefulWidget {

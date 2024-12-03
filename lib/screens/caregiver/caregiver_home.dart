@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/screens/caregiver/caregiver_dashboard.dart';
-import 'package:solace/screens/caregiver/caregiver_patients.dart';
+import 'package:solace/screens/caregiver/caregiver_intervention.dart';
 import 'package:solace/screens/caregiver/caregiver_tracking.dart';
 import 'package:solace/shared/widgets/bottom_navbar.dart';
 import 'package:solace/shared/widgets/notifications.dart';
@@ -22,7 +22,7 @@ class CaregiverHome extends StatefulWidget {
 }
 
 class _CaregiverHomeState extends State<CaregiverHome> {
-  int _currentIndex = 3;
+  int _currentIndex = 0;
   late final List<Widget> _screens;
 
   @override
@@ -30,7 +30,7 @@ class _CaregiverHomeState extends State<CaregiverHome> {
     super.initState();
     _screens = [
       CaregiverDashboard(),
-      CaregiverPatients(),
+      CaregiverIntervention(),
       CaregiverTracking(),
       Profile(),
     ];
@@ -204,7 +204,7 @@ class _CaregiverHomeState extends State<CaregiverHome> {
                           ],
                         )
                       : Text(
-                          _currentIndex == 1 ? 'Patients' : 'Tracking',
+                          _currentIndex == 1 ? 'Intervention' : 'Notes',
                           style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,

@@ -10,8 +10,8 @@ import 'package:solace/screens/family/family_home.dart';
 import 'package:solace/screens/patient/patient_home.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/screens/authenticate/verify.dart';
+import 'package:solace/shared/accountflow/rolechooser.dart';
 import 'package:solace/shared/globals.dart';
-import 'package:solace/shared/widgets/user_editprofile.dart';
 import 'package:solace/themes/colors.dart';
 
 class Home extends StatefulWidget {
@@ -105,7 +105,7 @@ class _HomeState extends State<Home> {
           // Redirect new users to profile setup
           if (newUser) {
             debugPrint("New user detected, navigating to EditProfileScreen.");
-            return const EditProfileScreen();
+            return const RoleChooser();
           }
 
           // Route based on user role

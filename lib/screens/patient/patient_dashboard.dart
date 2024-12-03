@@ -453,62 +453,52 @@ class PatientDashboardState extends State<PatientDashboard> {
                   const SizedBox(height: 10.0),
 
                   // Status Card
-                  GestureDetector(
-                    onTap:() {
-                      if(status == 'unstable') {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => InterventionsView(uid: user!.uid,)),
-                        );
-                      }
-                    },
-                    child: Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: backgroundColor,
-                        borderRadius: BorderRadius.circular(10.0),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                vertical: 30.0, horizontal: 15.0),
-                            color: Colors.transparent,
-                            child: Text(
-                              status == 'stable' ? 'Stable' : 'Unstable',
-                              style: const TextStyle(
-                                fontSize: 50.0,
-                                fontFamily: 'Outfit',
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                              textAlign: TextAlign.left,
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: backgroundColor,
+                      borderRadius: BorderRadius.circular(10.0),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 30.0, horizontal: 15.0),
+                          color: Colors.transparent,
+                          child: Text(
+                            status == 'stable' ? 'Stable' : 'Unstable',
+                            style: const TextStyle(
+                              fontSize: 50.0,
+                              fontFamily: 'Outfit',
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                            textAlign: TextAlign.left,
+                          ),
+                        ),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12.0),
+                          decoration: const BoxDecoration(
+                            color: AppColors.blackTransparent,
+                            borderRadius: BorderRadius.only(
+                              bottomLeft: Radius.circular(10.0),
+                              bottomRight: Radius.circular(10.0),
                             ),
                           ),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(12.0),
-                            decoration: const BoxDecoration(
-                              color: AppColors.blackTransparent,
-                              borderRadius: BorderRadius.only(
-                                bottomLeft: Radius.circular(10.0),
-                                bottomRight: Radius.circular(10.0),
-                              ),
+                          child: Text(
+                            statusMessage,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12.0,
+                              color: Colors.white,
                             ),
-                            child: Text(
-                              statusMessage,
-                              style: const TextStyle(
-                                fontFamily: 'Inter',
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12.0,
-                                color: Colors.white,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
+                            textAlign: TextAlign.center,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 10.0),
