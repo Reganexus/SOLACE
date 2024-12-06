@@ -5,13 +5,13 @@ import 'package:solace/themes/colors.dart';
 class InterventionsView extends StatefulWidget {
   final String uid;
 
-  InterventionsView({super.key, required this.uid});
+  const InterventionsView({super.key, required this.uid});
 
   @override
-  _InterventionsViewState createState() => _InterventionsViewState();
+  InterventionsViewState createState() => InterventionsViewState();
 }
 
-class _InterventionsViewState extends State<InterventionsView> {
+class InterventionsViewState extends State<InterventionsView> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Map to match user symptoms with Firestore document names
@@ -19,6 +19,8 @@ class _InterventionsViewState extends State<InterventionsView> {
   final Map<String, String> vitalsMapping = {
     'Low Heart Rate': 'lowHeartRate',
     'High Heart Rate': 'highHeartRate',
+    'Low Blood Pressure': 'lowBloodPressure',
+    'High Blood Pressure': 'highBloodPressure',
     'Low Oxygen Saturation': 'lowOxygenSaturation',
     'Low Respiration Rate': 'lowRespirationRate',
     'High Respiration Rate': 'highRespirationRate',
@@ -54,6 +56,7 @@ class _InterventionsViewState extends State<InterventionsView> {
       }
 
       List<String> symptoms = List<String>.from(userDoc['symptoms']);
+      debugPrint('wowow intervent symptoms: ${symptoms.toString()}');
 
       // Combine all mappings into one for lookup
       final allMappings = {
@@ -62,10 +65,14 @@ class _InterventionsViewState extends State<InterventionsView> {
         ...emotionalMapping,
       };
 
-      for (String symptom in symptoms) {
-        String? mappedName = allMappings[symptom];
-        if (mappedName == null) continue;
+      debugPrint('wowow intervent allMappings: ${allMappings.toString()}');
 
+      for (String symptom in symptoms) {
+        debugPrint('wowow symptom in symptoms: $symptom');
+        String? mappedName = allMappings[symptom];
+        debugPrint('wowow mapping: $mappedName');
+        if (mappedName == null) continue;
+        // debugPrint('wowow intervent name: $mappedName');
         DocumentSnapshot interventionDoc =
             await _firestore.collection('interventions').doc(mappedName).get();
         if (interventionDoc.exists) {
@@ -251,8 +258,7 @@ class _InterventionsViewState extends State<InterventionsView> {
                                 controlAffinity:
                                     ListTileControlAffinity.leading,
                               ),
-                            )
-                            .toList(),
+                            ),
                         const SizedBox(height: 10),
                       ],
                     ),
@@ -261,7 +267,7 @@ class _InterventionsViewState extends State<InterventionsView> {
               );
             },
           );
-        }).toList(),
+        }),
       ],
     );
   }

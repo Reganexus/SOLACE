@@ -2,22 +2,37 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:solace/services/database.dart';
 import 'package:solace/shared/globals.dart';
 import 'package:solace/themes/colors.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
-class ReceiptScreen extends StatelessWidget {
+class ReceiptScreen extends StatefulWidget {
   final Map<String, dynamic> inputs;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final Map<String, dynamic> algoInputs;
   final String uid;
 
-  ReceiptScreen({super.key, required this.inputs, required this.uid});
+  const ReceiptScreen({
+    super.key,
+    required this.uid,
+    required this.inputs,
+    required this.algoInputs,
+  });
+
+  @override
+  State<ReceiptScreen> createState() => _ReceiptScreenState();
+}
+
+class _ReceiptScreenState extends State<ReceiptScreen> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   void _identifySymptoms() async {
     List<String> symptoms = [];
 
     // Clear symptoms in Firestore
     try {
-      await _firestore.collection('users').doc(uid).update({
+      await _firestore.collection('users').doc(widget.uid).update({
         'symptoms': [],
       });
       debugPrint('Symptoms list cleared successfully.');
@@ -26,13 +41,16 @@ class ReceiptScreen extends StatelessWidget {
     }
 
     // Analyze vital inputs
-    Map<String, String> vitals = Map<String, String>.from(inputs['Vitals']);
+    Map<String, String> vitals = Map<String, String>.from(widget.inputs['Vitals']);
     vitals.forEach((key, value) {
       if (value.isEmpty) return;
 
-      double vitalValue;
+      double vitalValue = 0;
       try {
-        vitalValue = double.parse(value);
+        if(key != 'Blood Pressure') {
+          vitalValue = double.parse(value);
+        } else {
+        }
       } catch (e) {
         debugPrint('$key value is invalid');
         return;
@@ -41,31 +59,42 @@ class ReceiptScreen extends StatelessWidget {
       switch (key) {
         case 'Heart Rate':
           if (vitalValue < minHeartRate) {
-            symptoms.add('Low heart rate');
+            symptoms.add('Low Heart rRate');
           } else if (vitalValue > maxHeartRate) {
-            symptoms.add('High heart rate');
+            symptoms.add('High Heart Rate');
           }
           break;
 
         case 'Oxygen Saturation':
           if (vitalValue < minOxygenSaturation) {
-            symptoms.add('Low oxygen saturation');
+            symptoms.add('Low Oxygen Saturation');
           }
           break;
 
         case 'Respiration':
           if (vitalValue < minRespirationRate) {
-            symptoms.add('Low respiration rate');
+            symptoms.add('Low Respiration Rate');
           } else if (vitalValue > maxRespirationRate) {
-            symptoms.add('High respiration rate');
+            symptoms.add('High Respiration Rate');
           }
           break;
 
         case 'Temperature':
           if (vitalValue < minTemperature) {
-            symptoms.add('Low temperature');
+            symptoms.add('Low Temperature');
           } else if (vitalValue > maxTemperature) {
-            symptoms.add('High temperature');
+            symptoms.add('High Temperature');
+          }
+          break;
+
+        case 'Blood Pressure':
+          final parts = value.split('/');
+          final systolic = int.tryParse(parts[0]);
+          final diastolic = int.tryParse(parts[1]); 
+          if(systolic! > normalBloodPressureSystolic || diastolic! > normalBloodPressureDiastolic) {
+            symptoms.add('High Blood Pressure');
+          } else if(systolic < normalBloodPressureSystolic && diastolic < normalBloodPressureDiastolic) {
+            symptoms.add('Low Blood Pressure');
           }
           break;
 
@@ -76,7 +105,7 @@ class ReceiptScreen extends StatelessWidget {
 
     // Analyze symptom inputs
     Map<String, int> symptomAssessment =
-        Map<String, int>.from(inputs['Symptom Assessment']);
+        Map<String, int>.from(widget.inputs['Symptom Assessment']);
 
     // Remove symptoms with a value of 0
     symptomAssessment.removeWhere((key, value) => value == 0 || key == 'Well-being');
@@ -88,9 +117,13 @@ class ReceiptScreen extends StatelessWidget {
       symptoms.add(entry.key);
     }
 
-    // Update the Firestore document
+    _updateFireStoreSymptoms(symptoms);
+    _submitAlgoInputs(widget.uid);
+  }
+
+  void _updateFireStoreSymptoms(List<String> symptoms) async {
     try {
-      await _firestore.collection('users').doc(uid).update({
+      await _firestore.collection('users').doc(widget.uid).update({
         'symptoms': FieldValue.arrayUnion(symptoms),
       });
       debugPrint('Identified symptoms successfully updated in Firestore');
@@ -103,11 +136,129 @@ class ReceiptScreen extends StatelessWidget {
         status = 'unstable';
         debugPrint('Status set to stable');
       }
-      await _firestore.collection('users').doc(uid).update({
+      await _firestore.collection('users').doc(widget.uid).update({
         'status': status,
       });
     } catch (e) {
       debugPrint('Error updating Firestore: $e');
+    }
+  }
+
+  void _submitAlgoInputs(String uid) async {
+    final userData = await DatabaseService(uid: uid).getUserData();
+    if (userData == null) {
+      debugPrint('Submit Algo Input No User Data');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No User Data'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } else {
+      try {
+        // Convert mapped algo inputs to a list
+        List<dynamic> algoInputs = widget.algoInputs.values.toList();
+        debugPrint('Tracking algo inputs: $algoInputs');
+        
+        // If there are fewer than 10 inputs, repeat the last one
+        if (widget.algoInputs.length < 10) {
+          final latestInput = widget.algoInputs.isNotEmpty ? algoInputs.last : widget.inputs;
+          while (algoInputs.length < 10) {
+            algoInputs.add(latestInput);
+          }
+        }
+
+        // Send the inputs for prediction
+        await getPrediction(algoInputs);
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Data submitted successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        // Handle any unexpected errors
+        debugPrint("Unexpected error: $e");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('An unexpected error occurred: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> getPrediction(List<dynamic> algoInputs) async {
+    // choose from these depending on testing device
+    // final localHostAddress = '127.0.0.1'; // default
+    final virtualAddress = '10.0.2.2';    // if using virtual device
+    // if using physical device, use computer’s IP address instead of 127.0.0.1 or localhost.
+
+    final url = Uri.parse('http://$virtualAddress:5000/predict');
+    final headers = {"Content-Type": "application/json"};
+
+    // Define mappings for Blood Pressure and Cholesterol Level
+    const bloodPressureMapping = {
+      "Low": -2.347682445195591,
+      "Normal": -0.6882095111211662,
+      "High": 0.9712634229532582,
+    };
+
+    const cholesterolMapping = {
+      "Low": -2.0753216368811644,
+      "Normal": -0.5544364176961935,
+      "High": 0.9664488014887777,
+    };
+
+    // Format algoInputs to match the input size expected by the model (6 features)
+    List<List<double>>? formattedInputs;
+    try {
+      formattedInputs = algoInputs.map((input) {
+        if (input is! Map) {
+          debugPrint("Invalid input type: $input");
+          throw Exception("Expected Map, got: ${input.runtimeType}");
+        }
+
+        return [
+          input['Fever'] == true ? 1.0 : 0.0,
+          input['Cough'] == true ? 1.0 : 0.0,
+          input['Fatigue'] == true ? 1.0 : 0.0,
+          input['Difficulty Breathing'] == true ? 1.0 : 0.0,
+          bloodPressureMapping[input['Blood Pressure']] ?? 0.0,
+          cholesterolMapping[input['Cholesterol Level']] ?? 0.0,
+        ];
+      }).toList();
+
+      debugPrint('Formatted Inputs: $formattedInputs');
+    } catch (e, stackTrace) {
+      debugPrint('Error formatting inputs: $e');
+      debugPrint('StackTrace: $stackTrace');
+    }
+
+    try {
+      // Wrap formattedInputs in a JSON object with the 'data' key
+      final body = json.encode({'data': [formattedInputs]});
+
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: body,
+      );
+
+      debugPrint("Json body: $body");
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        debugPrint("Status: ${responseData['prediction']}  Type: ${(responseData['prediction']).runtimeType}");
+        // set status to either stable or unstable here
+      } else {
+        debugPrint("Error: ${response.statusCode}");
+      }
+    } catch (e) {
+      debugPrint("Error: $e");
     }
   }
 
@@ -147,8 +298,8 @@ class ReceiptScreen extends StatelessWidget {
                   color: AppColors.black,
                 ),
               ),
-              if (inputs.containsKey('Vitals'))
-                ...inputs['Vitals'].entries.map((entry) {
+              if (widget.inputs.containsKey('Vitals'))
+                ...widget.inputs['Vitals'].entries.map((entry) {
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 5.0),
                     child: Row(
@@ -187,8 +338,8 @@ class ReceiptScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10.0),
-              if (inputs.containsKey('Symptom Assessment'))
-                ...inputs['Symptom Assessment'].entries.map((entry) {
+              if (widget.inputs.containsKey('Symptom Assessment'))
+                ...widget.inputs['Symptom Assessment'].entries.map((entry) {
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 5.0),
                     child: Row(
@@ -232,14 +383,14 @@ class ReceiptScreen extends StatelessWidget {
                       // Prepare the data to be inserted
                       final trackingData = {
                         'timestamp': timestamp,
-                        'Vitals': inputs['Vitals'],
-                        'Symptom Assessment': inputs['Symptom Assessment'],
+                        'Vitals': widget.inputs['Vitals'],
+                        'Symptom Assessment': widget.inputs['Symptom Assessment'],
                       };
 
                       // Get reference to the patient's document in the 'tracking' collection
                       final trackingRef = FirebaseFirestore.instance
                           .collection('tracking')
-                          .doc(uid);
+                          .doc(widget.uid);
 
                       // Get the document snapshot to check if the 'tracking' data exists
                       final docSnapshot = await trackingRef.get();

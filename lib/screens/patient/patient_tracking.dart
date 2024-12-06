@@ -6,9 +6,8 @@ import 'package:provider/provider.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/screens/patient/input_summary.dart';
+import 'package:solace/shared/globals.dart';
 import 'package:solace/themes/colors.dart'; // Assuming AppColors is defined here
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 
 class PatientTracking extends StatefulWidget {
   const PatientTracking({super.key});
@@ -19,10 +18,8 @@ class PatientTracking extends StatefulWidget {
 
 class PatientTrackingState extends State<PatientTracking> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final GlobalKey<FormState> _formKeyAlgo = GlobalKey<FormState>();
   final DatabaseService databaseService = DatabaseService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  String _predictionResult = "Press the button to get a prediction";
 
   // State variables for all inputs
   final Map<String, String> _vitalInputs = {
@@ -31,6 +28,7 @@ class PatientTrackingState extends State<PatientTracking> {
     'Oxygen Saturation': '',
     'Respiration': '',
     'Temperature': '',
+    'Cholesterol Level': '',
     'Pain': '',
   };
 
@@ -39,21 +37,22 @@ class PatientTrackingState extends State<PatientTracking> {
     "Cough": false,
     "Fatigue": false,
     "Difficulty Breathing": false,
-    "Age": null,
-    "Gender": null,
+    // "Age": null,
+    // "Gender": null,
     "Blood Pressure": null,
     "Cholesterol Level": null,
   };
 
   int _diarrheaValue = 0;
   int _fatigueValue = 0;
+  int _shortnessOfBreathValue = 0;
+  int _appetiteValue = 0;
+  int _coughingValue = 0;
+  int _wellBeingValue = 0;
   int _nauseaValue = 0;
   int _depressionValue = 0;
   int _anxietyValue = 0;
   int _drowsinessValue = 0;
-  int _appetiteValue = 0;
-  int _wellBeingValue = 0;
-  int _shortnessOfBreathValue = 0;
 
   late Map<String, dynamic> _combinedInputs; // Holds data for submission
 
@@ -64,6 +63,7 @@ class PatientTrackingState extends State<PatientTracking> {
   final TextEditingController _oxygenSaturationController = TextEditingController();
   final TextEditingController _respirationController = TextEditingController();
   final TextEditingController _temperatureController = TextEditingController();
+  final TextEditingController _cholesterolController = TextEditingController();
   final TextEditingController _painController = TextEditingController();
 
   @override
@@ -110,6 +110,7 @@ class PatientTrackingState extends State<PatientTracking> {
             _vitalInputs['Oxygen Saturation'] = vitals['Oxygen Saturation']?.toString() ?? '';
             _vitalInputs['Respiration'] = vitals['Respiration']?.toString() ?? '';
             _vitalInputs['Temperature'] = vitals['Temperature']?.toString() ?? '';
+            _vitalInputs['Cholesterol Level'] = vitals['Cholesterol Level']?.toString() ?? '';
             _vitalInputs['Pain'] = vitals['Pain']?.toString() ?? '';
 
             _heartRateController.text = _vitalInputs['Heart Rate'] ?? '';
@@ -117,18 +118,20 @@ class PatientTrackingState extends State<PatientTracking> {
             _oxygenSaturationController.text = _vitalInputs['Oxygen Saturation'] ?? '';
             _respirationController.text = _vitalInputs['Respiration'] ?? '';
             _temperatureController.text = _vitalInputs['Temperature'] ?? '';
+            _cholesterolController.text = _vitalInputs['Cholesterol Level'] ?? '';
             _painController.text = _vitalInputs['Pain'] ?? '';
 
             final symptoms = latestTracking['Symptom Assessment'] as Map<String, dynamic>? ?? {};
             _diarrheaValue = symptoms['Diarrhea'] ?? 0;
             _fatigueValue = symptoms['Fatigue'] ?? 0;
+            _shortnessOfBreathValue = symptoms['Shortness of Breath'] ?? 0;
+            _appetiteValue = symptoms['Appetite'] ?? 0;
+            _coughingValue = symptoms['Coughing'] ?? 0;
+            _wellBeingValue = symptoms['Well-being'] ?? 0;
             _nauseaValue = symptoms['Nausea'] ?? 0;
             _depressionValue = symptoms['Depression'] ?? 0;
             _anxietyValue = symptoms['Anxiety'] ?? 0;
             _drowsinessValue = symptoms['Drowsiness'] ?? 0;
-            _appetiteValue = symptoms['Appetite'] ?? 0;
-            _wellBeingValue = symptoms['Well-being'] ?? 0;
-            _shortnessOfBreathValue = symptoms['Shortness of Breath'] ?? 0;
           });
         } else {
           debugPrint('No tracking data found.');
@@ -157,40 +160,6 @@ class PatientTrackingState extends State<PatientTracking> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Algo Inputs',
-                  style: TextStyle(
-                    fontSize: 24.0,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Outfit',
-                  ),
-                ),
-                const SizedBox(height: 20.0),
-                _buildAlgoInputs(),
-                const SizedBox(height: 20.0),
-                Text(_predictionResult),
-                const SizedBox(height: 20.0),
-                Center(
-                  child: TextButton(
-                    onPressed: () => _submitAlgoInputs(user!.uid),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 50, vertical: 10),
-                      backgroundColor: AppColors.neon,
-                    ),
-                    child: const Text(
-                      'Submit Algo Inputs',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: AppColors.white,
-                      ),
-                    ),
-                  ),
-                ),
-                const Divider(thickness: 1.0),
-                const SizedBox(height: 20.0),
                 const Text(
                   'Vitals',
                   style: TextStyle(
@@ -264,64 +233,6 @@ class PatientTrackingState extends State<PatientTracking> {
     );
   }
 
-  Widget _buildAlgoInputs() {
-    return Form(
-      key: _formKeyAlgo,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Boolean inputs
-          const Text(
-            'Symptoms:',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          ...["Fever", "Cough", "Fatigue", "Difficulty Breathing"].map((key) {
-            return CheckboxListTile(
-              title: Text(key),
-              value: _algoInputs[key] as bool,
-              onChanged: (value) {
-                setState(() {
-                  _algoInputs[key] = value ?? false;
-                });
-              },
-            );
-          }),
-          const SizedBox(height: 20),
-
-          // Dropdown inputs for Blood Pressure and Cholesterol Level
-          ...["Blood Pressure", "Cholesterol Level"].map((key) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10.0),
-              child: DropdownButtonFormField<String>(
-                decoration: InputDecoration(
-                  labelText: key,
-                  border: OutlineInputBorder(),
-                ),
-                value: _algoInputs[key], // Set the current value
-                items: [
-                  DropdownMenuItem(value: "Low", child: Text("Low")),
-                  DropdownMenuItem(value: "Normal", child: Text("Normal")),
-                  DropdownMenuItem(value: "High", child: Text("High")),
-                ],
-                onChanged: (value) {
-                  setState(() {
-                    _algoInputs[key] = value; // Update the state
-                  });
-                },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please select $key';
-                  }
-                  return null;
-                },
-              ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
   Widget _buildVitalsInputs() {
     return Form(
       key: _formKey,
@@ -345,6 +256,9 @@ class PatientTrackingState extends State<PatientTracking> {
               break;
             case 'Temperature':
               controller = _temperatureController;
+              break;
+            case 'Cholesterol Level':
+              controller = _cholesterolController;
               break;
             case 'Pain':
               controller = _painController;
@@ -408,6 +322,7 @@ class PatientTrackingState extends State<PatientTracking> {
       {'title': 'Fatigue', 'value': _fatigueValue},
       {'title': 'Shortness of Breath', 'value': _shortnessOfBreathValue},
       {'title': 'Appetite', 'value': _appetiteValue},
+      {'title': 'Coughing', 'value': _coughingValue},
       {'title': 'Well-being', 'value': _wellBeingValue},
     ];
 
@@ -465,6 +380,9 @@ class PatientTrackingState extends State<PatientTracking> {
                             if (slider['title'] == 'Appetite') {
                               _appetiteValue = value.toInt();
                             }
+                            if (slider['title'] == 'Coughing') {
+                              _coughingValue = value.toInt();
+                            }
                             if (slider['title'] == 'Well-being') {
                               _wellBeingValue = value.toInt();
                             }
@@ -496,6 +414,9 @@ class PatientTrackingState extends State<PatientTracking> {
                           }
                           if (slider['title'] == 'Appetite') {
                             _appetiteValue = value!;
+                          }
+                          if (slider['title'] == 'Coughing') {
+                            _coughingValue = value!;
                           }
                           if (slider['title'] == 'Well-being') {
                             _wellBeingValue = value!;
@@ -600,93 +521,6 @@ class PatientTrackingState extends State<PatientTracking> {
     );
   }
 
-  void _submitAlgoInputs(String uid) async {
-    final userData = await DatabaseService(uid: uid).getUserData();
-    if (userData == null) {
-      debugPrint('Submit Algo Input No User Data');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('No User Data'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } else if (_formKeyAlgo.currentState!.validate()) {
-      try {
-        // Combine and format the algo inputs
-        final timestamp = Timestamp.now();
-
-        final combinedInputs = {
-          'timestamp': timestamp,
-          'Fever': _algoInputs['Fever'],
-          'Cough': _algoInputs['Cough'],
-          'Fatigue': _algoInputs['Fatigue'],
-          'Difficulty Breathing': _algoInputs['Difficulty Breathing'],
-          'Age': userData.age,
-          'Gender': userData.gender,
-          'Blood Pressure': _algoInputs['Blood Pressure'],
-          'Cholesterol Level': _algoInputs['Cholesterol Level'],
-        };
-
-        // Reference to the user's document in the 'tracking' collection
-        final trackingRef = _firestore.collection('tracking').doc(uid);
-
-        // Get the document snapshot
-        final docSnapshot = await trackingRef.get();
-
-        List<dynamic> algoInputs = [];
-
-        if (docSnapshot.exists) {
-          // Ensure 'algo' exists and is a List
-          if (docSnapshot['algo'] is List) {
-            algoInputs = List.from(docSnapshot['algo']);
-          } else {
-            debugPrint("Algo field is not a list or is missing.");
-            algoInputs = []; // Initialize as empty list
-          }
-
-          // Update 'algo' field
-          await trackingRef.update({
-            'algo': FieldValue.arrayUnion([combinedInputs]),
-          });
-        } else {
-          // Initialize 'algo' field if document doesn't exist
-          await trackingRef.set({
-            'algo': [combinedInputs],
-          });
-          algoInputs = [combinedInputs];  // Add initial input
-        }
-
-        // If there are fewer than 10 inputs, repeat the last one
-        if (algoInputs.length < 10) {
-          final latestInput = algoInputs.isNotEmpty ? algoInputs.last : combinedInputs;
-          while (algoInputs.length < 10) {
-            algoInputs.add(latestInput);
-          }
-        }
-
-        // Send the inputs for prediction
-        await getPrediction(algoInputs);
-
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Data submitted successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } catch (e) {
-        // Handle any unexpected errors
-        debugPrint("Unexpected error: $e");
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('An unexpected error occurred: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-  
   void _submit(String uid) {
     if (!_formKey.currentState!.validate()) {
       // Validation failed, show error SnackBar
@@ -701,19 +535,45 @@ class PatientTrackingState extends State<PatientTracking> {
       return;
     }
 
+    // Set algo inputs
+    _algoInputs['Fever'] = (double.parse(_vitalInputs['Temperature']!) > maxTemperature) ? true : false;
+    _algoInputs['Fatigue'] = (_fatigueValue > maxScale) ? true : false;
+    _algoInputs['Difficulty Breathing'] = (_shortnessOfBreathValue > maxScale) ? true : false;
+
+    final parts = _vitalInputs['Blood Pressure']!.split('/');
+    final systolic = int.tryParse(parts[0]);
+    final diastolic = int.tryParse(parts[1]); 
+    if(systolic! < lowBloodPressureSystolic && diastolic! < lowBloodPressureDiastolic) {
+      _algoInputs['Blood Pressure'] = 'Low';
+    } else if(systolic < normalBloodPressureSystolic && diastolic! < normalBloodPressureDiastolic) {
+      _algoInputs['Blood Pressure'] = 'Normal';
+    } else {
+      _algoInputs['Blood Pressure'] = 'High';
+    }
+
+    double cl = double.parse(_vitalInputs['Cholesterol Level']!);
+    if(cl < lowCholesterol) {
+      _algoInputs['Cholesterol Level'] = 'Low';
+    } else if(cl < normalCholesterol) {
+      _algoInputs['Cholesterol Level'] = 'Normal';
+    } else {
+      _algoInputs['Cholesterol Level'] = 'High';
+    }
+
     // Only after successful validation, prepare data
     _combinedInputs = {
       'Vitals': _vitalInputs,
       'Symptom Assessment': {
         'Diarrhea': _diarrheaValue,
         'Fatigue': _fatigueValue,
+        'Shortness of Breath': _shortnessOfBreathValue,
+        'Appetite': _appetiteValue,
+        'Coughing': _coughingValue,
+        'Well-being': _wellBeingValue,
         'Nausea': _nauseaValue,
         'Depression': _depressionValue,
         'Anxiety': _anxietyValue,
         'Drowsiness': _drowsinessValue,
-        'Appetite': _appetiteValue,
-        'Well-being': _wellBeingValue,
-        'Shortness of Breath': _shortnessOfBreathValue,
       },
     };
 
@@ -722,80 +582,11 @@ class PatientTrackingState extends State<PatientTracking> {
       context,
       MaterialPageRoute(
         builder: (context) => ReceiptScreen(
-          inputs: _combinedInputs,
           uid: uid,
+          inputs: _combinedInputs,
+          algoInputs: _algoInputs,
         ),
       ),
     );
-  }
-
-  Future<void> getPrediction(List<dynamic> algoInputs) async {
-    // choose from these depending on testing device
-    final localHostAddress = '127.0.0.1'; // default
-    final virtualAddress = '10.0.2.2';    // if using virtual device
-    // if using physical device, use computer’s IP address instead of 127.0.0.1 or localhost.
-
-    final url = Uri.parse('http://$virtualAddress:5000/predict');
-    final headers = {"Content-Type": "application/json"};
-
-    // Define mappings for Blood Pressure and Cholesterol Level
-    const bloodPressureMapping = {
-      "Low": -2.347682445195591,
-      "Normal": -0.6882095111211662,
-      "High": 0.9712634229532582,
-    };
-
-    const cholesterolMapping = {
-      "Low": -2.0753216368811644,
-      "Normal": -0.5544364176961935,
-      "High": 0.9664488014887777,
-    };
-
-    // Format algoInputs to match the input size expected by the model (6 features)
-    List<List<double>> formattedInputs = algoInputs.map((input) {
-      return [
-        input['Fever'] ? 1.0 : 0.0,
-        input['Cough'] ? 1.0 : 0.0,
-        input['Fatigue'] ? 1.0 : 0.0,
-        input['Difficulty Breathing'] ? 1.0 : 0.0,
-        // double.parse(input['Age'].toString()),
-        // input['Gender'] == 'Male' ? 1.0 : 0.0,
-        bloodPressureMapping[input['Blood Pressure']] ?? 0.0,
-        cholesterolMapping[input['Cholesterol Level']] ?? 0.0,
-      ];
-    }).toList();
-
-    debugPrint('Formatted Inputs: $formattedInputs');
-
-    try {
-      // Wrap formattedInputs in a JSON object with the 'data' key
-      final body = json.encode({'data': [formattedInputs]});
-
-      final response = await http.post(
-        url,
-        headers: headers,
-        body: body,
-      );
-
-      debugPrint("Json body: $body");
-
-      if (response.statusCode == 200) {
-        final responseData = json.decode(response.body);
-        final String status = responseData['prediction'][0] == 0 ? "Stable" : "Unstable";
-        debugPrint("Status: ${responseData['prediction']}  Type: ${(responseData['prediction']).runtimeType}");
-        setState(() {
-          _predictionResult = "Status: $status";
-        });
-        // set status to either stable or unstable here
-      } else {
-        setState(() {
-          _predictionResult = "Error: ${response.statusCode}";
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _predictionResult = "Error: $e";
-      });
-    }
   }
 }

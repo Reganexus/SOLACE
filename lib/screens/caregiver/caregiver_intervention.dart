@@ -175,7 +175,7 @@ class CaregiverInterventionState extends State<CaregiverIntervention> {
         SnackBar(content: Text('Healthcare request sent to $result')),
       );
     } catch (e) {
-      print('Error handling QR scan result: $e');
+      debugPrint('Error handling QR scan result: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to process QR scan result')),
       );
@@ -208,7 +208,7 @@ class CaregiverInterventionState extends State<CaregiverIntervention> {
         }
       }
     } catch (e) {
-      print('Error fetching patient info: $e');
+      debugPrint('Error fetching patient info: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to fetch patient info')),
       );

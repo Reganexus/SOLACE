@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:solace/shared/accountflow/waiting.dart';
-import 'package:solace/themes/colors.dart';
 
 class RequirementsScreen extends StatefulWidget {
   const RequirementsScreen({super.key});
