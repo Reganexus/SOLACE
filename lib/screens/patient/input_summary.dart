@@ -98,6 +98,18 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           }
           break;
 
+        case 'Cholesterol Level':
+          if (vitalValue > highCholesterol) {
+            symptoms.add('High Cholesterol Level');
+          }
+          break;
+
+        case 'Pain':
+          if (vitalValue > maxScale) {
+            symptoms.add('Pain');
+          }
+          break;
+
         default:
           debugPrint('$key: Unable to determine status');
       }
@@ -160,14 +172,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         List<dynamic> algoInputs = widget.algoInputs.values.toList();
         debugPrint('Tracking algo inputs: $algoInputs');
         
-        // If there are fewer than 10 inputs, repeat the last one
-        if (widget.algoInputs.length < 10) {
-          final latestInput = widget.algoInputs.isNotEmpty ? algoInputs.last : widget.inputs;
-          while (algoInputs.length < 10) {
-            algoInputs.add(latestInput);
-          }
-        }
-
         // Send the inputs for prediction
         await getPrediction(algoInputs);
 
@@ -201,36 +205,25 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     final headers = {"Content-Type": "application/json"};
 
     // Define mappings for Blood Pressure and Cholesterol Level
-    const bloodPressureMapping = {
-      "Low": -2.347682445195591,
-      "Normal": -0.6882095111211662,
-      "High": 0.9712634229532582,
+    const severityMapping = {
+      "Low": 0,
+      "Normal": 1,
+      "High": 2,
     };
 
-    const cholesterolMapping = {
-      "Low": -2.0753216368811644,
-      "Normal": -0.5544364176961935,
-      "High": 0.9664488014887777,
-    };
-
-    // Format algoInputs to match the input size expected by the model (6 features)
-    List<List<double>>? formattedInputs;
+    // Format algoInputs to match the input size expected by the model (8 features)
+    List<int>? formattedInputs;
     try {
-      formattedInputs = algoInputs.map((input) {
-        if (input is! Map) {
-          debugPrint("Invalid input type: $input");
-          throw Exception("Expected Map, got: ${input.runtimeType}");
-        }
-
-        return [
-          input['Fever'] == true ? 1.0 : 0.0,
-          input['Cough'] == true ? 1.0 : 0.0,
-          input['Fatigue'] == true ? 1.0 : 0.0,
-          input['Difficulty Breathing'] == true ? 1.0 : 0.0,
-          bloodPressureMapping[input['Blood Pressure']] ?? 0.0,
-          cholesterolMapping[input['Cholesterol Level']] ?? 0.0,
-        ];
-      }).toList();
+      formattedInputs = [
+        algoInputs[0] == true ? 1 : 0, // Fever
+        algoInputs[1] == true ? 1 : 0, // Cough
+        algoInputs[2] == true ? 1 : 0, // Fatigue
+        algoInputs[3] == true ? 1 : 0, // Difficulty Breathing
+        (algoInputs[4] ?? 0) as int, // Age
+        algoInputs[5] == 'Male' ? 1 : 0, // Gender
+        severityMapping[algoInputs[6]] ?? 0, // Blood Pressure
+        severityMapping[algoInputs[7]] ?? 0, // Cholesterol Level
+      ];
 
       debugPrint('Formatted Inputs: $formattedInputs');
     } catch (e, stackTrace) {
@@ -254,11 +247,16 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         final responseData = json.decode(response.body);
         debugPrint("Status: ${responseData['prediction']}  Type: ${(responseData['prediction']).runtimeType}");
         // set status to either stable or unstable here
+        if(responseData['prediction'][0] == 0) {
+          debugPrint('Prediction: Negative (No complications detected based on algo)');
+        } else {
+          debugPrint('Prediction: Positive (Complications detected based on algo but not specified what)');
+        }
       } else {
         debugPrint("Error: ${response.statusCode}");
       }
     } catch (e) {
-      debugPrint("Error: $e");
+      debugPrint("wowow Error: $e");
     }
   }
 

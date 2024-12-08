@@ -37,8 +37,8 @@ class PatientTrackingState extends State<PatientTracking> {
     "Cough": false,
     "Fatigue": false,
     "Difficulty Breathing": false,
-    // "Age": null,
-    // "Gender": null,
+    "Age": null,
+    "Gender": null,
     "Blood Pressure": null,
     "Cholesterol Level": null,
   };
@@ -521,7 +521,7 @@ class PatientTrackingState extends State<PatientTracking> {
     );
   }
 
-  void _submit(String uid) {
+  void _submit(String uid) async {
     if (!_formKey.currentState!.validate()) {
       // Validation failed, show error SnackBar
       ScaffoldMessenger.of(context).showSnackBar(
@@ -535,10 +535,19 @@ class PatientTrackingState extends State<PatientTracking> {
       return;
     }
 
+    final userData = await DatabaseService(uid: uid).getUserData();
+    if (userData == null) {
+      debugPrint('Submit Algo Input No User Data');
+      return;
+    }
+
     // Set algo inputs
     _algoInputs['Fever'] = (double.parse(_vitalInputs['Temperature']!) > maxTemperature) ? true : false;
+    _algoInputs['Cough'] = (_coughingValue > maxScale) ? true : false;
     _algoInputs['Fatigue'] = (_fatigueValue > maxScale) ? true : false;
     _algoInputs['Difficulty Breathing'] = (_shortnessOfBreathValue > maxScale) ? true : false;
+    _algoInputs['Age'] = userData.age;
+    _algoInputs['Gender'] = userData.gender;
 
     final parts = _vitalInputs['Blood Pressure']!.split('/');
     final systolic = int.tryParse(parts[0]);

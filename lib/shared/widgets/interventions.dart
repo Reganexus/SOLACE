@@ -26,6 +26,8 @@ class InterventionsViewState extends State<InterventionsView> {
     'High Respiration Rate': 'highRespirationRate',
     'Low Temperature': 'lowTemperature',
     'High Temperature': 'highTemperature',
+    'High Cholesterol Level': 'highTemperature',
+    'Pain': 'pain',
   };
 
 // Physical Symptoms Mapping
@@ -34,6 +36,7 @@ class InterventionsViewState extends State<InterventionsView> {
     'Fatigue': 'fatigue',
     'Shortness of Breath': 'dyspnea',
     'Appetite': 'appetite',
+    'Coughing': 'cough'
   };
 
 // Emotional Symptoms Mapping
@@ -56,7 +59,6 @@ class InterventionsViewState extends State<InterventionsView> {
       }
 
       List<String> symptoms = List<String>.from(userDoc['symptoms']);
-      debugPrint('wowow intervent symptoms: ${symptoms.toString()}');
 
       // Combine all mappings into one for lookup
       final allMappings = {
@@ -65,14 +67,9 @@ class InterventionsViewState extends State<InterventionsView> {
         ...emotionalMapping,
       };
 
-      debugPrint('wowow intervent allMappings: ${allMappings.toString()}');
-
       for (String symptom in symptoms) {
-        debugPrint('wowow symptom in symptoms: $symptom');
         String? mappedName = allMappings[symptom];
-        debugPrint('wowow mapping: $mappedName');
         if (mappedName == null) continue;
-        // debugPrint('wowow intervent name: $mappedName');
         DocumentSnapshot interventionDoc =
             await _firestore.collection('interventions').doc(mappedName).get();
         if (interventionDoc.exists) {
