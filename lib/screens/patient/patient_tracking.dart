@@ -74,8 +74,8 @@ class PatientTrackingState extends State<PatientTracking> {
   @override
   void initState() {
     super.initState();
-    _checkCooldown();
     checkAndResetOptions();
+    _checkCooldown();
   }
 
   @override
@@ -127,11 +127,11 @@ class PatientTrackingState extends State<PatientTracking> {
     final timeDifference = currentTime - lastSubmitted;
 
     // 15 minutes cooldown (900,000 milliseconds)
-    if (timeDifference < 15 * 60 * 1000) {
+    if (timeDifference < 1 * 60 * 1000) {
       // Still within cooldown
       setState(() {
         isCooldownActive = true;
-        remainingCooldownTime = (15 * 60) -
+        remainingCooldownTime = (1 * 60) -
             (timeDifference / 1000).round(); // Remaining time in seconds
       });
       _startCountdown();
@@ -195,6 +195,7 @@ class PatientTrackingState extends State<PatientTracking> {
 
   @override
   Widget build(BuildContext context) {
+    _checkCooldown();
     final user = Provider.of<MyUser?>(context);
     return GestureDetector(
       onTap: () {

@@ -1,4 +1,6 @@
-// ignore_for_file: avoid_print, unused_element, use_build_context_synchronously
+// ignore_for_file: avoid_print, unused_import, use_build_context_synchronously, library_private_types_in_public_api
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:solace/screens/admin/export_data.dart';
@@ -7,10 +9,19 @@ import 'package:solace/shared/widgets/help_page.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/services/auth.dart';
 import 'package:solace/shared/accountflow/user_editprofile.dart';
+import 'package:solace/shared/widgets/contacts.dart';
 import 'package:solace/models/my_user.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-class AdminSettings extends StatelessWidget {
+class AdminSettings extends StatefulWidget {
   const AdminSettings({super.key});
+
+  @override
+  _AdminSettingsState createState() => _AdminSettingsState();
+}
+
+class _AdminSettingsState extends State<AdminSettings> {
+  File? _profileImage;
 
   @override
   Widget build(BuildContext context) {
@@ -52,6 +63,20 @@ class AdminSettings extends StatelessWidget {
                 religion: 'Not specified', // Default religion value
               );
 
+          // Redirect to EditProfileScreen if newUser is true
+          if (userData.newUser) {
+            Future.microtask(() {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const EditProfileScreen(),
+                ),
+              );
+            });
+            return const SizedBox(); // Return an empty widget while redirecting
+          }
+
+          // Main Profile Screen if newUser is false
           return SingleChildScrollView(
             child: Container(
               color: AppColors.white,
@@ -61,24 +86,17 @@ class AdminSettings extends StatelessWidget {
                 children: [
                   // Profile Image
                   Center(
-                    child: Container(
-                      width: 150,
-                      height: 150,
-                      decoration: BoxDecoration(
-                        borderRadius:
-                            const BorderRadius.all(Radius.circular(50)),
-                        image: DecorationImage(
-                          image: userData.profileImageUrl.isNotEmpty
-                              ? NetworkImage(userData
-                                  .profileImageUrl) // Use the image from the URL if available
-                              : AssetImage(
-                                      'lib/assets/images/shared/placeholder.png')
-                                  as ImageProvider, // Placeholder image if not
-                          fit: BoxFit.cover,
-                        ),
-                      ),
+                    child: CircleAvatar(
+                      radius: 75,
+                      backgroundImage: _profileImage != null
+                          ? FileImage(_profileImage!)
+                          : (userData.profileImageUrl.isNotEmpty
+                              ? NetworkImage(userData.profileImageUrl)
+                              : const AssetImage(
+                                  'lib/assets/images/shared/placeholder.png')),
                     ),
                   ),
+
                   const SizedBox(height: 10),
 
                   Center(
@@ -86,7 +104,6 @@ class AdminSettings extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Flexible(
-                          // Use Flexible to avoid overflow
                           child: Text(
                             '${userData.firstName} ${userData.middleName} ${userData.lastName}',
                             style: const TextStyle(
@@ -95,8 +112,7 @@ class AdminSettings extends StatelessWidget {
                               fontFamily: 'Inter',
                               color: Colors.black,
                             ),
-                            overflow:
-                                TextOverflow.ellipsis, // Handle text overflow
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -156,7 +172,7 @@ class AdminSettings extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        'Export Data',
+                        'Personal Information',
                         style: TextStyle(
                           fontSize: 18.0,
                           fontWeight: FontWeight.bold,
@@ -165,6 +181,73 @@ class AdminSettings extends StatelessWidget {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildProfileInfoSection('Email Address', userData.email),
+                      _buildProfileInfoSection(
+                          'Phone Number', userData.phoneNumber),
+                      _buildProfileInfoSection(
+                          'House Address', userData.address),
+                      _buildProfileInfoSection('Gender', userData.gender),
+                      _buildProfileInfoSection(
+                          'Birthdate',
+                          userData.birthday != null
+                              ? '${userData.birthday!.month}/${userData.birthday!.day}/${userData.birthday!.year}'
+                              : ''),
+                    ],
+                  ),
+
+                  const SizedBox(height: 10),
+                  const Divider(thickness: 1.0),
+                  const SizedBox(height: 10),
+
+                  const Text(
+                    'Contacts',
+                    style: TextStyle(
+                      fontSize: 18.0,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Inter',
+                      color: Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => Contacts(
+                            currentUserId: userData.uid,
+                          ),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      "View Contacts",
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.normal,
+                        fontSize: 16.0,
+                        color: AppColors.black,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+                  const Divider(thickness: 1.0),
+                  const SizedBox(height: 10),
+
+                  const Text(
+                    'Export Data',
+                    style: TextStyle(
+                      fontSize: 18.0,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Inter',
+                      color: Colors.black,
+                    ),
                   ),
                   const SizedBox(height: 10),
                   Column(
@@ -372,26 +455,6 @@ class AdminSettings extends StatelessWidget {
           );
         },
       ),
-    );
-  }
-
-  void _showErrorDialog(BuildContext context, String message) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Error'),
-          content: Text(message),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('OK'),
-            ),
-          ],
-        );
-      },
     );
   }
 

@@ -1,7 +1,7 @@
 // ignore_for_file: avoid_print
 
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Add this for Firestore
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:solace/themes/colors.dart';
 
 class AdminDashboard extends StatefulWidget {
@@ -18,9 +18,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
   int doctorCount = 0;
   int adminCount = 0;
   int totalUsers = 0;
-  int noRiskCount = 0;
-  int lowRiskCount = 0;
-  int highRiskCount = 0;
+  int stableCount = 0;
+  int unstableCount = 0;
 
   @override
   void initState() {
@@ -67,58 +66,38 @@ class _AdminDashboardState extends State<AdminDashboard> {
     }
   }
 
-  // Function to fetch status counts (No Risk, Low Risk, High Risk)
+  // Function to fetch status counts (Stable, Unstable)
   Future<void> fetchStatusCounts() async {
     try {
       final firestore = FirebaseFirestore.instance;
 
-      // Assuming status data is available in a collection like 'statusData'
-      final statusSnapshot = await firestore.collection('statusData').get();
+      // Query for users with status 'stable'
+      final stableSnapshot = await firestore
+          .collection('users')
+          .where('status', isEqualTo: 'stable')
+          .get();
 
-      if (statusSnapshot.docs.isEmpty) {
-        setState(() {
-          noRiskCount = 0;
-          lowRiskCount = 0;
-          highRiskCount = 0;
-        });
-        return;
-      }
+      // Query for users with status 'unstable'
+      final unstableSnapshot = await firestore
+          .collection('users')
+          .where('status', isEqualTo: 'unstable')
+          .get();
 
-      // Initialize counts
-      int tempNoRisk = 0;
-      int tempLowRisk = 0;
-      int tempHighRisk = 0;
-
-      // Loop through each document and check the 'riskLevel' field
-      for (var doc in statusSnapshot.docs) {
-        var riskLevel = doc['riskLevel']; // Adjust field name according to your Firestore structure
-
-        // Check risk level and increment appropriate counter
-        if (riskLevel == 'noRisk') {
-          tempNoRisk++;
-        } else if (riskLevel == 'lowRisk') {
-          tempLowRisk++;
-        } else if (riskLevel == 'highRisk') {
-          tempHighRisk++;
-        }
-      }
-
-      // Update state with the final counts
+      // Update state with the counts
       setState(() {
-        noRiskCount = tempNoRisk;
-        lowRiskCount = tempLowRisk;
-        highRiskCount = tempHighRisk;
+        stableCount = stableSnapshot.size;
+        unstableCount = unstableSnapshot.size;
       });
-
     } catch (e) {
       print('Error fetching status counts: $e');
+      // Reset counts in case of error
       setState(() {
-        noRiskCount = 0;
-        lowRiskCount = 0;
-        highRiskCount = 0;
+        stableCount = 0;
+        unstableCount = 0;
       });
     }
   }
+
 
   Widget _buildSquareContainer(String title, String label, Color color) {
     return Column(
@@ -215,11 +194,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 alignment: WrapAlignment.start,
                 children: [
                   _buildSquareContainer(
-                      '$noRiskCount', 'No Risk', AppColors.neon),
+                      '$stableCount', 'Stable', AppColors.neon),
                   _buildSquareContainer(
-                      '$lowRiskCount', 'Low Risk', AppColors.yellow),
-                  _buildSquareContainer(
-                      '$highRiskCount', 'High Risk', AppColors.red),
+                      '$unstableCount', 'Unstable', AppColors.red),
                   _buildSquareContainer(
                       '$totalUsers', 'Total Users', AppColors.darkblue),
                 ],

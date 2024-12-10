@@ -112,7 +112,16 @@ class CaregiverTrackingState extends State<CaregiverTracking> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Add Note for Today'),
+          backgroundColor: AppColors.white,
+          title: const Text(
+            'Add Note for Today',
+            style: const TextStyle(
+              fontSize: 24,
+              fontFamily: 'Outfit',
+              fontWeight: FontWeight.bold,
+              color: AppColors.black,
+            ),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -140,7 +149,23 @@ class CaregiverTrackingState extends State<CaregiverTracking> {
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: const Text('Cancel'),
+              style: TextButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                backgroundColor: AppColors.red,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(
+                  fontSize: 16.0,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Inter',
+                  color: Colors.white,
+                ),
+              ),
             ),
             TextButton(
               onPressed: () async {
@@ -153,7 +178,23 @@ class CaregiverTrackingState extends State<CaregiverTracking> {
                   Navigator.of(context).pop();
                 }
               },
-              child: const Text('Save'),
+              style: TextButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                backgroundColor: AppColors.neon,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text(
+                'Save',
+                style: TextStyle(
+                  fontSize: 16.0,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Inter',
+                  color: Colors.white,
+                ),
+              ),
             ),
           ],
         );
@@ -207,19 +248,38 @@ class CaregiverTrackingState extends State<CaregiverTracking> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Note Details - $formattedTime'),
+          backgroundColor: AppColors.white,
+          title: Text(
+            'Note Details - $formattedTime',
+            style: const TextStyle(
+              fontSize: 24,
+              fontFamily: 'Outfit',
+              fontWeight: FontWeight.bold,
+              color: AppColors.black,
+            ),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'Time: $formattedTime',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontFamily: 'Inter',
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.black,
+                ),
               ),
               const SizedBox(height: 10.0),
               Text(
                 note['note'], // Display the note content as text
-                style: const TextStyle(fontSize: 16),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontFamily: 'Inter',
+                  fontWeight: FontWeight.normal,
+                  color: AppColors.black,
+                ),
               ),
             ],
           ),
@@ -228,14 +288,46 @@ class CaregiverTrackingState extends State<CaregiverTracking> {
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: const Text('Close'),
+              style: TextButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                backgroundColor: AppColors.neon,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text(
+                'Close',
+                style: TextStyle(
+                  fontSize: 16.0,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Inter',
+                  color: Colors.white,
+                ),
+              ),
             ),
             TextButton(
               onPressed: () async {
                 await _deleteNote(note);
                 Navigator.of(context).pop();
               },
-              child: const Text('Delete'),
+              style: TextButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                backgroundColor: AppColors.red,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text(
+                'Delete',
+                style: TextStyle(
+                  fontSize: 16.0,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Inter',
+                  color: Colors.white,
+                ),
+              ),
             ),
           ],
         );
@@ -316,15 +408,19 @@ class CaregiverTrackingState extends State<CaregiverTracking> {
                 ),
                 child: TableCalendar(
                   focusedDay: selectedDay,
-                  firstDay: userCreatedDate ?? DateTime.now().subtract(const Duration(days: 30)), // Default to 30 days ago
+                  firstDay: userCreatedDate ??
+                      DateTime.now().subtract(
+                          const Duration(days: 30)), // Default to 30 days ago
                   lastDay: DateTime.now(),
                   selectedDayPredicate: (day) => isSameDay(day, selectedDay),
                   enabledDayPredicate: (day) {
                     if (userCreatedDate == null) {
                       return true; // Temporarily enable all dates for testing
                     }
-                    return day.isAfter(userCreatedDate!.subtract(const Duration(days: 1))) &&
-                        day.isBefore(DateTime.now().add(const Duration(days: 1)));
+                    return day.isAfter(userCreatedDate!
+                            .subtract(const Duration(days: 1))) &&
+                        day.isBefore(
+                            DateTime.now().add(const Duration(days: 1)));
                   },
 
                   onDaySelected: (selectedDay, focusedDay) {

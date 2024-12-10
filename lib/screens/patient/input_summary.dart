@@ -282,23 +282,71 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           barrierDismissible: false, // Prevent dismissing by tapping outside
           builder: (BuildContext context) {
             return AlertDialog(
-              title: const Text('Unsaved Changes'),
+              backgroundColor: AppColors.white,
+              title: const Text(
+                'Unsaved Changes',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontFamily: 'Outfit',
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.black,
+                ),
+              ),
               content: const Text(
-                  'If you go back, your inputs will not be saved. Do you want to continue?'),
+                'If you go back, your inputs will not be saved. Do you want to continue?',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontFamily: 'Inter',
+                  fontWeight: FontWeight.normal,
+                  color: AppColors.black,
+                ),
+              ),
               actions: <Widget>[
                 TextButton(
                   onPressed: () {
                     // If "Continue" is pressed, allow navigation
                     Navigator.of(context).pop(true);
                   },
-                  child: const Text('Continue'),
+                  style: TextButton.styleFrom(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                    backgroundColor: AppColors.red,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text(
+                    'Continue',
+                    style: TextStyle(
+                      fontSize: 16.0,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Inter',
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
                 TextButton(
                   onPressed: () {
                     // If "Cancel" is pressed, stay on the page
                     Navigator.of(context).pop(false);
                   },
-                  child: const Text('Cancel'),
+                  style: TextButton.styleFrom(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                    backgroundColor: AppColors.neon,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(
+                      fontSize: 16.0,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Inter',
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
               ],
             );
@@ -423,6 +471,28 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                   child: TextButton(
                     onPressed: () async {
                       try {
+                        // Show "Submitting" snackbar with a small CircularProgressIndicator
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Row(
+                                children: [
+                                  const CircularProgressIndicator(
+                                    strokeWidth: 3,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  const Text('Submitting data...'),
+                                ],
+                              ),
+                              backgroundColor: Colors.green,
+                              duration: const Duration(
+                                  seconds: 3), // Keep it open for 10 seconds
+                            ),
+                          );
+                        }
+
                         // Identify current symptoms based on inputs and save them in Firestore
                         _identifySymptoms();
 
@@ -470,7 +540,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content:
-                                  Text('Error creating tracking data: $e'),
+                                      Text('Error creating tracking data: $e'),
                                   backgroundColor: Colors.red,
                                 ),
                               );
@@ -478,7 +548,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                           });
                         }
 
-                        // Show success message
+                        // Show success message after data submission
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
