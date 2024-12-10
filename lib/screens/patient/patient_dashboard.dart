@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_print, use_build_context_synchronously, unnecessary_null_comparison
+// ignore_for_file: avoid_print, use_build_context_synchronously, unnecessary_null_comparison, unused_import
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -309,12 +309,18 @@ class PatientDashboardState extends State<PatientDashboard> {
 
       if (snapshot.exists) {
         final List<dynamic> tasksData = snapshot.data()?['tasks'] ?? [];
+        debugPrint("Snap Shot Tasks: $tasksData");
         final List<Map<String, dynamic>> filteredTasks = [];
         final DateTime today = DateTime.now();
+
+        // Define start and end bounds for today
+        final DateTime startOfDay = DateTime(today.year, today.month, today.day);
+        final DateTime endOfDay = startOfDay.add(const Duration(days: 1)).subtract(const Duration(seconds: 1));
 
         for (var task in tasksData) {
           // Extract the task ID from Firestore, or fall back to a placeholder
           final taskId = task['id'] ?? '';
+          debugPrint("Task ID: $taskId");
           if (taskId == '') {
             debugPrint("Task is missing an 'id' field: $task");
           }
@@ -329,6 +335,9 @@ class PatientDashboardState extends State<PatientDashboard> {
                 ? (task['endDate'] as Timestamp).toDate()
                 : task['endDate'];
 
+            debugPrint("Start Date: $startDate");
+            debugPrint("End Date: $endDate");
+
             // Ensure the task has necessary fields
             final String title = task['title'] ?? 'No title';
             final String category = task['category'] ?? 'Unknown';
@@ -338,10 +347,8 @@ class PatientDashboardState extends State<PatientDashboard> {
                 'lib/assets/images/shared/vitals/heart_rate.png';
 
             // Check if today's date is within the task's date range
-            if ((today.isAfter(startDate) ||
-                    today.isAtSameMomentAs(startDate)) &&
-                (today.isBefore(endDate.add(Duration(days: 1))) ||
-                    today.isAtSameMomentAs(endDate))) {
+            if (startDate.isBefore(endOfDay) &&
+                endDate.isAfter(startOfDay)) {
               filteredTasks.add({
                 'id': taskId, // Use the actual task ID
                 'title': title,
@@ -350,8 +357,7 @@ class PatientDashboardState extends State<PatientDashboard> {
                 'startDate': startDate,
                 'endDate': endDate,
                 'icon': icon,
-                'isCompleted':
-                    task['isCompleted'] ?? false, // Include isCompleted flag
+                'isCompleted': task['isCompleted'] ?? false, // Include isCompleted flag
               });
             }
           }
@@ -373,6 +379,7 @@ class PatientDashboardState extends State<PatientDashboard> {
       }
     }
   }
+
 
   Future<void> fetchPatientSchedules() async {
     final User? user = FirebaseAuth.instance.currentUser;

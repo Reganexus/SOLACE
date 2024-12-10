@@ -111,7 +111,27 @@ class _CaregiverDashboardState extends State<CaregiverDashboard> {
         return;
       }
 
-      final patientId = user.uid; // Patient's UID
+      setState(() {
+        currentUserId = user.uid;
+      });
+      DocumentSnapshot caregiverDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      var healthcare = caregiverDoc['contacts']?['healthcare'];
+      if (healthcare != null && healthcare.isNotEmpty) {
+        setState(() {
+          patientUid = healthcare.keys.first;
+        });
+        await _fetchPatientDetails();
+      } else {
+        setState(() {
+          patientUid = null;
+        });
+      }
+
+      final patientId = patientUid; // Patient's UID
 
       final snapshot = await FirebaseFirestore.instance
           .collection('tracking')

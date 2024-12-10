@@ -502,8 +502,8 @@ class DatabaseService {
     }
   }
 
-  Future<void> saveScheduleForCaregiver(
-      String caregiverId, DateTime scheduledDateTime, String patientId) async {
+  Future<void> saveScheduleForDoctor(
+      String doctorId, DateTime scheduledDateTime, String patientId) async {
     final Timestamp timestamp = Timestamp.fromDate(scheduledDateTime);
 
     // Fetch patient name
@@ -523,10 +523,7 @@ class DatabaseService {
         DateFormat('MMMM dd, yyyy h:mm a').format(scheduledDateTime);
 
     // Save schedule for caregiver
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(caregiverId)
-        .update({
+    await FirebaseFirestore.instance.collection('users').doc(doctorId).update({
       'schedule': FieldValue.arrayUnion([
         {
           'date': timestamp,
@@ -538,20 +535,20 @@ class DatabaseService {
 
     // Add schedule notification for caregiver
     await addNotification(
-      caregiverId,
+      doctorId,
       "Scheduled visit for patient $patientName at $formattedDateTime",
       'schedule',
     );
   }
 
   Future<void> saveScheduleForPatient(
-      String patientId, DateTime scheduledDateTime, String caregiverId) async {
+      String patientId, DateTime scheduledDateTime, String doctorId) async {
     final Timestamp timestamp = Timestamp.fromDate(scheduledDateTime);
 
     // Fetch caregiver name
     final caregiverSnapshot = await FirebaseFirestore.instance
         .collection('users')
-        .doc(caregiverId)
+        .doc(doctorId)
         .get();
     String caregiverName = '';
     if (caregiverSnapshot.exists) {
@@ -570,7 +567,7 @@ class DatabaseService {
         {
           'date': timestamp,
           'time': DateFormat.jm().format(scheduledDateTime),
-          'caregiverId': caregiverId,
+          'doctorId': doctorId,
         }
       ]),
     });
@@ -578,7 +575,7 @@ class DatabaseService {
     // Add schedule notification for patient
     await addNotification(
       patientId,
-      "Scheduled appointment with caregiver $caregiverName at $formattedDateTime.",
+      "Scheduled appointment with doctor $caregiverName at $formattedDateTime.",
       'schedule',
     );
   }
@@ -978,6 +975,24 @@ class DatabaseService {
     } catch (e) {
       print("Error checking phone number uniqueness: $e");
       return false; // In case of error, assume the phone number is not unique
+    }
+  }
+
+  Future<List<String>> fetchSymptoms(String userId) async {
+    try {
+      DocumentSnapshot userDoc = await userCollection.doc(userId).get();
+
+      if (userDoc.exists) {
+        // Retrieve symptoms field from the document
+        final symptoms = userDoc['symptoms'] as List<dynamic>?;
+        if (symptoms != null) {
+          return symptoms.map((symptom) => symptom.toString()).toList();
+        }
+      }
+      return []; // Return an empty list if no symptoms found or doc does not exist
+    } catch (e) {
+      print('Error fetching symptoms: $e');
+      return [];
     }
   }
 }

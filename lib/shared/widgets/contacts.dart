@@ -77,36 +77,47 @@ class Contacts extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.white,
-      appBar: AppBar(
-        title: Text('Contacts'),
-        backgroundColor: AppColors.white,
-        scrolledUnderElevation: 0.0,
-        actions: [
-          IconButton(
-            color: AppColors.black,
-            icon: Icon(Icons.person_add),
-            iconSize: 30.0,
-            onPressed: () => _showSearchModal(context),
-          ),
-          IconButton(
-            color: AppColors.black,
-            icon: Icon(Icons.qr_code_scanner),
-            iconSize: 30.0,
-            onPressed: () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const QRScannerPage()),
-              );
+      appBar: PreferredSize(
+        preferredSize: Size.fromHeight(kToolbarHeight),
+        child: Padding(
+          padding: const EdgeInsets.only(
+              left: 14.0, right: 20.0), // Add padding here
+          child: AppBar(
+            title: Text('Contacts'),
+            backgroundColor: AppColors.white,
+            scrolledUnderElevation: 0.0,
+            actions: [
+              IconButton(
+                color: AppColors.black,
+                icon: Icon(Icons.person_add),
+                iconSize: 30.0,
+                onPressed: () => _showSearchModal(context),
+              ),
+              IconButton(
+                color: AppColors.black,
+                icon: Icon(Icons.qr_code_scanner),
+                iconSize: 30.0,
+                onPressed: () async {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const QRScannerPage()),
+                  );
 
-              if (result != null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('QR Code detected')),
-                );
-                _handleQRScanResult(context, result);
-              }
-            },
+                  if (result != null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('QR Code detected'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                    _handleQRScanResult(context, result);
+                  }
+                },
+              ),
+            ],
           ),
-        ],
+        ),
       ),
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance
@@ -120,12 +131,20 @@ class Contacts extends StatelessWidget {
 
           var contacts = snapshot.data!['contacts'];
           if (contacts == null || contacts.isEmpty) {
-            return _noRequestsMessage('No caregivers added');
+            // Only show 'No caregivers added' message for patients or caregivers
+            var userRole = snapshot.data!['userRole'];
+            if (userRole == 'patient' || userRole == 'caregiver') {
+              return _noRequestsMessage('No caregivers added');
+            }
           }
 
           var healthcare = contacts['healthcare'];
           if (healthcare == null || healthcare.isEmpty) {
-            return _noRequestsMessage('No caregivers added');
+            // Only show 'No caregivers added' message for patients or caregivers
+            var userRole = snapshot.data!['userRole'];
+            if (userRole == 'patient' || userRole == 'caregiver') {
+              return _noRequestsMessage('No caregivers added');
+            }
           }
 
           var userRole = snapshot.data!['userRole'];
@@ -145,7 +164,6 @@ class Contacts extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
               child: Column(
                 children: [
-
                   // Display caregiver section only if the user is a patient or caregiver and no caregiver is assigned
                   if (userRole == 'patient' || userRole == 'caregiver') ...[
                     // Show the caregiver or patient section if `hasCaregiver` is false
@@ -576,6 +594,8 @@ class Contacts extends StatelessWidget {
         if (!snapshot.hasData) {
           return Center(child: CircularProgressIndicator());
         }
+
+        debugPrint("Contacts: $snapshot");
 
         // Accessing the nested structure
         var contacts = snapshot.data!['contacts'];

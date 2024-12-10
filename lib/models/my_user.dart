@@ -65,7 +65,7 @@ class UserData {
     required this.dateCreated,
     required this.profileImageUrl,
     required this.status,
-    required this.religion, 
+    required this.religion,
     this.will,
     this.fixedWishes,
     this.organDonation,

@@ -33,12 +33,15 @@ class _QRScannerPageState extends State<QRScannerPage> {
               flex: 4,
               child: MobileScanner(
                 controller: controller,
-                onDetect: (BarcodeCapture barcodeCapture) {
+                onDetect: (BarcodeCapture barcodeCapture) async {
                   final String? scannedBarcode = barcodeCapture.barcodes.first.rawValue;
                   if (scannedBarcode != null && scannedBarcode.isNotEmpty) {
                     setState(() {
                       barcode = scannedBarcode;
                     });
+
+                    await Future.delayed(Duration(seconds: 2));
+
                     Navigator.pop(context, scannedBarcode);
                   } else {
                     // Optionally, show a message if no valid barcode is detected

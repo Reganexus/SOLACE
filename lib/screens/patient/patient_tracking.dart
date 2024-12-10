@@ -1,5 +1,6 @@
-// ignore_for_file: use_build_context_synchronously
+// ignore_for_file: use_build_context_synchronously, unused_import, avoid_print
 
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -8,7 +9,6 @@ import 'package:solace/services/database.dart';
 import 'package:solace/screens/patient/input_summary.dart';
 import 'package:solace/shared/globals.dart';
 import 'package:solace/themes/colors.dart';
-import 'dart:async';
 
 class PatientTracking extends StatefulWidget {
   const PatientTracking({super.key});
@@ -23,7 +23,7 @@ class PatientTrackingState extends State<PatientTracking> {
 
   bool isCooldownActive = false; // Added this variable
   int remainingCooldownTime = 0; // Added this variable
-  late Timer _countdownTimer;
+  Timer? _countdownTimer;
 
   final Map<String, String> _vitalInputs = {
     'Heart Rate': '',
@@ -63,9 +63,9 @@ class PatientTrackingState extends State<PatientTracking> {
 
   final TextEditingController _heartRateController = TextEditingController();
   final TextEditingController _bloodPressureController =
-  TextEditingController();
+      TextEditingController();
   final TextEditingController _oxygenSaturationController =
-  TextEditingController();
+      TextEditingController();
   final TextEditingController _respirationController = TextEditingController();
   final TextEditingController _temperatureController = TextEditingController();
   final TextEditingController _cholesterolController = TextEditingController();
@@ -76,6 +76,12 @@ class PatientTrackingState extends State<PatientTracking> {
     super.initState();
     _checkCooldown();
     checkAndResetOptions();
+  }
+
+  @override
+  void dispose() {
+    _countdownTimer?.cancel(); // Null-safe cancellation
+    super.dispose();
   }
 
   void checkAndResetOptions() {
@@ -105,27 +111,47 @@ class PatientTrackingState extends State<PatientTracking> {
 
   void _checkCooldown() async {
     final user = Provider.of<MyUser?>(context, listen: false);
+
+    // Fetch the last submitted time from the database
     final lastSubmitted = await getLastSubmittedTime(user!.uid);
+
+    if (lastSubmitted == 0) {
+      // If no data is found (initial state or error), you can either set a default or allow immediate submission
+      setState(() {
+        isCooldownActive = false;
+      });
+      return;
+    }
+
     final currentTime = DateTime.now().millisecondsSinceEpoch;
     final timeDifference = currentTime - lastSubmitted;
 
-    if (timeDifference < 1 * 60 * 1000) { // 15 minutes in milliseconds
+    // 15 minutes cooldown (900,000 milliseconds)
+    if (timeDifference < 15 * 60 * 1000) {
+      // Still within cooldown
       setState(() {
         isCooldownActive = true;
-        remainingCooldownTime = (1 * 60) - (timeDifference / 1000).round(); // Remaining time in seconds
+        remainingCooldownTime = (15 * 60) -
+            (timeDifference / 1000).round(); // Remaining time in seconds
       });
       _startCountdown();
+    } else {
+      // No cooldown, allow input
+      setState(() {
+        isCooldownActive = false;
+      });
     }
   }
 
   void _startCountdown() {
+    _countdownTimer?.cancel(); // Cancel any previous timer
     _countdownTimer = Timer.periodic(Duration(seconds: 1), (timer) {
       if (remainingCooldownTime > 0) {
         setState(() {
           remainingCooldownTime--;
         });
       } else {
-        _countdownTimer.cancel();
+        _countdownTimer?.cancel();
         setState(() {
           isCooldownActive = false;
         });
@@ -134,21 +160,37 @@ class PatientTrackingState extends State<PatientTracking> {
   }
 
   Future<int> getLastSubmittedTime(String userId) async {
-    // Fetch the last submission time from the database
-    return DateTime.now().millisecondsSinceEpoch - 10 * 60 * 1000;  // For testing purposes, 10 minutes ago
-  }
+    try {
+      // Get a reference to the user's document in the Firestore collection
+      final userDoc = await FirebaseFirestore.instance
+          .collection('tracking')
+          .doc(userId)
+          .get();
 
-  @override
-  void dispose() {
-    _countdownTimer.cancel();
-    super.dispose();
+      if (userDoc.exists) {
+        // Retrieve the timestamp of the last submission
+        final lastTracking = userDoc.data()?['tracking'] as List?;
+        if (lastTracking != null && lastTracking.isNotEmpty) {
+          // Get the last tracking entry (assuming it's sorted, or you get the most recent)
+          final lastEntry = lastTracking.last;
+          final lastSubmittedTimestamp =
+              (lastEntry['timestamp'] as Timestamp).millisecondsSinceEpoch;
+
+          return lastSubmittedTimestamp;
+        }
+      }
+      return 0; // If no data exists, return 0 to indicate no submission
+    } catch (e) {
+      print("Error fetching last submission time: $e");
+      return 0; // Return 0 on error
+    }
   }
 
   String _formatCooldownTime(int timeInSeconds) {
     int hours = (timeInSeconds / 3600).floor();
     int minutes = ((timeInSeconds % 3600) / 60).floor();
     int seconds = timeInSeconds % 60;
-    return '$hours:$minutes:$seconds';
+    return 'Hours: $hours Minutes: $minutes Seconds: $seconds';
   }
 
   @override
@@ -167,36 +209,44 @@ class PatientTrackingState extends State<PatientTracking> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Vitals',
-                  style: TextStyle(
-                    fontSize: 24.0,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Outfit',
+                // Only show the "Vitals" title if no cooldown is active
+                if (!isCooldownActive)
+                  const Text(
+                    'Vitals',
+                    style: TextStyle(
+                      fontSize: 24.0,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Outfit',
+                    ),
                   ),
-                ),
                 const SizedBox(height: 20.0),
 
                 // Display cooldown if active
                 if (isCooldownActive)
                   Container(
                     padding: const EdgeInsets.all(20),
-                    color: Colors.yellow[100],
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10.0),
+                      color: AppColors.gray,
+                    ),
                     child: Column(
                       children: [
                         Text(
                           'You cannot input vitals and assessment at the moment.',
+                          textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: Colors.orange,
-                            fontWeight: FontWeight.bold,
-                          ),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
+                              fontFamily: 'Inter'),
                         ),
                         const SizedBox(height: 10),
                         Text(
-                          'Cooldown: ${_formatCooldownTime(remainingCooldownTime)}',
+                          _formatCooldownTime(remainingCooldownTime),
+                          textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            fontWeight: FontWeight.normal,
+                            fontFamily: 'Inter',
                           ),
                         ),
                       ],

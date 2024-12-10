@@ -50,7 +50,7 @@ class DoctorUsersState extends State<DoctorUsers> {
         } else {
           filteredPatients = allPatients.where((patient) {
             final fullName =
-            '${patient.firstName} ${patient.lastName}'.toLowerCase();
+                '${patient.firstName} ${patient.lastName}'.toLowerCase();
             return fullName.contains(query.toLowerCase());
           }).toList();
         }
@@ -109,8 +109,10 @@ class DoctorUsersState extends State<DoctorUsers> {
           // Display profile image if available, otherwise show a placeholder
           CircleAvatar(
             backgroundImage: patient.profileImageUrl.isNotEmpty
-                ? NetworkImage(patient.profileImageUrl)  // Use network image if available
-                : AssetImage('lib/assets/images/shared/placeholder.png') as ImageProvider,  // Fallback to placeholder
+                ? NetworkImage(
+                    patient.profileImageUrl) // Use network image if available
+                : AssetImage('lib/assets/images/shared/placeholder.png')
+                    as ImageProvider, // Fallback to placeholder
             radius: 24.0,
           ),
           const SizedBox(width: 10.0),
@@ -128,7 +130,6 @@ class DoctorUsersState extends State<DoctorUsers> {
     );
   }
 
-
   void _showUserDetailsDialog(BuildContext context, UserData user) {
     showDialog(
       context: context,
@@ -137,12 +138,11 @@ class DoctorUsersState extends State<DoctorUsers> {
           user: user,
           isAdminView: false,
           onAddContact: () => _addContact(user),
-          onCall: () => _makeCall(user.phoneNumber),  // Pass the onCall callback
+          onCall: () => _makeCall(user.phoneNumber), // Pass the onCall callback
         );
       },
     );
   }
-
 
   // Add contact (Friend request) function
   void _addContact(UserData user) async {
@@ -151,10 +151,12 @@ class DoctorUsersState extends State<DoctorUsers> {
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser != null) {
         await DatabaseService().sendFriendRequest(currentUser.uid, user.uid);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Friend request sent to ${user.firstName}!')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Friend request sent to ${user.firstName}!')));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error sending friend request.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error sending friend request.')));
     }
   }
 
@@ -314,7 +316,7 @@ class DoctorUsersState extends State<DoctorUsers> {
                           style: TextButton.styleFrom(
                             backgroundColor: AppColors.purple,
                             padding:
-                            const EdgeInsets.symmetric(horizontal: 10.0),
+                                const EdgeInsets.symmetric(horizontal: 10.0),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10.0),
                             ),
@@ -328,6 +330,7 @@ class DoctorUsersState extends State<DoctorUsers> {
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
                                   fontFamily: 'Inter',
+                                  fontSize: 16.0,
                                 ),
                               ),
                               const SizedBox(width: 5.0),
@@ -336,7 +339,7 @@ class DoctorUsersState extends State<DoctorUsers> {
                                     ? Icons.arrow_downward
                                     : Icons.arrow_upward,
                                 color: Colors.white,
-                                size: 20,
+                                size: 18,
                               ),
                             ],
                           ),
@@ -365,6 +368,8 @@ class DoctorUsersState extends State<DoctorUsers> {
                                 value.capitalize(),
                                 style: const TextStyle(
                                   color: AppColors.white,
+                                  fontFamily: 'Inter',
+                                  fontSize: 16.0,
                                 ),
                               ),
                             );
@@ -388,28 +393,28 @@ class DoctorUsersState extends State<DoctorUsers> {
                   Expanded(
                     child: filteredPatients.isEmpty
                         ? Center(
-                      child: Text(
-                        'No $_selectedRole available',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.blackTransparent,
-                        ),
-                      ),
-                    )
+                            child: Text(
+                              'No $_selectedRole available',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontFamily: 'Inter',
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.blackTransparent,
+                              ),
+                            ),
+                          )
                         : ListView.builder(
-                      itemCount: filteredPatients.length,
-                      itemBuilder: (context, index) {
-                        final patient = filteredPatients[index];
+                            itemCount: filteredPatients.length,
+                            itemBuilder: (context, index) {
+                              final patient = filteredPatients[index];
 
-                        return GestureDetector(
-                          onTap: () =>
-                              _showUserDetailsDialog(context, patient),
-                          child: _buildPatientItem(patient),
-                        );
-                      },
-                    ),
+                              return GestureDetector(
+                                onTap: () =>
+                                    _showUserDetailsDialog(context, patient),
+                                child: _buildPatientItem(patient),
+                              );
+                            },
+                          ),
                   ),
                 ],
               ),

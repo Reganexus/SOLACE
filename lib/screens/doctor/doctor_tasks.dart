@@ -171,6 +171,7 @@ class DoctorTasksState extends State<DoctorTasks> {
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
                               fontFamily: 'Inter',
+                              fontSize: 16.0,
                             ),
                           ),
                           const SizedBox(width: 5.0),
@@ -179,7 +180,7 @@ class DoctorTasksState extends State<DoctorTasks> {
                                 ? Icons.arrow_downward
                                 : Icons.arrow_upward,
                             color: Colors.white,
-                            size: 20,
+                            size: 18,
                           ),
                         ],
                       ),
