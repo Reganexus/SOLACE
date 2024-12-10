@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:solace/shared/widgets/doctor_list.dart';
 import 'package:solace/themes/colors.dart';
 
 class InterventionsView extends StatefulWidget {
@@ -13,6 +14,49 @@ class InterventionsView extends StatefulWidget {
 
 class InterventionsViewState extends State<InterventionsView> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  Map<String, List<bool>> persistentCheckedStates = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCheckedStates();
+  }
+
+  Future<void> _loadCheckedStates() async {
+    try {
+      DocumentSnapshot doc = await _firestore
+          .collection('checkedStates')
+          .doc(widget.uid)
+          .get();
+      if (doc.exists) {
+        Map<String, dynamic> rawData = doc.data() as Map<String, dynamic>;
+        setState(() {
+          persistentCheckedStates = rawData.map((key, value) {
+            List<bool> boolList = (value as List<dynamic>)
+                .map((item) => item as bool)
+                .toList();
+            return MapEntry(key, boolList);
+          });
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading persistent states: $e');
+    }
+  }
+
+
+  Future<void> _saveCheckedStates() async {
+    try {
+      await _firestore
+          .collection('checkedStates')
+          .doc(widget.uid)
+          .set(persistentCheckedStates);
+    } catch (e) {
+      debugPrint('Error saving persistent states: $e');
+    }
+  }
+
 
   // Map to match user symptoms with Firestore document names
   // Vitals Mapping
@@ -113,23 +157,18 @@ class InterventionsViewState extends State<InterventionsView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Vitals Section
                     buildSymptomSection(
                       'Vitals',
                       vitalsMapping.keys.toList(),
                       symptomInterventions,
                     ),
                     const SizedBox(height: 20),
-
-                    // Physical Symptoms Section
                     buildSymptomSection(
                       'Physical Symptoms',
                       physicalMapping.keys.toList(),
                       symptomInterventions,
                     ),
                     const SizedBox(height: 20),
-
-                    // Emotional Symptoms Section
                     buildSymptomSection(
                       'Emotional Symptoms',
                       emotionalMapping.keys.toList(),
@@ -146,10 +185,10 @@ class InterventionsViewState extends State<InterventionsView> {
   }
 
   Widget buildSymptomSection(
-    String title,
-    List<String> symptoms,
-    Map<String, List<String>> interventions,
-  ) {
+      String title,
+      List<String> symptoms,
+      Map<String, List<String>> interventions,
+      ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -173,8 +212,8 @@ class InterventionsViewState extends State<InterventionsView> {
               color: AppColors.gray,
               borderRadius: BorderRadius.circular(10.0),
             ),
-            child: Center(
-              child: const Text(
+            child: const Center(
+              child: Text(
                 'No Intervention Needed',
                 style: TextStyle(
                   fontSize: 18.0,
@@ -188,7 +227,7 @@ class InterventionsViewState extends State<InterventionsView> {
             .where((symptom) => interventions.containsKey(symptom))
             .map((symptom) {
           List<String> symptomInterventions = interventions[symptom]!;
-          List<bool> checkedStates =
+          List<bool> checkedStates = persistentCheckedStates[symptom] ??
               List<bool>.filled(symptomInterventions.length, false);
 
           return StatefulBuilder(
@@ -232,31 +271,86 @@ class InterventionsViewState extends State<InterventionsView> {
                         ],
                       ),
                       children: [
-                        ...symptomInterventions
-                            .asMap()
-                            .entries
-                            .map(
+                        ...symptomInterventions.asMap().entries.map(
                               (entry) => CheckboxListTile(
-                                activeColor: AppColors.neon,
-                                title: Text(
-                                  entry.value,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.normal,
-                                    fontSize: 16,
-                                    fontFamily: 'Inter',
-                                  ),
-                                ),
-                                value: checkedStates[entry.key],
-                                onChanged: (bool? value) {
-                                  setState(() {
-                                    checkedStates[entry.key] = value ?? false;
-                                  });
-                                },
-                                controlAffinity:
-                                    ListTileControlAffinity.leading,
+                            activeColor: AppColors.neon,
+                            title: Text(
+                              entry.value,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.normal,
+                                fontSize: 16,
+                                fontFamily: 'Inter',
                               ),
                             ),
+                            value: checkedStates[entry.key],
+                            onChanged: (bool? value) async {
+                              setState(() {
+                                checkedStates[entry.key] = value ?? false;
+                              });
+                              persistentCheckedStates[symptom] =
+                                  checkedStates;
+                              await _saveCheckedStates();
+                            },
+                            controlAffinity:
+                            ListTileControlAffinity.leading,
+                          ),
+                        ),
                         const SizedBox(height: 10),
+                        if (checkedStates.every((state) => state))
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 10.0),
+                            child: TextButton(
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 15, vertical: 5),
+                                backgroundColor: AppColors.red,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              onPressed: () async {
+                                bool confirm = await showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('Confirm Action'),
+                                    content: const Text(
+                                        'Do you want to call a doctor?'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.of(context).pop(false),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.of(context).pop(true),
+                                        child: const Text('Yes'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirm) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => DoctorList(
+                                        uid: widget.uid,
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
+                              child: const Text(
+                                'Call a Doctor',
+                                style: TextStyle(
+                                  fontSize: 16.0,
+                                  fontWeight: FontWeight.bold,
+                                  fontFamily: 'Inter',
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
