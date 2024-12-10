@@ -72,30 +72,6 @@ class PatientTrackingState extends State<PatientTracking> {
     // _fetchLatestTrackingData();
   }
 
-  void _resetInputs() {
-    setState(() {
-      _heartRateController.clear();
-      _bloodPressureController.clear();
-      _oxygenSaturationController.clear();
-      _respirationController.clear();
-      _temperatureController.clear();
-      _cholesterolController.clear();
-      _painController.clear();
-
-      _diarrheaValue = 0;
-      _fatigueValue = 0;
-      _shortnessOfBreathValue = 0;
-      _appetiteValue = 0;
-      _coughingValue = 0;
-      _wellBeingValue = 0;
-      _nauseaValue = 0;
-      _depressionValue = 0;
-      _anxietyValue = 0;
-      _drowsinessValue = 0;
-    });
-  }
-
-
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<MyUser?>(context);
@@ -498,14 +474,12 @@ class PatientTrackingState extends State<PatientTracking> {
     }
 
     // Set algo inputs
-<<<<<<< Updated upstream
     _algoInputs['Fever'] = (double.parse(_vitalInputs['Temperature']!) > maxTemperature) ? true : false;
     _algoInputs['Cough'] = (_coughingValue > maxScale) ? true : false;
     _algoInputs['Fatigue'] = (_fatigueValue > maxScale) ? true : false;
     _algoInputs['Difficulty Breathing'] = (_shortnessOfBreathValue > maxScale) ? true : false;
     _algoInputs['Age'] = userData.age;
     _algoInputs['Gender'] = userData.gender;
-=======
     _algoInputs['Fever'] =
         (double.parse(_vitalInputs['Temperature']!) > maxTemperature)
             ? true
@@ -513,7 +487,6 @@ class PatientTrackingState extends State<PatientTracking> {
     _algoInputs['Fatigue'] = (_fatigueValue > maxScale) ? true : false;
     _algoInputs['Difficulty Breathing'] =
         (_shortnessOfBreathValue > maxScale) ? true : false;
->>>>>>> Stashed changes
 
     final parts = _vitalInputs['Blood Pressure']!.split('/');
     final systolic = int.tryParse(parts[0]);
@@ -563,7 +536,6 @@ class PatientTrackingState extends State<PatientTracking> {
             uid: uid,
             inputs: _combinedInputs,
             algoInputs: _algoInputs,
-            resetInputsCallback: _resetInputs, // Pass the callback
           ),
         ),
       );

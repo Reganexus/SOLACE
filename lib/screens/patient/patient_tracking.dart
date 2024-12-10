@@ -7,7 +7,8 @@ import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/screens/patient/input_summary.dart';
 import 'package:solace/shared/globals.dart';
-import 'package:solace/themes/colors.dart'; // Assuming AppColors is defined here
+import 'package:solace/themes/colors.dart';
+import 'dart:async';
 
 class PatientTracking extends StatefulWidget {
   const PatientTracking({super.key});
@@ -19,9 +20,11 @@ class PatientTracking extends StatefulWidget {
 class PatientTrackingState extends State<PatientTracking> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final DatabaseService databaseService = DatabaseService();
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // State variables for all inputs
+  bool isCooldownActive = false; // Added this variable
+  int remainingCooldownTime = 0; // Added this variable
+  late Timer _countdownTimer;
+
   final Map<String, String> _vitalInputs = {
     'Heart Rate': '',
     'Blood Pressure': '',
@@ -57,10 +60,12 @@ class PatientTrackingState extends State<PatientTracking> {
   late Map<String, dynamic> _combinedInputs; // Holds data for submission
 
   final FocusNode _bloodPressureFocusNode = FocusNode();
-  
+
   final TextEditingController _heartRateController = TextEditingController();
-  final TextEditingController _bloodPressureController = TextEditingController();
-  final TextEditingController _oxygenSaturationController = TextEditingController();
+  final TextEditingController _bloodPressureController =
+  TextEditingController();
+  final TextEditingController _oxygenSaturationController =
+  TextEditingController();
   final TextEditingController _respirationController = TextEditingController();
   final TextEditingController _temperatureController = TextEditingController();
   final TextEditingController _cholesterolController = TextEditingController();
@@ -69,79 +74,81 @@ class PatientTrackingState extends State<PatientTracking> {
   @override
   void initState() {
     super.initState();
-    _fetchLatestTrackingData();
+    _checkCooldown();
+    checkAndResetOptions();
   }
 
-  Future<void> _fetchLatestTrackingData() async {
+  void checkAndResetOptions() {
+    setState(() {
+      // Clear form fields
+      _heartRateController.clear();
+      _bloodPressureController.clear();
+      _oxygenSaturationController.clear();
+      _respirationController.clear();
+      _temperatureController.clear();
+      _cholesterolController.clear();
+      _painController.clear();
+
+      // Reset symptom values
+      _diarrheaValue = 0;
+      _fatigueValue = 0;
+      _shortnessOfBreathValue = 0;
+      _appetiteValue = 0;
+      _coughingValue = 0;
+      _wellBeingValue = 0;
+      _nauseaValue = 0;
+      _depressionValue = 0;
+      _anxietyValue = 0;
+      _drowsinessValue = 0;
+    });
+  }
+
+  void _checkCooldown() async {
     final user = Provider.of<MyUser?>(context, listen: false);
+    final lastSubmitted = await getLastSubmittedTime(user!.uid);
+    final currentTime = DateTime.now().millisecondsSinceEpoch;
+    final timeDifference = currentTime - lastSubmitted;
 
-    if (user == null){
-      debugPrint("User is null");
-      return;
+    if (timeDifference < 1 * 60 * 1000) { // 15 minutes in milliseconds
+      setState(() {
+        isCooldownActive = true;
+        remainingCooldownTime = (1 * 60) - (timeDifference / 1000).round(); // Remaining time in seconds
+      });
+      _startCountdown();
     }
+  }
 
-    try {
-      final DocumentSnapshot documentSnapshot = await _firestore
-        .collection('tracking')
-        .doc(user.uid)
-        .get();
-        
-      if (documentSnapshot.exists) {
-        final data = documentSnapshot.data() as Map<String, dynamic>;
-        final List<dynamic> trackingArray = data['tracking'] ?? [];
-
-        // Sort the array by `timestamp` (assuming each item has a `timestamp` field)
-        trackingArray.sort((a, b) {
-          final aTimestamp = a['timestamp'] ?? 0;
-          final bTimestamp = b['timestamp'] ?? 0;
-          return bTimestamp.compareTo(aTimestamp); // Descending order
+  void _startCountdown() {
+    _countdownTimer = Timer.periodic(Duration(seconds: 1), (timer) {
+      if (remainingCooldownTime > 0) {
+        setState(() {
+          remainingCooldownTime--;
         });
-
-        // Get the latest tracking item (if it exists)
-        if (trackingArray.isNotEmpty) {
-          final latestTracking = trackingArray.first;
-          debugPrint('Latest tracking: $latestTracking');
-
-          setState(() {
-            // Update the _vitalInputs and controllers
-            final vitals = latestTracking['Vitals'] as Map<String, dynamic>? ?? {};
-            _vitalInputs['Heart Rate'] = vitals['Heart Rate']?.toString() ?? '';
-            _vitalInputs['Blood Pressure'] = vitals['Blood Pressure']?.toString() ?? '';
-            _vitalInputs['Oxygen Saturation'] = vitals['Oxygen Saturation']?.toString() ?? '';
-            _vitalInputs['Respiration'] = vitals['Respiration']?.toString() ?? '';
-            _vitalInputs['Temperature'] = vitals['Temperature']?.toString() ?? '';
-            _vitalInputs['Cholesterol Level'] = vitals['Cholesterol Level']?.toString() ?? '';
-            _vitalInputs['Pain'] = vitals['Pain']?.toString() ?? '';
-
-            _heartRateController.text = _vitalInputs['Heart Rate'] ?? '';
-            _bloodPressureController.text = _vitalInputs['Blood Pressure'] ?? '';
-            _oxygenSaturationController.text = _vitalInputs['Oxygen Saturation'] ?? '';
-            _respirationController.text = _vitalInputs['Respiration'] ?? '';
-            _temperatureController.text = _vitalInputs['Temperature'] ?? '';
-            _cholesterolController.text = _vitalInputs['Cholesterol Level'] ?? '';
-            _painController.text = _vitalInputs['Pain'] ?? '';
-
-            final symptoms = latestTracking['Symptom Assessment'] as Map<String, dynamic>? ?? {};
-            _diarrheaValue = symptoms['Diarrhea'] ?? 0;
-            _fatigueValue = symptoms['Fatigue'] ?? 0;
-            _shortnessOfBreathValue = symptoms['Shortness of Breath'] ?? 0;
-            _appetiteValue = symptoms['Appetite'] ?? 0;
-            _coughingValue = symptoms['Coughing'] ?? 0;
-            _wellBeingValue = symptoms['Well-being'] ?? 0;
-            _nauseaValue = symptoms['Nausea'] ?? 0;
-            _depressionValue = symptoms['Depression'] ?? 0;
-            _anxietyValue = symptoms['Anxiety'] ?? 0;
-            _drowsinessValue = symptoms['Drowsiness'] ?? 0;
-          });
-        } else {
-          debugPrint('No tracking data found.');
-        }
       } else {
-        debugPrint('Snapshot is empty');
+        _countdownTimer.cancel();
+        setState(() {
+          isCooldownActive = false;
+        });
       }
-    } catch (e) {
-      debugPrint('Error fetching latest tracking data: $e');
-    }
+    });
+  }
+
+  Future<int> getLastSubmittedTime(String userId) async {
+    // Fetch the last submission time from the database
+    return DateTime.now().millisecondsSinceEpoch - 10 * 60 * 1000;  // For testing purposes, 10 minutes ago
+  }
+
+  @override
+  void dispose() {
+    _countdownTimer.cancel();
+    super.dispose();
+  }
+
+  String _formatCooldownTime(int timeInSeconds) {
+    int hours = (timeInSeconds / 3600).floor();
+    int minutes = ((timeInSeconds % 3600) / 60).floor();
+    int seconds = timeInSeconds % 60;
+    return '$hours:$minutes:$seconds';
   }
 
   @override
@@ -169,40 +176,74 @@ class PatientTrackingState extends State<PatientTracking> {
                   ),
                 ),
                 const SizedBox(height: 20.0),
-                _buildVitalsInputs(),
-                const SizedBox(height: 20.0),
-                const Divider(thickness: 1.0),
-                const SizedBox(height: 20.0),
-                const Text(
-                  'Symptom Assessment',
-                  style: TextStyle(
-                    fontSize: 24.0,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Outfit',
-                  ),
-                ),
-                const SizedBox(height: 20.0),
-                _buildSliders(),
-                const SizedBox(height: 20.0),
-                Center(
-                  child: TextButton(
-                    onPressed: () => _submit(user!.uid),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 50, vertical: 10),
-                      backgroundColor: AppColors.neon,
+
+                // Display cooldown if active
+                if (isCooldownActive)
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    color: Colors.yellow[100],
+                    child: Column(
+                      children: [
+                        Text(
+                          'You cannot input vitals and assessment at the moment.',
+                          style: TextStyle(
+                            color: Colors.orange,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Cooldown: ${_formatCooldownTime(remainingCooldownTime)}',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
-                    child: const Text(
-                      'Submit',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: AppColors.white,
+                  ),
+
+                // Show form if no cooldown
+                if (!isCooldownActive)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildVitalsInputs(),
+                      const SizedBox(height: 20.0),
+                      const Divider(thickness: 1.0),
+                      const SizedBox(height: 20.0),
+                      const Text(
+                        'Symptom Assessment',
+                        style: TextStyle(
+                          fontSize: 24.0,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Outfit',
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 20.0),
+                      _buildSliders(),
+                      const SizedBox(height: 20.0),
+                      Center(
+                        child: TextButton(
+                          onPressed: () => _submit(user!.uid),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 50, vertical: 10),
+                            backgroundColor: AppColors.neon,
+                          ),
+                          child: const Text(
+                            'Submit',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: AppColors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
               ],
             ),
           ),
@@ -239,7 +280,7 @@ class PatientTrackingState extends State<PatientTracking> {
       child: Column(
         children: _vitalInputs.keys.map((key) {
           TextEditingController controller;
-        
+
           // Assign the correct controller based on the key
           switch (key) {
             case 'Heart Rate':
@@ -280,7 +321,7 @@ class PatientTrackingState extends State<PatientTracking> {
                 }
                 if (key == 'Blood Pressure') {
                   // Validate blood pressure format (systolic/diastolic)
-                  final regex = RegExp(r'^\d{2,3}\/\d{2,3}$');
+                  final regex = RegExp(r'^\d{2,3}/\d{2,3}$');
                   if (!regex.hasMatch(value)) {
                     return 'Enter valid blood pressure (e.g., 120/80)';
                   }
@@ -340,7 +381,9 @@ class PatientTrackingState extends State<PatientTracking> {
         const Text(
           'Physical',
           style: TextStyle(
-              fontSize: 20.0, fontWeight: FontWeight.bold, fontFamily: "Outfit"),
+              fontSize: 20.0,
+              fontWeight: FontWeight.bold,
+              fontFamily: "Outfit"),
         ),
         const SizedBox(height: 10),
         ...physicalSliders.map((slider) {
@@ -439,7 +482,9 @@ class PatientTrackingState extends State<PatientTracking> {
         const Text(
           'Emotional',
           style: TextStyle(
-              fontSize: 20.0, fontWeight: FontWeight.bold, fontFamily: "Outfit"),
+              fontSize: 20.0,
+              fontWeight: FontWeight.bold,
+              fontFamily: "Outfit"),
         ),
         const SizedBox(height: 10),
         ...emotionalSliders.map((slider) {
@@ -542,28 +587,34 @@ class PatientTrackingState extends State<PatientTracking> {
     }
 
     // Set algo inputs
-    _algoInputs['Fever'] = (double.parse(_vitalInputs['Temperature']!) > maxTemperature) ? true : false;
+    _algoInputs['Fever'] =
+        (double.parse(_vitalInputs['Temperature']!) > maxTemperature)
+            ? true
+            : false;
     _algoInputs['Cough'] = (_coughingValue > maxScale) ? true : false;
     _algoInputs['Fatigue'] = (_fatigueValue > maxScale) ? true : false;
-    _algoInputs['Difficulty Breathing'] = (_shortnessOfBreathValue > maxScale) ? true : false;
+    _algoInputs['Difficulty Breathing'] =
+        (_shortnessOfBreathValue > maxScale) ? true : false;
     _algoInputs['Age'] = userData.age;
     _algoInputs['Gender'] = userData.gender;
 
     final parts = _vitalInputs['Blood Pressure']!.split('/');
     final systolic = int.tryParse(parts[0]);
-    final diastolic = int.tryParse(parts[1]); 
-    if(systolic! < lowBloodPressureSystolic && diastolic! < lowBloodPressureDiastolic) {
+    final diastolic = int.tryParse(parts[1]);
+    if (systolic! < lowBloodPressureSystolic &&
+        diastolic! < lowBloodPressureDiastolic) {
       _algoInputs['Blood Pressure'] = 'Low';
-    } else if(systolic < normalBloodPressureSystolic && diastolic! < normalBloodPressureDiastolic) {
+    } else if (systolic < normalBloodPressureSystolic &&
+        diastolic! < normalBloodPressureDiastolic) {
       _algoInputs['Blood Pressure'] = 'Normal';
     } else {
       _algoInputs['Blood Pressure'] = 'High';
     }
 
     double cl = double.parse(_vitalInputs['Cholesterol Level']!);
-    if(cl < lowCholesterol) {
+    if (cl < lowCholesterol) {
       _algoInputs['Cholesterol Level'] = 'Low';
-    } else if(cl < normalCholesterol) {
+    } else if (cl < normalCholesterol) {
       _algoInputs['Cholesterol Level'] = 'Normal';
     } else {
       _algoInputs['Cholesterol Level'] = 'High';
@@ -587,15 +638,23 @@ class PatientTrackingState extends State<PatientTracking> {
     };
 
     // Navigate to the summary screen
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ReceiptScreen(
-          uid: uid,
-          inputs: _combinedInputs,
-          algoInputs: _algoInputs,
+    try {
+      FocusScope.of(context).unfocus();
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ReceiptScreen(
+            uid: uid,
+            inputs: _combinedInputs,
+            algoInputs: _algoInputs,
+          ),
         ),
-      ),
-    );
+      );
+      checkAndResetOptions();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('An error occurred: ${e.toString()}')),
+      );
+    }
   }
 }

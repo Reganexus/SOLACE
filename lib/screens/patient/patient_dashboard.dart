@@ -7,7 +7,6 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
-import 'package:solace/shared/widgets/interventions.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/screens/patient/upcoming_schedules.dart'; // Import UpcomingSchedules
 

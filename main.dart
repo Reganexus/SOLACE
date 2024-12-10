@@ -8,11 +8,6 @@ import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/authenticate/get_started.dart';
 import 'package:solace/services/auth.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
-<<<<<<< Updated upstream
-// import 'package:solace/shared/accountflow/requirements.dart';
-// import 'package:http/http.dart' as http;
-=======
->>>>>>> Stashed changes
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,10 +30,6 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-<<<<<<< Updated upstream
-  // List<dynamic>? algoInputs = [false, false, false, false, 27, 'Male', 'Normal', 'Normal'];
-  // getPrediction(algoInputs);
-=======
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent, // Transparent status bar
@@ -46,8 +37,6 @@ void main() async {
       statusBarBrightness: Brightness.light, // For iOS: light background
     ),
   );
-
->>>>>>> Stashed changes
 
   runApp(const MyApp());
 }

@@ -177,10 +177,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         // Convert mapped algo inputs to a list
         List<dynamic> algoInputs = widget.algoInputs.values.toList();
         debugPrint('Tracking algo inputs: $algoInputs');
-<<<<<<< Updated upstream
-        
-=======
-
         // If there are fewer than 10 inputs, repeat the last one
         if (widget.algoInputs.length < 10) {
           final latestInput =
@@ -190,7 +186,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           }
         }
 
->>>>>>> Stashed changes
         // Send the inputs for prediction
         await getPrediction(algoInputs);
 
