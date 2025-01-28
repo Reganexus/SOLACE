@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_print
+// ignore_for_file: avoid_print, unused_import
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -7,7 +7,7 @@ import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/screens/caregiver/caregiver_dashboard.dart';
 import 'package:solace/screens/caregiver/caregiver_intervention.dart';
-import 'package:solace/screens/caregiver/caregiver_tracking.dart';
+import 'package:solace/screens/patient/patient_note.dart';
 import 'package:solace/shared/widgets/bottom_navbar.dart';
 import 'package:solace/shared/widgets/notifications.dart';
 import 'package:solace/shared/widgets/profile.dart';
@@ -24,6 +24,7 @@ class CaregiverHome extends StatefulWidget {
 class _CaregiverHomeState extends State<CaregiverHome> {
   int _currentIndex = 0;
   late final List<Widget> _screens;
+  final GlobalKey<NotificationsListState> notificationsListKey = GlobalKey<NotificationsListState>();
 
   @override
   void initState() {
@@ -31,7 +32,6 @@ class _CaregiverHomeState extends State<CaregiverHome> {
     _screens = [
       CaregiverDashboard(),
       CaregiverIntervention(),
-      CaregiverTracking(),
       Profile(),
     ];
   }
@@ -232,7 +232,7 @@ class _CaregiverHomeState extends State<CaregiverHome> {
       context,
       MaterialPageRoute(
         builder: (context) => NotificationList(
-            userId: user.uid), // Pass userId to NotificationView
+            userId: user.uid, notificationsListKey: notificationsListKey), // Pass userId to NotificationView
       ),
     );
   }
@@ -263,6 +263,7 @@ class _CaregiverHomeState extends State<CaregiverHome> {
         currentIndex: _currentIndex,
         onTap: _onTap,
         role: 'Caregiver',
+        context: context,
       ),
     );
   }

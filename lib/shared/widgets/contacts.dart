@@ -79,121 +79,120 @@ class Contacts extends StatelessWidget {
       backgroundColor: AppColors.white,
       appBar: PreferredSize(
         preferredSize: Size.fromHeight(kToolbarHeight),
-        child: Padding(
-          padding: const EdgeInsets.only(
-              left: 14.0, right: 20.0), // Add padding here
-          child: AppBar(
-            title: Text('Contacts'),
-            backgroundColor: AppColors.white,
-            scrolledUnderElevation: 0.0,
-            actions: [
-              IconButton(
-                color: AppColors.black,
-                icon: Icon(Icons.person_add),
-                iconSize: 30.0,
-                onPressed: () => _showSearchModal(context),
-              ),
-              IconButton(
-                color: AppColors.black,
-                icon: Icon(Icons.qr_code_scanner),
-                iconSize: 30.0,
-                onPressed: () async {
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const QRScannerPage()),
-                  );
+        child: AppBar(
+          title: Text('Contacts'),
+          backgroundColor: AppColors.white,
+          scrolledUnderElevation: 0.0,
+          actions: [
+            IconButton(
+              color: AppColors.black,
+              icon: Icon(Icons.person_add),
+              iconSize: 28.0,
+              onPressed: () => _showSearchModal(context),
+            ),
+            IconButton(
+              color: AppColors.black,
+              icon: Icon(Icons.qr_code_scanner),
+              iconSize: 28.0,
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const QRScannerPage()),
+                );
 
-                  if (result != null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('QR Code detected'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                    _handleQRScanResult(context, result);
-                  }
-                },
-              ),
-            ],
-          ),
+                if (result != null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('QR Code detected'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                  _handleQRScanResult(context, result);
+                }
+              },
+            ),
+          ],
         ),
       ),
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .doc(currentUserId)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return Center(child: CircularProgressIndicator());
-          }
-
-          var contacts = snapshot.data!['contacts'];
-          if (contacts == null || contacts.isEmpty) {
-            // Only show 'No caregivers added' message for patients or caregivers
-            var userRole = snapshot.data!['userRole'];
-            if (userRole == 'patient' || userRole == 'caregiver') {
-              return _noRequestsMessage('No caregivers added');
+      body: Padding(
+        padding: const EdgeInsets.fromLTRB(30, 0, 30, 30),
+        child: StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .doc(currentUserId)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return Center(child: CircularProgressIndicator());
             }
-          }
 
-          var healthcare = contacts['healthcare'];
-          if (healthcare == null || healthcare.isEmpty) {
-            // Only show 'No caregivers added' message for patients or caregivers
-            var userRole = snapshot.data!['userRole'];
-            if (userRole == 'patient' || userRole == 'caregiver') {
-              return _noRequestsMessage('No caregivers added');
+            var contacts = snapshot.data!['contacts'];
+            if (contacts == null || contacts.isEmpty) {
+              // Only show 'No caregivers added' message for patients or caregivers
+              var userRole = snapshot.data!['userRole'];
+              if (userRole == 'patient' || userRole == 'caregiver') {
+                return _noRequestsMessage('No caregivers added');
+              }
             }
-          }
 
-          var userRole = snapshot.data!['userRole'];
+            var healthcare = contacts['healthcare'];
+            if (healthcare == null || healthcare.isEmpty) {
+              // Only show 'No caregivers added' message for patients or caregivers
+              var userRole = snapshot.data!['userRole'];
+              if (userRole == 'patient' || userRole == 'caregiver') {
+                return _noRequestsMessage('No caregivers added');
+              }
+            }
 
-          // Check if a caregiver is already assigned
-          var caregivers = healthcare.entries
-              .where(
-                  (entry) => entry.key != 'requests') // Exclude 'requests' key
-              .map((entry) => entry.key)
-              .toList();
+            var userRole = snapshot.data!['userRole'];
 
-          bool hasCaregiver = caregivers.isNotEmpty;
+            // Check if a caregiver is already assigned
+            var caregivers = healthcare.entries
+                .where(
+                    (entry) => entry.key != 'requests') // Exclude 'requests' key
+                .map((entry) => entry.key)
+                .toList();
 
-          return SingleChildScrollView(
-            child: Container(
-              color: AppColors.white,
-              padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-              child: Column(
-                children: [
-                  // Display caregiver section only if the user is a patient or caregiver and no caregiver is assigned
-                  if (userRole == 'patient' || userRole == 'caregiver') ...[
-                    // Show the caregiver or patient section if `hasCaregiver` is false
-                    if (hasCaregiver) ...[
-                      _buildHeader(
-                        userRole == 'patient' ? 'Caregiver' : 'Patient',
-                      ),
-                      _buildCaregiversList(),
-                      SizedBox(height: 20),
+            bool hasCaregiver = caregivers.isNotEmpty;
+
+            return SingleChildScrollView(
+              child: Container(
+                color: AppColors.white,
+                padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
+                child: Column(
+                  children: [
+                    // Display caregiver section only if the user is a patient or caregiver and no caregiver is assigned
+                    if (userRole == 'patient' || userRole == 'caregiver') ...[
+                      // Show the caregiver or patient section if `hasCaregiver` is false
+                      if (hasCaregiver) ...[
+                        _buildHeader(
+                          userRole == 'patient' ? 'Caregiver' : 'Patient',
+                        ),
+                        _buildCaregiversList(),
+                        SizedBox(height: 20),
+                      ],
+
+                      // Show caregiver requests only if `hasCaregiver` is false
+                      if (!hasCaregiver) ...[
+                        _buildHeader('Caregiver Requests'),
+                        _buildHealthcareRequestsList(),
+                        SizedBox(height: 20),
+                      ],
                     ],
 
-                    // Show caregiver requests only if `hasCaregiver` is false
-                    if (!hasCaregiver) ...[
-                      _buildHeader('Caregiver Requests'),
-                      _buildHealthcareRequestsList(),
-                      SizedBox(height: 20),
-                    ],
+                    // Always show the contacts and contact requests section
+                    _buildHeader('Contacts'),
+                    _buildFriendsList(),
+                    SizedBox(height: 20),
+                    _buildHeader('Contact Requests'),
+                    _buildRequestsList(),
                   ],
-
-                  // Always show the contacts and contact requests section
-                  _buildHeader('Contacts'),
-                  _buildFriendsList(),
-                  SizedBox(height: 20),
-                  _buildHeader('Contact Requests'),
-                  _buildRequestsList(),
-                ],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

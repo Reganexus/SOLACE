@@ -1,13 +1,10 @@
 // ignore_for_file: avoid_print
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:solace/models/my_user.dart';
-import 'package:solace/screens/patient/patient_intervention.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/screens/patient/patient_dashboard.dart';
-import 'package:solace/screens/patient/patient_history.dart';
 import 'package:solace/screens/patient/patient_tracking.dart';
 import 'package:solace/shared/widgets/bottom_navbar.dart';
 import 'package:solace/shared/widgets/notifications.dart';
@@ -25,25 +22,27 @@ class PatientHome extends StatefulWidget {
 class PatientHomeState extends State<PatientHome> {
   int _currentIndex = 0;
   late final List<Widget> _screens;
+  final GlobalKey<NotificationsListState> notificationsListKey = GlobalKey<NotificationsListState>();
 
   @override
   void initState() {
     super.initState();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Initialize _screens here, where context and Provider are available
+    final userId = Provider.of<MyUser?>(context)?.uid ?? '';
     _screens = [
-      PatientDashboard(
-        navigateToHistory: _navigateToHistory,
+      PatientDashboard(),
+      NotificationList(
+        userId: userId,
+        notificationsListKey: notificationsListKey, // Pass the key
       ),
-      PatientIntervention(),
-      PatientHistory(),
       PatientTracking(),
       Profile(),
     ];
-  }
-
-  void _navigateToHistory() {
-    setState(() {
-      _currentIndex = 2;
-    });
   }
 
   void _onTap(int index) {
@@ -97,67 +96,6 @@ class PatientHomeState extends State<PatientHome> {
     );
   }
 
-  Widget _buildRightAppBar(BuildContext context) {
-    final user = Provider.of<MyUser?>(context); // Get the user using Provider.
-
-    if (user == null) {
-      return IconButton(
-        icon: Image.asset(
-          'lib/assets/images/shared/header/notification.png',
-          height: 30,
-        ),
-        onPressed: () => _showNotifications(context),
-      );
-    }
-
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data == null) {
-          return IconButton(
-            icon: Image.asset(
-              'lib/assets/images/shared/header/notification.png',
-              height: 30,
-            ),
-            onPressed: () => _showNotifications(context),
-          );
-        }
-
-        // Check if there are unread notifications
-        List<dynamic> notifications = snapshot.data!['notifications'] ?? [];
-        bool hasUnread = notifications.any((n) => n['read'] == false);
-
-        return Stack(
-          children: [
-            IconButton(
-              icon: Image.asset(
-                'lib/assets/images/shared/header/notification.png',
-                height: 30,
-              ),
-              onPressed: () => _showNotifications(context),
-            ),
-            if (hasUnread)
-              Positioned(
-                right: 0,
-                top: 0,
-                child: Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-          ],
-        );
-      },
-    );
-  }
-
   PreferredSizeWidget _buildAppBar() {
     final user = Provider.of<MyUser?>(context);
 
@@ -179,75 +117,146 @@ class PatientHomeState extends State<PatientHome> {
               padding: const EdgeInsets.fromLTRB(15.0, 20.0, 15.0, 10.0),
               child: _currentIndex == 0
                   ? Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _buildLeftAppBar(context),
-                        _buildRightAppBar(context),
-                      ],
-                    )
-                  : _currentIndex == 4
-                      ? Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'Profile',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                fontFamily: 'Inter',
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildLeftAppBar(context),
+                ],
+              )
+                  : _currentIndex == 3
+                  ? Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Profile',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Inter',
+                    ),
+                  ),
+                  IconButton(
+                    icon: Image.asset(
+                      'lib/assets/images/shared/profile/qr.png',
+                      height: 30,
+                    ),
+                    onPressed: () {
+                      _showQrModal(
+                        context,
+                        fullName,
+                        user?.uid ?? '',
+                        user?.profileImageUrl ?? '', // Pass profileImageUrl
+                      );
+                    },
+                  ),
+                ],
+              )
+                  : _currentIndex == 1
+                  ? Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Notifications',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Inter',
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      // Show confirmation dialog before deleting all notifications
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          backgroundColor: AppColors.white,
+                          title: const Text(
+                            'Delete all Notifications?',
+                            style: TextStyle(
+                              fontFamily: 'Outfit',
+                              fontWeight: FontWeight.bold,
+                              fontSize: 24,
+                              color: AppColors.black,
+                            ),
+                          ),
+                          content: const Text(
+                            'This will permanently delete all notifications. Are you sure?',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontWeight: FontWeight.normal,
+                              fontSize: 18,
+                              color: AppColors.black,
+                            ),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 15, vertical: 5),
+                                backgroundColor: AppColors.neon,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              child: const Text(
+                                'Cancel',
+                                style: TextStyle(
+                                  color: AppColors.white,
+                                  fontFamily: 'Inter',
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                            IconButton(
-                              icon: Image.asset(
-                                'lib/assets/images/shared/profile/qr.png',
-                                height: 30,
-                              ),
+                            TextButton(
                               onPressed: () {
-                                _showQrModal(
-                                  context,
-                                  fullName,
-                                  user?.uid ?? '',
-                                  user?.profileImageUrl ??
-                                      '', // Make sure to pass the profileImageUrl
-                                );
+                                // Use the key to access the method in NotificationsListState
+                                notificationsListKey.currentState
+                                    ?.deleteAllNotifications();
+                                Navigator.of(context).pop(); // Close the dialog
                               },
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 15, vertical: 5),
+                                backgroundColor: AppColors.red,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              child: const Text(
+                                'Delete All',
+                                style: TextStyle(
+                                  color: AppColors.white,
+                                  fontFamily: 'Inter',
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ),
                           ],
-                        )
-                      : Text(
-                          _currentIndex == 1
-                              ? 'Intervention'
-                              : _currentIndex == 2
-                                  ? 'History'
-                                  : 'Tracking',
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Inter',
-                          ),
                         ),
+                      );
+                    },
+                    child: const Icon(
+                      Icons.delete,
+                      size: 30.0,
+                    ),
+                  ),
+                ],
+              )
+
+                  : Text(
+                _currentIndex == 2 ? 'Tracking' : 'Profile',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Inter',
+                ),
+              ),
             ),
           );
         },
-      ),
-    );
-  }
-
-  void _showNotifications(BuildContext context) {
-    final user =
-        Provider.of<MyUser?>(context, listen: false); // Add listen: false
-
-    if (user == null) {
-      // Handle case where user is not available (optional)
-      return;
-    }
-
-    // Pass user.uid to NotificationList widget
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => NotificationList(
-            userId: user.uid), // Pass userId to NotificationView
       ),
     );
   }
@@ -280,6 +289,7 @@ class PatientHomeState extends State<PatientHome> {
         currentIndex: _currentIndex,
         onTap: _onTap,
         role: 'Patient',
+        context: context,
       ),
     );
   }

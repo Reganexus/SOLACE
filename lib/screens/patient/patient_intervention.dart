@@ -4,7 +4,8 @@ import 'package:solace/shared/widgets/interventions.dart';
 import 'package:solace/themes/colors.dart';
 
 class PatientIntervention extends StatefulWidget {
-  const PatientIntervention({super.key});
+  const PatientIntervention({super.key, required this.currentUserId});
+  final String currentUserId;
 
   @override
   PatientInterventionState createState() => PatientInterventionState();

@@ -79,6 +79,7 @@ class DoctorHomeState extends State<AdminHome> {
         currentIndex: _currentIndex,
         onTap: _onTap,
         role: 'Admin',
+        context: context,
       ),
     );
   }

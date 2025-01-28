@@ -36,6 +36,8 @@ dependencies:
   http: ^1.2.2
   fl_chart: ^0.69.0
   flutter_email_sender: ^6.0.3
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.10.0
 
 dev_dependencies:
   flutter_test:

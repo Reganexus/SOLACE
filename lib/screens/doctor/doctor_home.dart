@@ -24,6 +24,7 @@ class DoctorHome extends StatefulWidget {
 class DoctorHomeState extends State<DoctorHome> {
   int _currentIndex = 0;
   late final List<Widget> _screens;
+  final GlobalKey<NotificationsListState> notificationsListKey = GlobalKey<NotificationsListState>();
 
   @override
   void initState() {
@@ -233,7 +234,7 @@ class DoctorHomeState extends State<DoctorHome> {
       context,
       MaterialPageRoute(
         builder: (context) => NotificationList(
-            userId: user.uid), // Pass userId to NotificationView
+            userId: user.uid, notificationsListKey: notificationsListKey), // Pass userId to NotificationView
       ),
     );
   }
@@ -266,6 +267,7 @@ class DoctorHomeState extends State<DoctorHome> {
         currentIndex: _currentIndex,
         onTap: _onTap,
         role: 'Doctor',
+        context: context,
       ),
     );
   }

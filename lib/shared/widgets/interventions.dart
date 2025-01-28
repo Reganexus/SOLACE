@@ -25,17 +25,14 @@ class InterventionsViewState extends State<InterventionsView> {
 
   Future<void> _loadCheckedStates() async {
     try {
-      DocumentSnapshot doc = await _firestore
-          .collection('checkedStates')
-          .doc(widget.uid)
-          .get();
+      DocumentSnapshot doc =
+          await _firestore.collection('checkedStates').doc(widget.uid).get();
       if (doc.exists) {
         Map<String, dynamic> rawData = doc.data() as Map<String, dynamic>;
         setState(() {
           persistentCheckedStates = rawData.map((key, value) {
-            List<bool> boolList = (value as List<dynamic>)
-                .map((item) => item as bool)
-                .toList();
+            List<bool> boolList =
+                (value as List<dynamic>).map((item) => item as bool).toList();
             return MapEntry(key, boolList);
           });
         });
@@ -44,7 +41,6 @@ class InterventionsViewState extends State<InterventionsView> {
       debugPrint('Error loading persistent states: $e');
     }
   }
-
 
   Future<void> _saveCheckedStates() async {
     try {
@@ -56,7 +52,6 @@ class InterventionsViewState extends State<InterventionsView> {
       debugPrint('Error saving persistent states: $e');
     }
   }
-
 
   // Map to match user symptoms with Firestore document names
   // Vitals Mapping
@@ -135,6 +130,11 @@ class InterventionsViewState extends State<InterventionsView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.white,
+      appBar: AppBar(
+        title: const Text('Intervention'),
+        backgroundColor: AppColors.white,
+        scrolledUnderElevation: 0.0,
+      ),
       body: GestureDetector(
         onTap: () {
           FocusScope.of(context).unfocus();
@@ -153,7 +153,7 @@ class InterventionsViewState extends State<InterventionsView> {
             Map<String, List<String>> symptomInterventions = snapshot.data!;
             return SingleChildScrollView(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(30.0, 10, 30.0, 30.0),
+                padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -185,10 +185,10 @@ class InterventionsViewState extends State<InterventionsView> {
   }
 
   Widget buildSymptomSection(
-      String title,
-      List<String> symptoms,
-      Map<String, List<String>> interventions,
-      ) {
+    String title,
+    List<String> symptoms,
+    Map<String, List<String>> interventions,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -273,28 +273,28 @@ class InterventionsViewState extends State<InterventionsView> {
                       children: [
                         ...symptomInterventions.asMap().entries.map(
                               (entry) => CheckboxListTile(
-                            activeColor: AppColors.neon,
-                            title: Text(
-                              entry.value,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.normal,
-                                fontSize: 16,
-                                fontFamily: 'Inter',
+                                activeColor: AppColors.neon,
+                                title: Text(
+                                  entry.value,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.normal,
+                                    fontSize: 16,
+                                    fontFamily: 'Inter',
+                                  ),
+                                ),
+                                value: checkedStates[entry.key],
+                                onChanged: (bool? value) async {
+                                  setState(() {
+                                    checkedStates[entry.key] = value ?? false;
+                                  });
+                                  persistentCheckedStates[symptom] =
+                                      checkedStates;
+                                  await _saveCheckedStates();
+                                },
+                                controlAffinity:
+                                    ListTileControlAffinity.leading,
                               ),
                             ),
-                            value: checkedStates[entry.key],
-                            onChanged: (bool? value) async {
-                              setState(() {
-                                checkedStates[entry.key] = value ?? false;
-                              });
-                              persistentCheckedStates[symptom] =
-                                  checkedStates;
-                              await _saveCheckedStates();
-                            },
-                            controlAffinity:
-                            ListTileControlAffinity.leading,
-                          ),
-                        ),
                         const SizedBox(height: 10),
                         if (checkedStates.every((state) => state))
                           Padding(

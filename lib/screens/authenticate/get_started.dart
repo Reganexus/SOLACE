@@ -16,14 +16,17 @@ class _GetStartedState extends State<GetStarted> {
     Navigator.push(
       context,
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const Wrapper(),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const Wrapper(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           // Define the swipe left animation
-          const begin = Offset(1.0, 0.0);  // Start from the right (1.0, 0.0)
-          const end = Offset.zero;         // End at the center (0.0, 0.0)
-          const curve = Curves.easeInOut;  // Use easeInOut curve for smooth transition
+          const begin = Offset(1.0, 0.0); // Start from the right (1.0, 0.0)
+          const end = Offset.zero; // End at the center (0.0, 0.0)
+          const curve =
+              Curves.easeInOut; // Use easeInOut curve for smooth transition
 
-          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+          var tween =
+              Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
           var offsetAnimation = animation.drive(tween);
 
           return SlideTransition(
@@ -103,7 +106,8 @@ class _GetStartedState extends State<GetStarted> {
               SizedBox(
                 width: double.infinity,
                 child: TextButton(
-                  onPressed: navigateWithSwipeLeftAnimation, // Navigate with swipe left animation
+                  onPressed:
+                      navigateWithSwipeLeftAnimation, // Navigate with swipe left animation
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 10, vertical: 15),

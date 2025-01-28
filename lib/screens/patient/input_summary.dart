@@ -285,7 +285,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
               backgroundColor: AppColors.white,
               title: const Text(
                 'Unsaved Changes',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 24,
                   fontFamily: 'Outfit',
                   fontWeight: FontWeight.bold,
@@ -294,7 +294,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
               ),
               content: const Text(
                 'If you go back, your inputs will not be saved. Do you want to continue?',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
                   fontFamily: 'Inter',
                   fontWeight: FontWeight.normal,

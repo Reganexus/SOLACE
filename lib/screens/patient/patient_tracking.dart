@@ -206,7 +206,7 @@ class PatientTrackingState extends State<PatientTracking> {
         body: SingleChildScrollView(
           child: Container(
             color: AppColors.white,
-            padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
+            padding: const EdgeInsets.fromLTRB(30, 0, 30, 30),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

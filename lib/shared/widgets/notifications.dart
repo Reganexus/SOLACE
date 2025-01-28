@@ -9,109 +9,19 @@ import 'package:solace/themes/colors.dart';
 
 class NotificationList extends StatelessWidget {
   final String userId;
-  final GlobalKey<NotificationsListState> notificationsListKey =
-      GlobalKey<NotificationsListState>();
+  final GlobalKey<NotificationsListState> notificationsListKey;
 
-  NotificationList({super.key, required this.userId});
+  const NotificationList({
+    super.key,
+    required this.userId,
+    required this.notificationsListKey,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.white,
-      appBar: AppBar(
-        title: const Text('Notifications'),
-        backgroundColor: AppColors.white,
-        scrolledUnderElevation: 0.0,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.delete),
-            iconSize: 30.0,
-            onPressed: () {
-              // Show confirmation dialog before deleting all notifications
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  backgroundColor: AppColors.white,
-                  title: const Text(
-                    'Delete all Notifications?',
-                    style: TextStyle(
-                      fontFamily: 'Outfit',
-                      fontWeight: FontWeight.bold,
-                      fontSize: 24,
-                      color: AppColors.black,
-                    ),
-                  ),
-                  content: const Text(
-                    'This will permanently delete all notifications. Are you sure?',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.normal,
-                      fontSize: 18,
-                      color: AppColors.black,
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      style: TextButton.styleFrom(
-                        padding:
-                        const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-                        backgroundColor: AppColors.neon,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: const Text(
-                        'Cancel',
-                        style: TextStyle(
-                          color: AppColors.white,
-                          fontFamily: 'Inter',
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold, // Bold text style
-                        ),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        // Use the key to access the method in NotificationsListState
-                        notificationsListKey.currentState
-                            ?.deleteAllNotifications();
-                        Navigator.of(context).pop(); // Close the dialog
-                      },
-                      style: TextButton.styleFrom(
-                        padding:
-                        const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-                        backgroundColor: AppColors.red,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: const Text(
-                        'Delete All',
-                        style: TextStyle(
-                          color: AppColors.white,
-                          fontFamily: 'Inter',
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold, // Bold text style
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        child: Container(
-          color: AppColors.white,
-          padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-          child: NotificationsList(
-              userId: userId,
-              key: notificationsListKey), // Pass the key to the child widget
-        ),
-      ),
+      body: NotificationsList(userId: userId, key: notificationsListKey),
     );
   }
 }
@@ -126,6 +36,7 @@ class NotificationsList extends StatefulWidget {
 }
 
 class NotificationsListState extends State<NotificationsList> {
+  String? _errorMessage; // To hold specific error messages
   List<Map<String, dynamic>> notifications = [];
 
   @override
@@ -238,10 +149,15 @@ class NotificationsListState extends State<NotificationsList> {
 
         setState(() {
           notifications = List<Map<String, dynamic>>.from(loadedNotifications);
+          _errorMessage = null; // Clear error message
         });
+      } else {
+        throw Exception('No notifications found for this user.');
       }
     } catch (e) {
-      print('Error fetching notifications: $e');
+      setState(() {
+        _errorMessage = e.toString().replaceFirst(RegExp(r'^Exception: '), '');
+      });
     }
   }
 
@@ -291,88 +207,124 @@ class NotificationsListState extends State<NotificationsList> {
 
   @override
   Widget build(BuildContext context) {
+    if (_errorMessage != null) {
+      // Display error message if available
+      return Center(
+        child: Text(
+          _errorMessage!,
+          style: TextStyle(fontSize: 18, color: AppColors.black),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+
     return notifications.isEmpty
         ? Center(
-            child: Text(
-              'No notifications yet',
-              style: TextStyle(fontSize: 18, color: AppColors.black),
-            ),
-          )
-        : Column(
-            children: notifications.map((notification) {
-              final timestampRaw = notification['timestamp'];
-              final DateTime? timestamp = timestampRaw is Timestamp
-                  ? timestampRaw.toDate() // Convert Timestamp to DateTime
-                  : timestampRaw as DateTime?; // Use as-is if already DateTime
+            child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.mark_email_read,
+                color: AppColors.black,
+                size: 80,
+              ),
+              const SizedBox(height: 20.0),
+              Text(
+                'No notifications yet',
+                style: TextStyle(
+                  fontSize: 18,
+                  color: AppColors.black,
+                  fontFamily: 'Inter',
+                ),
+              ),
+            ],
+          ))
+        : SingleChildScrollView(
+            child: Container(
+              color: AppColors.white,
+              padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: notifications.map((notification) {
+                  final timestampRaw = notification['timestamp'];
+                  final DateTime? timestamp = timestampRaw is Timestamp
+                      ? timestampRaw.toDate() // Convert Timestamp to DateTime
+                      : timestampRaw
+                          as DateTime?; // Use as-is if already DateTime
 
-              final formattedTimestamp = _formatTimestamp(timestamp);
-              final notificationIcon =
-                  _getNotificationIcon(notification['type']);
-              final notificationBadge = _buildNotificationBadge(notification);
+                  final formattedTimestamp = _formatTimestamp(timestamp);
+                  final notificationIcon =
+                      _getNotificationIcon(notification['type']);
+                  final notificationBadge =
+                      _buildNotificationBadge(notification);
 
-              // Modify the title based on the notification type
-              String notificationTitle = notification['type'] == 'task'
-                  ? notification['message']?.contains('You assigned') ?? false
-                      ? 'Task Assigned'
-                      : 'Task Available'
-                  : notification['type'] == 'schedule'
-                      ? 'Schedule Confirmation'
-                      : notification['type'] == 'friend_request'
-                          ? 'Friend Request'
-                          : 'Notification';
+                  // Modify the title based on the notification type
+                  String notificationTitle = notification['type'] == 'task'
+                      ? notification['message']?.contains('You assigned') ??
+                              false
+                          ? 'Task Assigned'
+                          : 'Task Available'
+                      : notification['type'] == 'schedule'
+                          ? 'Schedule Confirmation'
+                          : notification['type'] == 'friend_request'
+                              ? 'Friend Request'
+                              : 'Notification';
 
-              // Return your UI widget
-              return GestureDetector(
-                onTap: () async {
-                  await markNotificationAsRead(widget.userId, notification);
-                  _showNotificationDetails(context, notification);
-                },
-                child: Container(
-                  width: double.infinity,
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
-                  margin: const EdgeInsets.only(bottom: 10),
-                  decoration: BoxDecoration(
-                    color: AppColors.gray,
-                    borderRadius: BorderRadius.circular(10.0),
-                  ),
-                  child: Stack(
-                    children: [
-                      Row(
+                  // Return your UI widget
+                  return GestureDetector(
+                    onTap: () async {
+                      await markNotificationAsRead(widget.userId, notification);
+                      _showNotificationDetails(context, notification);
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 15, horizontal: 20),
+                      margin: const EdgeInsets.only(bottom: 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.gray,
+                        borderRadius: BorderRadius.circular(10.0),
+                      ),
+                      child: Stack(
                         children: [
-                          notificationIcon,
-                          const SizedBox(width: 20),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  notificationTitle, // Updated title
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontFamily: 'Outfit',
-                                    fontSize: 18,
-                                    color: AppColors.black,
-                                  ),
+                          Row(
+                            children: [
+                              notificationIcon,
+                              const SizedBox(width: 20),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      notificationTitle, // Updated title
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontFamily: 'Outfit',
+                                        fontSize: 18,
+                                        color: AppColors.black,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 5),
+                                    if (formattedTimestamp.isNotEmpty)
+                                      Text(
+                                        'Received on $formattedTimestamp',
+                                        style: const TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.black54),
+                                      ),
+                                  ],
                                 ),
-                                const SizedBox(height: 5),
-                                if (formattedTimestamp.isNotEmpty)
-                                  Text(
-                                    'Received on $formattedTimestamp',
-                                    style: const TextStyle(
-                                        fontSize: 12, color: Colors.black54),
-                                  ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
+                          notificationBadge,
                         ],
                       ),
-                      notificationBadge,
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
           );
   }
 

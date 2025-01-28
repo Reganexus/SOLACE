@@ -6,7 +6,6 @@ import 'package:solace/screens/admin/admin_home.dart';
 import 'package:solace/screens/authenticate/authenticate.dart';
 import 'package:solace/screens/caregiver/caregiver_home.dart';
 import 'package:solace/screens/doctor/doctor_home.dart';
-import 'package:solace/screens/family/family_home.dart';
 import 'package:solace/screens/patient/patient_home.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/screens/authenticate/verify.dart';
@@ -113,8 +112,6 @@ class _HomeState extends State<Home> {
           switch (userRole) {
             case 'admin':
               return const AdminHome();
-            case 'family':
-              return const FamilyHome();
             case 'caregiver':
               return const CaregiverHome();
             case 'doctor':
