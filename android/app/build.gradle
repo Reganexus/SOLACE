@@ -1,63 +1,62 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
-    id "kotlin-android"
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id "dev.flutter.flutter-gradle-plugin"
-    id 'com.google.gms.google-services'  // Firebase plugin
+    id 'com.google.gms.google-services' // Firebase plugin
 }
 
 android {
     namespace = "com.res.solace"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 34
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_1_8
+        jvmTarget = "1.8"
     }
 
     defaultConfig {
-        applicationId = "com.res.solace"
+        applicationId "com.res.solace"
         minSdkVersion 23
-        targetSdkVersion 35
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        targetSdkVersion 33 // Ensure compatibility with compileSdk
+        versionCode flutter.versionCode
+        versionName flutter.versionName
         multiDexEnabled true
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.debug
+            signingConfig signingConfigs.debug
+            minifyEnabled false // Disable ProGuard for simplicity
+            shrinkResources false // Disable resource shrinking for debugging
         }
     }
 }
 
 dependencies {
-    // Firebase BoM (Bill of Materials) to manage versions of Firebase libraries
+    // Firebase BoM (Bill of Materials) to manage Firebase dependencies
     implementation platform("com.google.firebase:firebase-bom:33.6.0")
 
-    // Add Firebase App Check with Play Integrity (App Check dependency)
+    // Firebase Core SDKs
     implementation "com.google.firebase:firebase-appcheck-playintegrity"
-
-    // You can add Firebase services as needed, like Firestore, Auth, etc.
     implementation "com.google.firebase:firebase-auth"
     implementation "com.google.firebase:firebase-firestore"
+    implementation "com.google.firebase:firebase-analytics"
 
-    // Optionally, you can add more Firebase services
+    // Uncomment for additional Firebase services
     // implementation "com.google.firebase:firebase-storage"
     // implementation "com.google.firebase:firebase-messaging"
 
-    // Ensure this is added to apply Google services in your project
-    implementation "com.google.firebase:firebase-analytics" // Example, add as needed
+    // Kotlin and AndroidX dependencies (if needed)
+    implementation "androidx.core:core-ktx:1.12.0"
+    implementation "androidx.multidex:multidex:2.0.1"
 }
 
 flutter {
     source = "../.."
 }
 
-// Apply the Firebase services plugin at the bottom
 apply plugin: 'com.google.gms.google-services'
