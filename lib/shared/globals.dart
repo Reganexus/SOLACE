@@ -1,5 +1,5 @@
 // Global Variables
-bool autoLoginenabled = false;
+bool autoLoginenabled = true;
 bool emailVerificationEnabled = true;
 int maxScale = 7; // what will be considered high or True in 0-10 range sliders
 
@@ -30,3 +30,15 @@ double minTemperature = 36.0;
 double lowCholesterol = 125;
 double normalCholesterol = 200;
 double highCholesterol = 240;
+
+// microphone session options
+const bool onDevice = true;
+const bool cancelOnError = true;
+const bool partialResults = true;
+const bool autoPunctuation = false;
+const bool enableHapticFeedback = true;
+const bool debugLogging = false;
+const bool logEvents = false;
+const int listenFor = 30;
+const int pauseFor = 3;
+const String localeId = '';

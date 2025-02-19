@@ -131,8 +131,8 @@ class _LogInState extends State<LogIn> {
   }
 
   Future<void> _autoLogin() async {
-    String testEmail = 'john@gmail.com';
-    String testPassword = 'test123';
+    String testEmail = 'earlstephentacda@gmail.com';
+    String testPassword = 'T35t@T35t';
 
     dynamic result =
         await _auth.logInWithEmailAndPassword(testEmail, testPassword);

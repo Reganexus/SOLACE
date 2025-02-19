@@ -7,8 +7,11 @@ import 'package:provider/provider.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/screens/patient/input_summary.dart';
+import 'package:solace/services/speech_to_text.dart';
 import 'package:solace/shared/globals.dart';
 import 'package:solace/themes/colors.dart';
+import 'package:solace/shared/widgets/microphone.dart';
+import 'package:speech_to_text/speech_to_text.dart'; // Add this import for speech recognition
 
 class PatientTracking extends StatefulWidget {
   const PatientTracking({super.key});
@@ -70,6 +73,10 @@ class PatientTrackingState extends State<PatientTracking> {
   final TextEditingController _temperatureController = TextEditingController();
   final TextEditingController _cholesterolController = TextEditingController();
   final TextEditingController _painController = TextEditingController();
+
+  final SpeechToTextService _speechToTextService = SpeechToTextService();
+  String _recognizedText = '';
+  String _errorText = '';
 
   @override
   void initState() {
@@ -191,6 +198,88 @@ class PatientTrackingState extends State<PatientTracking> {
     int minutes = ((timeInSeconds % 3600) / 60).floor();
     int seconds = timeInSeconds % 60;
     return 'Hours: $hours Minutes: $minutes Seconds: $seconds';
+  }
+
+  void startListening(StateSetter setState, TextEditingController controller, String label) async {
+    await _speechToTextService.initSpeechState(
+      (error) => setState(() {
+        _errorText = 'Error: $error';
+      }),
+      (status) => setState(() {
+        if (status == 'done') {
+          _speechToTextService.stopListening(_logEvent);
+        }
+      }),
+      _logEvent,
+    );
+    _speechToTextService.startListening(
+      (result) => setState(() {
+        _recognizedText = result.recognizedWords;
+        if (_recognizedText.isNotEmpty) {
+          String processedText = _speechToTextService.processSpeechResult(_recognizedText);
+          if (processedText.isNotEmpty) {
+            controller.text = processedText;
+            Navigator.pop(context);
+          } else {
+            _errorText = 'No numbers detected';
+          }
+        }
+      }),
+      (level) => setState(() {
+        _speechToTextService.level = level;
+      }),
+      _logEvent,
+    );
+  }
+
+  void _showSpeechModal(String label, TextEditingController controller) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            return Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Tap on the microphone button to input $label through microphone',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 20),
+                  MicrophoneWidget(
+                    level: _speechToTextService.level,
+                    onPressed: () {
+                      startListening(setState, controller, label);
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () {
+                      _speechToTextService.stopListening(_logEvent);
+                      Navigator.pop(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                    ),
+                    child: const Text('Cancel'),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    ).whenComplete(() {
+      _speechToTextService.stopListening(_logEvent);
+    });
+  }
+
+  void _logEvent(String eventDescription) {
+    var eventTime = DateTime.now().toIso8601String();
+    debugPrint('$eventTime $eventDescription');
   }
 
   @override
@@ -360,47 +449,59 @@ class PatientTrackingState extends State<PatientTracking> {
           }
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 10.0),
-            child: TextFormField(
-              controller: controller,
-              focusNode:
-                  key == 'Blood Pressure' ? _bloodPressureFocusNode : null,
-              decoration: _inputDecoration(key, _bloodPressureFocusNode),
-              keyboardType: TextInputType.text,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter $key';
-                }
-                if (key == 'Blood Pressure') {
-                  // Validate blood pressure format (systolic/diastolic)
-                  final regex = RegExp(r'^\d{2,3}/\d{2,3}$');
-                  if (!regex.hasMatch(value)) {
-                    return 'Enter valid blood pressure (e.g., 120/80)';
-                  }
-                  // Split the input into systolic and diastolic
-                  final parts = value.split('/');
-                  final systolic = int.tryParse(parts[0]);
-                  final diastolic = int.tryParse(parts[1]);
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: controller,
+                    focusNode:
+                        key == 'Blood Pressure' ? _bloodPressureFocusNode : null,
+                    decoration: _inputDecoration(key, _bloodPressureFocusNode),
+                    keyboardType: TextInputType.text,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter $key';
+                      }
+                      if (key == 'Blood Pressure') {
+                        // Validate blood pressure format (systolic/diastolic)
+                        final regex = RegExp(r'^\d{2,3}/\d{2,3}$');
+                        if (!regex.hasMatch(value)) {
+                          return 'Enter valid blood pressure (e.g., 120/80)';
+                        }
+                        // Split the input into systolic and diastolic
+                        final parts = value.split('/');
+                        final systolic = int.tryParse(parts[0]);
+                        final diastolic = int.tryParse(parts[1]);
 
-                  if (systolic == null || diastolic == null) {
-                    return 'Enter valid blood pressure numbers';
-                  }
+                        if (systolic == null || diastolic == null) {
+                          return 'Enter valid blood pressure numbers';
+                        }
 
-                  // Validate ranges for systolic and diastolic
-                  if (systolic < 50 ||
-                      systolic > 200 ||
-                      diastolic < 30 ||
-                      diastolic > 120) {
-                    return 'Enter valid blood pressure (systolic 50-200, diastolic 30-120)';
-                  }
-                } else {
-                  // General number validation for all other fields
-                  if (!RegExp(r'^\d+(\.\d+)?$').hasMatch(value)) {
-                    return 'Enter a valid number';
-                  }
-                }
-                return null;
-              },
-              onChanged: (value) => _vitalInputs[key] = value,
+                        // Validate ranges for systolic and diastolic
+                        if (systolic < 50 ||
+                            systolic > 200 ||
+                            diastolic < 30 ||
+                            diastolic > 120) {
+                          return 'Enter valid blood pressure (systolic 50-200, diastolic 30-120)';
+                        }
+                      } else {
+                        // General number validation for all other fields
+                        if (!RegExp(r'^\d+(\.\d+)?$').hasMatch(value)) {
+                          return 'Enter a valid number';
+                        }
+                      }
+                      return null;
+                    },
+                    onChanged: (value) => _vitalInputs[key] = value,
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.mic),
+                  onPressed: () {
+                    _showSpeechModal(key, controller);
+                  },
+                ),
+              ],
             ),
           );
         }).toList(),
