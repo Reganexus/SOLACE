@@ -362,7 +362,7 @@ class AdminUsersState extends State<AdminUsers> {
                               _filterByRole(newValue);
                             }
                           },
-                          items: <String>['patient', 'caregiver', 'doctor']
+                          items: <String>['patient', 'doctor']
                               .map<DropdownMenuItem<String>>((String value) {
                             return DropdownMenuItem<String>(
                               value: value,

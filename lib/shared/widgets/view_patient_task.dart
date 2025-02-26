@@ -56,12 +56,14 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
   }
 
   Future<void> _loadTasks() async {
-    print("Fetched tasks: $tasks");
+    print("Fetching tasks for patient: ${widget.patientId}");
 
     try {
-      setState(() {
-        isLoading = true; // Ensure loading indicator is shown
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = true; // Show loading indicator
+        });
+      }
 
       final patientDoc = await FirebaseFirestore.instance
           .collection('users')
@@ -69,23 +71,29 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
           .get();
 
       if (patientDoc.exists) {
-        setState(() {
-          tasks = List<Map<String, dynamic>>.from(
-              patientDoc.data()?['tasks'] ?? []);
-          isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            tasks = List<Map<String, dynamic>>.from(
+                patientDoc.data()?['tasks'] ?? []);
+            isLoading = false;
+          });
+        }
       } else {
+        if (mounted) {
+          setState(() {
+            tasks = [];
+            isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      print("Error loading tasks: $e");
+      if (mounted) {
         setState(() {
           tasks = [];
           isLoading = false;
         });
       }
-    } catch (e) {
-      print("Error loading tasks: $e");
-      setState(() {
-        tasks = [];
-        isLoading = false;
-      });
     }
   }
 
@@ -236,9 +244,8 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
           builder: (context, setModalState) {
             Future<void> _selectDateTime(
                 BuildContext context, bool isStartDate) async {
-              final DateTime initialDate = isStartDate
-                  ? taskStartDate
-                  : taskEndDate;
+              final DateTime initialDate =
+                  isStartDate ? taskStartDate : taskEndDate;
 
               // Date Picker
               final DateTime? picked = await showDatePicker(
@@ -288,7 +295,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                     pickedTime.minute,
                   );
 
-                  setState(() {
+                  setModalState(() {
                     if (isStartDate) {
                       taskStartDate = selectedDateTime;
                       _startDateController.text =
@@ -303,293 +310,315 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
               }
             }
 
-            return AlertDialog(
-              backgroundColor: AppColors.white,
-              title: Text(
-                "Add Task",
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontFamily: 'Outfit',
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.black,
-                ),
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.max,
-                  children: [
-                    // Task Title Field
-                    TextFormField(
-                      onChanged: (value) => taskTitle = value,
-                      focusNode: _focusNodes[0], // Focus for Task Title
-                      decoration: InputDecoration(
-                        labelText: "Task Title",
-                        filled: true,
-                        fillColor: AppColors.gray,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide:
-                              BorderSide(color: AppColors.neon, width: 2),
-                        ),
-                        labelStyle: TextStyle(
-                          fontSize: 16,
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.normal,
-                          color: _focusNodes[0].hasFocus
-                              ? AppColors.neon
-                              : AppColors.black,
-                        ),
-                      ),
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                return AlertDialog(
+                  backgroundColor: AppColors.white,
+                  title: Text(
+                    "Add Task",
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontFamily: 'Outfit',
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.black,
                     ),
-                    const SizedBox(height: 10),
-
-                    // Task Description Field
-                    TextFormField(
-                      onChanged: (value) => taskDescription = value,
-                      focusNode: _focusNodes[1], // Focus for Task Description
-                      decoration: InputDecoration(
-                        labelText: "Task Description",
-                        filled: true,
-                        fillColor: AppColors.gray,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide:
-                              BorderSide(color: AppColors.neon, width: 2),
-                        ),
-                        labelStyle: TextStyle(
-                          fontSize: 16,
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.normal,
-                          color: _focusNodes[1].hasFocus
-                              ? AppColors.neon
-                              : AppColors.black,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Category Dropdown
-                    // Category Dropdown (Updated to DropdownButtonFormField)
-                    DropdownButtonFormField<String>(
-                      value:
-                          selectedCategory, // The currently selected category
-                      focusNode: _focusNodes[2], // Focus for Category Dropdown
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.normal,
-                        color: AppColors.black,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'Category',
-                        filled: true,
-                        fillColor: AppColors.gray,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide:
-                              BorderSide(color: AppColors.neon, width: 2),
-                        ),
-                        labelStyle: TextStyle(
-                          fontSize: 16,
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.normal,
-                          color: _focusNodes[4].hasFocus
-                              ? AppColors.neon
-                              : AppColors.black,
-                        ),
-                      ),
-                      items: categories.map((category) {
-                        return DropdownMenuItem(
-                          value: category,
-                          child: Text(
-                            category,
-                            style:
-                                TextStyle(color: AppColors.black, fontSize: 16),
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (newValue) {
-                        setState(() {
-                          selectedCategory =
-                              newValue ?? ''; // Update the selected category
-                        });
-                      },
-                      validator: (val) => val == null || val.isEmpty
-                          ? 'Select a category'
-                          : null, // Add validation
-                      dropdownColor: AppColors
-                          .white, // Optional, to set the dropdown background color
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Start Date Field
-                    TextFormField(
-                      controller: _startDateController,
-                      focusNode: _focusNodes[3], // Focus for Start Date
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.normal,
-                        color: AppColors.black,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'Start Date',
-                        filled: true,
-                        fillColor: AppColors.gray,
-                        suffixIcon: Icon(
-                          Icons.calendar_today,
-                          color: _focusNodes[3].hasFocus
-                              ? AppColors.neon
-                              : AppColors.black,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide:
-                              BorderSide(color: AppColors.neon, width: 2),
-                        ),
-                        labelStyle: TextStyle(
-                          fontSize: 16,
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.normal,
-                          color: _focusNodes[3].hasFocus
-                              ? AppColors.neon
-                              : AppColors.black,
-                        ),
-                      ),
-                      validator: (val) =>
-                          val!.isEmpty || val == 'Select Start Date'
-                              ? 'Start date cannot be empty'
-                              : null,
-                      readOnly: true,
-                      onTap: () => _selectDateTime(context, true),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // End Date Field
-                    TextFormField(
-                      controller: _endDateController,
-                      focusNode: _focusNodes[4], // Focus for End Date
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.normal,
-                        color: AppColors.black,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'End Date',
-                        filled: true,
-                        fillColor: AppColors.gray,
-                        suffixIcon: Icon(
-                          Icons.calendar_today,
-                          color: _focusNodes[4].hasFocus
-                              ? AppColors.neon
-                              : AppColors.black,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide:
-                              BorderSide(color: AppColors.neon, width: 2),
-                        ),
-                        labelStyle: TextStyle(
-                          fontSize: 16,
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.normal,
-                          color: _focusNodes[4].hasFocus
-                              ? AppColors.neon
-                              : AppColors.black,
-                        ),
-                      ),
-                      validator: (val) =>
-                          val!.isEmpty || val == 'Select End Date'
-                              ? 'End date cannot be empty'
-                              : null,
-                      readOnly: true,
-                      onTap: () => _selectDateTime(context, false),
-                    ),
-
-                    SizedBox(
-                      height: 20.0,
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 20, vertical: 10),
-                            backgroundColor: AppColors.red,
-                          ),
-                          child: Text(
-                            "Cancel",
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                              color: AppColors.white,
+                  ),
+                  content: SizedBox(
+                    width: constraints.maxWidth * 0.9, // Adjust width here
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.max,
+                        children: [
+                          // Task Title Field
+                          TextFormField(
+                            onChanged: (value) => taskTitle = value,
+                            focusNode: _focusNodes[0], // Focus for Task Title
+                            decoration: InputDecoration(
+                              labelText: "Task Title",
+                              filled: true,
+                              fillColor: AppColors.gray,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide.none,
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(
+                                  color: AppColors.neon,
+                                  width: 2,
+                                ),
+                              ),
+                              labelStyle: TextStyle(
+                                fontSize: 16,
+                                fontFamily: 'Inter',
+                                fontWeight: FontWeight.normal,
+                                color: _focusNodes[0].hasFocus
+                                    ? AppColors.neon
+                                    : AppColors.black,
+                              ),
                             ),
                           ),
-                        ),
-                        SizedBox(
-                          width: 10.0,
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            if (taskTitle.isNotEmpty &&
-                                taskDescription.isNotEmpty &&
-                                taskStartDate != null &&
-                                taskEndDate != null &&
-                                taskStartDate.isBefore(taskEndDate)) {
-                              _addTask(taskTitle, taskDescription,
-                                  selectedCategory, taskStartDate, taskEndDate);
-                              Navigator.pop(context);
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text("Invalid inputs!")),
+                          const SizedBox(height: 10),
+
+                          // Task Description Field
+                          TextFormField(
+                            onChanged: (value) => taskDescription = value,
+                            focusNode:
+                                _focusNodes[1], // Focus for Task Description
+                            decoration: InputDecoration(
+                              labelText: "Task Description",
+                              filled: true,
+                              fillColor: AppColors.gray,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide.none,
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(
+                                  color: AppColors.neon,
+                                  width: 2,
+                                ),
+                              ),
+                              labelStyle: TextStyle(
+                                fontSize: 16,
+                                fontFamily: 'Inter',
+                                fontWeight: FontWeight.normal,
+                                color: _focusNodes[1].hasFocus
+                                    ? AppColors.neon
+                                    : AppColors.black,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Category Dropdown
+                          DropdownButtonFormField<String>(
+                            value:
+                                selectedCategory, // The currently selected category
+                            focusNode:
+                                _focusNodes[2], // Focus for Category Dropdown
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontFamily: 'Inter',
+                              fontWeight: FontWeight.normal,
+                              color: AppColors.black,
+                            ),
+                            decoration: InputDecoration(
+                              labelText: 'Category',
+                              filled: true,
+                              fillColor: AppColors.gray,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide.none,
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(
+                                  color: AppColors.neon,
+                                  width: 2,
+                                ),
+                              ),
+                              labelStyle: TextStyle(
+                                fontSize: 16,
+                                fontFamily: 'Inter',
+                                fontWeight: FontWeight.normal,
+                                color: _focusNodes[4].hasFocus
+                                    ? AppColors.neon
+                                    : AppColors.black,
+                              ),
+                            ),
+                            items: categories.map((category) {
+                              return DropdownMenuItem(
+                                value: category,
+                                child: Text(
+                                  category,
+                                  style: TextStyle(
+                                      color: AppColors.black, fontSize: 16),
+                                ),
                               );
-                            }
-                          },
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 20, vertical: 10),
-                            backgroundColor: AppColors.neon,
+                            }).toList(),
+                            onChanged: (newValue) {
+                              setModalState(() {
+                                selectedCategory = newValue ??
+                                    ''; // Update the selected category
+                              });
+                            },
+                            validator: (val) => val == null || val.isEmpty
+                                ? 'Select a category'
+                                : null,
+                            dropdownColor: AppColors.white,
                           ),
-                          child: Text(
-                            "Add Task",
+
+                          const SizedBox(height: 20),
+
+                          // Start Date Field
+                          TextFormField(
+                            controller: _startDateController,
+                            focusNode: _focusNodes[3], // Focus for Start Date
                             style: TextStyle(
+                              fontSize: 16,
                               fontFamily: 'Inter',
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                              color: AppColors.white,
+                              fontWeight: FontWeight.normal,
+                              color: AppColors.black,
                             ),
+                            decoration: InputDecoration(
+                              labelText: 'Start Date',
+                              filled: true,
+                              fillColor: AppColors.gray,
+                              suffixIcon: Icon(
+                                Icons.calendar_today,
+                                color: _focusNodes[3].hasFocus
+                                    ? AppColors.neon
+                                    : AppColors.black,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide.none,
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(
+                                  color: AppColors.neon,
+                                  width: 2,
+                                ),
+                              ),
+                              labelStyle: TextStyle(
+                                fontSize: 16,
+                                fontFamily: 'Inter',
+                                fontWeight: FontWeight.normal,
+                                color: _focusNodes[3].hasFocus
+                                    ? AppColors.neon
+                                    : AppColors.black,
+                              ),
+                            ),
+                            validator: (val) =>
+                                val!.isEmpty || val == 'Select Start Date'
+                                    ? 'Start date cannot be empty'
+                                    : null,
+                            readOnly: true,
+                            onTap: () => _selectDateTime(context, true),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 20),
+
+                          // End Date Field
+                          TextFormField(
+                            controller: _endDateController,
+                            focusNode: _focusNodes[4], // Focus for End Date
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontFamily: 'Inter',
+                              fontWeight: FontWeight.normal,
+                              color: AppColors.black,
+                            ),
+                            decoration: InputDecoration(
+                              labelText: 'End Date',
+                              filled: true,
+                              fillColor: AppColors.gray,
+                              suffixIcon: Icon(
+                                Icons.calendar_today,
+                                color: _focusNodes[4].hasFocus
+                                    ? AppColors.neon
+                                    : AppColors.black,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide.none,
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(
+                                  color: AppColors.neon,
+                                  width: 2,
+                                ),
+                              ),
+                              labelStyle: TextStyle(
+                                fontSize: 16,
+                                fontFamily: 'Inter',
+                                fontWeight: FontWeight.normal,
+                                color: _focusNodes[4].hasFocus
+                                    ? AppColors.neon
+                                    : AppColors.black,
+                              ),
+                            ),
+                            validator: (val) =>
+                                val!.isEmpty || val == 'Select End Date'
+                                    ? 'End date cannot be empty'
+                                    : null,
+                            readOnly: true,
+                            onTap: () => _selectDateTime(context, false),
+                          ),
+
+                          SizedBox(
+                            height: 20.0,
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 20, vertical: 10),
+                                  backgroundColor: AppColors.red,
+                                ),
+                                child: Text(
+                                  "Cancel",
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                    color: AppColors.white,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(
+                                width: 10.0,
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  if (taskTitle.isNotEmpty &&
+                                      taskDescription.isNotEmpty &&
+                                      taskStartDate != null &&
+                                      taskEndDate != null &&
+                                      taskStartDate.isBefore(taskEndDate)) {
+                                    _addTask(
+                                        taskTitle,
+                                        taskDescription,
+                                        selectedCategory,
+                                        taskStartDate,
+                                        taskEndDate);
+                                    Navigator.pop(context);
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                          content: Text("Invalid inputs!")),
+                                    );
+                                  }
+                                },
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 20, vertical: 10),
+                                  backgroundColor: AppColors.neon,
+                                ),
+                                child: Text(
+                                  "Add Task",
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                    color: AppColors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             );
           },
         );
@@ -598,9 +627,11 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
   }
 
   Future<void> fetchPatientTasks() async {
-    setState(() {
-      isLoading = true;
-    });
+    if (mounted) {
+      setState(() {
+        isLoading = true;
+      });
+    }
 
     try {
       final snapshot = await FirebaseFirestore.instance
@@ -644,10 +675,11 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
             }
           }
         }
-
-        setState(() {
-          tasks = filteredTasks;
-        });
+        if (mounted) {
+          setState(() {
+            tasks = filteredTasks;
+          });
+        }
       } else {
         debugPrint("No document found for patientId: ${widget.patientId}");
       }
@@ -656,9 +688,11 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
         SnackBar(content: Text("Failed to fetch tasks: $e")),
       );
     } finally {
-      setState(() {
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -683,6 +717,32 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
     }
   }
 
+  Stream<DocumentSnapshot> _getPatientTaskStream(String patientId) {
+    final collections = [
+      'caregiver',
+      'doctor',
+      'admin',
+      'patient',
+      'unregistered'
+    ];
+
+    return Stream<DocumentSnapshot>.multi((controller) async {
+      for (String collection in collections) {
+        final stream = FirebaseFirestore.instance
+            .collection(collection)
+            .doc(patientId)
+            .snapshots();
+        await for (final snapshot in stream) {
+          if (snapshot.exists) {
+            controller.add(snapshot);
+            return; // Exit once the patient document is found
+          }
+        }
+      }
+      controller.addError('Patient not found in any collection.');
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -696,10 +756,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
         ),
       ),
       body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .doc(widget.patientId) // Listening to the patient document
-            .snapshots(), // This will automatically update the UI in real-time
+        stream: _getPatientTaskStream(widget.patientId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Center(child: CircularProgressIndicator());
@@ -751,170 +808,167 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                     // Show the alert dialog modal when the container is tapped
                     showDialog(
                       context: context,
-                      builder: (BuildContext context) {
-                        return AlertDialog(
-                          backgroundColor: AppColors.white,
-                          title: Text(
-                            title,
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontFamily: 'Outfit',
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.black,
-                            ),
-                          ),
-                          content: SingleChildScrollView(
-                            child: Column(
-                              children: [
-                                // Description
-                                Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    "Description",
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontFamily: 'Inter',
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.black,
-                                    ),
-                                  ),
-                                ),
-                                Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    description,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontFamily: 'Inter',
-                                      fontWeight: FontWeight.normal,
-                                      color: AppColors.black,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 10.0),
-
-                                // Start Date
-                                Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    "Start Date",
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontFamily: 'Inter',
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.black,
-                                    ),
-                                  ),
-                                ),
-                                Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    DateFormat('yyyy-MM-dd HH:mm')
-                                        .format(startDate),
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontFamily: 'Inter',
-                                      fontWeight: FontWeight.normal,
-                                      color: AppColors.black,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 10.0),
-
-                                // End Date
-                                Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    "End Date",
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontFamily: 'Inter',
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.black,
-                                    ),
-                                  ),
-                                ),
-                                Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    DateFormat('yyyy-MM-dd HH:mm')
-                                        .format(endDate),
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontFamily: 'Inter',
-                                      fontWeight: FontWeight.normal,
-                                      color: AppColors.black,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 20.0),
-
-                                // Buttons Section
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment
-                                      .center, // Center the buttons
+                      builder: (context) => LayoutBuilder(
+                        builder: (context, constraints) {
+                          return Dialog(
+                            backgroundColor: AppColors.white,
+                            insetPadding: const EdgeInsets.all(
+                                10), // Reduce padding for max width
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth:
+                                    constraints.maxWidth, // Consume max width
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(
+                                    16.0), // Add padding inside dialog
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // Mark as Done Button (Updated to call _removeTask)
-                                    TextButton(
-                                      onPressed: () async {
-                                        await _removeTask(widget.patientId,
-                                            taskId); // Pass patientId and taskId
-                                        Navigator.of(context)
-                                            .pop(); // Close the modal
-                                      },
-                                      style: TextButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 15, vertical: 5),
-                                        backgroundColor: AppColors.neon,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(10),
-                                        ),
-                                      ),
-                                      child: const Text(
-                                        'Remove Task',
-                                        style: TextStyle(
-                                          fontSize: 16.0,
-                                          fontWeight: FontWeight.bold,
-                                          fontFamily: 'Inter',
-                                          color: Colors.white,
-                                        ),
+                                    // Title
+                                    Text(
+                                      title,
+                                      style: const TextStyle(
+                                        fontSize: 24,
+                                        fontFamily: 'Outfit',
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.black,
                                       ),
                                     ),
-                                    const SizedBox(width: 10.0),
+                                    const SizedBox(height: 10.0),
 
-                                    // Close Button
-                                    TextButton(
-                                      onPressed: () {
-                                        Navigator.of(context)
-                                            .pop(); // Close the modal
-                                      },
-                                      style: TextButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 15, vertical: 5),
-                                        backgroundColor: AppColors.red,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(10),
-                                        ),
+                                    // Description
+                                    const Text(
+                                      "Description",
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.black,
                                       ),
-                                      child: const Text(
-                                        'Close',
-                                        style: TextStyle(
-                                          fontSize: 16.0,
-                                          fontWeight: FontWeight.bold,
-                                          fontFamily: 'Inter',
-                                          color: Colors.white,
-                                        ),
+                                    ),
+                                    Text(
+                                      description,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.normal,
+                                        color: AppColors.black,
                                       ),
+                                    ),
+                                    const SizedBox(height: 10.0),
+
+                                    // Start Date
+                                    const Text(
+                                      "Start Date",
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.black,
+                                      ),
+                                    ),
+                                    Text(
+                                      DateFormat('yyyy-MM-dd HH:mm')
+                                          .format(startDate),
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.normal,
+                                        color: AppColors.black,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10.0),
+
+                                    // End Date
+                                    const Text(
+                                      "End Date",
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.black,
+                                      ),
+                                    ),
+                                    Text(
+                                      DateFormat('yyyy-MM-dd HH:mm')
+                                          .format(endDate),
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.normal,
+                                        color: AppColors.black,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 20.0),
+
+                                    // Buttons Section
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        // Remove Task Button
+                                        TextButton(
+                                          onPressed: () async {
+                                            await _removeTask(
+                                                widget.patientId, taskId);
+                                            Navigator.of(context).pop();
+                                          },
+                                          style: TextButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 15, vertical: 5),
+                                            backgroundColor: AppColors.neon,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            'Remove Task',
+                                            style: TextStyle(
+                                              fontSize: 16.0,
+                                              fontWeight: FontWeight.bold,
+                                              fontFamily: 'Inter',
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10.0),
+
+                                        // Close Button
+                                        TextButton(
+                                          onPressed: () {
+                                            Navigator.of(context).pop();
+                                          },
+                                          style: TextButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 15, vertical: 5),
+                                            backgroundColor: AppColors.red,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            'Close',
+                                            style: TextStyle(
+                                              fontSize: 16.0,
+                                              fontWeight: FontWeight.bold,
+                                              fontFamily: 'Inter',
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
-                              ],
+                              ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     );
                   },
                   child: Card(

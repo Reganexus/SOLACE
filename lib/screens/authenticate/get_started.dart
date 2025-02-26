@@ -1,6 +1,7 @@
 // ignore_for_file: avoid_print, use_build_context_synchronously
 
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:solace/screens/wrapper.dart';
 import 'package:solace/themes/colors.dart';
 
@@ -12,16 +13,25 @@ class GetStarted extends StatefulWidget {
 }
 
 class _GetStartedState extends State<GetStarted> {
+  @override
+  void initState() {
+    super.initState();
+    // Request permissions after the widget is built
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await requestPermissions(context);
+    });
+  }
+
+  // Navigate with swipe left animation
   void navigateWithSwipeLeftAnimation() {
     Navigator.push(
       context,
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const Wrapper(),
+        pageBuilder: (context, animation, secondaryAnimation) => Wrapper(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          // Define the swipe left animation
-          const begin = Offset(1.0, 0.0);  // Start from the right (1.0, 0.0)
-          const end = Offset.zero;         // End at the center (0.0, 0.0)
-          const curve = Curves.easeInOut;  // Use easeInOut curve for smooth transition
+          const begin = Offset(1.0, 0.0);
+          const end = Offset.zero;
+          const curve = Curves.easeInOut;
 
           var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
           var offsetAnimation = animation.drive(tween);
@@ -34,6 +44,54 @@ class _GetStartedState extends State<GetStarted> {
       ),
     );
   }
+
+  // Request necessary permissions for the app
+  Future<void> requestPermissions(BuildContext context) async {
+    // Check the statuses of all required permissions
+    List<Permission> requiredPermissions = [
+      Permission.notification,
+      Permission.camera,
+      Permission.microphone,
+      Permission.location,
+      Permission.activityRecognition, // For exact alarm permission
+      Permission.storage, // For file read/write permission
+    ];
+
+    Map<Permission, PermissionStatus> statuses = await requiredPermissions.request();
+
+    // Check if all permissions are granted
+    bool allPermissionsGranted = statuses.values.every((status) => status.isGranted);
+
+    if (!allPermissionsGranted) {
+      // Show a dialog explaining why permissions are needed only if some are not granted
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("Permissions Required"),
+          content: const Text(
+            "To ensure all features work smoothly, the app requires access to notifications, camera, microphone, and storage. Please allow these permissions when prompted.",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("OK"),
+            ),
+          ],
+        ),
+      );
+
+      // Request necessary permissions again after showing the dialog
+      statuses = await requiredPermissions.request();
+
+      // Print statuses for debugging
+      statuses.forEach((permission, status) {
+        print('${permission.toString()} granted: ${status.isGranted}');
+      });
+    } else {
+      print('All permissions already granted.');
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -103,10 +161,9 @@ class _GetStartedState extends State<GetStarted> {
               SizedBox(
                 width: double.infinity,
                 child: TextButton(
-                  onPressed: navigateWithSwipeLeftAnimation, // Navigate with swipe left animation
+                  onPressed: navigateWithSwipeLeftAnimation,
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 15),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
                     backgroundColor: AppColors.neon,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),

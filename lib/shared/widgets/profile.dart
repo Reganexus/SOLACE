@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:solace/screens/authenticate/authenticate.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/shared/widgets/help_page.dart';
 import 'package:solace/themes/colors.dart';
@@ -21,50 +22,70 @@ class Profile extends StatefulWidget {
 
 class _ProfileState extends State<Profile> {
   File? _profileImage;
+  late Future<UserData?> _userDataFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = Provider.of<MyUser?>(context, listen: false);
+    _userDataFuture = (user != null
+        ? DatabaseService(uid: user.uid).userData?.first // Use null-aware operator
+        : Future.value(null))!; // Return a null Future if no user is available
+  }
 
   @override
   Widget build(BuildContext context) {
-    final user = Provider.of<MyUser?>(context);
-
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: StreamBuilder<UserData?>(
-        stream: DatabaseService(uid: user?.uid).userData,
+      body: FutureBuilder<UserData?>(
+        future: _userDataFuture,
         builder: (context, snapshot) {
-          // Check for loading or error states
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
+            print("Future error: \${snapshot.error}");
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('Something went wrong. Please try again.'),
+                  const SizedBox(height: 10),
+                  ElevatedButton(
+                    onPressed: () => setState(() {
+                      final user = Provider.of<MyUser?>(context, listen: false);
+                      _userDataFuture = (user != null
+                          ? DatabaseService(uid: user.uid).userData?.first
+                          : Future.value(null))!;
+                    }),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
           }
 
-          // Fallback user data in case of null snapshot data
           UserData userData = snapshot.data ??
               UserData(
-                uid: user?.uid ?? '',
-                firstName: 'Set First Name',
-                middleName: 'Set Middle Name',
-                lastName: 'Set Last Name',
-                email: '',
-                phoneNumber: 'Set Phone Number',
-                address: 'Set Address',
-                gender: 'Set Gender',
+                uid: '',
+                firstName: 'N/A',
+                middleName: 'N/A',
+                lastName: 'N/A',
+                email: 'N/A',
+                phoneNumber: 'N/A',
+                address: 'N/A',
+                gender: 'N/A',
                 birthday: null,
-                userRole:
-                    UserRole.patient, // Default to 'patient' if no role found
+                userRole: UserRole.caregiver,
                 isVerified: false,
-                newUser: true,
-                dateCreated:
-                    DateTime.now(), // Providing default dateCreated value
-                profileImageUrl:
-                    '', // Default profile image URL (empty string or placeholder)
-                status: 'stable', // Default status
-                religion: 'Not specified', // Default religion value
+                newUser: false,
+                dateCreated: DateTime.now(),
+                profileImageUrl: '',
+                status: 'N/A',
+                religion: 'N/A',
               );
 
-          // Redirect to EditProfileScreen if newUser is true
           if (userData.newUser) {
-            Future.microtask(() {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
@@ -91,6 +112,7 @@ class _ProfileState extends State<Profile> {
                           ? FileImage(_profileImage!)
                           : (userData.profileImageUrl.isNotEmpty
                               ? NetworkImage(userData.profileImageUrl)
+                                  as ImageProvider
                               : const AssetImage(
                                   'lib/assets/images/shared/placeholder.png')),
                     ),
@@ -192,75 +214,12 @@ class _ProfileState extends State<Profile> {
                           'House Address', userData.address),
                       _buildProfileInfoSection('Gender', userData.gender),
                       _buildProfileInfoSection(
-                          'Birthdate',
-                          userData.birthday != null
-                              ? '${userData.birthday!.month}/${userData.birthday!.day}/${userData.birthday!.year}'
-                              : ''),
+                        'Birthdate',
+                        userData.birthday != null
+                            ? '${userData.birthday!.month}/${userData.birthday!.day}/${userData.birthday!.year}'
+                            : '',
+                      ),
                     ],
-                  ),
-
-                  // Add this conditional check before displaying the Additional Information section
-                  if (userData.userRole == UserRole.patient) ...[
-                    const SizedBox(height: 10),
-                    const Divider(thickness: 1.0),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Additional Information',
-                      style: TextStyle(
-                        fontSize: 18.0,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Inter',
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildProfileInfoSection('Will/Living Will',
-                            userData.will ?? 'Not Provided'),
-                        _buildProfileInfoSection('Fixed Wishes of Patient',
-                            userData.fixedWishes ?? 'Not Provided'),
-                        _buildProfileInfoSection('Organ Donation',
-                            userData.organDonation ?? 'Not Provided'),
-                      ],
-                    ),
-                  ],
-
-                  const SizedBox(height: 10),
-                  const Divider(thickness: 1.0),
-                  const SizedBox(height: 10),
-
-                  const Text(
-                    'Contacts',
-                    style: TextStyle(
-                      fontSize: 18.0,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Inter',
-                      color: Colors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => Contacts(
-                            currentUserId: userData.uid,
-                          ),
-                        ),
-                      );
-                    },
-                    child: const Text(
-                      "View Contacts",
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.normal,
-                        fontSize: 16.0,
-                        color: AppColors.black,
-                      ),
-                    ),
                   ),
 
                   const SizedBox(height: 10),
@@ -298,7 +257,74 @@ class _ProfileState extends State<Profile> {
                   const SizedBox(height: 10),
                   GestureDetector(
                     onTap: () async {
-                      await AuthService().signOut();
+                      final shouldLogout = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text(
+                            'Log Out',
+                            style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'Inter'),
+                          ),
+                          backgroundColor: AppColors.white,
+                          contentPadding: const EdgeInsets.all(20),
+                          content: const Text(
+                            'Are you sure you want to log out?',
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.normal,
+                                fontFamily: 'Inter'),
+                          ),
+                          actions: [
+                            Container(
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: AppColors.neon,
+                                borderRadius: BorderRadius.circular(10.0),
+                              ),
+                              child: TextButton(
+                                onPressed: () =>
+                                    Navigator.of(context).pop(false),
+                                style: TextButton.styleFrom(
+                                  backgroundColor: AppColors.neon,
+                                  foregroundColor: AppColors.white,
+                                ),
+                                child: const Text('Cancel'),
+                              ),
+                            ),
+                            Container(
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: AppColors.red,
+                                borderRadius: BorderRadius.circular(10.0),
+                              ),
+                              child: TextButton(
+                                onPressed: () =>
+                                    Navigator.of(context).pop(true),
+                                style: TextButton.styleFrom(
+                                  backgroundColor: AppColors.red,
+                                  foregroundColor: AppColors.white,
+                                ),
+                                child: const Text('Log Out'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (shouldLogout ?? false) {
+                        await AuthService().signOut();
+                        // Navigate back to the Authenticate screen
+                        if (context.mounted) {
+                          Navigator.pushAndRemoveUntil(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const Authenticate()),
+                            (route) => false, // Remove all previous routes
+                          );
+                        }
+                      }
                     },
                     child: const Text(
                       "Log Out",

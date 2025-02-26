@@ -1,33 +1,38 @@
 // ignore_for_file: unrelated_type_equality_checks, avoid_print, use_build_context_synchronously
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:solace/models/my_patient.dart';
 import 'package:solace/models/my_user.dart';
-import 'package:solace/shared/widgets/user_details.dart';
 import 'package:solace/services/database.dart';
+import 'package:solace/shared/widgets/user_details.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class DoctorUsers extends StatefulWidget {
-  const DoctorUsers({super.key});
+  final String currentUserId;
+
+  const DoctorUsers({super.key, required this.currentUserId});
 
   @override
   DoctorUsersState createState() => DoctorUsersState();
 }
 
 class DoctorUsersState extends State<DoctorUsers> {
-  String _sortOrder = 'A-Z';
-  String _selectedRole = 'patient'; // Default to 'patient'
+  bool _isAscending = true; // Track the current sort order (default: ascending)
+  String _selectedRole = 'caregiver'; // Default role
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
-  List<UserData> filteredPatients = [];
-  List<UserData> allPatients = []; // Store all patients for searching
+  List<dynamic> filteredUsers = [];
+  List<dynamic> allUsers = [];
 
   @override
   void initState() {
     super.initState();
-    _refreshPatientList();
+    _refreshUserList();
   }
 
   @override
@@ -37,92 +42,437 @@ class DoctorUsersState extends State<DoctorUsers> {
     super.dispose();
   }
 
-  // Filter Patients by name
-  void _filterPatients(String query) {
+  void _refreshUserList() {
     if (mounted) {
-      // Check if the widget is still mounted
+      setState(() {
+        allUsers = []; // Clear the previous list to avoid flickering.
+        filteredUsers = []; // Clear the filtered list.
+      });
+    }
+
+    if (_selectedRole == 'patient') {
+      _fetchPatients().listen((patients) {
+        if (mounted) {
+          setState(() {
+            allUsers = patients;
+            filteredUsers = List.from(allUsers);
+            _sortUsers(); // Sort the list after fetching
+          });
+        }
+      }).onError((error) {
+        _showErrorSnackBar('Error fetching patients.');
+      });
+    } else if (_selectedRole == 'caregiver') {
+      _fetchCaregivers().listen((caregivers) {
+        if (mounted) {
+          setState(() {
+            allUsers = caregivers;
+            filteredUsers = List.from(allUsers);
+            _sortUsers(); // Sort the list after fetching
+          });
+        }
+      }).onError((error) {
+        _showErrorSnackBar('Error fetching caregivers.');
+      });
+    }
+  }
+
+  void _filterUsers(String query) {
+    if (mounted) {
       setState(() {
         if (query.isEmpty) {
-          // Reset filteredPatients to match the selected role
-          filteredPatients = allPatients
-              .where((patient) => patient.userRole == _selectedRole)
-              .toList();
+          filteredUsers = List.from(allUsers);
         } else {
-          filteredPatients = allPatients.where((patient) {
-            final fullName =
-                '${patient.firstName} ${patient.lastName}'.toLowerCase();
+          filteredUsers = allUsers.where((user) {
+            final fullName = '${user.firstName} ${user.lastName}'.toLowerCase();
             return fullName.contains(query.toLowerCase());
           }).toList();
         }
-        _sortPatients(); // Apply sorting after filtering
+        _sortUsers(); // Apply sorting after filtering
       });
     }
   }
 
-  void _filterByRole(String role) {
+  void _sortUsers() {
     if (mounted) {
-      // Ensure the widget is still mounted
       setState(() {
-        _selectedRole = role; // Update the selected role
-        _searchController.clear(); // Clear the search bar value
-        _refreshPatientList(); // Refresh the list for the new role
+        filteredUsers.sort((a, b) => _isAscending
+            ? a.firstName.compareTo(b.firstName) // Ascending order
+            : b.firstName.compareTo(a.firstName)); // Descending order
       });
     }
   }
 
-  // Sort Patients based on the selected order
-  void _sortPatients() {
-    if (mounted) {
-      // Check if the widget is still mounted
-      setState(() {
-        if (_sortOrder == 'A-Z') {
-          filteredPatients.sort((a, b) => a.firstName.compareTo(b.firstName));
-        } else {
-          filteredPatients.sort((a, b) => b.firstName.compareTo(a.firstName));
-        }
-      });
-    }
-  }
-
-  // Toggle Sort Order
   void _toggleSortOrder() {
     if (mounted) {
-      // Check if the widget is still mounted
       setState(() {
-        _sortOrder = _sortOrder == 'A-Z' ? 'Z-A' : 'A-Z';
-        _sortPatients(); // Sort after toggling
+        _isAscending = !_isAscending; // Toggle the sort order
+        _sortUsers(); // Reapply sorting
       });
     }
   }
 
-  // Build the Patient Item UI
-  Widget _buildPatientItem(UserData patient) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 15.0),
-      margin: const EdgeInsets.symmetric(vertical: 5.0),
-      decoration: BoxDecoration(
-        color: AppColors.gray,
-        borderRadius: BorderRadius.circular(10.0),
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  Stream<List<PatientData>> _fetchPatients() {
+    return FirebaseFirestore.instance.collection('patient').snapshots().map(
+          (snapshot) => snapshot.docs
+              .map((doc) => PatientData.fromDocument(doc))
+              .where((patient) => patient != null)
+              .toList(),
+        );
+  }
+
+  Stream<List<UserData>> _fetchCaregivers() {
+    return FirebaseFirestore.instance.collection('caregiver').snapshots().map(
+          (snapshot) => snapshot.docs
+              .map((doc) => UserData.fromDocument(doc))
+              .where((caregiver) => caregiver != null)
+              .toList(),
+        );
+  }
+
+  InputDecoration _inputDecoration(String label, FocusNode focusNode) {
+    return InputDecoration(
+      labelText: label,
+      filled: true,
+      fillColor: AppColors.gray,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(10), bottomLeft: Radius.circular(10)),
+        borderSide: BorderSide.none,
       ),
-      child: Row(
-        children: [
-          // Display profile image if available, otherwise show a placeholder
-          CircleAvatar(
-            backgroundImage: patient.profileImageUrl.isNotEmpty
-                ? NetworkImage(
-                    patient.profileImageUrl) // Use network image if available
-                : AssetImage('lib/assets/images/shared/placeholder.png')
-                    as ImageProvider, // Fallback to placeholder
-            radius: 24.0,
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(10), bottomLeft: Radius.circular(10)),
+        borderSide: const BorderSide(
+          color: AppColors.neon,
+          width: 2,
+        ),
+      ),
+      labelStyle: const TextStyle(color: AppColors.black),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.white,
+      appBar: AppBar(
+        backgroundColor: AppColors.white,
+        scrolledUnderElevation: 0.0,
+        title: const Text(
+          'User List',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        actions: [
+          GestureDetector(
+            onTap: _toggleSortOrder, // Toggle sort order when tapped
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Image.asset(
+                _isAscending
+                    ? 'lib/assets/images/shared/navigation/ascending.png' // Path to ascending icon
+                    : 'lib/assets/images/shared/navigation/descending.png', // Path to descending icon
+                height: 24, // Adjust size as needed
+                width: 24,
+              ),
+            ),
           ),
-          const SizedBox(width: 10.0),
-          // Display patient's full name
+        ],
+      ),
+      body: Container(
+        color: AppColors.white,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
+          child: Column(
+            children: [
+              IntrinsicHeight(
+                child: Row(
+                  children: [
+                    // Search TextField container
+                    Expanded(
+                      child: Container(
+                        height: double.infinity, // Match height of the Row
+                        decoration: BoxDecoration(
+                          color:
+                              AppColors.gray, // Background color for TextField
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(10),
+                            bottomLeft: Radius.circular(
+                                10), // Rounded corners for left side
+                          ),
+                        ),
+                        child: TextField(
+                          controller: _searchController,
+                          focusNode: _focusNode,
+                          onChanged: _filterUsers,
+                          decoration: _inputDecoration('Search', _focusNode),
+                        ),
+                      ),
+                    ),
+                    // Dropdown container
+                    Container(
+                      width: 120, // Fixed width for DropdownButton
+                      height: double.infinity, // Match height of the Row
+                      decoration: BoxDecoration(
+                        color: AppColors
+                            .gray, // Background color for DropdownButton
+                        borderRadius: const BorderRadius.only(
+                          topRight: Radius.circular(10),
+                          bottomRight: Radius.circular(
+                              10), // Rounded corners for right side
+                        ),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _selectedRole,
+                          onChanged: (role) {
+                            if (role != null) {
+                              if (mounted) {
+                              setState(() {
+                                _selectedRole = role;
+                                _searchController.clear();
+                                _refreshUserList();
+                              });}
+                            }
+                          },
+                          items: ['patient', 'caregiver']
+                              .map((role) => DropdownMenuItem(
+                                    value: role,
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10),
+                                      child: Text(
+                                        role.capitalize(),
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
+                                    ),
+                                  ))
+                              .toList(),
+                          icon: const Icon(Icons.arrow_drop_down),
+                          isExpanded: true,
+                          dropdownColor: AppColors
+                              .white, // Match Dropdown background color
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              Expanded(
+                child: filteredUsers.isEmpty
+                    ? Center(
+                        child: allUsers.isEmpty
+                            ? const CircularProgressIndicator()
+                            : Text('No $_selectedRole available'),
+                      )
+                    : ListView.builder(
+                        itemCount: filteredUsers.length,
+                        itemBuilder: (context, index) {
+                          final user = filteredUsers[index];
+                          return _selectedRole == 'patient' &&
+                                  user is PatientData
+                              ? _buildPatientItem(user)
+                              : _buildCaregiverItem(user as UserData);
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPatientItem(PatientData patient) {
+    return GestureDetector(
+      onTap: () => _showPatientDetailsDialog(context, patient),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 15.0),
+        margin: const EdgeInsets.symmetric(vertical: 5.0),
+        decoration: BoxDecoration(
+          color: AppColors.gray,
+          borderRadius: BorderRadius.circular(10.0),
+        ),
+        child: Row(
+          children: [
+            // Profile image
+            CircleAvatar(
+              backgroundImage: patient.profileImageUrl.isNotEmpty
+                  ? NetworkImage(patient.profileImageUrl)
+                  : const AssetImage('lib/assets/images/shared/placeholder.png')
+                      as ImageProvider,
+              radius: 24.0,
+            ),
+            const SizedBox(width: 10.0),
+            // Full name
+            Expanded(
+              child: Text(
+                '${patient.firstName} ${patient.lastName}',
+                style: const TextStyle(
+                  fontSize: 18.0,
+                  fontFamily: 'Inter',
+                  fontWeight: FontWeight.normal,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCaregiverItem(UserData caregiver) {
+    return GestureDetector(
+      onTap: () => _showCaregiverDetailsDialog(context, caregiver),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 15.0),
+        margin: const EdgeInsets.symmetric(vertical: 5.0),
+        decoration: BoxDecoration(
+          color: AppColors.gray,
+          borderRadius: BorderRadius.circular(10.0),
+        ),
+        child: Row(
+          children: [
+            // Profile image
+            CircleAvatar(
+              backgroundImage: caregiver.profileImageUrl.isNotEmpty
+                  ? NetworkImage(caregiver.profileImageUrl)
+                  : const AssetImage('lib/assets/images/shared/placeholder.png')
+                      as ImageProvider,
+              radius: 24.0,
+            ),
+            const SizedBox(width: 10.0),
+            // Full name
+            Expanded(
+              child: Text(
+                '${caregiver.firstName} ${caregiver.lastName}',
+                style: const TextStyle(
+                  fontSize: 18.0,
+                  fontFamily: 'Inter',
+                  fontWeight: FontWeight.normal,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+// Show dialog for patients
+  void _showPatientDetailsDialog(BuildContext context, PatientData patient) {
+    showDialog(
+      context: context,
+      builder: (context) => LayoutBuilder(
+        builder: (context, constraints) {
+          return AlertDialog(
+            title: Text(
+              '${patient.firstName} ${patient.lastName}',
+              style: TextStyle(
+                fontSize: 24,
+                fontFamily: 'Outfit',
+                fontWeight: FontWeight.bold,
+                color: AppColors.black,
+              ),
+            ),
+            backgroundColor: AppColors.white,
+            content: SizedBox(
+              width: constraints.maxWidth,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (patient.profileImageUrl.isNotEmpty)
+                    _buildPatientDetails(patient),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: TextButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                  backgroundColor: AppColors.neon,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: const Text(
+                  'Close',
+                  style: TextStyle(
+                    fontSize: 16.0,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Inter',
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+// Helper widget to display patient details
+  Widget _buildPatientDetails(PatientData patient) {
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (patient.birthday != null)
+            _buildProfileInfoSection(
+                "Birthday", DateFormat('yyyy-MM-dd').format(patient.birthday!)),
+          if (patient.age != null)
+            _buildProfileInfoSection("Age", "${patient.age}"),
+          if (patient.gender.isNotEmpty)
+            _buildProfileInfoSection("Gender", patient.gender),
+          if (patient.religion.isNotEmpty)
+            _buildProfileInfoSection("Religion", patient.religion),
+          if (patient.organDonation.isNotEmpty)
+            _buildProfileInfoSection("Organ Donation", patient.organDonation),
+          if (patient.fixedWishes.isNotEmpty)
+            _buildProfileInfoSection("Fixed Wishes", patient.fixedWishes),
+          if (patient.will.isNotEmpty)
+            _buildProfileInfoSection("Will", patient.will),
+        ]
+            .map((e) =>
+                Padding(padding: const EdgeInsets.only(bottom: 8.0), child: e))
+            .toList(),
+      ),
+    );
+  }
+
+  Widget _buildProfileInfoSection(String header, String data) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Text(
-            '${patient.firstName} ${patient.lastName}',
+            header,
             style: const TextStyle(
-              fontSize: 18.0,
+              fontSize: 16.0,
+              fontWeight: FontWeight.bold,
               fontFamily: 'Inter',
+              color: Colors.grey,
+            ),
+          ),
+          Text(
+            data,
+            style: const TextStyle(
+              fontSize: 16.0,
               fontWeight: FontWeight.normal,
+              fontFamily: 'Inter',
+              color: Colors.black,
             ),
           ),
         ],
@@ -130,36 +480,59 @@ class DoctorUsersState extends State<DoctorUsers> {
     );
   }
 
-  void _showUserDetailsDialog(BuildContext context, UserData user) {
+// Show dialog for caregivers
+  void _showCaregiverDetailsDialog(BuildContext context, UserData caregiver) {
     showDialog(
       context: context,
       builder: (context) {
         return UserDetailsDialog(
-          user: user,
+          user: caregiver, // Pass the caregiver object
           isAdminView: false,
-          onAddContact: () => _addContact(user),
-          onCall: () => _makeCall(user.phoneNumber), // Pass the onCall callback
+          onAddContact: () => _addContact(caregiver),
+          onCall: () =>
+              _makeCall(caregiver.phoneNumber), // Callback for making calls
         );
       },
     );
   }
 
-  // Add contact (Friend request) function
+// Add contact (friend request) logic remains the same
   void _addContact(UserData user) async {
-    // Handle adding the user (e.g., sending a friend request)
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
+
       if (currentUser != null) {
-        await DatabaseService().sendFriendRequest(currentUser.uid, user.uid);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Friend request sent to ${user.firstName}!')));
+        // Fetch current user data
+        final currentUserData =
+            await DatabaseService().getUserDataById(currentUser.uid);
+
+        if (currentUserData != null) {
+          await DatabaseService().sendFriendRequest(
+            currentUser.uid, // Current user's role
+            user.uid, // Target user's role
+          );
+
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Friend request sent to ${user.firstName}!'),
+          ));
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Error fetching current user data.')),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('You are not logged in.')),
+        );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error sending friend request.')));
+        SnackBar(content: Text('Error sending friend request: $e')),
+      );
     }
   }
 
+// Make call logic remains the same
   Future<void> _makeCall(String phoneNumber) async {
     final Uri launchUri = Uri(
       scheme: 'tel',
@@ -182,255 +555,10 @@ class DoctorUsersState extends State<DoctorUsers> {
       print('Permission denied to make calls.');
     }
   }
-
-  // Refresh the Patient List
-  void _refreshPatientList() {
-    final DatabaseService databaseService = DatabaseService();
-
-    setState(() {
-      allPatients = []; // Clear allPatients list
-      filteredPatients = []; // Clear filteredPatients list
-    });
-
-    databaseService.getUsersByRole(_selectedRole).listen((users) {
-      if (mounted) {
-        // Ensure the widget is still mounted
-        setState(() {
-          allPatients = users; // Update allPatients
-          filteredPatients =
-              List.from(allPatients); // Copy allPatients to filteredPatients
-        });
-      }
-    }).onError((error) {
-      print("Error fetching data: $error"); // Log errors if any
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final DatabaseService databaseService = DatabaseService();
-
-    return Scaffold(
-      backgroundColor: AppColors.white,
-      body: StreamBuilder<List<UserData>>(
-        stream: databaseService.getUsersByRole(_selectedRole),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text("Error loading users"));
-          }
-          if (snapshot.hasData) {
-            if (allPatients.isEmpty) {
-              allPatients = snapshot.data!;
-              filteredPatients = List.from(allPatients);
-            }
-          }
-
-          return GestureDetector(
-            onTap: () {
-              FocusScope.of(context).unfocus();
-            },
-            child: Container(
-              color: AppColors.white,
-              padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: SizedBox(
-                          height: 50.0,
-                          child: TextField(
-                            controller: _searchController,
-                            focusNode: _focusNode,
-                            onSubmitted: (value) {
-                              _filterPatients(value);
-                              FocusScope.of(context).unfocus();
-                            },
-                            decoration: InputDecoration(
-                              hintText: 'Search',
-                              hintStyle: const TextStyle(
-                                  color: AppColors.blackTransparent),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(
-                                    color: AppColors.blackTransparent),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(
-                                    color: AppColors.blackTransparent),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(
-                                    color: AppColors.blackTransparent),
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                  vertical: 12.0, horizontal: 10.0),
-                              suffixIcon: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (_searchController.text.isNotEmpty)
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.clear,
-                                        color: Colors.grey,
-                                      ),
-                                      onPressed: () {
-                                        _searchController.clear();
-                                        _refreshPatientList();
-                                        FocusScope.of(context).unfocus();
-                                      },
-                                    ),
-                                  IconButton(
-                                    icon: Icon(
-                                      Icons.search,
-                                      color: _focusNode.hasFocus
-                                          ? AppColors.neon
-                                          : Colors.grey,
-                                    ),
-                                    onPressed: () {
-                                      _filterPatients(_searchController.text);
-                                      FocusScope.of(context).unfocus();
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 5.0),
-                  Row(
-                    children: [
-                      SizedBox(
-                        height: 40.0,
-                        child: TextButton(
-                          onPressed: _toggleSortOrder,
-                          style: TextButton.styleFrom(
-                            backgroundColor: AppColors.purple,
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 10.0),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10.0),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                _sortOrder,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontFamily: 'Inter',
-                                  fontSize: 16.0,
-                                ),
-                              ),
-                              const SizedBox(width: 5.0),
-                              Icon(
-                                _sortOrder == 'A-Z'
-                                    ? Icons.arrow_downward
-                                    : Icons.arrow_upward,
-                                color: Colors.white,
-                                size: 18,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10.0),
-                      Container(
-                        height: 40.0,
-                        padding: const EdgeInsets.symmetric(horizontal: 10.0),
-                        decoration: BoxDecoration(
-                          color: AppColors.neon,
-                          borderRadius: BorderRadius.circular(10.0),
-                        ),
-                        child: DropdownButton<String>(
-                          value: _selectedRole,
-                          onChanged: (String? newValue) {
-                            if (newValue != null) {
-                              _filterByRole(newValue);
-                            }
-                          },
-                          items: <String>['patient', 'caregiver']
-                              .map<DropdownMenuItem<String>>((String value) {
-                            return DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(
-                                value.capitalize(),
-                                style: const TextStyle(
-                                  color: AppColors.white,
-                                  fontFamily: 'Inter',
-                                  fontSize: 16.0,
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                          style: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.white,
-                          ),
-                          dropdownColor: AppColors.neon,
-                          icon: const Icon(
-                            Icons.arrow_drop_down,
-                            color: AppColors.white,
-                          ),
-                          isExpanded: false,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20.0),
-                  Expanded(
-                    child: filteredPatients.isEmpty
-                        ? Center(
-                            child: Text(
-                              'No $_selectedRole available',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontFamily: 'Inter',
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.blackTransparent,
-                              ),
-                            ),
-                          )
-                        : ListView.builder(
-                            itemCount: filteredPatients.length,
-                            itemBuilder: (context, index) {
-                              final patient = filteredPatients[index];
-
-                              return GestureDetector(
-                                onTap: () =>
-                                    _showUserDetailsDialog(context, patient),
-                                child: _buildPatientItem(patient),
-                              );
-                            },
-                          ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
 }
 
 extension StringExtension on String {
   String capitalize() {
-    if (isEmpty) {
-      return this;
-    }
-    return '${this[0].toUpperCase()}${substring(1)}';
+    return isEmpty ? this : '${this[0].toUpperCase()}${substring(1)}';
   }
 }

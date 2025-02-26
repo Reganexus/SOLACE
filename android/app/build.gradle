@@ -2,57 +2,77 @@ plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
     id "dev.flutter.flutter-gradle-plugin"
-    id 'com.google.gms.google-services' // Firebase plugin
+    id 'com.google.gms.google-services'
 }
 
 android {
     namespace = "com.res.solace"
     compileSdk = 34
 
+    defaultConfig {
+        applicationId "com.res.solace"
+        minSdkVersion 26
+        targetSdkVersion 34
+        versionCode flutter.versionCode
+        versionName flutter.versionName
+        multiDexEnabled true
+
+        // Add support for camera features if not already included
+        vectorDrawables.useSupportLibrary = true
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
+        coreLibraryDesugaringEnabled true
     }
 
     kotlinOptions {
         jvmTarget = "1.8"
     }
 
-    defaultConfig {
-        applicationId "com.res.solace"
-        minSdkVersion 23
-        targetSdkVersion 33 // Ensure compatibility with compileSdk
-        versionCode flutter.versionCode
-        versionName flutter.versionName
-        multiDexEnabled true
-    }
-
     buildTypes {
         release {
-            signingConfig signingConfigs.debug
-            minifyEnabled false // Disable ProGuard for simplicity
-            shrinkResources false // Disable resource shrinking for debugging
+            signingConfig signingConfigs.debug // Replace with production signingConfig for release builds
+            minifyEnabled false
+            shrinkResources false
+
+            // Add ProGuard rules to avoid stripping required code
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
+    }
+
+    // Enable multidex for apps with many methods
+    packagingOptions {
+        resources {
+            excludes.add("META-INF/*")
+        }
+    }
+
+    // Dependencies for desugaring (optional)
+    dependencies {
+        coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.3'
     }
 }
 
+
 dependencies {
-    // Firebase BoM (Bill of Materials) to manage Firebase dependencies
-    implementation platform("com.google.firebase:firebase-bom:33.6.0")
-
-    // Firebase Core SDKs
+    implementation platform("com.google.firebase:firebase-bom:33.9.0")
+    implementation "com.google.android.gms:play-services-maps:19.1.0"
     implementation "com.google.firebase:firebase-appcheck-playintegrity"
-    implementation "com.google.firebase:firebase-auth"
+    implementation "com.google.firebase:firebase-appcheck-safetynet"
+    implementation "com.google.android.gms:play-services-auth:21.3.0"
     implementation "com.google.firebase:firebase-firestore"
+    implementation "com.google.firebase:firebase-inappmessaging"
+    implementation "com.google.firebase:firebase-inappmessaging-display"
+    implementation "com.google.firebase:firebase-messaging"
     implementation "com.google.firebase:firebase-analytics"
-
-    // Uncomment for additional Firebase services
-    // implementation "com.google.firebase:firebase-storage"
-    // implementation "com.google.firebase:firebase-messaging"
-
-    // Kotlin and AndroidX dependencies (if needed)
-    implementation "androidx.core:core-ktx:1.12.0"
+    implementation "androidx.camera:camera-core:1.3.0"
+    implementation "com.google.mlkit:barcode-scanning:17.0.3"
+    implementation "androidx.core:core-ktx"
     implementation "androidx.multidex:multidex:2.0.1"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:2.1.0"
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.3'
 }
 
 flutter {
@@ -60,3 +80,4 @@ flutter {
 }
 
 apply plugin: 'com.google.gms.google-services'
+apply plugin: 'com.android.application'

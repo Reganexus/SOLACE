@@ -35,6 +35,16 @@ class PatientTrackingState extends State<PatientTracking> {
     'Pain': '',
   };
 
+  final Map<String, TextEditingController> _controllers = {
+    'Heart Rate': TextEditingController(),
+    'Blood Pressure': TextEditingController(),
+    'Oxygen Saturation': TextEditingController(),
+    'Respiration': TextEditingController(),
+    'Temperature': TextEditingController(),
+    'Cholesterol Level': TextEditingController(),
+    'Pain': TextEditingController(),
+  };
+
   final Map<String, dynamic> _algoInputs = {
     "Fever": false,
     "Cough": false,
@@ -44,6 +54,16 @@ class PatientTrackingState extends State<PatientTracking> {
     "Gender": null,
     "Blood Pressure": null,
     "Cholesterol Level": null,
+  };
+
+  final Map<String, FocusNode> _focusNodes = {
+    'Heart Rate': FocusNode(),
+    'Blood Pressure': FocusNode(),
+    'Oxygen Saturation': FocusNode(),
+    'Respiration': FocusNode(),
+    'Temperature': FocusNode(),
+    'Cholesterol Level': FocusNode(),
+    'Pain': FocusNode(),
   };
 
   int _diarrheaValue = 0;
@@ -57,43 +77,35 @@ class PatientTrackingState extends State<PatientTracking> {
   int _anxietyValue = 0;
   int _drowsinessValue = 0;
 
-  late Map<String, dynamic> _combinedInputs; // Holds data for submission
-
-  final FocusNode _bloodPressureFocusNode = FocusNode();
-
-  final TextEditingController _heartRateController = TextEditingController();
-  final TextEditingController _bloodPressureController =
-      TextEditingController();
-  final TextEditingController _oxygenSaturationController =
-      TextEditingController();
-  final TextEditingController _respirationController = TextEditingController();
-  final TextEditingController _temperatureController = TextEditingController();
-  final TextEditingController _cholesterolController = TextEditingController();
-  final TextEditingController _painController = TextEditingController();
+  late Map<String, dynamic> _combinedInputs;
+  late final MyUser? user;
 
   @override
   void initState() {
     super.initState();
+    user = Provider.of<MyUser?>(context, listen: false);
+    _initializeCooldown();
     checkAndResetOptions();
-    _checkCooldown();
   }
 
   @override
   void dispose() {
-    _countdownTimer?.cancel(); // Null-safe cancellation
+    _countdownTimer?.cancel();
+    for (var controller in _controllers.values) {
+      controller.dispose();
+    }
+    for (var focusNode in _focusNodes.values) {
+      focusNode.dispose();
+    }
     super.dispose();
   }
 
   void checkAndResetOptions() {
     setState(() {
       // Clear form fields
-      _heartRateController.clear();
-      _bloodPressureController.clear();
-      _oxygenSaturationController.clear();
-      _respirationController.clear();
-      _temperatureController.clear();
-      _cholesterolController.clear();
-      _painController.clear();
+      for (var controller in _controllers.values) {
+        controller.clear();
+      }
 
       // Reset symptom values
       _diarrheaValue = 0;
@@ -109,193 +121,314 @@ class PatientTrackingState extends State<PatientTracking> {
     });
   }
 
-  void _checkCooldown() async {
-    final user = Provider.of<MyUser?>(context, listen: false);
+  Future<void> _initializeCooldown() async {
+    if (user == null) return;
 
-    // Fetch the last submitted time from the database
     final lastSubmitted = await getLastSubmittedTime(user!.uid);
+    debugPrint("Last submitted: $lastSubmitted");
 
-    if (lastSubmitted == 0) {
-      // If no data is found (initial state or error), you can either set a default or allow immediate submission
-      setState(() {
+    if (!mounted) return;
+
+    setState(() {
+      if (lastSubmitted == 0) {
         isCooldownActive = false;
-      });
-      return;
-    }
+      } else {
+        final currentTime = DateTime.now().millisecondsSinceEpoch;
+        final timeDifference = currentTime - lastSubmitted;
 
-    final currentTime = DateTime.now().millisecondsSinceEpoch;
-    final timeDifference = currentTime - lastSubmitted;
-
-    // 15 minutes cooldown (900,000 milliseconds)
-    if (timeDifference < 1 * 60 * 1000) {
-      // Still within cooldown
-      setState(() {
-        isCooldownActive = true;
-        remainingCooldownTime = (1 * 60) -
-            (timeDifference / 1000).round(); // Remaining time in seconds
-      });
-      _startCountdown();
-    } else {
-      // No cooldown, allow input
-      setState(() {
-        isCooldownActive = false;
-      });
-    }
+        if (timeDifference < 1 * 60 * 1000) {
+          isCooldownActive = true;
+          remainingCooldownTime = (1 * 60) - (timeDifference / 1000).round();
+          debugPrint("Remaining Cooldown: $remainingCooldownTime");
+          _startCountdown();
+        } else {
+          isCooldownActive = false;
+        }
+      }
+    });
   }
 
   void _startCountdown() {
-    _countdownTimer?.cancel(); // Cancel any previous timer
-    _countdownTimer = Timer.periodic(Duration(seconds: 1), (timer) {
+    _countdownTimer?.cancel();
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (remainingCooldownTime > 0) {
-        setState(() {
-          remainingCooldownTime--;
-        });
+        setState(() => remainingCooldownTime--);
       } else {
         _countdownTimer?.cancel();
-        setState(() {
-          isCooldownActive = false;
-        });
+        setState(() => isCooldownActive = false);
       }
     });
   }
 
   Future<int> getLastSubmittedTime(String userId) async {
     try {
-      // Get a reference to the user's document in the Firestore collection
       final userDoc = await FirebaseFirestore.instance
           .collection('tracking')
           .doc(userId)
           .get();
 
+      debugPrint("Last Submitted uid: $userId");
+
       if (userDoc.exists) {
-        // Retrieve the timestamp of the last submission
         final lastTracking = userDoc.data()?['tracking'] as List?;
         if (lastTracking != null && lastTracking.isNotEmpty) {
-          // Get the last tracking entry (assuming it's sorted, or you get the most recent)
           final lastEntry = lastTracking.last;
           final lastSubmittedTimestamp =
               (lastEntry['timestamp'] as Timestamp).millisecondsSinceEpoch;
-
+          debugPrint("Last Submitted: $lastSubmittedTimestamp");
           return lastSubmittedTimestamp;
         }
       }
-      return 0; // If no data exists, return 0 to indicate no submission
+      return 0;
     } catch (e) {
-      print("Error fetching last submission time: $e");
-      return 0; // Return 0 on error
+      debugPrint("Error fetching last submission time: $e");
+      return 0;
     }
   }
 
   String _formatCooldownTime(int timeInSeconds) {
-    int hours = (timeInSeconds / 3600).floor();
-    int minutes = ((timeInSeconds % 3600) / 60).floor();
-    int seconds = timeInSeconds % 60;
+    final hours = (timeInSeconds / 3600).floor();
+    final minutes = ((timeInSeconds % 3600) / 60).floor();
+    final seconds = timeInSeconds % 60;
     return 'Hours: $hours Minutes: $minutes Seconds: $seconds';
   }
 
+  String? _validateInput(String value, {String field = ''}) {
+    if (value.isEmpty) {
+      return 'This field is required';
+    }
+
+    // Specific validations for each field
+    switch (field) {
+      case 'Temperature':
+        // Temperature should be a valid decimal within a certain range
+        final temp = double.tryParse(value);
+        if (temp == null) {
+          return 'Enter a valid temperature (e.g., 36.5)';
+        }
+        if (temp < 35.0 || temp > 42.0) {
+          return 'Temperature should be between 35.0 and 42.0 °C';
+        }
+        break;
+
+      case 'Heart Rate':
+        // Heart rate should be a valid integer within range
+        final heartRate = int.tryParse(value);
+        if (heartRate == null) {
+          return 'Enter a valid heart rate (e.g., 72)';
+        }
+        if (heartRate < 40 || heartRate > 200) {
+          return 'Heart rate should be between 40 and 200 bpm';
+        }
+        break;
+
+      case 'Cholesterol Level':
+        // Cholesterol level should be a valid number within a range
+        final cholesterol = double.tryParse(value);
+        if (cholesterol == null) {
+          return 'Enter a valid cholesterol level';
+        }
+        if (cholesterol < 150 || cholesterol > 240) {
+          return 'Cholesterol level should be between 150 and 240 mg/dL';
+        }
+        break;
+
+      case 'Oxygen Saturation':
+        // Oxygen saturation should be a percentage between 90 and 100
+        final oxygenSaturation = int.tryParse(value);
+        if (oxygenSaturation == null) {
+          return 'Enter a valid oxygen saturation percentage';
+        }
+        if (oxygenSaturation < 90 || oxygenSaturation > 100) {
+          return 'Oxygen saturation should be between 90% and 100%';
+        }
+        break;
+
+      // Default case for Blood Pressure (already handled earlier)
+      case 'Blood Pressure':
+        final regex = RegExp(r'^\d{2,3}/\d{2,3}$');
+        if (!regex.hasMatch(value)) {
+          return 'Enter valid blood pressure (e.g., 120/80)';
+        }
+
+        final parts = value.split('/');
+        final systolic = int.tryParse(parts[0].trim());
+        final diastolic = int.tryParse(parts[1].trim());
+
+        if (systolic == null || diastolic == null) {
+          return 'Enter valid blood pressure numbers';
+        }
+
+        if (systolic < 50 ||
+            systolic > 200 ||
+            diastolic < 30 ||
+            diastolic > 120) {
+          return 'Enter valid blood pressure (systolic 50-200, diastolic 30-120)';
+        }
+        break;
+
+      default:
+        // Generic numeric validation for other fields
+        if (!RegExp(r'^\d+(\.\d+)?$').hasMatch(value)) {
+          return 'Enter a valid number';
+        }
+    }
+
+    return null;
+  }
   @override
   Widget build(BuildContext context) {
-    _checkCooldown();
-    final user = Provider.of<MyUser?>(context);
     return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus(); // Dismiss the keyboard
-      },
+      onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         backgroundColor: AppColors.white,
         body: SingleChildScrollView(
           child: Container(
             color: AppColors.white,
             padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Only show the "Vitals" title if no cooldown is active
-                if (!isCooldownActive)
-                  const Text(
-                    'Vitals',
-                    style: TextStyle(
-                      fontSize: 24.0,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Outfit',
-                    ),
-                  ),
-                const SizedBox(height: 20.0),
+            child: StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('patient')
+                  .doc(user?.uid)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                final hasData = snapshot.hasData && snapshot.data!.exists;
 
-                // Display cooldown if active
-                if (isCooldownActive)
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10.0),
-                      color: AppColors.gray,
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          'You cannot input vitals and assessment at the moment.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
-                              fontFamily: 'Inter'),
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (isCooldownActive)
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10.0),
+                          color: AppColors.gray,
                         ),
-                        const SizedBox(height: 10),
-                        Text(
-                          _formatCooldownTime(remainingCooldownTime),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.normal,
-                            fontFamily: 'Inter',
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                // Show form if no cooldown
-                if (!isCooldownActive)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildVitalsInputs(),
-                      const SizedBox(height: 20.0),
-                      const Divider(thickness: 1.0),
-                      const SizedBox(height: 20.0),
-                      const Text(
-                        'Symptom Assessment',
-                        style: TextStyle(
-                          fontSize: 24.0,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'Outfit',
-                        ),
-                      ),
-                      const SizedBox(height: 20.0),
-                      _buildSliders(),
-                      const SizedBox(height: 20.0),
-                      Center(
-                        child: TextButton(
-                          onPressed: () => _submit(user!.uid),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 50, vertical: 10),
-                            backgroundColor: AppColors.neon,
-                          ),
-                          child: const Text(
-                            'Submit',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                              color: AppColors.white,
+                        child: Column(
+                          children: [
+                            const Text(
+                              'You cannot input vitals and assessment at the moment.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 20,
+                                fontFamily: 'Inter',
+                              ),
                             ),
-                          ),
+                            const SizedBox(height: 10),
+                            Text(
+                              _formatCooldownTime(remainingCooldownTime),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.normal,
+                                fontFamily: 'Inter',
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
-              ],
+                    if (!isCooldownActive)
+                      if (!hasData)
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10.0),
+                            color: AppColors.gray,
+                          ),
+                          child: Column(
+                            children: [
+                              SizedBox(
+                                width: double.infinity,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.max,
+                                  children: const [
+                                    Text(
+                                      'Patient is not Available',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 20,
+                                        fontFamily: 'Inter',
+                                      ),
+                                    ),
+                                    SizedBox(height: 10),
+                                    Text(
+                                      'Go to "Patient" at Home',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.normal,
+                                        fontFamily: 'Inter',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(height: 20.0),
+                            ],
+                          ),
+                        )
+                      else
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Vitals',
+                              style: TextStyle(
+                                fontSize: 24.0,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'Outfit',
+                              ),
+                            ),
+                            const SizedBox(height: 10.0),
+                            _buildVitalsInputs(),
+                            const SizedBox(height: 20.0),
+                            const Divider(thickness: 1.0),
+                            const SizedBox(height: 20.0),
+                            const Text(
+                              'Symptom Assessment',
+                              style: TextStyle(
+                                fontSize: 24.0,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'Outfit',
+                              ),
+                            ),
+                            const SizedBox(height: 20.0),
+                            _buildSliders(),
+                            const SizedBox(height: 20.0),
+                            SizedBox(
+                              width: double.infinity,
+                              child: TextButton(
+                                onPressed: hasData ? () => _submit(user!.uid) : null,
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 50,
+                                    vertical: 10,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  backgroundColor: hasData
+                                      ? AppColors.neon
+                                      : AppColors.blackTransparent,
+                                ),
+                                child: const Text(
+                                  'Submit',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                    color: AppColors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -303,25 +436,26 @@ class PatientTrackingState extends State<PatientTracking> {
     );
   }
 
+
   InputDecoration _inputDecoration(String label, FocusNode focusNode) {
     return InputDecoration(
       labelText: label,
       filled: true,
       fillColor: AppColors.gray,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(10), bottomLeft: Radius.circular(10)),
         borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(10), bottomLeft: Radius.circular(10)),
         borderSide: const BorderSide(
           color: AppColors.neon,
           width: 2,
         ),
       ),
-      labelStyle: TextStyle(
-        color: AppColors.black,
-      ),
+      labelStyle: const TextStyle(color: AppColors.black),
     );
   }
 
@@ -329,78 +463,96 @@ class PatientTrackingState extends State<PatientTracking> {
     return Form(
       key: _formKey,
       child: Column(
-        children: _vitalInputs.keys.map((key) {
-          TextEditingController controller;
+        children: _focusNodes.keys.map((key) {
+          final controller =
+              _controllers[key]!; // Access the controller for the key
+          final focusNode = _focusNodes[key]!; // Get the FocusNode for the key
 
-          // Assign the correct controller based on the key
+          // Define the unit label for each vital
+          String unitLabel = '';
           switch (key) {
+            case 'Temperature':
+              unitLabel = '°C';
+              break;
             case 'Heart Rate':
-              controller = _heartRateController;
+              unitLabel = 'bpm';
               break;
             case 'Blood Pressure':
-              controller = _bloodPressureController;
+              unitLabel = 'mmHg';
               break;
             case 'Oxygen Saturation':
-              controller = _oxygenSaturationController;
+              unitLabel = '%';
               break;
             case 'Respiration':
-              controller = _respirationController;
-              break;
-            case 'Temperature':
-              controller = _temperatureController;
+              unitLabel = 'b/min';
               break;
             case 'Cholesterol Level':
-              controller = _cholesterolController;
+              unitLabel = 'mg/dL';
               break;
             case 'Pain':
-              controller = _painController;
+              unitLabel = '1-10';
               break;
             default:
-              controller = TextEditingController();
+              unitLabel = '';
           }
+
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 10.0),
-            child: TextFormField(
-              controller: controller,
-              focusNode:
-                  key == 'Blood Pressure' ? _bloodPressureFocusNode : null,
-              decoration: _inputDecoration(key, _bloodPressureFocusNode),
-              keyboardType: TextInputType.text,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter $key';
-                }
-                if (key == 'Blood Pressure') {
-                  // Validate blood pressure format (systolic/diastolic)
-                  final regex = RegExp(r'^\d{2,3}/\d{2,3}$');
-                  if (!regex.hasMatch(value)) {
-                    return 'Enter valid blood pressure (e.g., 120/80)';
-                  }
-                  // Split the input into systolic and diastolic
-                  final parts = value.split('/');
-                  final systolic = int.tryParse(parts[0]);
-                  final diastolic = int.tryParse(parts[1]);
-
-                  if (systolic == null || diastolic == null) {
-                    return 'Enter valid blood pressure numbers';
-                  }
-
-                  // Validate ranges for systolic and diastolic
-                  if (systolic < 50 ||
-                      systolic > 200 ||
-                      diastolic < 30 ||
-                      diastolic > 120) {
-                    return 'Enter valid blood pressure (systolic 50-200, diastolic 30-120)';
-                  }
-                } else {
-                  // General number validation for all other fields
-                  if (!RegExp(r'^\d+(\.\d+)?$').hasMatch(value)) {
-                    return 'Enter a valid number';
-                  }
-                }
-                return null;
-              },
-              onChanged: (value) => _vitalInputs[key] = value,
+            child: IntrinsicHeight(
+              child: Row(
+                children: [
+                  // Wrapping the TextFormField and label in a container
+                  Expanded(
+                    child: Container(
+                      height: double.infinity, // Match height of the text field
+                      decoration: BoxDecoration(
+                        color: AppColors.gray, // Set background color
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(10),
+                          bottomLeft:
+                              Radius.circular(10), // Apply border radius
+                        ),
+                      ),
+                      child: TextFormField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        decoration: _inputDecoration(key, focusNode),
+                        keyboardType: TextInputType.text,
+                        validator: (value) {
+                          // Validate input dynamically
+                          return _validateInput(value ?? '', field: key);
+                        },
+                        onChanged: (value) => _vitalInputs[key] = value,
+                      ),
+                    ),
+                  ),
+                  // Label container for unit
+                  Container(
+                    width: 70,
+                    height:
+                        double.infinity, // Match height of the TextFormField
+                    decoration: BoxDecoration(
+                      color: AppColors
+                          .darkerGray, // Background color for the label
+                      borderRadius: BorderRadius.only(
+                        topRight: Radius.circular(10),
+                        bottomRight: Radius.circular(
+                            10), // Border radius for the label container
+                      ),
+                    ),
+                    child: Align(
+                      alignment: Alignment.center,
+                      child: Text(
+                        unitLabel,
+                        style: TextStyle(
+                          fontSize: 14, // Fixed size for the label
+                          color: AppColors.blackTransparent, // Label color
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         }).toList(),
@@ -408,210 +560,100 @@ class PatientTrackingState extends State<PatientTracking> {
     );
   }
 
-  Widget _buildSliders() {
-    final List<Map<String, dynamic>> physicalSliders = [
-      {'title': 'Diarrhea', 'value': _diarrheaValue},
-      {'title': 'Fatigue', 'value': _fatigueValue},
-      {'title': 'Shortness of Breath', 'value': _shortnessOfBreathValue},
-      {'title': 'Appetite', 'value': _appetiteValue},
-      {'title': 'Coughing', 'value': _coughingValue},
-      {'title': 'Well-being', 'value': _wellBeingValue},
-    ];
-
-    final List<Map<String, dynamic>> emotionalSliders = [
-      {'title': 'Nausea', 'value': _nauseaValue},
-      {'title': 'Depression', 'value': _depressionValue},
-      {'title': 'Anxiety', 'value': _anxietyValue},
-      {'title': 'Drowsiness', 'value': _drowsinessValue},
-    ];
-
+  Widget _buildSlider(
+      String title, int value, Color color, Function(int) onChanged) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Physical Symptoms
+        Text(
+          title,
+          style: const TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold),
+        ),
+        Row(
+          children: [
+            Expanded(
+              child: Slider(
+                value: value.toDouble(),
+                min: 0,
+                max: 10,
+                divisions: 10,
+                label: value.toString(),
+                activeColor: color,
+                onChanged: (val) => onChanged(val.toInt()),
+              ),
+            ),
+            const SizedBox(width: 20),
+            DropdownButton<int>(
+              dropdownColor: AppColors.white,
+              value: value,
+              items: List.generate(11, (index) => index).map((val) {
+                return DropdownMenuItem<int>(
+                  value: val,
+                  child: Text(val.toString()),
+                );
+              }).toList(),
+              onChanged: (val) => onChanged(val!),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSliders() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         const Text(
           'Physical',
           style: TextStyle(
-              fontSize: 20.0,
-              fontWeight: FontWeight.bold,
-              fontFamily: "Outfit"),
+            fontSize: 20.0,
+            fontWeight: FontWeight.bold,
+            fontFamily: "Outfit",
+          ),
         ),
         const SizedBox(height: 10),
-        ...physicalSliders.map((slider) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  slider['title'],
-                  style: const TextStyle(
-                      fontSize: 16.0, fontWeight: FontWeight.bold),
-                ),
-                Row(
-                  children: [
-                    // Slider widget
-                    Expanded(
-                      child: Slider(
-                        value: slider['value'].toDouble(),
-                        min: 0,
-                        max: 10,
-                        divisions: 10,
-                        label: slider['value'].toString(),
-                        activeColor: AppColors.neon,
-                        onChanged: (value) {
-                          setState(() {
-                            // Update slider value
-                            if (slider['title'] == 'Diarrhea') {
-                              _diarrheaValue = value.toInt();
-                            }
-                            if (slider['title'] == 'Fatigue') {
-                              _fatigueValue = value.toInt();
-                            }
-                            if (slider['title'] == 'Shortness of Breath') {
-                              _shortnessOfBreathValue = value.toInt();
-                            }
-                            if (slider['title'] == 'Appetite') {
-                              _appetiteValue = value.toInt();
-                            }
-                            if (slider['title'] == 'Coughing') {
-                              _coughingValue = value.toInt();
-                            }
-                            if (slider['title'] == 'Well-being') {
-                              _wellBeingValue = value.toInt();
-                            }
-                          });
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 20),
-                    // Dropdown beside the slider
-                    DropdownButton<int>(
-                      dropdownColor: AppColors.white,
-                      value: slider['value'],
-                      items: List.generate(11, (index) => index).map((value) {
-                        return DropdownMenuItem<int>(
-                          value: value,
-                          child: Text(value.toString()),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          if (slider['title'] == 'Diarrhea') {
-                            _diarrheaValue = value!;
-                          }
-                          if (slider['title'] == 'Fatigue') {
-                            _fatigueValue = value!;
-                          }
-                          if (slider['title'] == 'Shortness of Breath') {
-                            _shortnessOfBreathValue = value!;
-                          }
-                          if (slider['title'] == 'Appetite') {
-                            _appetiteValue = value!;
-                          }
-                          if (slider['title'] == 'Coughing') {
-                            _coughingValue = value!;
-                          }
-                          if (slider['title'] == 'Well-being') {
-                            _wellBeingValue = value!;
-                          }
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          );
+        _buildSlider('Diarrhea', _diarrheaValue, AppColors.neon, (val) {
+          setState(() => _diarrheaValue = val);
         }),
-
-        const SizedBox(height: 20.0),
+        _buildSlider('Fatigue', _fatigueValue, AppColors.neon, (val) {
+          setState(() => _fatigueValue = val);
+        }),
+        _buildSlider(
+            'Shortness of Breath', _shortnessOfBreathValue, AppColors.neon,
+            (val) {
+          setState(() => _shortnessOfBreathValue = val);
+        }),
+        _buildSlider('Appetite', _appetiteValue, AppColors.neon, (val) {
+          setState(() => _appetiteValue = val);
+        }),
+        _buildSlider('Coughing', _coughingValue, AppColors.neon, (val) {
+          setState(() => _coughingValue = val);
+        }),
+        _buildSlider('Well-being', _wellBeingValue, AppColors.neon, (val) {
+          setState(() => _wellBeingValue = val);
+        }),
         const Divider(thickness: 1.0),
-        const SizedBox(height: 20.0),
-
-        // Emotional Symptoms
         const Text(
           'Emotional',
           style: TextStyle(
-              fontSize: 20.0,
-              fontWeight: FontWeight.bold,
-              fontFamily: "Outfit"),
+            fontSize: 20.0,
+            fontWeight: FontWeight.bold,
+            fontFamily: "Outfit",
+          ),
         ),
         const SizedBox(height: 10),
-        ...emotionalSliders.map((slider) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  slider['title'],
-                  style: const TextStyle(
-                      fontSize: 16.0, fontWeight: FontWeight.bold),
-                ),
-                Row(
-                  children: [
-                    // Slider widget
-                    Expanded(
-                      child: Slider(
-                        value: slider['value'].toDouble(),
-                        min: 0,
-                        max: 10,
-                        divisions: 10,
-                        label: slider['value'].toString(),
-                        activeColor: AppColors.purple,
-                        onChanged: (value) {
-                          setState(() {
-                            // Update slider value
-                            if (slider['title'] == 'Nausea') {
-                              _nauseaValue = value.toInt();
-                            }
-                            if (slider['title'] == 'Depression') {
-                              _depressionValue = value.toInt();
-                            }
-                            if (slider['title'] == 'Anxiety') {
-                              _anxietyValue = value.toInt();
-                            }
-                            if (slider['title'] == 'Drowsiness') {
-                              _drowsinessValue = value.toInt();
-                            }
-                          });
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 20),
-                    // Dropdown beside the slider
-                    DropdownButton<int>(
-                      dropdownColor: AppColors.white,
-                      value: slider['value'].toInt(),
-                      items: List.generate(11, (index) => index).map((value) {
-                        return DropdownMenuItem<int>(
-                          value: value,
-                          child: Text(value.toString()),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          if (slider['title'] == 'Nausea') {
-                            _nauseaValue = value!;
-                          }
-                          if (slider['title'] == 'Depression') {
-                            _depressionValue = value!;
-                          }
-                          if (slider['title'] == 'Anxiety') {
-                            _anxietyValue = value!;
-                          }
-                          if (slider['title'] == 'Drowsiness') {
-                            _drowsinessValue = value!;
-                          }
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          );
+        _buildSlider('Nausea', _nauseaValue, AppColors.purple, (val) {
+          setState(() => _nauseaValue = val);
+        }),
+        _buildSlider('Depression', _depressionValue, AppColors.purple, (val) {
+          setState(() => _depressionValue = val);
+        }),
+        _buildSlider('Anxiety', _anxietyValue, AppColors.purple, (val) {
+          setState(() => _anxietyValue = val);
+        }),
+        _buildSlider('Drowsiness', _drowsinessValue, AppColors.purple, (val) {
+          setState(() => _drowsinessValue = val);
         }),
       ],
     );
@@ -649,14 +691,25 @@ class PatientTrackingState extends State<PatientTracking> {
     _algoInputs['Age'] = userData.age;
     _algoInputs['Gender'] = userData.gender;
 
+    // Blood Pressure Parsing and Classification
     final parts = _vitalInputs['Blood Pressure']!.split('/');
-    final systolic = int.tryParse(parts[0]);
-    final diastolic = int.tryParse(parts[1]);
-    if (systolic! < lowBloodPressureSystolic &&
-        diastolic! < lowBloodPressureDiastolic) {
+    final systolic =
+        int.tryParse(parts[0].trim()); // Trim spaces before parsing
+    final diastolic =
+        int.tryParse(parts[1].trim()); // Trim spaces before parsing
+
+    // Check for valid systolic and diastolic values
+    if (systolic == null || diastolic == null) {
+      debugPrint("Invalid blood pressure input.");
+      return;
+    }
+
+    // Blood Pressure Classification
+    if (systolic < lowBloodPressureSystolic &&
+        diastolic < lowBloodPressureDiastolic) {
       _algoInputs['Blood Pressure'] = 'Low';
     } else if (systolic < normalBloodPressureSystolic &&
-        diastolic! < normalBloodPressureDiastolic) {
+        diastolic < normalBloodPressureDiastolic) {
       _algoInputs['Blood Pressure'] = 'Normal';
     } else {
       _algoInputs['Blood Pressure'] = 'High';

@@ -14,8 +14,12 @@ class UserDataForm extends StatefulWidget {
   final UserDataCallback onButtonPressed;
   final bool isSignUp;
   final bool newUser;
+  final bool isVerified; // New field
   final int age;
   final UserRole userRole;
+  final String? will; // New field
+  final String? fixedWishes; // New field
+  final String? organDonation;
 
   const UserDataForm({
     super.key,
@@ -24,7 +28,11 @@ class UserDataForm extends StatefulWidget {
     required this.userData,
     required this.userRole,
     required this.newUser,
+    required this.isVerified,
     required this.age,
+    this.will, // Add to constructor
+    this.fixedWishes, // Add to constructor
+    this.organDonation, // Add to constructor
   });
 
   @override
@@ -105,11 +113,10 @@ class UserDataFormState extends State<UserDataForm> {
     );
     gender = widget.userData?.gender ?? '';
     religion = widget.userData?.religion ?? '';
+    debugPrint(
+        'Religion value: $religion'); // Check if it's populated correctly
+
     _profileImageUrl = widget.userData?.profileImageUrl;
-    willController = TextEditingController(text: widget.userData?.will ?? '');
-    fixedWishesController =
-        TextEditingController(text: widget.userData?.fixedWishes ?? '');
-    organDonation = widget.userData?.organDonation ?? '';
 
     // Add focus listeners
     for (int i = 0; i < _focusNodes.length; i++) {
@@ -155,15 +162,8 @@ class UserDataFormState extends State<UserDataForm> {
   static const List<String> religions = [
     'Roman Catholic',
     'Islam',
-    'Protestant',
     'Iglesia ni Cristo',
-    'Buddhism',
-    'Hinduism',
-    'Judaism',
-    'Jehovah\'s Witnesses',
-    'Seventh-day Adventist',
-    'Evangelical',
-    'Other',
+    'Other', // Add 'Other' option
   ];
 
   static const List<String> organs = [
@@ -171,12 +171,6 @@ class UserDataFormState extends State<UserDataForm> {
     'Liver',
     'Kidney',
     'Lung',
-    'Pancreas',
-    'Intestine',
-    'Cornea',
-    'Bone Marrow',
-    'Skin',
-    'Other',
     'None',
   ];
 
@@ -191,12 +185,18 @@ class UserDataFormState extends State<UserDataForm> {
   }
 
   Future<void> _selectDate(BuildContext context) async {
-    final DateTime initialDate = birthday ?? DateTime.now();
+    // Define the minimum and maximum date limits
+    final DateTime today = DateTime.now();
+    final DateTime minDate = DateTime(today.year - 120); // Set 120 years ago as the minimum
+    final DateTime maxDate = DateTime(today.year - 1);  // Ensure user is at least 1 year old
+
+    final DateTime initialDate = birthday ?? maxDate;  // Default to maxDate if birthday is null
+
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: initialDate,
-      firstDate: DateTime(1900),
-      lastDate: DateTime.now(), // Restrict to past and current dates
+      firstDate: minDate,
+      lastDate: maxDate,  // Allow selecting up to the current date minus 1 year
       builder: (BuildContext context, Widget? child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -215,10 +215,11 @@ class UserDataFormState extends State<UserDataForm> {
       setState(() {
         birthday = picked;
         birthdayController.text =
-            '${_getMonthName(picked.month)} ${picked.day}, ${picked.year}';
+        '${_getMonthName(picked.month)} ${picked.day}, ${picked.year}';
       });
     }
   }
+
 
   InputDecoration _buildInputDecoration(String label, FocusNode focusNode) {
     return InputDecoration(
@@ -244,27 +245,51 @@ class UserDataFormState extends State<UserDataForm> {
       final userId = FirebaseAuth.instance.currentUser?.uid;
       if (userId == null) return false;
 
-      // Fetch the current user's data
-      final currentUserDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .get();
+      // Check across all role-based collections
+      List<String> roles = [
+        'admin',
+        'doctor',
+        'caregiver',
+        'patient',
+        'unregistered'
+      ];
+      String? currentPhoneNumber;
 
-      final currentPhoneNumber = currentUserDoc.data()?['phoneNumber'];
+      for (String role in roles) {
+        final String collectionName = role;
 
-      // If the input matches the current user's phone number, consider it valid
+        // Fetch the current user's document from the collection
+        final userDoc = await FirebaseFirestore.instance
+            .collection(collectionName)
+            .doc(userId)
+            .get();
+
+        if (userDoc.exists) {
+          currentPhoneNumber = userDoc.data()?['phoneNumber'];
+          break; // Stop searching once the user's document is found
+        }
+      }
+
+      // If the current user's phone number matches the input, it's valid
       if (phoneNumber == currentPhoneNumber) return true;
 
-      // Check if any other user has the same phone number
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where('phoneNumber', isEqualTo: phoneNumber)
-          .get();
+      // Check if the phone number exists in any collection
+      for (String role in roles) {
+        final String collectionName = role;
 
-      // If there's any document with the same phone number, it's not unique
-      return snapshot.docs.isEmpty;
+        final snapshot = await FirebaseFirestore.instance
+            .collection(collectionName)
+            .where('phoneNumber', isEqualTo: phoneNumber)
+            .get();
+
+        // If the phone number is found, it's not unique
+        if (snapshot.docs.isNotEmpty) return false;
+      }
+
+      // If no matching phone number is found in any collection, it's unique
+      return true;
     } catch (e) {
-      print('Error checking phone number uniqueness: $e');
+      debugPrint('Error checking phone number uniqueness: $e');
       return false; // Fail-safe: Assume it's not unique if an error occurs
     }
   }
@@ -392,7 +417,7 @@ class UserDataFormState extends State<UserDataForm> {
       birthday: birthday,
       address: addressController.text.trim(),
       profileImageUrl: profileImageUrl ?? '',
-      religion: religion, // Ensure religion is passed here
+      religion: religion,
       age: age,
       will: isPatient ? will : "",
       fixedWishes: isPatient ? fixedWishes : "",
@@ -401,12 +426,16 @@ class UserDataFormState extends State<UserDataForm> {
   }
 
 // Helper method to calculate age
-  int _calculateAge(DateTime? birthday) {
-    if (birthday == null) return 0;
-    final now = DateTime.now();
-    int age = now.year - birthday.year;
-    if (now.month < birthday.month ||
-        (now.month == birthday.month && now.day < birthday.day)) {
+  int _calculateAge(DateTime? birthDate) {
+    if (birthDate == null) return 0;
+
+    final currentDate = DateTime.now();
+    int age = currentDate.year - birthDate.year;
+
+    // Check if the birthday has not yet occurred this year
+    if (currentDate.month < birthDate.month ||
+        (currentDate.month == birthDate.month &&
+            currentDate.day < birthDate.day)) {
       age--;
     }
     return age;
@@ -743,7 +772,8 @@ class UserDataFormState extends State<UserDataForm> {
                 child: TextButton(
                   onPressed: _submitForm,
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 15),
                     backgroundColor: AppColors.neon,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),

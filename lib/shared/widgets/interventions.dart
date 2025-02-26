@@ -25,17 +25,14 @@ class InterventionsViewState extends State<InterventionsView> {
 
   Future<void> _loadCheckedStates() async {
     try {
-      DocumentSnapshot doc = await _firestore
-          .collection('checkedStates')
-          .doc(widget.uid)
-          .get();
+      DocumentSnapshot doc =
+          await _firestore.collection('checkedStates').doc(widget.uid).get();
       if (doc.exists) {
         Map<String, dynamic> rawData = doc.data() as Map<String, dynamic>;
         setState(() {
           persistentCheckedStates = rawData.map((key, value) {
-            List<bool> boolList = (value as List<dynamic>)
-                .map((item) => item as bool)
-                .toList();
+            List<bool> boolList =
+                (value as List<dynamic>).map((item) => item as bool).toList();
             return MapEntry(key, boolList);
           });
         });
@@ -44,7 +41,6 @@ class InterventionsViewState extends State<InterventionsView> {
       debugPrint('Error loading persistent states: $e');
     }
   }
-
 
   Future<void> _saveCheckedStates() async {
     try {
@@ -56,7 +52,6 @@ class InterventionsViewState extends State<InterventionsView> {
       debugPrint('Error saving persistent states: $e');
     }
   }
-
 
   // Map to match user symptoms with Firestore document names
   // Vitals Mapping
@@ -95,14 +90,26 @@ class InterventionsViewState extends State<InterventionsView> {
     Map<String, List<String>> symptomInterventions = {};
 
     try {
-      DocumentSnapshot userDoc =
-          await _firestore.collection('users').doc(widget.uid).get();
-      if (!userDoc.exists ||
-          !(userDoc.data()! as Map<String, dynamic>).containsKey('symptoms')) {
+      // Determine the correct user collection based on uid
+      debugPrint('Fetching user document for UID: ${widget.uid}');
+      DocumentSnapshot? userDoc = await _firestore.collection('patient').doc(widget.uid).get();
+
+      // If user document not found, return an empty map
+      if (userDoc == null || !userDoc.exists) {
+        debugPrint('User document not found for UID: ${widget.uid}');
+        return {};
+      }
+
+      debugPrint('User document fetched: ${userDoc.data()}');
+
+      // Check if 'symptoms' field exists
+      if (!(userDoc.data()! as Map<String, dynamic>).containsKey('symptoms')) {
+        debugPrint('No symptoms field found in the user document');
         return {};
       }
 
       List<String> symptoms = List<String>.from(userDoc['symptoms']);
+      debugPrint('Symptoms found: $symptoms');
 
       // Combine all mappings into one for lookup
       final allMappings = {
@@ -110,17 +117,26 @@ class InterventionsViewState extends State<InterventionsView> {
         ...physicalMapping,
         ...emotionalMapping,
       };
+      debugPrint('Combined mappings: $allMappings');
 
       for (String symptom in symptoms) {
+        debugPrint('Processing symptom: $symptom');
         String? mappedName = allMappings[symptom];
-        if (mappedName == null) continue;
+        if (mappedName == null) {
+          debugPrint('No mapping found for symptom: $symptom');
+          continue;
+        }
+
+        // Query interventions based on mapped symptom name
+        debugPrint('Fetching intervention document for mapped name: $mappedName');
         DocumentSnapshot interventionDoc =
-            await _firestore.collection('interventions').doc(mappedName).get();
+        await _firestore.collection('interventions').doc(mappedName).get();
         if (interventionDoc.exists) {
-          List<String> interventions =
-              List<String>.from(interventionDoc['interventions'] ?? []);
+          List<String> interventions = List<String>.from(interventionDoc['interventions'] ?? []);
+          debugPrint('Interventions for $symptom: $interventions');
           symptomInterventions[symptom] = interventions;
         } else {
+          debugPrint('No interventions found for $symptom');
           symptomInterventions[symptom] = ['No interventions found'];
         }
       }
@@ -128,13 +144,26 @@ class InterventionsViewState extends State<InterventionsView> {
       debugPrint('Error fetching interventions: $e');
     }
 
+    debugPrint('Fetched interventions: $symptomInterventions');
     return symptomInterventions;
   }
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.white,
+      appBar: AppBar(
+        title: const Text(
+          'Intervention',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontFamily: 'Inter',
+          ),
+        ),
+        backgroundColor: AppColors.white,
+        scrolledUnderElevation: 0.0,
+      ),
       body: GestureDetector(
         onTap: () {
           FocusScope.of(context).unfocus();
@@ -153,7 +182,7 @@ class InterventionsViewState extends State<InterventionsView> {
             Map<String, List<String>> symptomInterventions = snapshot.data!;
             return SingleChildScrollView(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(30.0, 10, 30.0, 30.0),
+                padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -185,10 +214,10 @@ class InterventionsViewState extends State<InterventionsView> {
   }
 
   Widget buildSymptomSection(
-      String title,
-      List<String> symptoms,
-      Map<String, List<String>> interventions,
-      ) {
+    String title,
+    List<String> symptoms,
+    Map<String, List<String>> interventions,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -273,28 +302,28 @@ class InterventionsViewState extends State<InterventionsView> {
                       children: [
                         ...symptomInterventions.asMap().entries.map(
                               (entry) => CheckboxListTile(
-                            activeColor: AppColors.neon,
-                            title: Text(
-                              entry.value,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.normal,
-                                fontSize: 16,
-                                fontFamily: 'Inter',
+                                activeColor: AppColors.neon,
+                                title: Text(
+                                  entry.value,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.normal,
+                                    fontSize: 16,
+                                    fontFamily: 'Inter',
+                                  ),
+                                ),
+                                value: checkedStates[entry.key],
+                                onChanged: (bool? value) async {
+                                  setState(() {
+                                    checkedStates[entry.key] = value ?? false;
+                                  });
+                                  persistentCheckedStates[symptom] =
+                                      checkedStates;
+                                  await _saveCheckedStates();
+                                },
+                                controlAffinity:
+                                    ListTileControlAffinity.leading,
                               ),
                             ),
-                            value: checkedStates[entry.key],
-                            onChanged: (bool? value) async {
-                              setState(() {
-                                checkedStates[entry.key] = value ?? false;
-                              });
-                              persistentCheckedStates[symptom] =
-                                  checkedStates;
-                              await _saveCheckedStates();
-                            },
-                            controlAffinity:
-                            ListTileControlAffinity.leading,
-                          ),
-                        ),
                         const SizedBox(height: 10),
                         if (checkedStates.every((state) => state))
                           Padding(

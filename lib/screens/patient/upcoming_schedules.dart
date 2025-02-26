@@ -1,6 +1,9 @@
+// ignore_for_file: avoid_print,
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:solace/models/my_user.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/services/database.dart';
 
@@ -25,35 +28,50 @@ class UpcomingSchedulesState extends State<UpcomingSchedules> {
     final User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final String patientId = user.uid;
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(patientId)
-          .get();
+      try {
+        final snapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(patientId)
+            .get();
 
-      if (snapshot.exists) {
-        final List<dynamic> schedulesData = snapshot.data()?['schedule'] ?? [];
+        if (snapshot.exists) {
+          final List<dynamic> schedulesData =
+              snapshot.data()?['schedule'] ?? [];
 
-        final List<Map<String, dynamic>> schedules = [];
-        for (var schedule in schedulesData) {
-          final scheduleDate = (schedule['date'] as Timestamp).toDate();
-          final time = schedule['time'];
-          final caregiverId = schedule['caregiverId'];
+          final List<Map<String, dynamic>> schedules = [];
+          for (var schedule in schedulesData) {
+            final scheduleDate = (schedule['date'] as Timestamp).toDate();
+            final time = schedule['time'];
+            final caregiverId = schedule['caregiverId'];
 
-          // Fetch caregiver's name and add to the schedule data
-          String caregiverName = await db.getUserName(caregiverId);
+            // Fetch caregiver's role
+            UserRole? caregiverRole =
+                await db.getUserRole(caregiverId); // Get the caregiver's role
 
-          schedules.add({
-            'date': scheduleDate,
-            'time': time,
-            'caregiverName': caregiverName,
+            if (caregiverRole == null) {
+              // Handle case if the caregiver's role is not found
+              continue;
+            }
+
+            // Fetch caregiver's name and add to the schedule data
+            String caregiverName = await db.getUserName(
+                caregiverId, caregiverRole); // Pass the caregiver role here
+
+            schedules.add({
+              'date': scheduleDate,
+              'time': time,
+              'caregiverName': caregiverName,
+            });
+          }
+
+          schedules.sort((a, b) => a['date'].compareTo(b['date']));
+
+          setState(() {
+            upcomingSchedules = schedules;
           });
         }
-
-        schedules.sort((a, b) => a['date'].compareTo(b['date']));
-
-        setState(() {
-          upcomingSchedules = schedules;
-        });
+      } catch (e) {
+        print("Error fetching patient schedules: $e");
       }
     }
   }
@@ -109,7 +127,7 @@ class UpcomingSchedulesState extends State<UpcomingSchedules> {
                 Container(
                   width: double.infinity,
                   padding:
-                  const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+                      const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
                   decoration: BoxDecoration(
                     color: AppColors.gray,
                     borderRadius: BorderRadius.circular(10),
@@ -133,7 +151,8 @@ class UpcomingSchedulesState extends State<UpcomingSchedules> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        upcomingSchedules[i]['caregiverName'] ?? 'Caregiver not found',
+                        upcomingSchedules[i]['caregiverName'] ??
+                            'Caregiver not found',
                         style: const TextStyle(
                           fontSize: 14,
                           color: Colors.black54,
@@ -142,7 +161,9 @@ class UpcomingSchedulesState extends State<UpcomingSchedules> {
                     ],
                   ),
                 ),
-                if (i < upcomingSchedules.length - 1) // Add gap except after the last item
+                if (i <
+                    upcomingSchedules.length -
+                        1) // Add gap except after the last item
                   const SizedBox(height: 20),
               ],
             ],

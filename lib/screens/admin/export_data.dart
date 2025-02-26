@@ -5,7 +5,6 @@ import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:csv/csv.dart';
-import 'package:excel/excel.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -141,8 +140,6 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
   void _exportData(List<Map<String, dynamic>> data) {
     if (_selectedFormat == 'CSV') {
       exportToCSV(data);
-    } else if (_selectedFormat == 'XLS') {
-      exportToXLS(data);
     } else if (_selectedFormat == 'PDF') {
       exportToPDF(data);
     }
@@ -216,78 +213,6 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       print("Error generating CSV: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error generating CSV: $e')),
-      );
-    }
-  }
-
-// XLS Export
-  Future<void> exportToXLS(List<Map<String, dynamic>> data) async {
-    try {
-      var excel = Excel.createExcel();
-      final headers = [
-        'uid',
-        'firstName',
-        'middleName',
-        'lastName',
-        'email',
-        'phoneNumber',
-        'birthday',
-        'gender',
-        'address',
-        'dateCreated'
-      ];
-
-      final dateFormat = DateFormat('MMMM dd, yyyy at h:mm:ss a \'UTC\'z');
-      var sheet = excel['Sheet1'];
-      sheet.appendRow(headers);
-
-      for (var docData in data) {
-        List<String> row = [];
-        for (var header in headers) {
-          var value = docData[header];
-
-          if (header == 'dateCreated' || header == 'birthday') {
-            if (value is Timestamp) {
-              value = dateFormat.format(
-                  DateTime.fromMillisecondsSinceEpoch(value.seconds * 1000));
-            }
-          }
-
-          if (value is String &&
-              header == 'phoneNumber' &&
-              value.startsWith('0')) {
-            value =
-                value.replaceFirst(RegExp(r'^0+'), ''); // Remove leading zeros
-          }
-
-          row.add(value.toString());
-        }
-        sheet.appendRow(row);
-      }
-
-      final xlsBytes = Uint8List.fromList(excel.encode()!);
-
-      // Save the file using FilePicker
-      String? outputFile = await FilePicker.platform.saveFile(
-        dialogTitle: 'Save XLS File',
-        fileName: 'exported_data.xlsx',
-        bytes: xlsBytes,
-      );
-
-      if (outputFile != null) {
-        // outputFile is the file path (String)
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('XLS file saved at: $outputFile')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('File picking cancelled.')),
-        );
-      }
-    } catch (e) {
-      print("Error generating XLS: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error generating XLS: $e')),
       );
     }
   }

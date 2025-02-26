@@ -1,27 +1,23 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/shared/widgets/view_patient_task.dart';
-import 'package:solace/services/database.dart';
 import 'package:solace/themes/colors.dart';
 
 class DoctorTasks extends StatefulWidget {
-  const DoctorTasks({super.key});
+  const DoctorTasks({super.key, required this.currentUserId});
+  final String currentUserId;
 
   @override
   DoctorTasksState createState() => DoctorTasksState();
 }
 
 class DoctorTasksState extends State<DoctorTasks> {
-  String _sortOrder = 'A-Z';
+  bool _isAscending = true;
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
-  List<UserData> filteredPatients = [];
-  List<UserData> allPatients = []; // Store all patients for searching
-
-  @override
-  void initState() {
-    super.initState();
-  }
+  List<UserData> filteredUsers = [];
+  List<UserData> allUsers = [];
 
   @override
   void dispose() {
@@ -30,58 +26,88 @@ class DoctorTasksState extends State<DoctorTasks> {
     super.dispose();
   }
 
-  void _filterPatients(String query) {
-    setState(() {
-      if (query.isEmpty) {
-        filteredPatients = List.from(allPatients); // Reset to all patients
-      } else {
-        filteredPatients = allPatients.where((patient) {
-          String fullName =
-              '${patient.firstName} ${patient.lastName}'; // Remove null-aware operator
-          return fullName.toLowerCase().contains(query.toLowerCase());
-        }).toList();
-      }
-    });
+  Stream<List<UserData>> _fetchCaregivers() {
+    return FirebaseFirestore.instance.collection('caregiver').snapshots().map(
+          (snapshot) =>
+              snapshot.docs.map((doc) => UserData.fromDocument(doc)).toList(),
+        );
   }
 
-  void _sortPatients() {
-    setState(() {
-      if (_sortOrder == 'A-Z') {
-        filteredPatients.sort((a, b) =>
-            a.firstName.compareTo(b.firstName)); // Remove null-aware operator
-      } else {
-        filteredPatients.sort((a, b) =>
-            b.firstName.compareTo(a.firstName)); // Remove null-aware operator
-      }
-    });
+  void _filterUsers(String query) {
+    if (mounted) {
+      setState(() {
+        if (query.isEmpty) {
+          filteredUsers = List.from(allUsers);
+        } else {
+          filteredUsers = allUsers.where((user) {
+            final fullName = '${user.firstName} ${user.lastName}'.toLowerCase();
+            return fullName.contains(query.toLowerCase());
+          }).toList();
+        }
+        _sortUsers(); // Apply sorting after filtering
+      });
+    }
+  }
+
+  void _sortUsers() {
+    if (mounted) {
+      setState(() {
+        filteredUsers.sort((a, b) => _isAscending
+            ? a.firstName.compareTo(b.firstName) // Ascending order
+            : b.firstName.compareTo(a.firstName)); // Descending order
+      });
+    }
   }
 
   void _toggleSortOrder() {
-    setState(() {
-      _sortOrder = _sortOrder == 'A-Z' ? 'Z-A' : 'A-Z';
-      _sortPatients();
-    });
+    if (mounted) {
+      setState(() {
+        _isAscending = !_isAscending; // Toggle the sort order
+        _sortUsers(); // Reapply sorting
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final DatabaseService databaseService = DatabaseService();
-
     return Scaffold(
       backgroundColor: AppColors.white,
+      appBar: AppBar(
+        backgroundColor: AppColors.white,
+        scrolledUnderElevation: 0.0,
+        title: const Text(
+          'Caregiver List',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        actions: [
+          GestureDetector(
+            onTap: _toggleSortOrder, // Toggle sort order when tapped
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Image.asset(
+                _isAscending
+                    ? 'lib/assets/images/shared/navigation/ascending.png' // Path to ascending icon
+                    : 'lib/assets/images/shared/navigation/descending.png', // Path to descending icon
+                height: 24, // Adjust size as needed
+                width: 24,
+              ),
+            ),
+          ),
+        ],
+      ),
       body: StreamBuilder<List<UserData>>(
-        stream: databaseService.patients,
+        stream: _fetchCaregivers(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return Center(child: Text("Error loading patients"));
+            return const Center(child: Text("Error loading caregivers"));
           }
 
-          allPatients = snapshot.data ?? [];
-          if (filteredPatients.isEmpty) {
-            filteredPatients = List.from(allPatients);
+          allUsers = snapshot.data ?? [];
+          if (filteredUsers.isEmpty) {
+            filteredUsers = List.from(allUsers);
           }
 
           return GestureDetector(
@@ -90,155 +116,85 @@ class DoctorTasksState extends State<DoctorTasks> {
             },
             child: Container(
               color: AppColors.white,
-              padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: SizedBox(
-                          height: 50.0, // Set height for the TextField
-                          child: TextField(
-                            controller: _searchController,
-                            focusNode: _focusNode,
-                            onSubmitted: (value) {
-                              _filterPatients(value);
-                              FocusScope.of(context)
-                                  .unfocus(); // Unfocus after submitting
-                            },
-                            decoration: InputDecoration(
-                              hintText: 'Search',
-                              hintStyle: const TextStyle(
-                                  color: AppColors.blackTransparent),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(
-                                    color: AppColors
-                                        .blackTransparent), // Default border color
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(
-                                    color: AppColors
-                                        .blackTransparent), // Remove border color when focused
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(
-                                    color: AppColors
-                                        .blackTransparent), // Border color when not focused
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                  vertical: 12.0, horizontal: 10.0),
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  Icons.search,
-                                  color: _focusNode.hasFocus
-                                      ? AppColors.neon
-                                      : Colors
-                                      .grey, // Change color based on focus
-                                ),
-                                onPressed: () {
-                                  _filterPatients(_searchController.text);
-                                  FocusScope.of(context).unfocus();
-                                },
-                              ),
-                            ),
-                          ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: _searchController,
+                      focusNode: _focusNode,
+                      onChanged: _filterUsers,
+                      decoration: InputDecoration(
+                        hintText: 'Search Caregivers',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 5.0),
-                  SizedBox(
-                    height: 40.0, // Set fixed height for both buttons
-                    child: TextButton(
-                      onPressed: _toggleSortOrder,
-                      style: TextButton.styleFrom(
-                        backgroundColor: AppColors.purple,
-                        padding: const EdgeInsets.symmetric(horizontal: 10.0),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10.0),
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.search),
+                          onPressed: () {
+                            _filterUsers(_searchController.text);
+                          },
                         ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _sortOrder,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'Inter',
-                              fontSize: 16.0,
-                            ),
-                          ),
-                          const SizedBox(width: 5.0),
-                          Icon(
-                            _sortOrder == 'A-Z'
-                                ? Icons.arrow_downward
-                                : Icons.arrow_upward,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                        ],
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 10.0),
-                  // In your ListView.builder
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: filteredPatients.length,
-                      itemBuilder: (context, index) {
-                        final patient = filteredPatients[index];
-                        return GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => ViewPatientTask(
-                                  patientId: patient.uid, // Pass the patient's unique ID
-                                  patientName:
-                                  '${patient.firstName} ${patient.lastName}', // Pass the full name
-                                ),
-                              ),
-                            );
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                vertical: 10.0, horizontal: 15.0),
-                            margin: const EdgeInsets.symmetric(vertical: 5.0),
-                            decoration: BoxDecoration(
-                              color: AppColors.gray,
-                              borderRadius: BorderRadius.circular(10.0),
-                            ),
-                            child: Row(
-                              children: [
-                                CircleAvatar(
-                                  backgroundImage: (patient.profileImageUrl.isNotEmpty)
-                                      ? NetworkImage(patient.profileImageUrl) // Use NetworkImage if the profile image URL exists
-                                      : const AssetImage('lib/assets/images/shared/placeholder.png') as ImageProvider, // Fallback to placeholder image
-                                  radius: 24.0,
-                                ),
-                                const SizedBox(width: 10.0),
-                                Text(
-                                  '${patient.firstName} ${patient.lastName}', // Remove null-aware operator
-                                  style: const TextStyle(
-                                    fontSize: 18.0,
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.normal,
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: filteredUsers.length,
+                        itemBuilder: (context, index) {
+                          final caregiver = filteredUsers[index];
+                          return GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ViewPatientTask(
+                                    patientId: caregiver.uid,
+                                    patientName:
+                                        '${caregiver.firstName} ${caregiver.lastName}',
                                   ),
                                 ),
-                              ],
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 10.0, horizontal: 15.0),
+                              margin: const EdgeInsets.symmetric(vertical: 5.0),
+                              decoration: BoxDecoration(
+                                color: AppColors.gray,
+                                borderRadius: BorderRadius.circular(10.0),
+                              ),
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    backgroundImage: (caregiver
+                                            .profileImageUrl.isNotEmpty)
+                                        ? NetworkImage(
+                                            caregiver.profileImageUrl)
+                                        : const AssetImage(
+                                                'lib/assets/images/shared/placeholder.png')
+                                            as ImageProvider,
+                                    radius: 24.0,
+                                  ),
+                                  const SizedBox(width: 10.0),
+                                  Text(
+                                    '${caregiver.firstName} ${caregiver.lastName}',
+                                    style: const TextStyle(
+                                      fontSize: 18.0,
+                                      fontFamily: 'Inter',
+                                      fontWeight: FontWeight.normal,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           );

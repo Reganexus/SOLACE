@@ -6,8 +6,6 @@ import 'package:solace/screens/home/home.dart';
 import 'package:solace/screens/authenticate/authenticate.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
-import 'package:solace/shared/accountflow/rolechooser.dart';
-import 'package:solace/shared/globals.dart';
 import 'package:solace/themes/colors.dart';
 
 class Wrapper extends StatelessWidget {
@@ -15,58 +13,139 @@ class Wrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Get the user state from the provider
     final MyUser? user = Provider.of<MyUser?>(context);
 
     if (user == null) {
       debugPrint("No user found, navigating to Authenticate screen.");
-      // User is signed out
       return const Authenticate();
     }
 
-    // Check if the user is verified, or if their profile is new
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _fetchUserDataWithRetries(user.uid),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return _loadingIndicator("Fetching user data...");
+        }
+
+        if (snapshot.hasError) {
+          debugPrint('Error loading user data: ${snapshot.error}');
+          return _errorScreen("Failed to load user data. Please try again.");
+        }
+
+        final userData = snapshot.data;
+        if (userData != null) {
+          debugPrint("User data fetched: $userData");
+          final isVerified = userData['isVerified'] ?? false;
+          final newUser = userData['newUser'] ?? true; // Default to true for safety.
+          final role = userData['userRole'];
+
+          if (newUser) {
+            debugPrint("Wrapper: Directing to Verify()");
+            return const Verify();
+          } else if (!newUser && isVerified) {
+            debugPrint("Wrapper: Directing to Home() with role: $role");
+            return Home(uid: user.uid, role: role);
+          } else {
+            debugPrint("Wrapper: Verification failed for UID: ${user.uid}");
+            return _errorScreen("User verification failed. Please contact support.");
+          }
+        } else {
+          debugPrint("No user data found after retries.");
+          return _errorScreen("User account not found. Please contact support.");
+        }
+      },
+    );
+  }
+
+  Future<Map<String, dynamic>?> _fetchUserDataWithRetries(String uid) async {
+    const maxRetries = 5;
+    const retryDelay = Duration(seconds: 3);
+
+    for (int attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        debugPrint("Fetching user data (attempt ${attempt + 1}) for UID: $uid");
+
+        final role = await DatabaseService().getUserRole(uid);
+        if (role == null) {
+          debugPrint("Role not found. Retrying...");
+          await Future.delayed(retryDelay);
+          continue;
+        }
+
+        final userCollection = DatabaseService().getCollectionForRole(role);
+        if (userCollection == null) {
+          debugPrint("User collection not found for role: $role. Retrying...");
+          await Future.delayed(retryDelay);
+          continue;
+        }
+
+        final docSnapshot = await FirebaseFirestore.instance
+            .collection(userCollection)
+            .doc(uid)
+            .get();
+
+        if (docSnapshot.exists) {
+          debugPrint("User document found for UID: $uid");
+          return docSnapshot.data() as Map<String, dynamic>;
+        } else {
+          debugPrint("User document not found. Retrying...");
+        }
+      } catch (e) {
+        debugPrint("Error fetching user data: $e");
+      }
+
+      await Future.delayed(retryDelay);
+    }
+
+    debugPrint("Max retries reached. User document not found.");
+    return null;
+  }
+
+  Widget _loadingIndicator(String message) {
     return Scaffold(
-      backgroundColor: AppColors.neon, // Set white background
-      body: FutureBuilder<DocumentSnapshot>(
-        future: DatabaseService(uid: user.uid).userCollection.doc(user.uid).get(),
-        builder: (context, userSnapshot) {
-          if (userSnapshot.connectionState == ConnectionState.waiting) {
-            // Change the color of the CircularProgressIndicator to AppColors.neon
-            return Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation(AppColors.white),
-              ),
-            );
-          }
-
-          if (userSnapshot.hasError) {
-            debugPrint('Error fetching user data: ${userSnapshot.error}');
-            return Center(child: Text('Error: ${userSnapshot.error}'));
-          }
-
-          if (userSnapshot.hasData && userSnapshot.data != null) {
-            final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
-            bool isVerified = userData?['isVerified'] ?? false;
-            bool newUser = userData?['newUser'] ?? false;
-
-            if (emailVerificationEnabled && !isVerified) {
-              // Redirect to the verification screen if not verified
-              return const Verify();
-            } else if (newUser) {
-              // If it's a new user, show the profile edit screen
-              return const RoleChooser();
-            } else {
-              // If the user is verified and not new, navigate to the home screen
-              return const Home();
-            }
-          }
-
-          return Center(
-            child: CircularProgressIndicator(
+      backgroundColor: AppColors.neon,
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              message,
+              style: const TextStyle(color: AppColors.white, fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            const CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation(AppColors.white),
             ),
-          );
-        },
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _errorScreen(String message) {
+    return Scaffold(
+      backgroundColor: AppColors.neon,
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              message,
+              style: const TextStyle(color: AppColors.white, fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                // Retry logic can be added here
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.white,
+                foregroundColor: AppColors.neon,
+              ),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
       ),
     );
   }

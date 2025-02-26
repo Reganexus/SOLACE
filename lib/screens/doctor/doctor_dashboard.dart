@@ -1,12 +1,14 @@
-// ignore_for_file: avoid_print, use_build_context_synchronously
-
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:solace/models/my_patient.dart';
+import 'package:solace/screens/doctor/doctor_tasks.dart';
+import 'package:solace/screens/doctor/doctor_users.dart';
 import 'package:solace/services/database.dart';
+import 'package:solace/shared/widgets/contacts.dart';
+import 'package:solace/shared/widgets/medicine.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:accordion/accordion.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:solace/models/my_user.dart';
 
 class DoctorDashboard extends StatefulWidget {
@@ -20,7 +22,6 @@ class DoctorDashboardState extends State<DoctorDashboard> {
   final ValueNotifier<int?> _openSectionIndex = ValueNotifier<int?>(null);
   final ScrollController _scrollController = ScrollController();
   final String doctorId = FirebaseAuth.instance.currentUser?.uid ?? '';
-
   late final DatabaseService _databaseService;
 
   @override
@@ -36,8 +37,104 @@ class DoctorDashboardState extends State<DoctorDashboard> {
     super.dispose();
   }
 
+  final List<Map<String, dynamic>> gridItems = [
+    {'label': 'Caregiver', 'icon': Icons.perm_contact_calendar_rounded},
+    {'label': 'Contacts', 'icon': Icons.contact_page_rounded},
+    {'label': 'Medicine', 'icon': Icons.medical_services_rounded},
+    {'label': 'Prescribe', 'icon': Icons.medication_liquid},
+  ];
+
+  final Map<String, Widget Function(String)> routes = {
+    'Caregiver': (userId) => DoctorUsers(currentUserId: userId),
+    'Contacts': (userId) => Contacts(currentUserId: userId),
+    'Medicine': (userId) => Medicine(currentUserId: userId),
+    'Prescribe': (userId) => DoctorTasks(currentUserId: userId),
+  };
+
+  Widget _buildIconContainer(IconData icon) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.gray,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      alignment: Alignment.center,
+      padding: const EdgeInsets.all(8),
+      child: Icon(
+        icon,
+        size: 28,
+        color: AppColors.black,
+      ),
+    );
+  }
+
+  List<Widget> _buildItems(BuildContext context, String userId) {
+    return [
+      // Grid for icons
+      GridView.builder(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 4, // Ensure 4 items in a row
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+        ),
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: gridItems.length,
+        itemBuilder: (context, index) {
+          final item = gridItems[index];
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => routes[item['label']]!(userId),
+                ),
+              );
+            },
+            child: _buildIconContainer(item['icon']),
+          );
+        },
+      ),
+
+      const SizedBox(height: 5),
+
+      // Grid for labels
+      GridView.builder(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 4, // Match the number of columns for labels
+          crossAxisSpacing: 10,
+        ),
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: gridItems.length,
+        itemBuilder: (context, index) {
+          final item = gridItems[index];
+          return Text(
+            item['label'],
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              fontFamily: 'Inter',
+            ),
+          );
+        },
+      ),
+    ];
+  }
+
+  Stream<List<PatientData>> _fetchPatients() {
+    return FirebaseFirestore.instance.collection('patient').snapshots().map(
+            (snapshot) =>
+            snapshot.docs.map((doc) => PatientData.fromDocument(doc)).toList());
+  }
+
+
   Future<List<String>> _getSymptoms(String patientId) async {
-    return await _databaseService.fetchSymptoms(patientId);
+    final UserRole? role = await _databaseService.getUserRole(patientId);
+    if (role != null) {
+      return await _databaseService.fetchSymptoms(patientId, role);
+    }
+    return [];
   }
 
   void _handleOpenSection(int index) {
@@ -48,20 +145,6 @@ class DoctorDashboardState extends State<DoctorDashboard> {
   void _handleCloseSection() {
     _openSectionIndex.value = null;
   }
-
-  static const headerStyle = TextStyle(
-    color: Colors.black,
-    fontSize: 16,
-    fontFamily: 'Inter',
-    fontWeight: FontWeight.bold,
-  );
-
-  static const contentStyle = TextStyle(
-    color: Colors.black,
-    fontSize: 16,
-    fontWeight: FontWeight.normal,
-    fontFamily: 'Inter',
-  );
 
   void _scrollToSection(int index) {
     double sectionHeight = 100.0;
@@ -76,30 +159,8 @@ class DoctorDashboardState extends State<DoctorDashboard> {
     );
   }
 
-  Future<void> _makeCall(String phoneNumber) async {
-    final Uri launchUri = Uri(
-      scheme: 'tel',
-      path: phoneNumber,
-    );
-
-    var status = await Permission.phone.status;
-    if (status.isDenied) {
-      await Permission.phone.request();
-      status = await Permission.phone.status;
-    }
-
-    if (status.isGranted) {
-      if (await canLaunchUrl(launchUri)) {
-        await launchUrl(launchUri);
-      } else {
-        print('Could not launch $launchUri');
-      }
-    } else {
-      print('Permission denied to make calls.');
-    }
-  }
-
-  Future<void> _scheduleAppointment(String doctorId, String patientId) async {
+  Future<void> _scheduleAppointment(String caregiverId, String patientId) async {
+    if (!mounted) return; // Ensure the widget is still mounted
     final DateTime today = DateTime.now();
 
     // Show the customized date picker
@@ -113,15 +174,13 @@ class DoctorDashboardState extends State<DoctorDashboard> {
           data: Theme.of(context).copyWith(
             dialogBackgroundColor: AppColors.white,
             colorScheme: ColorScheme.light(
-              primary: AppColors.neon, // Customize primary color
-              onPrimary:
-                  AppColors.white, // Customize text color on primary color
-              onSurface:
-                  AppColors.black, // Customize text color on surface color
+              primary: AppColors.neon,
+              onPrimary: AppColors.white,
+              onSurface: AppColors.black,
             ),
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
-                foregroundColor: AppColors.neon, // Customize button text color
+                foregroundColor: AppColors.neon,
               ),
             ),
           ),
@@ -130,61 +189,155 @@ class DoctorDashboardState extends State<DoctorDashboard> {
       },
     );
 
-    if (selectedDate != null) {
-      // Show the customized time picker
-      final TimeOfDay? selectedTime = await showTimePicker(
-        context: context,
-        initialTime: TimeOfDay.now(),
-        builder: (BuildContext context, Widget? child) {
-          return Theme(
-            data: Theme.of(context).copyWith(
-              colorScheme: ColorScheme.light(
-                primary: AppColors.neon, // Customize primary color
-                onPrimary:
-                    AppColors.white, // Customize text color on primary color
-                onSurface:
-                    AppColors.black, // Customize text color on surface color
-              ),
+    if (!mounted || selectedDate == null) return; // Ensure widget is still mounted
+
+    // Show the customized time picker
+    final TimeOfDay? selectedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: AppColors.neon,
+              onPrimary: AppColors.white,
+              onSurface: AppColors.black,
             ),
-            child: child!,
-          );
-        },
-      );
-
-      if (selectedTime != null) {
-        // Close the accordion and remove focus *before* any state changes occur
-        _openSectionIndex.value = null;
-        FocusScope.of(context).unfocus();
-
-        // Combine the selected date and time into a single DateTime object
-        final DateTime scheduledDateTime = DateTime(
-          selectedDate.year,
-          selectedDate.month,
-          selectedDate.day,
-          selectedTime.hour,
-          selectedTime.minute,
+          ),
+          child: child!,
         );
+      },
+    );
 
-        try {
-          // Save schedule in Firestore for both caregiver and patient
-          await _databaseService.saveScheduleForDoctor(
-              doctorId, scheduledDateTime, patientId);
-          await _databaseService.saveScheduleForPatient(
-              patientId, scheduledDateTime, doctorId);
-          print("Schedule saved for both caregiver and patient.");
-        } catch (e) {
-          print("Failed to save schedule: $e");
-        }
-      } else {
-        print("No time selected.");
-      }
-    } else {
-      print("No date selected.");
+    if (!mounted || selectedTime == null) return; // Ensure widget is still mounted
+
+    // Combine the selected date and time into a single DateTime object
+    final DateTime scheduledDateTime = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+      selectedTime.hour,
+      selectedTime.minute,
+    );
+
+    try {
+      debugPrint("Schedule caregiverId: $caregiverId");
+      debugPrint("Schedule scheduledDateTime: $scheduledDateTime");
+      debugPrint("Schedule patientId: $patientId");
+
+      // Save schedule in Firestore for both caregiver and patient
+      await _databaseService.saveScheduleForDoctor(caregiverId, scheduledDateTime, patientId);
+      await _databaseService.saveScheduleForPatient(patientId, scheduledDateTime, caregiverId);
+      print("Schedule saved for both caregiver and patient.");
+    } catch (e) {
+      print("Failed to save schedule: $e");
     }
   }
 
-  Widget _buildActionButton(
-      String label, String iconPath, Color bgColor, VoidCallback onPressed) {
+  Widget _buildAccordion(List<PatientData> unstablePatients) {
+    return Accordion(
+      scaleWhenAnimating: false,
+      paddingListHorizontal: 0.0,
+      paddingListTop: 0.0,
+      paddingListBottom: 0.0,
+      maxOpenSections: 1,
+      headerBackgroundColor: AppColors.gray,
+      headerBackgroundColorOpened: AppColors.neon,
+      contentBackgroundColor: AppColors.gray,
+      contentBorderColor: AppColors.gray,
+      contentHorizontalPadding: 20,
+      contentVerticalPadding: 10,
+      headerPadding: const EdgeInsets.symmetric(vertical: 7, horizontal: 15),
+      children: unstablePatients.map((patient) {
+        return AccordionSection(
+          onOpenSection: () =>
+              _handleOpenSection(unstablePatients.indexOf(patient)),
+          onCloseSection: _handleCloseSection,
+          leftIcon: CircleAvatar(
+            backgroundImage: (patient.profileImageUrl != null &&
+                    patient.profileImageUrl.isNotEmpty)
+                ? NetworkImage(patient.profileImageUrl)
+                : const AssetImage('lib/assets/images/shared/placeholder.png')
+                    as ImageProvider,
+            radius: 24.0,
+          ),
+          rightIcon: ValueListenableBuilder<int?>(
+            valueListenable: _openSectionIndex,
+            builder: (context, value, child) {
+              return Icon(
+                Icons.keyboard_arrow_down,
+                color: value == unstablePatients.indexOf(patient)
+                    ? AppColors.white
+                    : AppColors.black,
+                size: 20,
+              );
+            },
+          ),
+          isOpen: _openSectionIndex.value == unstablePatients.indexOf(patient),
+          header: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10.0),
+            child: Text(
+              '${patient.firstName} ${patient.lastName}',
+              style: TextStyle(
+                color: _openSectionIndex.value == unstablePatients.indexOf(patient)
+                    ? AppColors.white
+                    : AppColors.black,
+                fontSize: 18.0,
+                fontWeight: FontWeight.normal,
+                fontFamily: 'Inter',
+              ),
+              maxLines: 1, // Ensures text is limited to one line
+              overflow: TextOverflow.ellipsis, // Adds ellipsis when text overflows
+            ),
+          ),
+
+          content: FutureBuilder<List<String>>(
+            future: _getSymptoms(patient.uid),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError) {
+                return const Text("Error loading symptoms");
+              }
+
+              final symptoms = snapshot.data ?? [];
+              return SizedBox(
+                width: double.infinity,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Identified Conditions',
+                      style: TextStyle(
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Inter',
+                      ),
+                    ),
+                    const SizedBox(height: 10.0),
+                    if (symptoms.isNotEmpty)
+                      ...symptoms.map((symptom) => Text(symptom)),
+                    if (symptoms.isEmpty)
+                      const Text("No identified conditions available"),
+                    const SizedBox(height: 20.0),
+                    _buildActionButton(
+                      'Schedule',
+                      'lib/assets/images/shared/functions/schedule.png',
+                      AppColors.darkblue,
+                          () => _scheduleAppointment(doctorId, patient.uid), // No null assertion
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildActionButton(String label, String iconPath, Color bgColor, VoidCallback onPressed) {
     return Container(
       height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 0.0, vertical: 0.0),
@@ -215,206 +368,79 @@ class DoctorDashboardState extends State<DoctorDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    // Reset the open section index to null on rebuild
-    _openSectionIndex.value = null;
-
     return Scaffold(
       backgroundColor: AppColors.white,
       body: GestureDetector(
         onTap: () {
           FocusScope.of(context).unfocus();
         },
-        child: Container(
-          color: AppColors.white,
+        child: Padding(
           padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: StreamBuilder<List<UserData?>>(
-                  stream: _databaseService.patients,
+          child: SingleChildScrollView(
+            controller: _scrollController,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Accordion section
+                StreamBuilder<List<PatientData>>(
+                  stream: _fetchPatients(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return Center(child: CircularProgressIndicator());
+                      return const Center(child: CircularProgressIndicator());
                     }
                     if (snapshot.hasError) {
                       return Center(
-                          child: Text(
-                              "Error loading patients: ${snapshot.error}"));
+                        child: Text("Error loading patients: ${snapshot.error}"),
+                      );
                     }
 
                     final patients = snapshot.data ?? [];
-
-                    // Filter patients whose status is "unstable"
                     final unstablePatients = patients
-                        .where((patient) => patient?.status == 'unstable')
+                        .where((patient) => patient.status == 'unstable')
                         .toList();
 
                     if (unstablePatients.isEmpty) {
                       return const Center(
-                          child: Text('No unstable patients available'));
+                        child: Text('No unstable patients available'),
+                      );
                     }
 
-                    return SingleChildScrollView(
-                      controller: _scrollController,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Priority Patients',
-                            style: TextStyle(
-                              fontSize: 24.0,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'Outfit',
-                            ),
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Priority Patients',
+                          style: TextStyle(
+                            fontSize: 24.0,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Outfit',
                           ),
-                          const SizedBox(height: 20.0),
-                          Accordion(
-                            scaleWhenAnimating: false,
-                            paddingListHorizontal: 0.0,
-                            paddingListTop: 0.0,
-                            paddingListBottom: 0.0,
-                            maxOpenSections: 1,
-                            headerBackgroundColor: AppColors.gray,
-                            headerBackgroundColorOpened: AppColors.neon,
-                            contentBackgroundColor: AppColors.gray,
-                            contentBorderColor: AppColors.gray,
-                            contentHorizontalPadding: 20,
-                            contentVerticalPadding: 10,
-                            headerPadding: const EdgeInsets.symmetric(
-                                vertical: 7, horizontal: 15),
-                            children: unstablePatients.map((patient) {
-                              return AccordionSection(
-                                onOpenSection: () => _handleOpenSection(
-                                    unstablePatients.indexOf(patient)),
-                                onCloseSection: _handleCloseSection,
-                                headerBackgroundColor: AppColors.gray,
-                                headerBackgroundColorOpened: AppColors.neon,
-                                contentBackgroundColor: AppColors.gray,
-                                contentBorderColor: AppColors.gray,
-                                contentHorizontalPadding: 20,
-                                contentVerticalPadding: 10,
-                                headerPadding: const EdgeInsets.symmetric(
-                                    vertical: 10, horizontal: 15),
-                                leftIcon: CircleAvatar(
-                                  backgroundImage: (patient?.profileImageUrl !=
-                                              null &&
-                                          patient!.profileImageUrl.isNotEmpty)
-                                      ? NetworkImage(patient
-                                          .profileImageUrl) // Use NetworkImage if the profile image URL exists
-                                      : const AssetImage(
-                                              'lib/assets/images/shared/placeholder.png')
-                                          as ImageProvider, // Fallback to placeholder image
-                                  radius: 24.0,
-                                ),
-                                rightIcon: ValueListenableBuilder<int?>(
-                                  valueListenable: _openSectionIndex,
-                                  builder: (context, value, child) {
-                                    return Icon(
-                                      Icons.keyboard_arrow_down,
-                                      color: value ==
-                                              unstablePatients.indexOf(patient)
-                                          ? AppColors.white
-                                          : AppColors.black,
-                                      size: 20,
-                                    );
-                                  },
-                                ),
-                                isOpen: _openSectionIndex.value ==
-                                    unstablePatients.indexOf(patient),
-                                header: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 10.0),
-                                  child: Text(
-                                    '${patient?.firstName ?? 'Unknown'} ${patient?.lastName ?? 'Unknown'}',
-                                    style: headerStyle.copyWith(
-                                      color: _openSectionIndex.value ==
-                                              unstablePatients.indexOf(patient)
-                                          ? AppColors.white
-                                          : AppColors.black,
-                                      fontSize: 18.0,
-                                      fontFamily: 'Inter',
-                                      fontWeight: FontWeight.normal,
-                                    ),
-                                  ),
-                                ),
-                                content: FutureBuilder<List<String>>(
-                                  future: _getSymptoms(patient?.uid ?? ''),
-                                  builder: (context, symptomSnapshot) {
-                                    if (symptomSnapshot.connectionState ==
-                                        ConnectionState.waiting) {
-                                      return const Center(
-                                          child: CircularProgressIndicator());
-                                    }
-
-                                    if (symptomSnapshot.hasError) {
-                                      return const Text(
-                                          "Error loading symptoms");
-                                    }
-
-                                    final symptoms = symptomSnapshot.data ?? [];
-                                    return Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'Identified Conditions',
-                                          style: TextStyle(
-                                            fontSize: 16.0,
-                                            fontWeight: FontWeight.bold,
-                                            fontFamily: 'Inter',
-                                          ),
-                                        ),
-                                        const SizedBox(height: 10.0),
-                                        // Display symptoms if available
-                                        if (symptoms.isNotEmpty)
-                                          ...symptoms
-                                              .map((symptom) => Text(symptom,
-                                                  style: contentStyle))
-                                              ,
-                                        if (symptoms.isEmpty)
-                                          const Text(
-                                              "No identified conditions available",
-                                              style: contentStyle),
-                                        const SizedBox(height: 20.0),
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            _buildActionButton(
-                                              'Schedule',
-                                              'lib/assets/images/shared/functions/schedule.png',
-                                              AppColors.darkblue,
-                                              () => _scheduleAppointment(
-                                                  doctorId, patient?.uid ?? ''),
-                                            ),
-                                            const SizedBox(width: 10),
-                                            _buildActionButton(
-                                              'Call',
-                                              'lib/assets/images/shared/functions/call.png',
-                                              AppColors.red,
-                                              () => _makeCall(
-                                                  patient?.phoneNumber ?? ''),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                ),
-                              );
-                            }).toList(),
+                        ),
+                        const SizedBox(height: 20.0),
+                        // Wrap accordion in a Container to set height
+                        SizedBox(
+                          height: 300, // Set height for the scrollable accordion
+                          child: SingleChildScrollView(
+                            child: _buildAccordion(unstablePatients),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     );
                   },
                 ),
-              ),
-            ],
+
+                const SizedBox(height: 10),
+                const Divider(thickness: 1.0),
+                const SizedBox(height: 10),
+
+                // Grid builder section
+                ..._buildItems(context, doctorId),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+
 }

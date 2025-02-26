@@ -2,28 +2,31 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 
-enum UserRole { admin, patient, caregiver, doctor }
+enum UserRole { admin, caregiver, doctor, patient, unregistered }
 
 class MyUser with ChangeNotifier {
   String uid;
-  bool isVerified; // Add isVerified
+  bool isVerified;
   bool newUser;
   String profileImageUrl;
+  String? email; // Add email as a nullable property
 
   MyUser({
     required this.uid,
     required this.isVerified,
     this.newUser = true,
     required this.profileImageUrl,
+    this.email, // Initialize email (optional)
   });
 
   // Method to update user data
   void setUser(String newUid, bool newIsVerified, bool isNewUser,
-      String newProfileImageUrl) {
+      String newProfileImageUrl, String? newEmail) {
     uid = newUid;
     isVerified = newIsVerified;
     newUser = isNewUser;
-    profileImageUrl = newProfileImageUrl; // Update profileImageUrl
+    profileImageUrl = newProfileImageUrl;
+    email = newEmail; // Update email
     notifyListeners();
   }
 }
@@ -43,11 +46,8 @@ class UserData {
   final bool newUser;
   final DateTime dateCreated;
   final String profileImageUrl;
-  final String status; // Status field
-  final String religion; // New field for religion
-  final String? will;
-  final String? fixedWishes;
-  final String? organDonation;
+  final String status;
+  final String religion;
 
   UserData({
     required this.userRole,
@@ -57,7 +57,7 @@ class UserData {
     required this.lastName,
     required this.email,
     required this.phoneNumber,
-    this.birthday,
+    required this.birthday,
     required this.gender,
     required this.address,
     required this.isVerified,
@@ -66,9 +66,6 @@ class UserData {
     required this.profileImageUrl,
     required this.status,
     required this.religion,
-    this.will,
-    this.fixedWishes,
-    this.organDonation,
   });
 
   int? get age {
@@ -80,6 +77,29 @@ class UserData {
       years--;
     }
     return years;
+  }
+
+  factory UserData.fromMap(Map<String, dynamic> map, String id) {
+    return UserData(
+      uid: id,
+      userRole: UserData.getUserRoleFromString(map['userRole']?.toString() ?? 'caregiver'),
+      firstName: map['firstName'] ?? '',
+      middleName: map['middleName'] ?? '',
+      lastName: map['lastName'] ?? '',
+      email: map['email'] ?? '',
+      phoneNumber: map['phoneNumber'] ?? '',
+      profileImageUrl: map['profileImageUrl'] ?? '',
+      birthday: map['birthday'] != null
+          ? (map['birthday'] as Timestamp).toDate()
+          : null,
+      gender: map['gender'] ?? '',
+      address: map['address'] ?? '',
+      isVerified: map['isVerified'] ?? '',
+      newUser: map['newUser'] ?? '',
+      dateCreated: map['dateCreated'] ?? '',
+      status: map['status'] ?? '',
+      religion: map['religion'] ?? '',
+    );
   }
 
   factory UserData.fromDocument(DocumentSnapshot doc) {
@@ -104,10 +124,28 @@ class UserData {
       profileImageUrl: data['profileImageUrl'] ?? '',
       status: data['status'] ?? 'stable',
       religion: data['religion'] ?? 'Not specified',
-      will: data['will'],
-      fixedWishes: data['fixedWishes'],
-      organDonation: data['organDonation'],
     );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'userRole': getUserRoleString(userRole),
+      'uid': uid,
+      'firstName': firstName,
+      'middleName': middleName,
+      'lastName': lastName,
+      'email': email,
+      'phoneNumber': phoneNumber,
+      'birthday': birthday != null ? Timestamp.fromDate(birthday!) : null,
+      'gender': gender,
+      'address': address,
+      'isVerified': isVerified,
+      'newUser': newUser,
+      'dateCreated': Timestamp.fromDate(dateCreated),
+      'profileImageUrl': profileImageUrl,
+      'status': status,
+      'religion': religion,
+    };
   }
 
   @override
@@ -155,7 +193,7 @@ class UserData {
   static UserRole getUserRoleFromString(String role) {
     return UserRole.values.firstWhere(
       (e) => e.toString().split('.').last == role,
-      orElse: () => UserRole.patient,
+      orElse: () => UserRole.caregiver,
     );
   }
 

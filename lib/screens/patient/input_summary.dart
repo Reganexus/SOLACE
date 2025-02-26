@@ -9,9 +9,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ReceiptScreen extends StatefulWidget {
+  final String uid;
   final Map<String, dynamic> inputs;
   final Map<String, dynamic> algoInputs;
-  final String uid;
 
   const ReceiptScreen({
     super.key,
@@ -32,7 +32,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
     // Clear symptoms in Firestore
     try {
-      await _firestore.collection('users').doc(widget.uid).update({
+      await _firestore.collection('patient').doc(widget.uid).update({
         'symptoms': [],
       });
       debugPrint('Symptoms list cleared successfully.');
@@ -139,7 +139,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
   void _updateFireStoreSymptoms(List<String> symptoms) async {
     try {
-      await _firestore.collection('users').doc(widget.uid).update({
+      await _firestore.collection('patient').doc(widget.uid).update({
         'symptoms': FieldValue.arrayUnion(symptoms),
       });
       debugPrint('Identified symptoms successfully updated in Firestore');
@@ -150,9 +150,9 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         debugPrint('Status set to stable');
       } else {
         status = 'unstable';
-        debugPrint('Status set to stable');
+        debugPrint('Status set to unstable');
       }
-      await _firestore.collection('users').doc(widget.uid).update({
+      await _firestore.collection('patient').doc(widget.uid).update({
         'status': status,
       });
     } catch (e) {
@@ -285,7 +285,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
               backgroundColor: AppColors.white,
               title: const Text(
                 'Unsaved Changes',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 24,
                   fontFamily: 'Outfit',
                   fontWeight: FontWeight.bold,
@@ -294,7 +294,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
               ),
               content: const Text(
                 'If you go back, your inputs will not be saved. Do you want to continue?',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
                   fontFamily: 'Inter',
                   fontWeight: FontWeight.normal,
@@ -499,6 +499,8 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                         // Get the current timestamp
                         final timestamp = Timestamp.now();
 
+                        debugPrint("Timestamp now at tracking: $timestamp");
+
                         // Prepare the data to be inserted
                         final trackingData = {
                           'timestamp': timestamp,
@@ -558,8 +560,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                           );
                         }
 
-                        // Navigate back after successful submission
-                        Navigator.pop(context);
+                          Navigator.pop(context);
                       } catch (e) {
                         // Handle any unexpected errors here
                         debugPrint("Unexpected error: $e");

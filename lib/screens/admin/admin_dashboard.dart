@@ -12,9 +12,7 @@ class AdminDashboard extends StatefulWidget {
 }
 
 class _AdminDashboardState extends State<AdminDashboard> {
-  // Variables to hold the counts
   int patientCount = 0;
-  int caregiverCount = 0;
   int doctorCount = 0;
   int adminCount = 0;
   int totalUsers = 0;
@@ -24,118 +22,122 @@ class _AdminDashboardState extends State<AdminDashboard> {
   @override
   void initState() {
     super.initState();
-    fetchUserCounts();
-    fetchStatusCounts();
+    fetchData();
   }
 
-  // Function to fetch user counts by userRole
-  Future<void> fetchUserCounts() async {
+  Future<void> fetchData() async {
     try {
       final firestore = FirebaseFirestore.instance;
 
-      // Query for each user role
-      final patientSnapshot = await firestore
-          .collection('users')
-          .where('userRole', isEqualTo: 'patient')
-          .get();
+      final userCounts = await Future.wait([
+        firestore
+            .collection('users')
+            .where('userRole', isEqualTo: 'patient')
+            .get(),
+        firestore
+            .collection('users')
+            .where('userRole', isEqualTo: 'doctor')
+            .get(),
+        firestore
+            .collection('users')
+            .where('userRole', isEqualTo: 'admin')
+            .get(),
+      ]);
 
-      final caregiverSnapshot = await firestore
-          .collection('users')
-          .where('userRole', isEqualTo: 'caregiver')
-          .get();
-
-      final doctorSnapshot = await firestore
-          .collection('users')
-          .where('userRole', isEqualTo: 'doctor')
-          .get();
-
-      final adminSnapshot = await firestore
-          .collection('users')
-          .where('userRole', isEqualTo: 'admin')
-          .get();
+      final statusCounts = await Future.wait([
+        firestore
+            .collection('users')
+            .where('userRole', isEqualTo: 'patient')
+            .where('status', isEqualTo: 'stable')
+            .get(),
+        firestore
+            .collection('users')
+            .where('userRole', isEqualTo: 'patient')
+            .where('status', isEqualTo: 'unstable')
+            .get(),
+      ]);
 
       setState(() {
-        patientCount = patientSnapshot.size;
-        caregiverCount = caregiverSnapshot.size;
-        doctorCount = doctorSnapshot.size;
-        adminCount = adminSnapshot.size;
-        totalUsers = patientCount + caregiverCount + doctorCount + adminCount;
+        patientCount = userCounts[0].size;
+        doctorCount = userCounts[1].size;
+        adminCount = userCounts[2].size;
+        totalUsers = patientCount + doctorCount + adminCount;
+
+        stableCount = statusCounts[0].size;
+        unstableCount = statusCounts[1].size;
       });
     } catch (e) {
-      print('Error fetching user counts: $e');
+      print('Error fetching data: $e');
     }
   }
 
-  // Function to fetch status counts (Stable, Unstable)
-  Future<void> fetchStatusCounts() async {
-    try {
-      final firestore = FirebaseFirestore.instance;
-
-      // Query for users with status 'stable'
-      final stableSnapshot = await firestore
-          .collection('users')
-          .where('status', isEqualTo: 'stable')
-          .get();
-
-      // Query for users with status 'unstable'
-      final unstableSnapshot = await firestore
-          .collection('users')
-          .where('status', isEqualTo: 'unstable')
-          .get();
-
-      // Update state with the counts
-      setState(() {
-        stableCount = stableSnapshot.size;
-        unstableCount = unstableSnapshot.size;
-      });
-    } catch (e) {
-      print('Error fetching status counts: $e');
-      // Reset counts in case of error
-      setState(() {
-        stableCount = 0;
-        unstableCount = 0;
-      });
-    }
+  Widget _buildSquareContainer(String title, Color color) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      alignment: Alignment.center,
+      padding: const EdgeInsets.all(8),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          fontFamily: 'Inter',
+          color: AppColors.white,
+        ),
+      ),
+    );
   }
 
-
-  Widget _buildSquareContainer(String title, String label, Color color) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          width: 70,
-          height: 70,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: color),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            title,
-            textAlign: TextAlign.center,
+  Widget _buildStatusItem(String count, String label, Color color) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      alignment: Alignment.center,
+      padding: const EdgeInsets.all(8),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            count,
             style: const TextStyle(
-              fontSize: 16,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
               fontFamily: 'Inter',
               color: AppColors.white,
             ),
           ),
-        ),
-        const SizedBox(height: 8), // Spacing between the container and label
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.normal,
-            fontFamily: 'Inter',
-            color: AppColors.black,
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 18,
+              fontFamily: 'Inter',
+              color: AppColors.white,
+            ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLabel(String label, double fontSize) {
+    return Container(
+      alignment: Alignment.center,
+      height: fontSize + 10, // Add padding for better visual spacing
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: fontSize,
+          fontFamily: 'Inter',
+          color: AppColors.black,
         ),
-      ],
+        textAlign: TextAlign.center,
+      ),
     );
   }
 
@@ -143,66 +145,76 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: SingleChildScrollView(
-        child: Container(
-          color: AppColors.white,
-          padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Users Data Section
-              const Text(
-                'Users Data',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Inter',
-                  color: AppColors.black,
-                ),
+      body: Container(
+        padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Status Data',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Inter',
+                color: AppColors.black,
               ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 16, // Horizontal spacing between boxes
-                runSpacing: 16, // Vertical spacing between rows
-                alignment: WrapAlignment.start,
-                children: [
-                  _buildSquareContainer(
-                      '$patientCount', 'Patients', AppColors.blue),
-                  _buildSquareContainer(
-                      '$caregiverCount', 'Caregivers', AppColors.purple),
-                  _buildSquareContainer(
-                      '$doctorCount', 'Doctors', AppColors.neon),
-                  _buildSquareContainer(
-                      '$adminCount', 'Admins', AppColors.darkgray),
-                ],
+            ),
+            const SizedBox(height: 20),
+            GridView.count(
+              crossAxisCount:
+                  2, // Two items in a row for "Stable" and "Unstable"
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              children: [
+                _buildStatusItem('$stableCount', 'Stable', AppColors.neon),
+                _buildStatusItem('$unstableCount', 'Unstable', AppColors.red),
+              ],
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Users Data',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Inter',
+                color: AppColors.black,
               ),
-              const SizedBox(height: 30),
-              // Status Data Section
-              const Text(
-                'Status Data',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Inter',
-                  color: AppColors.black,
-                ),
+            ),
+            const SizedBox(height: 20),
+            GridView.count(
+              crossAxisCount: 4,
+              crossAxisSpacing: 10,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              children: [
+                _buildSquareContainer('$patientCount', AppColors.blue),
+                _buildSquareContainer('$doctorCount', AppColors.purple),
+                _buildSquareContainer('$adminCount', AppColors.neon),
+                _buildSquareContainer('$totalUsers', AppColors.darkblue),
+              ],
+            ),
+            SizedBox(
+              height: 5,
+            ),
+            GridView.builder(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 4,
+                crossAxisSpacing: 10,
+                childAspectRatio:
+                    4, // Make the grid cells rectangular, suitable for text
               ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 16, // Horizontal spacing between boxes
-                runSpacing: 16, // Vertical spacing between rows
-                alignment: WrapAlignment.start,
-                children: [
-                  _buildSquareContainer(
-                      '$stableCount', 'Stable', AppColors.neon),
-                  _buildSquareContainer(
-                      '$unstableCount', 'Unstable', AppColors.red),
-                  _buildSquareContainer(
-                      '$totalUsers', 'Total Users', AppColors.darkblue),
-                ],
-              ),
-            ],
-          ),
+              itemCount: 4, // Number of labels
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemBuilder: (context, index) {
+                final labels = ['Patients', 'Doctors', 'Admins', 'Users'];
+                return _buildLabel(
+                    labels[index], 12); // Use dynamic font size if needed
+              },
+            ),
+          ],
         ),
       ),
     );

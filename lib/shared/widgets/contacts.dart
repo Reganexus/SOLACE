@@ -4,190 +4,383 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:solace/shared/widgets/qr_scan.dart';
 
-class Contacts extends StatelessWidget {
+class Contacts extends StatefulWidget {
   final String currentUserId;
+
+  const Contacts({super.key, required this.currentUserId});
+
+  @override
+  ContactsScreenState createState() => ContactsScreenState();
+}
+
+class ContactsScreenState extends State<Contacts> {
+  late final String currentUserId;
+  String? currentUserRole;
+  bool isLoading = true;
+
   final DatabaseService db = DatabaseService();
 
-  Contacts({super.key, required this.currentUserId});
+  @override
+  void initState() {
+    super.initState();
+    currentUserId = widget.currentUserId;
+    _initializeUserRole();
+  }
+
+  Stream<DocumentSnapshot?> _getCurrentUserStream(String userId) async* {
+    const roles = ['admin', 'doctor', 'caregiver', 'patient', 'unregistered'];
+
+    for (final role in roles) {
+      final docStream =
+          FirebaseFirestore.instance.collection(role).doc(userId).snapshots();
+      final doc = await docStream.first;
+      if (doc.exists) {
+        yield* docStream;
+        return;
+      }
+    }
+    yield null;
+  }
+
+  Future<void> _initializeUserRole() async {
+    try {
+      const roles = ['admin', 'doctor', 'caregiver', 'patient', 'unregistered'];
+      for (final role in roles) {
+        final doc = await FirebaseFirestore.instance
+            .collection(role)
+            .doc(currentUserId)
+            .get();
+        if (doc.exists) {
+          setState(() {
+            currentUserRole =
+                (doc.data() as Map<String, dynamic>)['userRole'] ?? 'unknown';
+            isLoading = false;
+          });
+          return;
+        }
+      }
+      throw Exception('User document not found');
+    } catch (e) {
+      debugPrint('Error initializing user role: $e');
+      setState(() => isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to initialize user role: $e')),
+      );
+    }
+  }
 
   void _handleQRScanResult(BuildContext context, String result) async {
-    print('Scanned user ID: $result');
+    try {
+      if (currentUserRole == null) throw Exception('User role not initialized');
 
-    // Check if the user exists
-    bool exists = await db.checkUserExists(result);
-    if (!exists) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('User not found')),
-      );
-      return;
+      final targetUserRole = await db.getTargetUserRole(result);
+      if (targetUserRole == null) throw Exception('User not found');
+
+      if (await db.isUserFriend(currentUserId, result)) {
+        _showSnackBar('You are already friends with this user!');
+        return;
+      }
+
+      if (await db.hasPendingRequest(currentUserId, result)) {
+        _showSnackBar('Friend request already sent!');
+        return;
+      }
+
+      await db.sendFriendRequest(currentUserId, result);
+      _showSnackBar('Friend request successfully sent!');
+    } catch (e) {
+      debugPrint('Error handling QR scan result: $e');
+      _showSnackBar('Error: $e');
     }
-
-    // Check if already friends
-    bool isFriend = await db.isUserFriend(currentUserId, result);
-    if (isFriend) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('You are already friends with this user!')),
-      );
-      return;
-    }
-
-    // Check if a request is already pending
-    bool hasPendingRequest = await db.hasPendingRequest(currentUserId, result);
-    if (hasPendingRequest) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Friend request already sent!')),
-      );
-      return;
-    }
-
-    // Send the friend request if all checks pass
-    await db.sendFriendRequest(currentUserId, result);
-
-    // Show a snackbar indicating the friend request was successfully sent
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Friend request successfully sent!')),
-    );
   }
 
   Future<void> _makeCall(String phoneNumber) async {
-    final Uri launchUri = Uri(
-      scheme: 'tel',
-      path: phoneNumber,
-    );
-
-    var status = await Permission.phone.status;
-    if (status.isDenied) {
-      await Permission.phone.request();
-      status = await Permission.phone.status;
-    }
-
-    if (status.isGranted) {
+    final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
+    if (await Permission.phone.request().isGranted) {
       if (await canLaunchUrl(launchUri)) {
         await launchUrl(launchUri);
-      } else {}
-    } else {}
+      } else {
+        debugPrint('Could not launch $launchUri');
+      }
+    } else {
+      debugPrint('Phone permission denied');
+    }
+  }
+
+  Future<void> _showSearchModal(BuildContext context) async {
+    final uidController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => LayoutBuilder(
+        builder: (context, constraints) {
+          return AlertDialog(
+            backgroundColor: AppColors.white,
+            contentPadding: const EdgeInsets.all(20),
+            title: const Text(
+              'Add Friend',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            content: SizedBox(
+              width: constraints.maxWidth, // Full width of the screen
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: uidController,
+                    decoration: InputDecoration(
+                      labelText: 'Enter User UID',
+                      labelStyle: const TextStyle(
+                        color: AppColors.black, // Default label color
+                      ),
+                      floatingLabelStyle: const TextStyle(
+                        color: AppColors.neon, // Label color when focused
+                      ),
+                      filled: true,
+                      fillColor: AppColors.gray, // Subtle fill
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(
+                          color: AppColors.black, // Default border color
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(
+                          color: AppColors.neon, // Border color when focused
+                          width: 2.0,
+                        ),
+                      ),
+                      errorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(
+                          color: Colors.red, // Border color for errors
+                        ),
+                      ),
+                      focusedErrorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(
+                          color: Colors.red, // Border for focused error
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Container(
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: AppColors.neon,
+                            borderRadius: BorderRadius.circular(10.0),
+                          ),
+                          child: TextButton(
+                            onPressed: () async {
+                              final targetUserId = uidController.text.trim();
+                              try {
+                                print("Starting friend request process...");
+
+                                // Check if the user is trying to add themselves
+                                if (currentUserId == targetUserId) {
+                                  print("User is trying to add themselves.");
+                                  Navigator.of(context)
+                                      .pop(); // Close the dialog
+                                  _showSnackBar(
+                                      "You cannot add yourself as a friend!");
+                                  return;
+                                }
+
+                                // Get the target user's role
+                                print("Fetching target user role...");
+                                final targetUserRole =
+                                    await db.getTargetUserRole(targetUserId);
+                                print("Target user role: $targetUserRole");
+
+                                if (targetUserRole == null) {
+                                  print("Target user role is null.");
+                                  Navigator.of(context)
+                                      .pop(); // Close the dialog
+                                  _showSnackBar('User not found!');
+                                  return;
+                                }
+
+                                // Check if users are already friends
+                                print(
+                                    "Checking if user is already a friend...");
+                                if (await db.isUserFriend(
+                                    currentUserId, targetUserId)) {
+                                  print("Users are already friends.");
+                                  Navigator.of(context)
+                                      .pop(); // Close the dialog
+                                  _showSnackBar(
+                                      'You are already friends with this user!');
+                                  return;
+                                }
+
+                                // Check for pending friend requests
+                                print("Checking for pending requests...");
+                                if (await db.hasPendingRequest(
+                                    currentUserId, targetUserId)) {
+                                  print("Pending request exists.");
+                                  Navigator.of(context)
+                                      .pop(); // Close the dialog
+                                  _showSnackBar('Friend request already sent!');
+                                  return;
+                                }
+
+                                // Send the friend request
+                                print("Sending friend request...");
+                                await db.sendFriendRequest(
+                                    currentUserId, targetUserId);
+                                print("Friend request sent successfully.");
+                                Navigator.of(context).pop(); // Close the dialog
+                                _showSnackBar('Friend request sent!');
+                              } catch (e) {
+                                debugPrint('Error adding friend: $e');
+                                Navigator.of(context).pop(); // Close the dialog
+                                _showSnackBar('Error: $e');
+                              }
+                            },
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.person_add,
+                                  color: AppColors.white,
+                                  size: 24,
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  'Add Friend',
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Container(
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: AppColors.red,
+                            borderRadius: BorderRadius.circular(10.0),
+                          ),
+                          child: TextButton(
+                            onPressed: () {
+                              Navigator.of(context).pop(); // Close the dialog
+                            },
+                            child: const Text(
+                              'Cancel',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.white,
-      appBar: PreferredSize(
-        preferredSize: Size.fromHeight(kToolbarHeight),
-        child: Padding(
-          padding: const EdgeInsets.only(
-              left: 14.0, right: 20.0), // Add padding here
-          child: AppBar(
-            title: Text('Contacts'),
-            backgroundColor: AppColors.white,
-            scrolledUnderElevation: 0.0,
-            actions: [
-              IconButton(
-                color: AppColors.black,
-                icon: Icon(Icons.person_add),
-                iconSize: 30.0,
-                onPressed: () => _showSearchModal(context),
-              ),
-              IconButton(
-                color: AppColors.black,
-                icon: Icon(Icons.qr_code_scanner),
-                iconSize: 30.0,
-                onPressed: () async {
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const QRScannerPage()),
-                  );
-
-                  if (result != null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('QR Code detected'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                    _handleQRScanResult(context, result);
-                  }
-                },
-              ),
-            ],
-          ),
+      appBar: AppBar(
+        backgroundColor: AppColors.white,
+        scrolledUnderElevation: 0.0,
+        title: const Text(
+          'Contacts',
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
+        actions: [
+          GestureDetector(
+            onTap: () => _showSearchModal(context),
+            child: Padding(
+              padding: const EdgeInsets.only(right: 10.0),
+              child: Icon(
+                Icons.person_add,
+                size: 30,
+                color: AppColors.black,
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const QRScannerPage()),
+              );
+              if (result != null) _handleQRScanResult(context, result);
+            },
+            child: Padding(
+              padding: const EdgeInsets.only(right: 24.0),
+              child: Icon(
+                Icons.qr_code_scanner,
+                size: 30,
+                color: AppColors.black,
+              ),
+            ),
+          ),
+        ],
       ),
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .doc(currentUserId)
-            .snapshots(),
+      body: StreamBuilder<DocumentSnapshot?>(
+        stream: _getCurrentUserStream(currentUserId),
         builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
           if (!snapshot.hasData) {
-            return Center(child: CircularProgressIndicator());
+            return const Center(child: Text('User data not found'));
           }
 
-          var contacts = snapshot.data!['contacts'];
-          if (contacts == null || contacts.isEmpty) {
-            // Only show 'No caregivers added' message for patients or caregivers
-            var userRole = snapshot.data!['userRole'];
-            if (userRole == 'patient' || userRole == 'caregiver') {
-              return _noRequestsMessage('No caregivers added');
-            }
+          final userDoc = snapshot.data!.data() as Map<String, dynamic>?;
+          if (userDoc == null) {
+            return const Center(child: Text('User data is empty'));
           }
-
-          var healthcare = contacts['healthcare'];
-          if (healthcare == null || healthcare.isEmpty) {
-            // Only show 'No caregivers added' message for patients or caregivers
-            var userRole = snapshot.data!['userRole'];
-            if (userRole == 'patient' || userRole == 'caregiver') {
-              return _noRequestsMessage('No caregivers added');
-            }
-          }
-
-          var userRole = snapshot.data!['userRole'];
-
-          // Check if a caregiver is already assigned
-          var caregivers = healthcare.entries
-              .where(
-                  (entry) => entry.key != 'requests') // Exclude 'requests' key
-              .map((entry) => entry.key)
-              .toList();
-
-          bool hasCaregiver = caregivers.isNotEmpty;
 
           return SingleChildScrollView(
-            child: Container(
-              color: AppColors.white,
+            child: Padding(
               padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
               child: Column(
                 children: [
-                  // Display caregiver section only if the user is a patient or caregiver and no caregiver is assigned
-                  if (userRole == 'patient' || userRole == 'caregiver') ...[
-                    // Show the caregiver or patient section if `hasCaregiver` is false
-                    if (hasCaregiver) ...[
-                      _buildHeader(
-                        userRole == 'patient' ? 'Caregiver' : 'Patient',
-                      ),
-                      _buildCaregiversList(),
-                      SizedBox(height: 20),
-                    ],
-
-                    // Show caregiver requests only if `hasCaregiver` is false
-                    if (!hasCaregiver) ...[
-                      _buildHeader('Caregiver Requests'),
-                      _buildHealthcareRequestsList(),
-                      SizedBox(height: 20),
-                    ],
-                  ],
-
-                  // Always show the contacts and contact requests section
                   _buildHeader('Contacts'),
+                  const SizedBox(height: 10),
                   _buildFriendsList(),
-                  SizedBox(height: 20),
+                  const SizedBox(height: 20),
                   _buildHeader('Contact Requests'),
+                  const SizedBox(height: 10),
                   _buildRequestsList(),
                 ],
               ),
@@ -215,474 +408,38 @@ class Contacts extends StatelessWidget {
     );
   }
 
-  // Friends list
-  Widget _buildFriendsList() {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUserId)
-          .snapshots(),
+  Widget _buildContactsList(String type, String emptyMessage,
+      Function(String, UserRole) cardBuilder) {
+    return StreamBuilder<DocumentSnapshot?>(
+      stream: _getCurrentUserStream(currentUserId),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
+        if (!snapshot.hasData || snapshot.data == null) {
           return Center(
             child: CircularProgressIndicator(color: AppColors.neon),
           );
         }
+        final data = snapshot.data!.data() as Map<String, dynamic>?;
+        final contacts = data?['contacts'] as Map<String, dynamic>?;
+        final contactsData = contacts?[type] as Map<String, dynamic>?;
 
-        var friendsData = snapshot.data!['contacts']['friends'];
-
-        // Check if friendsData is null or empty
-        if (friendsData == null ||
-            (friendsData is Map && friendsData.isEmpty)) {
-          return Column(
-            children: [
-              SizedBox(
-                height: 20,
-              ),
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.symmetric(vertical: 18),
-                decoration: BoxDecoration(
-                  color: AppColors.gray,
-                  borderRadius: BorderRadius.circular(10.0),
-                ),
-                child: Text(
-                  'No friends yet',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.normal,
-                    color: AppColors.black,
-                  ),
-                ),
-              ),
-            ],
-          );
+        if (contactsData == null || contactsData.isEmpty) {
+          return _buildEmptyState(emptyMessage);
         }
 
-        if (friendsData is Map) {
-          var friends = friendsData.keys.toList();
-
-          return ListView.builder(
-            shrinkWrap: true,
-            physics: NeverScrollableScrollPhysics(),
-            itemCount: friends.length,
-            itemBuilder: (context, index) {
-              String friendId = friends[index];
-
-              return FutureBuilder<String>(
-                future: db.getUserName(friendId),
-                builder: (context, nameSnapshot) {
-                  if (!nameSnapshot.hasData) {
-                    return Center(child: CircularProgressIndicator());
-                  }
-
-                  String friendName = nameSnapshot.data ?? 'Unknown';
-
-                  return FutureBuilder<String>(
-                    future: db.getProfileImageUrl(
-                        friendId), // Assuming this method fetches the profile image URL
-                    builder: (context, imageSnapshot) {
-                      String profileImageUrl = imageSnapshot.data ?? '';
-
-                      return Container(
-                        width: double.infinity,
-                        padding:
-                            EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-                        margin: EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          color: AppColors.gray,
-                          borderRadius: BorderRadius.circular(10.0),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            CircleAvatar(
-                              radius: 24,
-                              backgroundImage: profileImageUrl.isNotEmpty
-                                  ? NetworkImage(profileImageUrl)
-                                  : AssetImage(
-                                          'lib/assets/images/shared/placeholder.png')
-                                      as ImageProvider,
-                            ),
-                            SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                friendName,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontFamily: 'Inter',
-                                  fontWeight: FontWeight.normal,
-                                  color: AppColors.black,
-                                ),
-                              ),
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.more_vert),
-                              onPressed: () =>
-                                  _showFriendOptions(context, friendId),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  );
-                },
-              );
-            },
-          );
-        }
-        return Container(); // In case no friends are found.
-      },
-    );
-  }
-
-  // Requests list
-  Widget _buildRequestsList() {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUserId)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return Center(child: CircularProgressIndicator());
-        }
-
-        var requestsData = snapshot.data!['contacts']['requests'];
-
-        // Check if requestsData is null or empty
-        if (requestsData == null ||
-            (requestsData is Map && requestsData.isEmpty)) {
-          return Column(
-            children: [
-              SizedBox(
-                height: 20,
-              ),
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.symmetric(vertical: 18),
-                decoration: BoxDecoration(
-                  color: AppColors.gray,
-                  borderRadius: BorderRadius.circular(10.0),
-                ),
-                child: Text(
-                  'No requests',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.normal,
-                    color: AppColors.black,
-                  ),
-                ),
-              ),
-            ],
-          );
-        }
-
-        if (requestsData is Map) {
-          var requests = requestsData.keys.toList();
-
-          return ListView.builder(
-            shrinkWrap: true,
-            physics: NeverScrollableScrollPhysics(),
-            itemCount: requests.length,
-            itemBuilder: (context, index) {
-              String requestId = requests[index];
-
-              return FutureBuilder<String>(
-                future: db.getUserName(requestId),
-                builder: (context, nameSnapshot) {
-                  if (!nameSnapshot.hasData) {
-                    return Center(child: CircularProgressIndicator());
-                  }
-
-                  String requesterName = nameSnapshot.data ?? 'Unknown';
-
-                  return FutureBuilder<String>(
-                    future: db.getProfileImageUrl(
-                        requestId), // Assuming this method fetches the profile image URL
-                    builder: (context, imageSnapshot) {
-                      String profileImageUrl = imageSnapshot.data ?? '';
-
-                      return Container(
-                        width: double.infinity,
-                        padding:
-                            EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-                        margin: EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          color: AppColors.gray,
-                          borderRadius: BorderRadius.circular(10.0),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            CircleAvatar(
-                              radius: 24,
-                              backgroundImage: profileImageUrl.isNotEmpty
-                                  ? NetworkImage(profileImageUrl)
-                                  : AssetImage(
-                                          'lib/assets/images/shared/placeholder.png')
-                                      as ImageProvider,
-                            ),
-                            SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                requesterName,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontFamily: 'Inter',
-                                  fontWeight: FontWeight.normal,
-                                  color: AppColors.black,
-                                ),
-                              ),
-                            ),
-                            Row(
-                              children: [
-                                IconButton(
-                                  icon: Icon(Icons.check, color: Colors.green),
-                                  onPressed: () => db.acceptFriendRequest(
-                                      currentUserId, requestId),
-                                ),
-                                IconButton(
-                                  icon: Icon(Icons.clear, color: Colors.red),
-                                  onPressed: () => db.declineFriendRequest(
-                                      currentUserId, requestId),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  );
-                },
-              );
-            },
-          );
-        }
-        return Container(); // In case no requests are found.
-      },
-    );
-  }
-
-  Widget _buildHealthcareRequestsList() {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUserId)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return Center(child: CircularProgressIndicator());
-        }
-
-        // Accessing the nested structure
-        var contacts = snapshot.data!['contacts'];
-        if (contacts == null || contacts.isEmpty) {
-          return _noRequestsMessage('No healthcare requests');
-        }
-
-        var healthcare = contacts['healthcare'];
-        if (healthcare == null || healthcare.isEmpty) {
-          return _noRequestsMessage('No healthcare requests');
-        }
-
-        var requests = healthcare['requests'];
-        if (requests == null || requests.isEmpty) {
-          return _noRequestsMessage('No healthcare requests');
-        }
-
-        if (requests is Map) {
-          var requestKeys = requests.keys.toList();
-
-          return ListView.builder(
-            shrinkWrap: true,
-            physics: NeverScrollableScrollPhysics(),
-            itemCount: requestKeys.length,
-            itemBuilder: (context, index) {
-              String requestId = requestKeys[index];
-
-              return FutureBuilder<String>(
-                future: db.getUserName(requestId),
-                builder: (context, nameSnapshot) {
-                  if (!nameSnapshot.hasData) {
-                    return Center(child: CircularProgressIndicator());
-                  }
-
-                  String requesterName = nameSnapshot.data ?? 'Unknown';
-
-                  return FutureBuilder<String>(
-                    future: db.getProfileImageUrl(requestId),
-                    builder: (context, imageSnapshot) {
-                      String profileImageUrl = imageSnapshot.data ?? '';
-
-                      return Container(
-                        width: double.infinity,
-                        padding:
-                            EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-                        margin: EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          color: AppColors.gray,
-                          borderRadius: BorderRadius.circular(10.0),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            CircleAvatar(
-                              radius: 24,
-                              backgroundImage: profileImageUrl.isNotEmpty
-                                  ? NetworkImage(profileImageUrl)
-                                  : AssetImage(
-                                          'lib/assets/images/shared/placeholder.png')
-                                      as ImageProvider,
-                            ),
-                            SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                requesterName,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontFamily: 'Inter',
-                                  fontWeight: FontWeight.normal,
-                                  color: AppColors.black,
-                                ),
-                              ),
-                            ),
-                            Row(
-                              children: [
-                                IconButton(
-                                  icon: Icon(Icons.check, color: Colors.green),
-                                  onPressed: () => db.acceptHealthcareRequest(
-                                      currentUserId, requestId),
-                                ),
-                                IconButton(
-                                  icon: Icon(Icons.clear, color: Colors.red),
-                                  onPressed: () => db.declineHealthcareRequest(
-                                      currentUserId, requestId),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  );
-                },
-              );
-            },
-          );
-        }
-
-        return _noRequestsMessage('No healthcare requests');
-      },
-    );
-  }
-
-  Widget _buildCaregiversList() {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUserId)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return Center(child: CircularProgressIndicator());
-        }
-
-        debugPrint("Contacts: $snapshot");
-
-        // Accessing the nested structure
-        var contacts = snapshot.data!['contacts'];
-        if (contacts == null || contacts.isEmpty) {
-          return _noRequestsMessage('No caregivers added');
-        }
-
-        var healthcare = contacts['healthcare'];
-        if (healthcare == null || healthcare.isEmpty) {
-          return _noRequestsMessage('No caregivers added');
-        }
-
-        // Filtering out the 'requests' array and getting only the caregiver documents
-        var caregivers = healthcare.entries
-            .where((entry) => entry.key != 'requests') // Exclude 'requests' key
-            .map((entry) => entry.key) // Get only the caregiver IDs
-            .toList();
-
-        if (caregivers.isEmpty) {
-          return _noRequestsMessage('No caregivers added');
-        }
+        final items = contactsData.entries.toList();
         return ListView.builder(
           shrinkWrap: true,
           physics: NeverScrollableScrollPhysics(),
-          itemCount: caregivers.length,
+          itemCount: items.length,
           itemBuilder: (context, index) {
-            String caregiverId = caregivers[index];
-
-            return FutureBuilder<String>(
-              future: db.getUserName(caregiverId),
-              builder: (context, nameSnapshot) {
-                if (!nameSnapshot.hasData) {
-                  return Center(child: CircularProgressIndicator());
-                }
-
-                String caregiverName = nameSnapshot.data ?? 'Unknown';
-
-                return FutureBuilder<String>(
-                  future: db.getProfileImageUrl(
-                      caregiverId), // Fetch caregiver's profile image URL
-                  builder: (context, imageSnapshot) {
-                    String profileImageUrl = imageSnapshot.data ?? '';
-
-                    return Container(
-                      width: double.infinity,
-                      padding:
-                          EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-                      margin: EdgeInsets.symmetric(vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppColors.gray,
-                        borderRadius: BorderRadius.circular(10.0),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          CircleAvatar(
-                            radius: 24,
-                            backgroundImage: profileImageUrl.isNotEmpty
-                                ? NetworkImage(profileImageUrl)
-                                : AssetImage(
-                                        'lib/assets/images/shared/placeholder.png')
-                                    as ImageProvider,
-                          ),
-                          SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              caregiverName,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontFamily: 'Inter',
-                                fontWeight: FontWeight.normal,
-                                color: AppColors.black,
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.more_vert),
-                            onPressed: () =>
-                                _showCaregiverOptions(context, caregiverId),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
+            final contactId = items[index].key;
+            final contactRole = items[index].value;
+            return cardBuilder(
+              contactId,
+              UserRole.values.firstWhere(
+                (role) => role.toString().split('.').last == contactRole,
+                orElse: () => UserRole.caregiver,
+              ),
             );
           },
         );
@@ -690,11 +447,132 @@ class Contacts extends StatelessWidget {
     );
   }
 
-// Helper widget for displaying a no-requests message
-  Widget _noRequestsMessage(String message) {
+  Widget _buildCard({
+    required String name,
+    required String profileImageUrl,
+    required Widget trailingWidget,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: AppColors.gray,
+        borderRadius: BorderRadius.circular(10.0),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          CircleAvatar(
+            radius: 24,
+            backgroundImage: profileImageUrl.isNotEmpty
+                ? NetworkImage(profileImageUrl)
+                : const AssetImage('lib/assets/images/shared/placeholder.png')
+                    as ImageProvider,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              name,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 18,
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.normal,
+                color: AppColors.black,
+              ),
+            ),
+          ),
+          trailingWidget,
+        ],
+      ),
+    );
+  }
+
+  // Friends list
+  Widget _buildFriendsList() {
+    return _buildContactsList('friends', 'No friends yet', _buildFriendCard);
+  }
+
+  Widget _buildRequestsList() {
+    return _buildContactsList('requests', 'No requests', _buildRequestCard);
+  }
+
+  // Friend Card
+  Widget _buildFriendCard(String friendId, UserRole friendRole) {
+    return FutureBuilder<String>(
+      future: db.getUserName(friendId, friendRole),
+      builder: (context, nameSnapshot) {
+        if (!nameSnapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        String friendName = nameSnapshot.data ?? 'Unknown';
+
+        return FutureBuilder<String>(
+          future: db.getProfileImageUrl(friendId, friendRole),
+          builder: (context, imageSnapshot) {
+            String profileImageUrl = imageSnapshot.data ?? '';
+
+            return _buildCard(
+              name: friendName,
+              profileImageUrl: profileImageUrl,
+              trailingWidget: IconButton(
+                icon: const Icon(Icons.more_vert),
+                onPressed: () =>
+                    _showFriendOptions(context, friendId, friendRole),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Request Card
+  Widget _buildRequestCard(String requestId, UserRole requestRole) {
+    return FutureBuilder<String>(
+      future: db.getUserName(requestId, requestRole),
+      builder: (context, nameSnapshot) {
+        if (!nameSnapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        String requesterName = nameSnapshot.data ?? 'Unknown';
+
+        return FutureBuilder<String>(
+          future: db.getProfileImageUrl(requestId, requestRole),
+          builder: (context, imageSnapshot) {
+            String profileImageUrl = imageSnapshot.data ?? '';
+
+            return _buildCard(
+              name: requesterName,
+              profileImageUrl: profileImageUrl,
+              trailingWidget: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.check, color: Colors.green),
+                    onPressed: () =>
+                        db.acceptFriendRequest(currentUserId, requestId),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.clear, color: Colors.red),
+                    onPressed: () =>
+                        db.declineFriendRequest(currentUserId, requestId),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Empty State Widget
+  Widget _buildEmptyState(String message) {
     return Column(
       children: [
-        SizedBox(height: 20),
         Container(
           width: double.infinity,
           padding: EdgeInsets.symmetric(vertical: 18),
@@ -717,226 +595,94 @@ class Contacts extends StatelessWidget {
     );
   }
 
-  // Friend Options Modal
-  Future<void> _showSearchModal(BuildContext context) async {
-    final TextEditingController uidController = TextEditingController();
+  Future<void> _showFriendOptions(
+      BuildContext context, String friendId, UserRole friendRole) async {
+    try {
+      // Fetch the friend's name and phone number based on role
+      String friendName = await db.getUserName(friendId, friendRole);
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: AppColors.white,
-          title: Text(
-            'Add Friend',
-            style: TextStyle(
-              fontFamily: 'Outfit',
-              fontWeight: FontWeight.bold,
-              fontSize: 24,
+      DocumentSnapshot friendDoc = await FirebaseFirestore.instance
+          .collection(
+              friendRole.toString().split('.').last) // Dynamic role-based collection
+          .doc(friendId)
+          .get();
+
+      String phoneNumber = friendDoc['phoneNumber'] ??
+          'Not available'; // Assuming phoneNumber field exists
+
+      // Extract the timestamp for when you became friends
+      var friendData = friendDoc['contacts']['friends'][currentUserId];
+
+      String formattedTimestamp = 'Unknown';
+      if (friendData is Timestamp) {
+        formattedTimestamp =
+            DateFormat('yyyy-MM-dd').format(friendData.toDate());
+      } else if (friendData is Map) {
+        var timestamp = friendData[
+            'timestamp']; // Assuming the timestamp is stored as 'timestamp'
+        if (timestamp is Timestamp) {
+          formattedTimestamp =
+              DateFormat('yyyy-MM-dd').format(timestamp.toDate());
+        }
+      }
+
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            backgroundColor: AppColors.white,
+            title: Text(
+              friendName,
+              style: TextStyle(
+                fontFamily: 'Outfit',
+                fontWeight: FontWeight.bold,
+                fontSize: 24,
+              ),
             ),
-          ),
-          content: SizedBox(
-            width: MediaQuery.of(context).size.width,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: uidController,
-                  decoration: InputDecoration(
-                    labelText: 'Enter User UID',
-                    filled: true,
-                    fillColor: AppColors.gray,
-                    focusColor: AppColors.neon,
-                    border: OutlineInputBorder(
-                      borderSide: BorderSide.none,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: AppColors.neon),
-                    ),
-                    labelStyle: TextStyle(color: AppColors.black),
+            content: SizedBox(
+              width: MediaQuery.of(context).size.width,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Column(
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.phone, color: AppColors.black),
+                          SizedBox(width: 10),
+                          Text(
+                            phoneNumber,
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 18,
+                              fontWeight: FontWeight.normal,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Icon(Icons.people, color: AppColors.black),
+                          SizedBox(width: 10),
+                          Text(
+                            formattedTimestamp,
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 18,
+                              fontWeight: FontWeight.normal,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  maxLines: 1,
-                  expands: false,
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.normal),
-                ),
-                SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      height: 40,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 0.0, vertical: 0.0),
-                      decoration: BoxDecoration(
-                        color: AppColors.neon,
-                        borderRadius: BorderRadius.circular(10.0),
-                      ),
-                      child: TextButton(
-                        onPressed: () async {
-                          String targetUserId = uidController.text.trim();
-                          // Check if user exists
-                          bool exists = await db.checkUserExists(targetUserId);
-                          if (!exists) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('User not found')),
-                            );
-                            return;
-                          }
-
-                          // Check if already friends
-                          bool isFriend = await db.isUserFriend(
-                              currentUserId, targetUserId);
-                          if (isFriend) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                  content: Text(
-                                      'You are already friends with this user!')),
-                            );
-                            return;
-                          }
-
-                          // Check if request is pending
-                          bool hasPendingRequest = await db.hasPendingRequest(
-                              currentUserId, targetUserId);
-                          if (hasPendingRequest) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                  content:
-                                      Text('Friend request already sent!')),
-                            );
-                            return;
-                          }
-
-                          // Send the friend request if all checks pass
-                          await db.sendFriendRequest(
-                              currentUserId, targetUserId);
-                          Navigator.pop(context);
-
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Friend request sent!')),
-                          );
-                        },
-                        style: TextButton.styleFrom(
-                          backgroundColor: AppColors.neon,
-                          foregroundColor: AppColors.white,
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.group_add),
-                            SizedBox(width: 10),
-                            Text(
-                              'Add friend',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold, // Bold text style
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _showFriendOptions(BuildContext context, String friendId) async {
-    // Fetch the friend's name and phone number asynchronously
-    String friendName = await db.getUserName(friendId);
-    DocumentSnapshot friendDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(friendId)
-        .get();
-
-    String phoneNumber = friendDoc['phoneNumber'] ??
-        'Not available'; // Assuming phoneNumber field exists
-
-    // Extract the timestamp for when you became friends
-    var friendData = friendDoc['contacts']['friends'][currentUserId];
-
-    String formattedTimestamp = 'Unknown';
-    if (friendData is Timestamp) {
-      formattedTimestamp = DateFormat('yyyy-MM-dd').format(friendData.toDate());
-    } else if (friendData is Map) {
-      // If the data is a Map, we might need to extract the timestamp from within it
-      var timestamp = friendData[
-          'timestamp']; // assuming the timestamp is stored as 'timestamp'
-      if (timestamp is Timestamp) {
-        formattedTimestamp =
-            DateFormat('yyyy-MM-dd').format(timestamp.toDate());
-      }
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: AppColors.white,
-          title: Text(
-            friendName,
-            style: TextStyle(
-              fontFamily: 'Outfit',
-              fontWeight: FontWeight.bold,
-              fontSize: 24,
-            ),
-          ),
-          content: SizedBox(
-            width: MediaQuery.of(context).size.width,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Column(
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.phone, color: AppColors.black),
-                        SizedBox(width: 10),
-                        Text(
-                          phoneNumber,
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 18,
-                            fontWeight: FontWeight.normal,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Icon(Icons.people, color: AppColors.black),
-                        SizedBox(width: 10),
-                        Text(
-                          formattedTimestamp,
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 18,
-                            fontWeight: FontWeight.normal,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
+                  SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
                           height: 40,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 0.0, vertical: 0.0),
                           decoration: BoxDecoration(
                             color: AppColors.neon,
                             borderRadius: BorderRadius.circular(10.0),
@@ -948,232 +694,112 @@ class Contacts extends StatelessWidget {
                               foregroundColor: AppColors.white,
                             ),
                             child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.call),
+                                Icon(Icons.call, color: AppColors.white),
                                 SizedBox(width: 10),
                                 Text(
                                   'Call',
                                   style: TextStyle(
                                     fontFamily: 'Inter',
                                     fontSize: 14,
-                                    fontWeight:
-                                        FontWeight.bold, // Bold text style
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ],
                             ),
                           ),
                         ),
-                        SizedBox(width: 10),
-                        Container(
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Container(
                           height: 40,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 0.0, vertical: 0.0),
                           decoration: BoxDecoration(
                             color: AppColors.red,
                             borderRadius: BorderRadius.circular(10.0),
                           ),
                           child: TextButton(
                             onPressed: () {
-                              db.removeFriend(currentUserId, friendId);
-                              Navigator.pop(context);
+                              showDialog(
+                                context: context,
+                                builder: (BuildContext context) {
+                                  return AlertDialog(
+                                    title: const Text(
+                                      'Confirm Removal',
+                                      style: TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                    content: const Text(
+                                      'Are you sure you want to remove this friend?',
+                                      style: TextStyle(fontSize: 16),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.of(context)
+                                              .pop(); // Close the confirmation dialog
+                                        },
+                                        child: const Text(
+                                          'Cancel',
+                                          style: TextStyle(color: Colors.grey),
+                                        ),
+                                      ),
+                                      TextButton(
+                                        onPressed: () {
+                                          db.removeFriend(
+                                            currentUserId,
+                                            friendId,
+                                          );
+                                          Navigator.of(context)
+                                              .pop(); // Close the confirmation dialog
+                                          Navigator.of(context)
+                                              .pop(); // Close the original dialog
+                                        },
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: Colors.red,
+                                        ),
+                                        child: const Text('Remove'),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
                             },
                             style: TextButton.styleFrom(
                               backgroundColor: AppColors.red,
                               foregroundColor: AppColors.white,
                             ),
                             child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.group_remove), // Keep the icon
-                                SizedBox(width: 10),
-                                Text(
-                                  'Remove', // Changed text to "Remove"
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 14,
-                                    fontWeight:
-                                        FontWeight.bold, // Bold text style
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _showCaregiverOptions(
-      BuildContext context, String caregiverId) async {
-    // Fetch caregiver's name and phone number asynchronously
-    String caregiverName = await db.getUserName(caregiverId);
-    DocumentSnapshot caregiverDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(caregiverId)
-        .get();
-
-    String phoneNumber = caregiverDoc['phoneNumber'] ??
-        'Not available'; // Assuming phoneNumber field exists
-
-    // Extract the timestamp for when the caregiver was added (from the healthcare map)
-    var caregiverData = caregiverDoc['contacts']['healthcare'][currentUserId];
-
-    String formattedTimestamp = 'Unknown';
-    if (caregiverData is Timestamp) {
-      formattedTimestamp =
-          DateFormat('yyyy-MM-dd').format(caregiverData.toDate());
-    } else if (caregiverData is Map) {
-      // If the data is a Map, we might need to extract the timestamp from within it
-      var timestamp = caregiverData[
-          'timestamp']; // assuming the timestamp is stored as 'timestamp'
-      if (timestamp is Timestamp) {
-        formattedTimestamp =
-            DateFormat('yyyy-MM-dd').format(timestamp.toDate());
-      }
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: AppColors.white,
-          title: Text(
-            caregiverName,
-            style: TextStyle(
-              fontFamily: 'Outfit',
-              fontWeight: FontWeight.bold,
-              fontSize: 24,
-            ),
-          ),
-          content: SizedBox(
-            width: MediaQuery.of(context).size.width,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Column(
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.phone, color: AppColors.black),
-                        SizedBox(width: 10),
-                        Text(
-                          phoneNumber,
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 18,
-                            fontWeight: FontWeight.normal,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Icon(Icons.people, color: AppColors.black),
-                        SizedBox(width: 10),
-                        Text(
-                          formattedTimestamp,
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 18,
-                            fontWeight: FontWeight.normal,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          height: 40,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 0.0, vertical: 0.0),
-                          decoration: BoxDecoration(
-                            color: AppColors.neon,
-                            borderRadius: BorderRadius.circular(10.0),
-                          ),
-                          child: TextButton(
-                            onPressed: () => _makeCall(phoneNumber),
-                            style: TextButton.styleFrom(
-                              backgroundColor: AppColors.neon,
-                              foregroundColor: AppColors.white,
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.call),
-                                SizedBox(width: 10),
-                                Text(
-                                  'Call',
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 14,
-                                    fontWeight:
-                                        FontWeight.bold, // Bold text style
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: 10),
-                        Container(
-                          height: 40,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 0.0, vertical: 0.0),
-                          decoration: BoxDecoration(
-                            color: AppColors.red,
-                            borderRadius: BorderRadius.circular(10.0),
-                          ),
-                          child: TextButton(
-                            onPressed: () {
-                              db.removeCaregiver(currentUserId,
-                                  caregiverId); // Remove caregiver from the list
-                              Navigator.pop(context);
-                            },
-                            style: TextButton.styleFrom(
-                              backgroundColor: AppColors.red,
-                              foregroundColor: AppColors.white,
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons
-                                    .group_remove), // Icon to indicate removal
+                                Icon(Icons.group_remove,
+                                    color: AppColors.white),
                                 SizedBox(width: 10),
                                 Text(
                                   'Remove',
                                   style: TextStyle(
                                     fontFamily: 'Inter',
                                     fontSize: 14,
-                                    fontWeight:
-                                        FontWeight.bold, // Bold text style
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ],
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        );
-      },
-    );
+          );
+        },
+      );
+    } catch (e) {
+      debugPrint('Error showing friend options: $e');
+    }
   }
 }

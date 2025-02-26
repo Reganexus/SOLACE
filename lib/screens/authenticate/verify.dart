@@ -4,9 +4,11 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/home/home.dart';
-import 'package:solace/services/database.dart';
+import 'package:solace/services/auth.dart';
 import 'package:solace/shared/accountflow/rolechooser.dart';
+import 'package:solace/shared/accountflow/user_editprofile.dart';
 import 'package:solace/shared/globals.dart';
 import 'package:solace/themes/colors.dart';
 
@@ -28,50 +30,36 @@ class _VerifyState extends State<Verify> {
   void initState() {
     super.initState();
     determineSignUpMethod();
-    if (!emailVerificationEnabled) {
-      navigateToHome();
+    if (isGoogleSignUp) {
+      // Directly handle Google sign-up as verified
+      handlePostVerification(FirebaseAuth.instance.currentUser!.uid);
     } else {
-      sendVerificationEmail();
-      listenForEmailVerification();
-    }
-  }
-
-  Future<void> createUserDocument(String uid) async {
-    try {
-      final userRef = FirebaseFirestore.instance.collection('users').doc(uid);
-      final userDoc = await userRef.get();
-
-      if (!userDoc.exists) {
-        // Set user document only if it doesn't exist
-        await userRef.set({
-          'uid': uid,
-          'isVerified': false,
-          'newUser': true,
-          // Add other necessary fields
-        });
-        debugPrint('User document created for UID: $uid');
+      if (!emailVerificationEnabled) {
+        navigateToHome();
+      } else {
+        sendVerificationEmail();
+        listenForEmailVerification();
       }
-    } catch (e) {
-      debugPrint('Error creating user document: $e');
     }
   }
 
   void determineSignUpMethod() {
     final user = FirebaseAuth.instance.currentUser;
+    var userProviderData = user?.providerData;
+    debugPrint("determine sign up method: $userProviderData.");
     if (user != null) {
-      debugPrint('Current user: ${user.email}');
       for (var userInfo in user.providerData) {
-        debugPrint('Provider: ${userInfo.providerId}');
         if (userInfo.providerId == 'google.com') {
-          if (!isGoogleSignUp) {
-            setState(() {
-              isGoogleSignUp = true;
-            });
-          }
-          break;
+          setState(() {
+            isGoogleSignUp = true;
+          });
+          return;
         }
       }
     }
+    setState(() {
+      isGoogleSignUp = false;
+    });
   }
 
   void sendVerificationEmail() async {
@@ -84,121 +72,165 @@ class _VerifyState extends State<Verify> {
             SnackBar(content: Text('Verification email sent to ${user.email}')),
           );
         }
-        debugPrint('Verification email sent to: ${user.email}');
       } catch (e) {
-        debugPrint('Failed to send verification email: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to send verification email')),
-          );
-        }
+        _showError('Failed to send verification email. Please try again.');
       }
     }
   }
 
   void listenForEmailVerification() async {
+    const timeoutDuration = Duration(minutes: 5);
+    final startTime = DateTime.now();
+
     while (isVerifying) {
       await Future.delayed(const Duration(seconds: 5));
-      if (mounted) {
-        reloadUser();
-      } else {
+      if (DateTime.now().difference(startTime) > timeoutDuration) {
+        handleTimeout();
         break;
       }
-    }
-  }
 
-  void reloadUser() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      try {
-        debugPrint('Reloading user: ${user.email}');
-        await user.reload();
-        if (user.emailVerified) {
-          debugPrint('User is verified');
-          await DatabaseService(uid: user.uid)
-              .setUserVerificationStatus(user.uid, true);
-          handlePostVerification(user.uid);
-        } else {
-          debugPrint('User is not verified');
-          if (mounted) {
-            setState(() {});
+      if (mounted) {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          await user.reload();
+          if (user.emailVerified) {
+            debugPrint("Email verified for user: ${user.uid}");
+            setState(() {
+              isVerifying = false;
+            });
+
+            // Update Firestore for the verified user
+            String? role = await getUserRoleBySearching(user.uid);
+            if (role != null) {
+              await FirebaseFirestore.instance
+                  .collection(role) // e.g., 'admin', 'caregiver'
+                  .doc(user.uid)
+                  .update({
+                'isVerified': true,
+                'newUser': true,
+              });
+
+              // Handle post-verification actions
+              handlePostVerification(user.uid);
+            } else {
+              _showError("Role not found for the current user.");
+            }
+            break; // Exit the loop
           }
+        } else {
+          break;
         }
-      } catch (e) {
-        debugPrint("Error reloading user: $e");
       }
     }
   }
 
-  // Example function for the verification process (step-by-step execution)
   Future<void> handlePostVerification(String uid) async {
     try {
-      // Step 1: Check if the user is verified in Firebase Auth
-      final updatedUser = FirebaseAuth.instance.currentUser;
-      if (updatedUser == null) {
-        _showError("No user found.");
-        return; // Exit early if no user is authenticated
-      }
-
-      // Step 2: Check if the user is verified
-      if (!updatedUser.emailVerified) {
-        _showError("User email is not verified.");
-        return; // Exit early if email is not verified
-      }
-
-      // Step 3: Proceed with Firestore data retrieval and update
-      final userRef =
-          FirebaseFirestore.instance.collection('users').doc(updatedUser.uid);
-      final userDoc =
-          await userRef.get(); // This waits for Firestore to fetch the user
-
-      // Step 4: If the user document exists and is not verified, update it
-      if (userDoc.exists && !userDoc['isVerified']) {
-        await userRef.update({'isVerified': true});
-        debugPrint('User verification status updated in Firestore.');
-      }
-
-      // Step 5: Navigate based on the user data (after Firestore update)
-      final userData =
-          await DatabaseService(uid: updatedUser.uid).getUserData();
-      if (userData?.newUser == true) {
-        // Redirect to RoleChooser for new users to select their role
-        navigateToRoleChooser();
-      } else {
-        navigateToHome();
-      }
+      // Add a delay before navigating to RoleChooser
+      debugPrint("Navigating to RoleChooser for user: $uid.");
+      await Future.delayed(const Duration(seconds: 3)); // 3-second delay
+      navigateToRoleChooser();
     } catch (e) {
-      debugPrint('Error in verification process: $e');
-      _showError("An error occurred during verification.");
+      debugPrint("Error in post-verification: ${e.toString()}");
+      _showError('An error occurred during verification.');
     }
   }
 
-// Example function to handle navigation step-by-step
+  void handleTimeout() async {
+    setState(() {
+      isVerifying = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+            'Verification timed out. Please verify your email and try again.'),
+      ),
+    );
+    // Add a delay before redirecting to RoleChooser
+    await Future.delayed(const Duration(seconds: 5)); // 3-second delay
+    navigateToRoleChooser();
+  }
+
+  Future<String?> getUserRoleBySearching(String uid) async {
+    const roleCollections = [
+      'admin',
+      'caregiver',
+      'doctor',
+      'patient',
+      'unregistered'
+    ];
+    for (String collection in roleCollections) {
+      final userDoc = await FirebaseFirestore.instance
+          .collection(collection)
+          .doc(uid)
+          .get();
+      if (userDoc.exists) {
+        return collection;
+      }
+    }
+    return null;
+  }
+
   Future<void> navigateToHome() async {
-    // Ensure the widget is still mounted before attempting navigation
+    if (mounted) {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        final uid = currentUser.uid;
+        final role = await getUserRoleBySearching(uid);
+
+        if (role != null) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Home(uid: uid, role: role),
+            ),
+          );
+        } else {
+          _showError("Role not found for the current user.");
+        }
+      } else {
+        _showError("User is not authenticated.");
+      }
+    }
+  }
+
+  void navigateToEditProfileScreen() {
     if (mounted) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const Home()),
+        MaterialPageRoute(
+          builder: (context) => EditProfileScreen(),
+        ),
       );
     }
   }
 
   Future<void> navigateToRoleChooser() async {
-    // Ensure the widget is still mounted before attempting navigation
     if (mounted) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const RoleChooser()),
+        MaterialPageRoute(
+          builder: (context) => RoleChooser(
+            onRoleSelected: (String role) async {
+              final userRole = UserData.getUserRoleFromString(role);
+              if (userRole != null) {
+                final user = FirebaseAuth.instance.currentUser!;
+                await AuthService().initializeUserDocument(
+                  uid: user.uid,
+                  email: user.email ?? '',
+                  userRole: userRole,
+                  isVerified: true,
+                  newUser: true,
+                );
+                // Navigate to EditProfileScreen after the role is selected
+                navigateToEditProfileScreen();
+              } else {
+                _showError('Invalid role selected.');
+              }
+            },
+          ),
+        ),
       );
-    }
-  }
-
-// Method to show errors
-  void _showError(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
@@ -214,21 +246,24 @@ class _VerifyState extends State<Verify> {
   void startCooldown() {
     cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (resendCooldown > 0) {
-        if (mounted && resendCooldown != resendCooldown) {
-          setState(() {
-            resendCooldown--;
-          });
-        }
+        setState(() {
+          resendCooldown--;
+        });
       } else {
         timer.cancel();
-        if (mounted) {
-          setState(() {
-            isResendDisabled = false;
-            resendCooldown = 60;
-          });
-        }
+        setState(() {
+          isResendDisabled = false;
+        });
       }
     });
+  }
+
+  void _showError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
   }
 
   @override
@@ -250,8 +285,17 @@ class _VerifyState extends State<Verify> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (isVerifying)
-              const CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.white),
+              Column(
+                children: [
+                  const CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.white),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Verifying your account...',
+                    style: TextStyle(color: AppColors.white, fontSize: 18),
+                  ),
+                ],
               ),
             const SizedBox(height: 20),
             if (isGoogleSignUp)

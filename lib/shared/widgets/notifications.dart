@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_print, use_build_context_synchronously
+// ignore_for_file: avoid_print, use_build_context_synchronously, unnecessary_this
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -9,109 +9,19 @@ import 'package:solace/themes/colors.dart';
 
 class NotificationList extends StatelessWidget {
   final String userId;
-  final GlobalKey<NotificationsListState> notificationsListKey =
-      GlobalKey<NotificationsListState>();
+  final GlobalKey<NotificationsListState> notificationsListKey;
 
-  NotificationList({super.key, required this.userId});
+  const NotificationList({
+    super.key,
+    required this.userId,
+    required this.notificationsListKey,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.white,
-      appBar: AppBar(
-        title: const Text('Notifications'),
-        backgroundColor: AppColors.white,
-        scrolledUnderElevation: 0.0,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.delete),
-            iconSize: 30.0,
-            onPressed: () {
-              // Show confirmation dialog before deleting all notifications
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  backgroundColor: AppColors.white,
-                  title: const Text(
-                    'Delete all Notifications?',
-                    style: TextStyle(
-                      fontFamily: 'Outfit',
-                      fontWeight: FontWeight.bold,
-                      fontSize: 24,
-                      color: AppColors.black,
-                    ),
-                  ),
-                  content: const Text(
-                    'This will permanently delete all notifications. Are you sure?',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.normal,
-                      fontSize: 18,
-                      color: AppColors.black,
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      style: TextButton.styleFrom(
-                        padding:
-                        const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-                        backgroundColor: AppColors.neon,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: const Text(
-                        'Cancel',
-                        style: TextStyle(
-                          color: AppColors.white,
-                          fontFamily: 'Inter',
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold, // Bold text style
-                        ),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        // Use the key to access the method in NotificationsListState
-                        notificationsListKey.currentState
-                            ?.deleteAllNotifications();
-                        Navigator.of(context).pop(); // Close the dialog
-                      },
-                      style: TextButton.styleFrom(
-                        padding:
-                        const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-                        backgroundColor: AppColors.red,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: const Text(
-                        'Delete All',
-                        style: TextStyle(
-                          color: AppColors.white,
-                          fontFamily: 'Inter',
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold, // Bold text style
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        child: Container(
-          color: AppColors.white,
-          padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-          child: NotificationsList(
-              userId: userId,
-              key: notificationsListKey), // Pass the key to the child widget
-        ),
-      ),
+      body: NotificationsList(userId: userId, key: notificationsListKey),
     );
   }
 }
@@ -126,7 +36,9 @@ class NotificationsList extends StatefulWidget {
 }
 
 class NotificationsListState extends State<NotificationsList> {
+  String? _errorMessage;
   List<Map<String, dynamic>> notifications = [];
+  bool _isLoading = true; // To track loading state
 
   @override
   void initState() {
@@ -134,47 +46,58 @@ class NotificationsListState extends State<NotificationsList> {
     fetchNotifications();
   }
 
+  Future<String> _determineUserRole(String userId) async {
+    List<String> userCollections = ['caregiver', 'doctor', 'admin', 'patient', 'unregistered'];
+    for (String collection in userCollections) {
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection(collection)
+          .doc(userId)
+          .get();
+      if (userDoc.exists) {
+        return collection; // Return the role corresponding to the collection
+      }
+    }
+    throw Exception('User role not found');
+  }
+
   Future<void> deleteAllNotifications() async {
     debugPrint("Function got called!");
     try {
-      final userRef =
-          FirebaseFirestore.instance.collection('users').doc(widget.userId);
+      // Determine the correct user collection
+      List<String> userCollections = ['caregiver', 'doctor', 'admin', 'patient', 'unregistered'];
+      DocumentReference? userRef;
 
-      // Fetch the user's notifications
-      final userDocSnapshot = await userRef.get();
-      if (!userDocSnapshot.exists) {
-        print('User document does not exist!');
+      for (String collection in userCollections) {
+        DocumentReference ref = FirebaseFirestore.instance
+            .collection(collection)
+            .doc(widget.userId);
+        DocumentSnapshot userDocSnapshot = await ref.get();
+        if (userDocSnapshot.exists) {
+          userRef = ref; // Assign only if document exists
+          break; // Exit loop if user document is found
+        }
+      }
+
+      if (userRef == null) {
+        debugPrint('User document does not exist!');
         return;
       }
 
-      // Get the current notifications as a list
-      var notifications = List<Map<String, dynamic>>.from(
-          userDocSnapshot.data()?['notifications'] ?? []);
-      debugPrint("$notifications");
+      // Fetch and clear notifications
+      final userDocSnapshot = await userRef.get();
+      final data = userDocSnapshot.data() as Map<String, dynamic>?;
 
-      if (notifications.isEmpty) {
-        // If there are no notifications, show a snackbar
+      if (data == null ||
+          data['notifications'] == null ||
+          (data['notifications'] as List).isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No notifications to clear.'),
-          ),
+          const SnackBar(content: Text('No notifications to clear.')),
         );
         return;
       }
 
-      // Create a list of notificationIds to delete
-      final notificationIdsToDelete = notifications
-          .map((notification) => notification['notificationId'] as String)
-          .toList();
-
-      // Log the notification IDs to be deleted
-      print('Deleting notifications with IDs: $notificationIdsToDelete');
-
-      // Iterate through all notificationIds and delete each one
-      for (var notificationId in notificationIdsToDelete) {
-        await deleteNotification(
-            context, notificationId); // Call deleteNotification for each ID
-      }
+      // Clear notifications
+      await userRef.update({'notifications': []});
 
       // Clear the local notifications list
       setState(() {
@@ -183,91 +106,124 @@ class NotificationsListState extends State<NotificationsList> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('All notifications deleted successfully.'),
-        ),
+            content: Text('All notifications deleted successfully.')),
       );
-
-      print('All notifications deleted.');
     } catch (e) {
-      print('Error deleting all notifications: $e');
+      debugPrint('Error deleting all notifications: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Failed to delete notifications. Please try again.'),
-        ),
+            content: Text('Failed to delete notifications. Please try again.')),
       );
     }
   }
 
   Future<void> fetchNotifications() async {
+    setState(() {
+      _isLoading = true; // Start loading
+    });
+
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.userId)
-          .get();
+      // List of possible user collections
+      List<String> userCollections = ['caregiver', 'doctor', 'admin', 'patient', 'unregistered'];
+      DocumentSnapshot? snapshot;
 
-      if (snapshot.exists) {
-        final notificationsData = snapshot.data()?['notifications'] ?? [];
-
-        // Convert notifications
-        final loadedNotifications = notificationsData.map((notification) {
-          final timestamp = notification['timestamp'];
-          DateTime? convertedTimestamp;
-
-          if (timestamp is Timestamp) {
-            convertedTimestamp = timestamp.toDate(); // Convert to DateTime
-          } else if (timestamp is DateTime) {
-            convertedTimestamp = timestamp; // Already DateTime
-          }
-
-          return {
-            'message': notification['message'] ?? 'No message available',
-            'notificationId': notification['notificationId'] ?? '',
-            'timestamp': convertedTimestamp,
-            'type': notification['type'] ?? 'unknown',
-            'read': notification['read'] ?? false,
-          };
-        }).toList();
-
-        // Sort notifications by timestamp in descending order (newest first)
-        loadedNotifications.sort((a, b) {
-          final aTimestamp = a['timestamp'] as DateTime?;
-          final bTimestamp = b['timestamp'] as DateTime?;
-          if (aTimestamp == null || bTimestamp == null) return 0;
-          return bTimestamp.compareTo(aTimestamp); // Newest first
-        });
-
-        setState(() {
-          notifications = List<Map<String, dynamic>>.from(loadedNotifications);
-        });
+      // Iterate through collections to find the user document
+      for (String collection in userCollections) {
+        snapshot = await FirebaseFirestore.instance
+            .collection(collection)
+            .doc(widget.userId)
+            .get();
+        if (snapshot.exists) {
+          break; // Exit loop if document is found
+        }
       }
+
+      if (snapshot == null || !snapshot.exists) {
+        throw Exception('No notifications found for this user.');
+      }
+
+      // Safely cast the data to the expected type
+      final data = snapshot.data() as Map<String, dynamic>?;
+
+      if (data == null || data['notifications'] == null) {
+        setState(() {
+          notifications = []; // No notifications found
+          _errorMessage = 'No notifications found.';
+        });
+        return;
+      }
+
+      // Safely cast the notifications list
+      final notificationsData =
+          List<Map<String, dynamic>>.from(data['notifications']);
+
+      final loadedNotifications = notificationsData.map((notification) {
+        final timestamp = notification['timestamp'];
+        DateTime? convertedTimestamp;
+
+        if (timestamp is Timestamp) {
+          convertedTimestamp = timestamp.toDate();
+        } else if (timestamp is DateTime) {
+          convertedTimestamp = timestamp;
+        }
+
+        return {
+          'message': notification['message'] ?? 'No message available',
+          'notificationId': notification['notificationId'] ?? '',
+          'timestamp': convertedTimestamp,
+          'type': notification['type'] ?? 'unknown',
+          'read': notification['read'] ?? false,
+        };
+      }).toList();
+
+      loadedNotifications.sort((a, b) {
+        final aTimestamp = a['timestamp'] as DateTime?;
+        final bTimestamp = b['timestamp'] as DateTime?;
+        if (aTimestamp == null || bTimestamp == null) return 0;
+        return bTimestamp.compareTo(aTimestamp);
+      });
+
+      setState(() {
+        notifications = loadedNotifications; // Update local state
+        _errorMessage = null;
+      });
     } catch (e) {
-      print('Error fetching notifications: $e');
+      setState(() {
+        _errorMessage = e.toString().replaceFirst(RegExp(r'^Exception: '), '');
+      });
+    } finally {
+      setState(() {
+        _isLoading = false; // Stop loading
+      });
     }
   }
 
   Future<void> markNotificationAsRead(
-      String userId, Map<String, dynamic> notification) async {
+      String userId, Map<String, dynamic> notification, String role) async {
     final notificationId =
         notification['notificationId']; // Use the notificationId
 
     try {
-      final userRef =
-          FirebaseFirestore.instance.collection('users').doc(userId);
+      // Determine the role-based collection
+      final userRef = FirebaseFirestore.instance
+          .collection(role) // Replace 'users' with the role collection
+          .doc(userId);
 
       // Retrieve the current notifications array
       final docSnapshot = await userRef.get();
-      final notificationsData = docSnapshot.data()?['notifications'] ?? [];
+      final notificationsData =
+          (docSnapshot.data()?['notifications'] ?? []) as List<dynamic>;
 
-      // Update the notification that matches the notificationId
       final updatedNotifications =
           notificationsData.map((existingNotification) {
-        if (existingNotification['notificationId'] == notificationId) {
+        final notificationMap = existingNotification as Map<String, dynamic>;
+        if (notificationMap['notificationId'] == notificationId) {
           return {
-            ...existingNotification, // Spread the existing notification data
+            ...notificationMap, // Spread the existing notification data
             'read': true, // Only update the 'read' flag
           };
         }
-        return existingNotification;
+        return notificationMap;
       }).toList();
 
       // Update the notifications array in Firestore with the updated notifications
@@ -280,8 +236,7 @@ class NotificationsListState extends State<NotificationsList> {
         final index = notifications
             .indexWhere((n) => n['notificationId'] == notificationId);
         if (index != -1) {
-          notifications[index]['read'] =
-              true; // Update the local state to remove the badge
+          notifications[index]['read'] = true; // Update the local state
         }
       });
     } catch (e) {
@@ -291,88 +246,131 @@ class NotificationsListState extends State<NotificationsList> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(AppColors.neon),
+        ),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Text(
+          _errorMessage!,
+          style: TextStyle(fontSize: 18, color: AppColors.black),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+
     return notifications.isEmpty
         ? Center(
-            child: Text(
-              'No notifications yet',
-              style: TextStyle(fontSize: 18, color: AppColors.black),
-            ),
-          )
-        : Column(
-            children: notifications.map((notification) {
-              final timestampRaw = notification['timestamp'];
-              final DateTime? timestamp = timestampRaw is Timestamp
-                  ? timestampRaw.toDate() // Convert Timestamp to DateTime
-                  : timestampRaw as DateTime?; // Use as-is if already DateTime
+            child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.mark_email_read,
+                color: AppColors.black,
+                size: 80,
+              ),
+              const SizedBox(height: 20.0),
+              Text(
+                'No notifications yet',
+                style: TextStyle(
+                  fontSize: 18,
+                  color: AppColors.black,
+                  fontFamily: 'Inter',
+                ),
+              ),
+            ],
+          ))
+        : SingleChildScrollView(
+            child: Container(
+              color: AppColors.white,
+              padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: notifications.map((notification) {
+                  final timestampRaw = notification['timestamp'];
+                  final DateTime? timestamp = timestampRaw is Timestamp
+                      ? timestampRaw.toDate()
+                      : timestampRaw as DateTime?;
 
-              final formattedTimestamp = _formatTimestamp(timestamp);
-              final notificationIcon =
-                  _getNotificationIcon(notification['type']);
-              final notificationBadge = _buildNotificationBadge(notification);
+                  final formattedTimestamp = _formatTimestamp(timestamp);
+                  final notificationIcon =
+                      _getNotificationIcon(notification['type']);
+                  final notificationBadge =
+                      _buildNotificationBadge(notification);
 
-              // Modify the title based on the notification type
-              String notificationTitle = notification['type'] == 'task'
-                  ? notification['message']?.contains('You assigned') ?? false
-                      ? 'Task Assigned'
-                      : 'Task Available'
-                  : notification['type'] == 'schedule'
-                      ? 'Schedule Confirmation'
-                      : notification['type'] == 'friend_request'
-                          ? 'Friend Request'
-                          : 'Notification';
+                  String notificationTitle = notification['type'] == 'task'
+                      ? notification['message']?.contains('You assigned') ??
+                              false
+                          ? 'Task Assigned'
+                          : 'Task Available'
+                      : notification['type'] == 'schedule'
+                          ? 'Schedule Confirmation'
+                          : notification['type'] == 'friend_request'
+                              ? 'Friend Request'
+                              : 'Notification';
 
-              // Return your UI widget
-              return GestureDetector(
-                onTap: () async {
-                  await markNotificationAsRead(widget.userId, notification);
-                  _showNotificationDetails(context, notification);
-                },
-                child: Container(
-                  width: double.infinity,
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
-                  margin: const EdgeInsets.only(bottom: 10),
-                  decoration: BoxDecoration(
-                    color: AppColors.gray,
-                    borderRadius: BorderRadius.circular(10.0),
-                  ),
-                  child: Stack(
-                    children: [
-                      Row(
+                  return GestureDetector(
+                    onTap: () async {
+                      String role = await _determineUserRole(widget.userId);
+                      await markNotificationAsRead(
+                          widget.userId, notification, role);
+
+                      _showNotificationDetails(context, notification);
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 15, horizontal: 20),
+                      margin: const EdgeInsets.only(bottom: 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.gray,
+                        borderRadius: BorderRadius.circular(10.0),
+                      ),
+                      child: Stack(
                         children: [
-                          notificationIcon,
-                          const SizedBox(width: 20),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  notificationTitle, // Updated title
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontFamily: 'Outfit',
-                                    fontSize: 18,
-                                    color: AppColors.black,
-                                  ),
+                          Row(
+                            children: [
+                              notificationIcon,
+                              const SizedBox(width: 20),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      notificationTitle,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontFamily: 'Outfit',
+                                        fontSize: 18,
+                                        color: AppColors.black,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 5),
+                                    if (formattedTimestamp.isNotEmpty)
+                                      Text(
+                                        'Received on $formattedTimestamp',
+                                        style: const TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.black54),
+                                      ),
+                                  ],
                                 ),
-                                const SizedBox(height: 5),
-                                if (formattedTimestamp.isNotEmpty)
-                                  Text(
-                                    'Received on $formattedTimestamp',
-                                    style: const TextStyle(
-                                        fontSize: 12, color: Colors.black54),
-                                  ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
+                          notificationBadge,
                         ],
                       ),
-                      notificationBadge,
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
           );
   }
 
@@ -392,44 +390,49 @@ class NotificationsListState extends State<NotificationsList> {
 
   Future<void> deleteNotification(
       BuildContext context, String notificationId) async {
-    final user =
-        Provider.of<MyUser?>(context, listen: false); // Get the current user
+    final user = Provider.of<MyUser?>(context, listen: false);
     if (user == null) return;
 
     try {
-      // Get the user document reference
-      final userDocRef =
-          FirebaseFirestore.instance.collection('users').doc(user.uid);
+      // Find the correct user collection
+      List<String> userCollections = ['caregiver', 'doctor', 'admin', 'patient', 'unregistered'];
+      DocumentReference? userDocRef;
 
-      // Fetch the current notifications
-      final userDocSnapshot = await userDocRef.get();
+      for (String collection in userCollections) {
+        userDocRef =
+            FirebaseFirestore.instance.collection(collection).doc(user.uid);
+        DocumentSnapshot userDocSnapshot = await userDocRef.get();
+        if (userDocSnapshot.exists) {
+          break; // Exit loop if document is found
+        }
+      }
 
-      if (!userDocSnapshot.exists) {
+      if (userDocRef == null) {
         print('User document does not exist!');
         return;
       }
 
-      // Cast notifications to List<Map<String, dynamic>>
-      var notifications = List<Map<String, dynamic>>.from(
-          userDocSnapshot.data()?['notifications'] ?? []);
+      // Fetch notifications and update
+      final userDocSnapshot = await userDocRef.get();
+      final data = userDocSnapshot.data() as Map<String, dynamic>?;
 
-      // Find the index of the notification by notificationId
+      if (data == null || data['notifications'] == null) {
+        print('No notifications found.');
+        return;
+      }
+
+      var notifications =
+          List<Map<String, dynamic>>.from(data['notifications']);
+
       final notificationIndex = notifications
           .indexWhere((n) => n['notificationId'] == notificationId);
 
       if (notificationIndex != -1) {
-        // Remove the notification from the list
         notifications.removeAt(notificationIndex);
+        await userDocRef.update({'notifications': notifications});
 
-        // Update the notifications field in Firestore (this will remove the notification)
-        await userDocRef.update({
-          'notifications':
-              notifications, // Update notifications array without the deleted notification
-        });
-
-        // Update the local notifications list by calling setState()
         setState(() {
-          this.notifications = notifications; // Refresh the local state
+          this.notifications = notifications; // Refresh local state
         });
 
         print("Notification successfully deleted");

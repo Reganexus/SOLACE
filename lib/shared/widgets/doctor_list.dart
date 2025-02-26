@@ -19,8 +19,8 @@ class DoctorList extends StatelessWidget {
       ),
       body: FutureBuilder<QuerySnapshot>(
         future: FirebaseFirestore.instance
-            .collection('users')
-            .where('userRole', isEqualTo: 'doctor') // Fetch users with role 'doctor'
+            .collection(
+                'doctors') // Fetch all documents from the doctors collection
             .get(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -49,24 +49,22 @@ class DoctorList extends StatelessWidget {
     );
   }
 
-  // Header for different sections
-
-  // List of doctors
   Widget _buildDoctorList(List<QueryDocumentSnapshot> doctors) {
     return ListView.builder(
       shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       itemCount: doctors.length,
       itemBuilder: (context, index) {
         var doctor = doctors[index].data() as Map<String, dynamic>;
 
-        // Merge firstName, middleName, and lastName for the full name
         String doctorFirstName = doctor['firstName'] ?? '';
         String doctorMiddleName = doctor['middleName'] ?? '';
         String doctorLastName = doctor['lastName'] ?? '';
 
-        String doctorName = '$doctorFirstName ${doctorMiddleName.isNotEmpty ? '$doctorMiddleName ' : ''}$doctorLastName'.trim();
+        String doctorName =
+            '$doctorFirstName ${doctorMiddleName.isNotEmpty ? '$doctorMiddleName ' : ''}$doctorLastName'
+                .trim();
 
-        // Use phoneNumber field for the phone number
         String doctorPhone = doctor['phoneNumber'] ?? 'No phone available';
 
         return Container(
@@ -82,9 +80,12 @@ class DoctorList extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundImage: doctor['profileImageUrl'] != null && doctor['profileImageUrl'].isNotEmpty
+                backgroundImage: doctor['profileImageUrl'] != null &&
+                        doctor['profileImageUrl'].isNotEmpty
                     ? NetworkImage(doctor['profileImageUrl'])
-                    : const AssetImage('lib/assets/images/shared/placeholder.png') as ImageProvider,
+                    : const AssetImage(
+                            'lib/assets/images/shared/placeholder.png')
+                        as ImageProvider,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -103,7 +104,6 @@ class DoctorList extends StatelessWidget {
                 icon: const Icon(Icons.phone),
                 onPressed: () async {
                   if (doctorPhone != 'No phone available') {
-                    // Use launchUrl instead of launch
                     final Uri phoneUri = Uri(scheme: 'tel', path: doctorPhone);
                     if (await canLaunchUrl(phoneUri)) {
                       await launchUrl(phoneUri);
@@ -114,7 +114,8 @@ class DoctorList extends StatelessWidget {
                     }
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('No phone number available')),
+                      const SnackBar(
+                          content: Text('No phone number available')),
                     );
                   }
                 },

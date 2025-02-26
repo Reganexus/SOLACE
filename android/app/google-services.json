@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "805655165429-ri4ef9r6uitdg1qsqqse0k340t0uve47.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.res.solace",
+            "certificate_hash": "46f78d6aedce0dfa8c51c9d558e35d17deab2ce6"
+          }
+        },
+        {
           "client_id": "805655165429-v0o8tpfemffrnc1pchl0egul5cjckp2s.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

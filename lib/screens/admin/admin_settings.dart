@@ -9,7 +9,6 @@ import 'package:solace/shared/widgets/help_page.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/services/auth.dart';
 import 'package:solace/shared/accountflow/user_editprofile.dart';
-import 'package:solace/shared/widgets/contacts.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -52,7 +51,7 @@ class _AdminSettingsState extends State<AdminSettings> {
                 gender: 'Set Gender',
                 birthday: null,
                 userRole:
-                    UserRole.patient, // Default to 'patient' if no role found
+                    UserRole.caregiver, // Default to 'patient' if no role found
                 isVerified: false,
                 newUser: true,
                 dateCreated:
@@ -198,42 +197,6 @@ class _AdminSettingsState extends State<AdminSettings> {
                               ? '${userData.birthday!.month}/${userData.birthday!.day}/${userData.birthday!.year}'
                               : ''),
                     ],
-                  ),
-
-                  const SizedBox(height: 10),
-                  const Divider(thickness: 1.0),
-                  const SizedBox(height: 10),
-
-                  const Text(
-                    'Contacts',
-                    style: TextStyle(
-                      fontSize: 18.0,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Inter',
-                      color: Colors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => Contacts(
-                            currentUserId: userData.uid,
-                          ),
-                        ),
-                      );
-                    },
-                    child: const Text(
-                      "View Contacts",
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.normal,
-                        fontSize: 16.0,
-                        color: AppColors.black,
-                      ),
-                    ),
                   ),
 
                   const SizedBox(height: 10),

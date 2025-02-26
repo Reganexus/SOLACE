@@ -1,5 +1,6 @@
-// ignore_for_file: use_build_context_synchronously, unused_import
+// ignore_for_file: use_build_context_synchronously, unused_import, unnecessary_null_comparison
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:solace/models/my_user.dart';
@@ -7,7 +8,6 @@ import 'package:solace/screens/authenticate/verify.dart';
 import 'package:solace/screens/home/home.dart';
 import 'package:solace/services/auth.dart';
 import 'package:solace/shared/accountflow/rolechooser.dart';
-import 'package:solace/shared/accountflow/user_editprofile.dart';
 import 'package:solace/themes/colors.dart';
 import 'dart:convert';
 import 'package:fluttertoast/fluttertoast.dart'; // For Toast if needed
@@ -113,41 +113,37 @@ class _SignUpState extends State<SignUp> {
     }
   }
 
+  List<String> validateInput(String email, String password) {
+    List<String> errors = [];
+
+    // Email Validation
+    if (email.isEmpty) {
+      errors.add("Enter an email.");
+    } else if (!RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+        .hasMatch(email)) {
+      errors.add("Enter a valid email address.");
+    }
+
+    // Password Validation
+    if (password.isEmpty) {
+      errors.add("Enter a password.");
+    } else if (password.length < 6) {
+      errors.add("Password must be at least 6 characters long.");
+    } else if (!RegExp(r'(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[!@#\$%\^&\*_])')
+        .hasMatch(password)) {
+      errors.add(
+          "Password must include uppercase, lowercase, number, and special character.");
+    }
+
+    return errors;
+  }
+
   Future<void> _handleSignUp() async {
     // Validation checks
-    List<String> errorMessages = [];
-
-    // Validate Email
-    if (_emailController.text.isEmpty) {
-      errorMessages.add("Enter an email.");
-    } else if (!RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
-        .hasMatch(_emailController.text)) {
-      errorMessages.add("Enter a valid email address.");
-    }
-
-    // Validate Password
-    if (_passwordController.text.isEmpty) {
-      errorMessages.add("Enter a password.");
-    } else if (_passwordController.text.length < 6) {
-      errorMessages.add("Password must be at least 6 characters long.");
-    } else if (_passwordController.text.length > 4096) {
-      errorMessages.add("Password must be no more than 4096 characters long.");
-    } else if (!RegExp(r'(?=.*[a-z])').hasMatch(_passwordController.text)) {
-      errorMessages.add("Password must include at least one lowercase letter.");
-    } else if (!RegExp(r'(?=.*[A-Z])').hasMatch(_passwordController.text)) {
-      errorMessages.add("Password must include at least one uppercase letter.");
-    } else if (!RegExp(r'(?=.*\d)').hasMatch(_passwordController.text)) {
-      errorMessages.add("Password must include at least one number.");
-    } else if (!RegExp(r'(?=.*[!@#\$%\^&\*_])')
-        .hasMatch(_passwordController.text)) {
-      errorMessages
-          .add("Password must include at least one special character.");
-    }
-
-    // Show errors if there are any
+    List<String> errorMessages = validateInput(_email, _password);
     if (errorMessages.isNotEmpty) {
       _showError(errorMessages);
-      return; // Exit early if there are validation errors
+      return;
     }
 
     if (_formKey.currentState!.validate() && _agreeToTerms) {
@@ -158,8 +154,8 @@ class _SignUpState extends State<SignUp> {
       }
 
       try {
-        // Check if the email already exists
-        bool emailExists = await _auth.emailExists(_email);
+        // Check if the email already exists in any collection
+        bool emailExists = await _auth.emailExistsAcrossCollections(_email);
         if (emailExists) {
           _showError(
               ["An account with this email already exists. Please log in."]);
@@ -200,46 +196,64 @@ class _SignUpState extends State<SignUp> {
     }
 
     try {
-      MyUser? user = await _auth.signInWithGoogle();
+      // Sign in with Google
+      MyUser? myUser = await _auth.signInWithGoogle();
 
-      // Only continue if the widget is still mounted and the user is not null
-      if (mounted) {
-        if (user != null) {
-          // Check if the user is new
-          if (user.newUser) {
+      if (mounted && myUser != null) {
+        // Check if the email exists in any role-based collection
+        final List<String> collections = ['caregiver', 'admin', 'doctor', 'patient', 'unregistered'];
+        DocumentSnapshot? userDoc;
+        String? userRole;
+
+        for (final collection in collections) {
+          final querySnapshot = await FirebaseFirestore.instance
+              .collection(collection)
+              .where('email', isEqualTo: myUser.email)
+              .limit(1)
+              .get();
+
+          if (querySnapshot.docs.isNotEmpty) {
+            userDoc = querySnapshot.docs.first;
+            userRole =
+                collection.substring(0, collection.length - 1); // Remove 's'
+            break;
+          }
+        }
+
+        if (userDoc != null) {
+          // Email exists in the database
+          final userData = userDoc.data() as Map<String, dynamic>?;
+
+          if (userData != null && userData['isVerified'] == true) {
+            // Verified user: Redirect to Home
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                  builder: (context) => const RoleChooser()),
+                builder: (context) => Home(uid: myUser.uid, role: userRole!),
+              ),
             );
           } else {
-            // If the user has already completed their profile
+            // Not verified: Redirect to Verify
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const Home()),
+              MaterialPageRoute(builder: (context) => const Verify()),
             );
           }
         } else {
-          // If the user sign-in was aborted (null user)
-          // Don't show an error since the user just cancelled the sign-in
-          return;
+          _showError(["Email not associated with a verified account."]);
         }
       }
     } catch (e) {
-      // Check if the error is specifically the Google sign-in cancellation
       if (e.toString().contains("google_sign_in_aborted")) {
-        // If the user explicitly aborted, we don't show an error
-        return;
+        return; // User cancelled sign-in, no action needed
       }
 
-      // Otherwise, show a generic error for unexpected issues
       if (mounted) {
-        _showError([
-          "An error occurred during Google sign-in. Please try again later."
-        ]);
+        _showError(
+          ["An error occurred during Google sign-in. Please try again later."],
+        );
       }
     } finally {
-      // Ensure we only update loading state if widget is still mounted
       if (mounted) {
         setState(() {
           _isLoading = false;

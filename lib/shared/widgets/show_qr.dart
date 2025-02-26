@@ -17,8 +17,23 @@ class ShowQrPage extends StatelessWidget {
 
   // Firestore reference for the user data
   Stream<DocumentSnapshot> _getUserProfileStream(String uid) {
-    return FirebaseFirestore.instance.collection('users').doc(uid).snapshots();
+    // Combine streams from multiple collections to find the user
+    final collections = ['caregiver', 'doctor', 'admin', 'patient', 'unregistered'];
+
+    return Stream<DocumentSnapshot>.multi((controller) async {
+      for (String collection in collections) {
+        final stream = FirebaseFirestore.instance.collection(collection).doc(uid).snapshots();
+        await for (final snapshot in stream) {
+          if (snapshot.exists) {
+            controller.add(snapshot);
+            return; // Exit once the user document is found
+          }
+        }
+      }
+      controller.addError('User not found in any collection.');
+    });
   }
+
 
   @override
   Widget build(BuildContext context) {

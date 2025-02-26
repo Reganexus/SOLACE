@@ -1,12 +1,12 @@
-// ignore_for_file: use_build_context_synchronously
+// ignore_for_file: use_build_context_synchronously, unused_field
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/authenticate/forgot.dart';
+import 'package:solace/screens/authenticate/verify.dart';
 import 'package:solace/screens/home/home.dart';
 import 'package:solace/services/auth.dart';
 import 'package:flutter/material.dart';
-import 'package:solace/shared/globals.dart';
-import 'package:solace/shared/accountflow/user_editprofile.dart';
 import 'package:solace/themes/colors.dart';
 
 class LogIn extends StatefulWidget {
@@ -40,10 +40,6 @@ class _LogInState extends State<LogIn> {
   void initState() {
     super.initState();
 
-    if (autoLoginenabled) {
-      _autoLogin();
-    }
-
     // Listener for email focus
     _emailFocusNode.addListener(() {
       if (mounted) {
@@ -61,14 +57,29 @@ class _LogInState extends State<LogIn> {
 
   @override
   void dispose() {
-    // Dispose of focus nodes
-    _emailFocusNode.removeListener(() {});
-    _passwordFocusNode.removeListener(() {});
     _emailFocusNode.dispose();
     _passwordFocusNode.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  String? _emailValidator(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Email is required';
+    } else if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+      return 'Enter a valid email';
+    }
+    return null;
+  }
+
+  String? _passwordValidator(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Password is required';
+    } else if (value.length < 6) {
+      return 'Password must be at least 6 characters long';
+    }
+    return null;
   }
 
   Future<void> _handleSignUpWithGoogle() async {
@@ -79,33 +90,61 @@ class _LogInState extends State<LogIn> {
     }
 
     try {
-      MyUser? user = await _auth.signInWithGoogle();
-      if (user != null) {
-        // Check if the user is new
-        if (user.newUser) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const EditProfileScreen()),
-          );
-        } else {
-          // If the user has already completed their profile
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const Home()),
-          );
+      // Sign in with Google
+      MyUser? myUser = await _auth.signInWithGoogle();
+
+      if (mounted && myUser != null) {
+        // Check if the email exists in any role-based collection
+        final List<String> collections = ['caregiver', 'admin', 'doctor', 'patient', 'unregistered'];
+        DocumentSnapshot? userDoc;
+        String? userRole;
+
+        for (final collection in collections) {
+          final querySnapshot = await FirebaseFirestore.instance
+              .collection(collection)
+              .where('email', isEqualTo: myUser.email)
+              .limit(1)
+              .get();
+
+          if (querySnapshot.docs.isNotEmpty) {
+            userDoc = querySnapshot.docs.first;
+            userRole =
+                collection.substring(0, collection.length - 1); // Remove 's'
+            break;
+          }
         }
-      } else {
-        _showError("Google sign-up failed. Please try again.", "");
+
+        if (userDoc != null) {
+          // Email exists in the database
+          final userData = userDoc.data() as Map<String, dynamic>?;
+
+          if (userData != null && userData['isVerified'] == true) {
+            // Verified user: Redirect to Home
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => Home(uid: myUser.uid, role: userRole!),
+              ),
+            );
+          } else {
+            // Not verified: Redirect to Verify
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const Verify()),
+            );
+          }
+        } else {
+          _showError(["Email not associated with a verified account."]);
+        }
       }
     } catch (e) {
-      // Check if the error is because the user canceled the Google sign-in
-      if (e.toString().contains("Google sign-in aborted by user")) {
-        // User canceled the sign-in, no need to show an error
-        return;
-      } else {
+      if (e.toString().contains("google_sign_in_aborted")) {
+        return; // User cancelled sign-in, no action needed
+      }
+
+      if (mounted) {
         _showError(
-          "An error occurred during Google sign-up. Please try again later.",
-          "",
+          ["An error occurred during Google sign-in. Please try again later."],
         );
       }
     } finally {
@@ -117,27 +156,22 @@ class _LogInState extends State<LogIn> {
     }
   }
 
-  void _showError(String message, String criteria) {
-    // Display error using a Snackbar or Toast instead of AlertDialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: const TextStyle(color: Colors.white),
-        ),
-        backgroundColor: Colors.red,
-      ),
-    );
-  }
-
-  Future<void> _autoLogin() async {
-    String testEmail = 'john@gmail.com';
-    String testPassword = 'test123';
-
-    dynamic result =
-        await _auth.logInWithEmailAndPassword(testEmail, testPassword);
-    if (result == null && mounted) {
-      setState(() => error = 'Auto login failed');
+  void _showError(List<String> errorMessages) {
+    // First, check if there are multiple errors or just one
+    if (errorMessages.isNotEmpty) {
+      // Show error messages in a Snackbar one by one
+      for (var error in errorMessages) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              error,
+              style: const TextStyle(fontSize: 16),
+            ),
+            duration: const Duration(seconds: 3), // Customize the duration
+            backgroundColor: Colors.red, // Background color of the Snackbar
+          ),
+        );
+      }
     }
   }
 
@@ -210,6 +244,7 @@ class _LogInState extends State<LogIn> {
                       focusNode: _emailFocusNode,
                       decoration: _inputDecoration('Email', _emailFocusNode),
                       onChanged: (val) => setState(() => _email = val),
+                      validator: _emailValidator,
                     ),
                     const SizedBox(height: 20),
                     TextFormField(
@@ -238,6 +273,7 @@ class _LogInState extends State<LogIn> {
                         ),
                       ),
                       onChanged: (val) => setState(() => _password = val),
+                      validator: _passwordValidator,
                     ),
                     const SizedBox(height: 20),
                     Container(
@@ -268,77 +304,81 @@ class _LogInState extends State<LogIn> {
                     SizedBox(
                       width: double.infinity,
                       child: TextButton(
-                        onPressed: _isLoading // Check if loading
-                            ? null // Disable the button while loading
+                        onPressed: _isLoading
+                            ? null
                             : () async {
-                                String errorMessage = '';
-
-                                // Validate Email
-                                if (_emailController.text.isEmpty) {
-                                  errorMessage += "Enter an email.\n";
-                                } else if (!RegExp(
-                                        r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
-                                    .hasMatch(_emailController.text)) {
-                                  errorMessage +=
-                                      "Enter a valid email address.\n";
-                                }
-
-                                // Validate Password
-                                if (_passwordController.text.isEmpty) {
-                                  errorMessage += "Enter a password.\n";
-                                } else if (_passwordController.text.length <
-                                    6) {
-                                  errorMessage +=
-                                      "Password must be at least 6 characters long.\n";
-                                } else if (_passwordController.text.length >
-                                    4096) {
-                                  errorMessage +=
-                                      "Password must be no more than 4096 characters long.\n";
-                                } else if (!RegExp(r'(?=.*[a-z])')
-                                    .hasMatch(_passwordController.text)) {
-                                  errorMessage +=
-                                      "Password must include at least one lowercase letter.\n";
-                                } else if (!RegExp(r'(?=.*[A-Z])')
-                                    .hasMatch(_passwordController.text)) {
-                                  errorMessage +=
-                                      "Password must include at least one uppercase letter.\n";
-                                } else if (!RegExp(r'(?=.*\d)')
-                                    .hasMatch(_passwordController.text)) {
-                                  errorMessage +=
-                                      "Password must include at least one number.\n";
-                                } else if (!RegExp(r'(?=.*[!@#\$%\^&\*_])')
-                                    .hasMatch(_passwordController.text)) {
-                                  errorMessage +=
-                                      "Password must include at least one special character.\n";
-                                }
-
-                                // Show errors if there are any
-                                if (errorMessage.isNotEmpty) {
-                                  // Call _showError with both error messages and criteria
-                                  _showError(errorMessage, "");
-                                  return; // Exit early if there are validation errors
-                                }
-
                                 if (_formKey.currentState!.validate()) {
                                   if (mounted) {
-                                    setState(() {
-                                      _isLoading =
-                                          true; // Set loading state to true
-                                    });
+                                    setState(() => _isLoading = true);
                                   }
-                                  dynamic result =
-                                      await _auth.logInWithEmailAndPassword(
-                                          _email, _password);
-                                  if (mounted) {
-                                    setState(() {
-                                      _isLoading = false; // Reset loading state
-                                      if (result == null) {
-                                        error =
-                                            'Could not log in with those credentials';
-                                      } else {
-                                        error = ''; // Clear error on success
+
+                                  String email = _emailController.text.trim();
+                                  String password =
+                                      _passwordController.text.trim();
+
+                                  try {
+                                    MyUser? result =
+                                        await _auth.logInWithEmailAndPassword(
+                                            email, password);
+
+                                    if (result != null) {
+                                      if (mounted) setState(() => error = '');
+
+                                      String uid = result.uid;
+                                      String? role;
+
+                                      for (final collection in [
+                                        'caregiver',
+                                        'admin',
+                                        'doctor', 'patient', 'unregistered'
+                                      ]) {
+                                        try {
+                                          final doc = await FirebaseFirestore
+                                              .instance
+                                              .collection(collection)
+                                              .doc(uid)
+                                              .get()
+                                              .timeout(
+                                                  const Duration(seconds: 10));
+                                          if (doc.exists) {
+                                            role = collection;
+                                            break;
+                                          }
+                                        } catch (e) {
+                                          debugPrint(
+                                              "Error fetching document: $e");
+                                        }
                                       }
-                                    });
+
+                                      if (role != null) {
+                                        Navigator.of(context).pushReplacement(
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                Home(uid: uid, role: role!),
+                                          ),
+                                        );
+                                        return;
+                                      } else {
+                                        if (mounted) {
+                                          setState(() =>
+                                              error = 'User role not found.');
+                                        }
+                                      }
+                                    } else {
+                                      if (mounted) {
+                                        setState(() => error =
+                                            'Invalid email or password.');
+                                      }
+                                    }
+                                  } catch (e) {
+                                    if (mounted) {
+                                      setState(() => error =
+                                          'Login failed: ${e.toString()}');
+                                    }
+                                  } finally {
+                                    if (mounted) {
+                                      setState(() => _isLoading = false);
+                                    }
                                   }
                                 }
                               },
