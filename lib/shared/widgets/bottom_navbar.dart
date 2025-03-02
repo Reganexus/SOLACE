@@ -77,73 +77,10 @@ class BottomNavBar extends StatelessWidget {
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: FutureBuilder<DocumentSnapshot>(
-              future: getUserDocument(context), // Pass the context to the function
-              builder: (context, snapshot) {
-                if (!snapshot.hasData || snapshot.data == null || !snapshot.data!.exists) {
-                  // If the user document is not found
-                  return Image.asset(
-                    currentIndex == 1
-                        ? 'lib/assets/images/user/inbox_selected.png'
-                        : 'lib/assets/images/user/inbox.png',
-                    width: 30,
-                    height: 30,
-                  );
-                }
-
-                // Extract the notifications field from the user document
-                final Map<String, dynamic>? userData =
-                snapshot.data!.data() as Map<String, dynamic>?;
-                final List<dynamic> notifications = userData?['notifications'] ?? [];
-                final int unreadCount =
-                    notifications.where((n) => n['read'] == false).length;
-
-                return Stack(
-                  children: [
-                    Image.asset(
-                      currentIndex == 1
-                          ? 'lib/assets/images/user/inbox_selected.png'
-                          : 'lib/assets/images/user/inbox.png',
-                      width: 30,
-                      height: 30,
-                    ),
-                    if (unreadCount > 0)
-                      Positioned(
-                        right: 0,
-                        top: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
-                          ),
-                          constraints: const BoxConstraints(
-                            minWidth: 16,
-                            minHeight: 16,
-                          ),
-                          child: Text(
-                            '$unreadCount',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ),
-                  ],
-                );
-              },
-            ),
-            label: 'Inbox',
-          ),
-
-          BottomNavigationBarItem(
             icon: Image.asset(
-              currentIndex == 2
-                  ? 'lib/assets/images/admin/users_selected.png'
-                  : 'lib/assets/images/admin/users.png',
+              currentIndex == 1
+                  ? 'lib/assets/images/admin/profile_selected.png'
+                  : 'lib/assets/images/admin/profile.png',
               width: 30,
               height: 30,
             ),
@@ -151,13 +88,13 @@ class BottomNavBar extends StatelessWidget {
           ),
           BottomNavigationBarItem(
             icon: Image.asset(
-              currentIndex == 3
-                  ? 'lib/assets/images/admin/profile_selected.png'
-                  : 'lib/assets/images/admin/profile.png',
+              currentIndex == 2
+                  ? 'lib/assets/images/admin/export_selected.png'
+                  : 'lib/assets/images/admin/export.png',
               width: 30,
               height: 30,
             ),
-            label: 'Profile',
+            label: 'Export',
           ),
         ];
       case 'Doctor':

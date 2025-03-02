@@ -82,9 +82,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           required String profileImageUrl,
                           required String religion,
                           required int age,
-                          required String will,
-                          required String fixedWishes,
-                          required String organDonation,
                         }) async {
                           await DatabaseService(uid: user.uid).updateUserData(
                             userRole: userData.userRole,
@@ -100,15 +97,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             newUser: false,
                             isVerified: true,
                             age: age,
-                            will: userData.userRole == UserRole.patient
-                                ? will
-                                : null,
-                            fixedWishes: userData.userRole == UserRole.patient
-                                ? fixedWishes
-                                : null,
-                            organDonation: userData.userRole == UserRole.patient
-                                ? organDonation
-                                : null,
                           );
 
                           if (mounted) {

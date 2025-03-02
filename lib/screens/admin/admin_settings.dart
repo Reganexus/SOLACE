@@ -222,6 +222,30 @@ class _AdminSettingsState extends State<AdminSettings> {
                             context,
                             MaterialPageRoute(
                               builder: (context) => ExportDataScreen(
+                                filterValue: 'admin',
+                                title: 'Export Admin Data',
+                              ),
+                            ),
+                          );
+                        },
+                        child: const Text(
+                          "Export Admin Data",
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.normal,
+                            fontSize: 16.0,
+                            color: AppColors.black,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ExportDataScreen(
                                 filterValue: 'patient',
                                 title: 'Export Patient Data',
                               ),
@@ -296,39 +320,14 @@ class _AdminSettingsState extends State<AdminSettings> {
                             context,
                             MaterialPageRoute(
                               builder: (context) => ExportDataScreen(
-                                filterValue: 'good',
-                                title: 'Export No Risk Patients Data',
+                                filterValue: 'stable',
+                                title: 'Export Stable Patients Data',
                               ),
                             ),
                           );
                         },
                         child: const Text(
-                          "Export No Risk Patients",
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontWeight: FontWeight.normal,
-                            fontSize: 16.0,
-                            color: AppColors.black,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-
-                      // Export Low Risk Patients
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ExportDataScreen(
-                                filterValue: 'low',
-                                title: 'Export Low Risk Patients Data',
-                              ),
-                            ),
-                          );
-                        },
-                        child: const Text(
-                          "Export Low Risk Patients",
+                          "Export Stable Patients",
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontWeight: FontWeight.normal,
@@ -346,14 +345,14 @@ class _AdminSettingsState extends State<AdminSettings> {
                             context,
                             MaterialPageRoute(
                               builder: (context) => ExportDataScreen(
-                                filterValue: 'high',
-                                title: 'Export High Risk Patients Data',
+                                filterValue: 'unstable',
+                                title: 'Export Unstable Patients Data',
                               ),
                             ),
                           );
                         },
                         child: const Text(
-                          "Export High Risk Patients",
+                          "Export Unstable Patients",
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontWeight: FontWeight.normal,

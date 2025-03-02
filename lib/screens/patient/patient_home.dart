@@ -10,7 +10,6 @@ import 'package:solace/shared/widgets/bottom_navbar.dart';
 import 'package:solace/shared/widgets/notifications.dart';
 import 'package:solace/shared/widgets/profile.dart';
 import 'package:solace/themes/colors.dart';
-import 'package:solace/shared/widgets/show_qr.dart';
 
 class PatientHome extends StatefulWidget {
   const PatientHome({super.key});
@@ -127,10 +126,6 @@ class PatientHomeState extends State<PatientHome> {
       child: StreamBuilder<UserData?>(
         stream: DatabaseService(uid: user?.uid).userData,
         builder: (context, snapshot) {
-          String fullName = snapshot.hasData
-              ? '${snapshot.data?.firstName ?? 'User'} ${snapshot.data?.middleName ?? ''} ${snapshot.data?.lastName ?? 'User'}'
-              : 'User';
-
           return AppBar(
             backgroundColor: AppColors.white,
             scrolledUnderElevation: 0.0,
@@ -155,21 +150,6 @@ class PatientHomeState extends State<PatientHome> {
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
                                 fontFamily: 'Inter',
-                              ),
-                            ),
-                            GestureDetector(
-                              onTap: () {
-                                _showQrModal(
-                                  context,
-                                  fullName,
-                                  user?.uid ?? '',
-                                  user?.profileImageUrl ??
-                                      '', // Pass profileImageUrl
-                                );
-                              },
-                              child: Image.asset(
-                                'lib/assets/images/shared/profile/qr.png',
-                                height: 30,
                               ),
                             ),
                           ],
@@ -288,24 +268,6 @@ class PatientHomeState extends State<PatientHome> {
             ),
           );
         },
-      ),
-    );
-  }
-
-  // Function to show QR modal
-  void _showQrModal(BuildContext context, String fullName, String uid,
-      String profileImageUrl) {
-    final imageUrl = profileImageUrl.isNotEmpty
-        ? profileImageUrl
-        : 'lib/assets/images/shared/placeholder.png';
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ShowQrPage(
-          fullName: fullName,
-          uid: uid,
-          profileImageUrl: imageUrl, // Pass the profileImageUrl here
-        ),
       ),
     );
   }

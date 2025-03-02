@@ -176,7 +176,28 @@ class InterventionsViewState extends State<InterventionsView> {
             } else if (snapshot.hasError) {
               return const Center(child: Text('Error loading interventions'));
             } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return const Center(child: Text('No interventions found'));
+              return const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline_rounded,
+                      color: AppColors.black,
+                      size: 80,
+                    ),
+                    SizedBox(height: 20.0),
+                    Text(
+                      "No Interventions found",
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 18,
+                        fontWeight: FontWeight.normal,
+                        color: AppColors.black,
+                      ),
+                    ),
+                  ],
+                ),
+              );;
             }
 
             Map<String, List<String>> symptomInterventions = snapshot.data!;

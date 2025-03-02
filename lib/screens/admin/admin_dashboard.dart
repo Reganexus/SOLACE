@@ -12,7 +12,8 @@ class AdminDashboard extends StatefulWidget {
 }
 
 class _AdminDashboardState extends State<AdminDashboard> {
-  int patientCount = 0;
+
+  int caregiverCount = 0;
   int doctorCount = 0;
   int adminCount = 0;
   int totalUsers = 0;
@@ -31,37 +32,37 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
       final userCounts = await Future.wait([
         firestore
-            .collection('users')
-            .where('userRole', isEqualTo: 'patient')
+            .collection('caregiver')
+            .where('userRole', isEqualTo: 'caregiver')
             .get(),
         firestore
-            .collection('users')
+            .collection('doctor')
             .where('userRole', isEqualTo: 'doctor')
             .get(),
         firestore
-            .collection('users')
+            .collection('admin')
             .where('userRole', isEqualTo: 'admin')
             .get(),
       ]);
 
       final statusCounts = await Future.wait([
         firestore
-            .collection('users')
+            .collection('caregiver')
             .where('userRole', isEqualTo: 'patient')
             .where('status', isEqualTo: 'stable')
             .get(),
         firestore
-            .collection('users')
+            .collection('caregiver')
             .where('userRole', isEqualTo: 'patient')
             .where('status', isEqualTo: 'unstable')
             .get(),
       ]);
 
       setState(() {
-        patientCount = userCounts[0].size;
+        caregiverCount = userCounts[0].size;
         doctorCount = userCounts[1].size;
         adminCount = userCounts[2].size;
-        totalUsers = patientCount + doctorCount + adminCount;
+        totalUsers = caregiverCount + doctorCount + adminCount;
 
         stableCount = statusCounts[0].size;
         unstableCount = statusCounts[1].size;
@@ -85,7 +86,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           fontSize: 18,
           fontWeight: FontWeight.bold,
           fontFamily: 'Inter',
-          color: AppColors.white,
+          color: AppColors.black,
         ),
       ),
     );
@@ -189,10 +190,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               children: [
-                _buildSquareContainer('$patientCount', AppColors.blue),
-                _buildSquareContainer('$doctorCount', AppColors.purple),
-                _buildSquareContainer('$adminCount', AppColors.neon),
-                _buildSquareContainer('$totalUsers', AppColors.darkblue),
+                _buildSquareContainer('$caregiverCount', AppColors.gray),
+                _buildSquareContainer('$doctorCount', AppColors.gray),
+                _buildSquareContainer('$adminCount', AppColors.gray),
+                _buildSquareContainer('$totalUsers', AppColors.gray),
               ],
             ),
             SizedBox(
@@ -209,7 +210,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemBuilder: (context, index) {
-                final labels = ['Patients', 'Doctors', 'Admins', 'Users'];
+                final labels = ['Caregivers', 'Doctors', 'Admins', 'Users'];
                 return _buildLabel(
                     labels[index], 12); // Use dynamic font size if needed
               },

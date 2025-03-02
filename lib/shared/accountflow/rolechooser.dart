@@ -293,6 +293,8 @@ class _RoleChooserState extends State<RoleChooser> {
                                 value: 'caregiver', child: Text('Caregiver')),
                             DropdownMenuItem(
                                 value: 'doctor', child: Text('Doctor')),
+                            DropdownMenuItem(
+                                value: 'admin', child: Text('Admin')),
                           ],
                           value: _selectedRole,
                           onChanged: (value) =>

@@ -486,8 +486,7 @@ class DoctorUsersState extends State<DoctorUsers> {
       context: context,
       builder: (context) {
         return UserDetailsDialog(
-          user: caregiver, // Pass the caregiver object
-          isAdminView: false,
+          user: caregiver,
           onAddContact: () => _addContact(caregiver),
           onCall: () =>
               _makeCall(caregiver.phoneNumber), // Callback for making calls

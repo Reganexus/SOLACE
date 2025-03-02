@@ -17,9 +17,6 @@ class UserDataForm extends StatefulWidget {
   final bool isVerified; // New field
   final int age;
   final UserRole userRole;
-  final String? will; // New field
-  final String? fixedWishes; // New field
-  final String? organDonation;
 
   const UserDataForm({
     super.key,
@@ -30,9 +27,6 @@ class UserDataForm extends StatefulWidget {
     required this.newUser,
     required this.isVerified,
     required this.age,
-    this.will, // Add to constructor
-    this.fixedWishes, // Add to constructor
-    this.organDonation, // Add to constructor
   });
 
   @override
@@ -49,10 +43,7 @@ typedef UserDataCallback = Future<void> Function({
   required String address,
   required String profileImageUrl,
   required String religion,
-  required int age, // Add age here
-  required String will, // Add will here
-  required String fixedWishes, // Add fixedWishes here
-  required String organDonation,
+  required int age,
 });
 
 class UserDataFormState extends State<UserDataForm> {
@@ -65,14 +56,11 @@ class UserDataFormState extends State<UserDataForm> {
   late TextEditingController phoneNumberController;
   late TextEditingController addressController;
   late TextEditingController birthdayController;
-  late TextEditingController willController;
-  late TextEditingController fixedWishesController;
 
   File? _profileImage;
   String? _profileImageUrl;
   String gender = '';
   String religion = '';
-  String organDonation = '';
   DateTime? birthday;
 
   final _imagePicker = ImagePicker();
@@ -82,11 +70,6 @@ class UserDataFormState extends State<UserDataForm> {
     super.initState();
 
     int focusNodeCount = 8; // Base fields (7 common + 1 address)
-
-    // Add focus nodes for conditional fields
-    if (widget.userData?.userRole == UserRole.patient) {
-      focusNodeCount += 3; // 3 extra fields: will, fixedWishes, organDonation
-    }
 
     // Initialize focus nodes with correct count
     _focusNodes = List.generate(focusNodeCount, (_) => FocusNode());
@@ -135,8 +118,6 @@ class UserDataFormState extends State<UserDataForm> {
     phoneNumberController.dispose();
     addressController.dispose();
     birthdayController.dispose();
-    willController.dispose();
-    fixedWishesController.dispose();
 
     super.dispose();
   }
@@ -164,14 +145,6 @@ class UserDataFormState extends State<UserDataForm> {
     'Islam',
     'Iglesia ni Cristo',
     'Other', // Add 'Other' option
-  ];
-
-  static const List<String> organs = [
-    'Heart',
-    'Liver',
-    'Kidney',
-    'Lung',
-    'None',
   ];
 
   Future<void> _pickProfileImage() async {
@@ -296,7 +269,6 @@ class UserDataFormState extends State<UserDataForm> {
 
   Future<void> _submitForm() async {
     // Assuming `userRole` is passed as a property
-    final isPatient = widget.userRole == UserRole.patient;
 
     final nameRegExp = RegExp(r"^[\p{L}\s]+(?:\.\s?[\p{L}]+)*$", unicode: true);
 
@@ -362,31 +334,6 @@ class UserDataFormState extends State<UserDataForm> {
       return;
     }
 
-    // Validate new fields only if userRole is patient
-    final will = willController.text.trim();
-    final fixedWishes = fixedWishesController.text.trim();
-
-    if (isPatient) {
-      // Ensure that will and fixedWishes are not empty for patients
-      if (will.isEmpty) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Please specify your will.')));
-        return;
-      }
-
-      if (fixedWishes.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Please specify your fixed wishes.')));
-        return;
-      }
-
-      if (organDonation.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Please select your organ donation if any.')));
-        return;
-      }
-    }
-
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return;
 
@@ -419,9 +366,6 @@ class UserDataFormState extends State<UserDataForm> {
       profileImageUrl: profileImageUrl ?? '',
       religion: religion,
       age: age,
-      will: isPatient ? will : "",
-      fixedWishes: isPatient ? fixedWishes : "",
-      organDonation: isPatient ? organDonation : "None",
     );
   }
 
@@ -688,80 +632,6 @@ class UserDataFormState extends State<UserDataForm> {
                 validator: (val) =>
                     val!.isEmpty ? 'Address cannot be empty' : null,
               ),
-
-              // Conditionally show these fields for patients and if newUser is false
-              if (widget.userData?.userRole == UserRole.patient) ...[
-                const SizedBox(height: 10),
-                const Divider(thickness: 1.0),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Additional Information',
-                      style: TextStyle(
-                        fontSize: 18.0,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Inter',
-                        color: Colors.black,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: willController,
-                  focusNode: _focusNodes[8],
-                  decoration: _buildInputDecoration('Will', _focusNodes[8]),
-                  validator: (val) =>
-                      val!.isEmpty ? 'Will cannot be empty' : null,
-                ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: fixedWishesController,
-                  focusNode: _focusNodes[9],
-                  decoration:
-                      _buildInputDecoration('Fixed Wishes', _focusNodes[9]),
-                  validator: (val) =>
-                      val!.isEmpty ? 'Fixed Wishes cannot be empty' : null,
-                ),
-                const SizedBox(height: 20),
-                DropdownButtonFormField<String>(
-                  value:
-                      organDonation.isNotEmpty && organs.contains(organDonation)
-                          ? organDonation
-                          : null,
-                  focusNode: _focusNodes[10],
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.normal,
-                    color: AppColors.black,
-                  ),
-                  decoration:
-                      _buildInputDecoration('Organ Donation', _focusNodes[10]),
-                  items: organs
-                      .map(
-                        (organ) => DropdownMenuItem(
-                          value: organ,
-                          child: Text(
-                            organ,
-                            style:
-                                TextStyle(color: AppColors.black, fontSize: 16),
-                          ),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (val) => setState(() {
-                    organDonation =
-                        val ?? 'None'; // Ensure it falls back to 'None' if null
-                  }),
-                  validator: (val) => val == null || val.isEmpty
-                      ? 'Select Organ Donation'
-                      : null,
-                  dropdownColor: AppColors.white,
-                ),
-              ],
 
               const SizedBox(height: 10),
               const Divider(thickness: 1.0),

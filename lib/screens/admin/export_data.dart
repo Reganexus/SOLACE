@@ -25,7 +25,7 @@ class ExportDataScreen extends StatefulWidget {
 class _ExportDataScreenState extends State<ExportDataScreen> {
   // Export format
   String? _selectedFormat = 'CSV'; // Default format
-  final List<String> _formats = ['CSV', 'XLS', 'PDF'];
+  final List<String> _formats = ['CSV', 'PDF'];
 
   // Time range filter
   String? _selectedTimeRange = 'All Time'; // Default time range
@@ -47,26 +47,30 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
         startDate = DateTime(1970, 1, 1); // All time (no filtering)
       }
 
+      var selectedValue = widget.filterValue;
+
       // Query Firestore based on the selected time range
-      if (widget.filterValue == "patient" ||
-          widget.filterValue == "caregiver" ||
-          widget.filterValue == "doctor") {
+      if (widget.filterValue == "patient") {
         querySnapshot = await FirebaseFirestore.instance
-            .collection('users')
-            .where('userRole', isEqualTo: widget.filterValue)
+            .collection('patient')
             .where('dateCreated', isGreaterThanOrEqualTo: startDate)
             .get();
-      } else if (widget.filterValue == "good" ||
-          widget.filterValue == "low" ||
-          widget.filterValue == "high") {
+      } else if (widget.filterValue == "caregiver" ||
+          widget.filterValue == "doctor" ||
+          widget.filterValue == "admin") {
         querySnapshot = await FirebaseFirestore.instance
-            .collection('users')
-            .where('riskLevel', isEqualTo: widget.filterValue)
+            .collection(selectedValue)
+            .where('dateCreated', isGreaterThanOrEqualTo: startDate)
+            .get();
+      } else if (widget.filterValue == "stable" || widget.filterValue == "unstable") {
+        querySnapshot = await FirebaseFirestore.instance
+            .collection('caregiver')
+            .where('status', isEqualTo: widget.filterValue)
             .where('dateCreated', isGreaterThanOrEqualTo: startDate)
             .get();
       } else {
         querySnapshot = await FirebaseFirestore.instance
-            .collection('users')
+            .collection('admin')
             .where('dateCreated', isGreaterThanOrEqualTo: startDate)
             .get();
       }
@@ -80,6 +84,8 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
         'email',
         'phoneNumber',
         'birthday',
+        'age',
+        'religion',
         'gender',
         'address',
         'dateCreated'
@@ -114,7 +120,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       }
 
       // Export data based on selected format
-      _exportData(data);
+      _exportData(data, selectedValue);
     } catch (e) {
       print("Error fetching data: $e");
     }
@@ -137,16 +143,16 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
   }
 
   // Export data based on selected format
-  void _exportData(List<Map<String, dynamic>> data) {
+  void _exportData(List<Map<String, dynamic>> data, String selectedValue) {
     if (_selectedFormat == 'CSV') {
-      exportToCSV(data);
+      exportToCSV(data, selectedValue);
     } else if (_selectedFormat == 'PDF') {
-      exportToPDF(data);
+      exportToPDF(data, selectedValue);
     }
   }
 
   // CSV Export
-  Future<void> exportToCSV(List<Map<String, dynamic>> data) async {
+  Future<void> exportToCSV(List<Map<String, dynamic>> data, String selectedValue) async {
     try {
       final headers = [
         'uid',
@@ -156,12 +162,15 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
         'email',
         'phoneNumber',
         'birthday',
+        'age',
+        'religion',
         'gender',
         'address',
         'dateCreated'
       ];
 
-      final dateFormat = DateFormat('MMMM dd, yyyy at h:mm:ss a \'UTC\'z');
+      final dateFormat = DateFormat('MMMM dd, yyyy'); // For birthday
+      final timestampFormat = DateFormat('MMMM dd, yyyy at h:mm:ss a \'UTC\'z'); // For dateCreated
       List<List<String>> rows = [];
       rows.add(headers);
 
@@ -170,9 +179,14 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
         for (var header in headers) {
           var value = docData[header];
 
-          if (header == 'dateCreated' || header == 'birthday') {
+          if (header == 'birthday') {
             if (value is Timestamp) {
               value = dateFormat.format(
+                  DateTime.fromMillisecondsSinceEpoch(value.seconds * 1000));
+            }
+          } else if (header == 'dateCreated') {
+            if (value is Timestamp) {
+              value = timestampFormat.format(
                   DateTime.fromMillisecondsSinceEpoch(value.seconds * 1000));
             }
           }
@@ -180,8 +194,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
           if (value is String &&
               header == 'phoneNumber' &&
               value.startsWith('0')) {
-            value =
-                value.replaceFirst(RegExp(r'^0+'), ''); // Remove leading zeros
+            value = value.replaceFirst(RegExp(r'^0+'), ''); // Remove leading zeros
           }
 
           row.add(value.toString());
@@ -192,10 +205,12 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       String csvData = const ListToCsvConverter().convert(rows);
       final csvBytes = Uint8List.fromList(utf8.encode(csvData));
 
-      // Save the file using FilePicker
+      String formattedDate = DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
+      String fileName = "${selectedValue}_exported_data_$formattedDate.csv";
+
       String? outputFile = await FilePicker.platform.saveFile(
         dialogTitle: 'Save CSV File',
-        fileName: 'exported_data.csv',
+        fileName: fileName,
         bytes: csvBytes,
       );
 
@@ -218,7 +233,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
   }
 
 // PDF Export
-  Future<void> exportToPDF(List<Map<String, dynamic>> data) async {
+  Future<void> exportToPDF(List<Map<String, dynamic>> data, String selectedValue) async {
     try {
       final pdf = pw.Document();
       final headers = [
@@ -229,60 +244,86 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
         'email',
         'phoneNumber',
         'birthday',
+        'age',
+        'religion',
         'gender',
         'address',
         'dateCreated'
       ];
 
-      final dateFormat = DateFormat('MMMM dd, yyyy at h:mm:ss a \'UTC\'z');
+      final dateFormat = DateFormat('MMMM dd, yyyy'); // For birthday
+      final timestampFormat = DateFormat('MMMM dd, yyyy at h:mm:ss a \'UTC\'z'); // For dateCreated
 
       pdf.addPage(
         pw.Page(
           orientation: pw.PageOrientation.landscape, // Set to landscape
           build: (pw.Context context) {
-            return pw.TableHelper.fromTextArray(
-              headers: headers,
-              data: data.map((docData) {
-                List<String> row = [];
-                for (var header in headers) {
+            final List<List<String>> rows = [
+              headers,
+              ...data.map((docData) {
+                return headers.map((header) {
                   var value = docData[header];
 
-                  if (header == 'dateCreated' || header == 'birthday') {
+                  if (header == 'birthday') {
                     if (value is Timestamp) {
                       value = dateFormat.format(
-                          DateTime.fromMillisecondsSinceEpoch(
-                              value.seconds * 1000));
+                          DateTime.fromMillisecondsSinceEpoch(value.seconds * 1000));
+                    }
+                  } else if (header == 'dateCreated') {
+                    if (value is Timestamp) {
+                      value = timestampFormat.format(
+                          DateTime.fromMillisecondsSinceEpoch(value.seconds * 1000));
                     }
                   }
 
                   if (value is String &&
                       header == 'phoneNumber' &&
                       value.startsWith('0')) {
-                    value = value.replaceFirst(
-                        RegExp(r'^0+'), ''); // Remove leading zeros
+                    value = value.replaceFirst(RegExp(r'^0+'), ''); // Remove leading zeros
                   }
 
-                  row.add(value.toString());
-                }
-                return row;
+                  return value?.toString() ?? ''; // Handle null values
+                }).toList();
+              })
+            ];
+
+            return pw.Table(
+              border: pw.TableBorder.all(),
+              columnWidths: {
+                for (int i = 0; i < headers.length; i++) i: const pw.FlexColumnWidth(1),
+              },
+              children: rows.map((row) {
+                return pw.TableRow(
+                  children: row.map((cell) {
+                    return pw.Padding(
+                      padding: const pw.EdgeInsets.all(2),
+                      child: pw.Text(
+                        cell,
+                        style: const pw.TextStyle(fontSize: 8),
+                        textAlign: pw.TextAlign.left,
+                      ),
+                    );
+                  }).toList(),
+                );
               }).toList(),
-              headerStyle:
-                  pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
-              cellStyle: pw.TextStyle(fontSize: 8),
-              cellPadding: pw.EdgeInsets.all(2),
             );
           },
         ),
       );
 
+
       final pdfBytes = Uint8List.fromList(await pdf.save());
 
       // Save the file using FilePicker
+      String formattedDate = DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
+      String fileName = "${selectedValue}_exported_data_$formattedDate.pdf";
+
       String? outputFile = await FilePicker.platform.saveFile(
         dialogTitle: 'Save PDF File',
-        fileName: 'exported_data.pdf',
+        fileName: fileName,
         bytes: pdfBytes,
       );
+
 
       if (outputFile != null) {
         // outputFile is the file path (String)

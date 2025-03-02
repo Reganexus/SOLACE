@@ -7,6 +7,7 @@ class PatientData {
   final String profileImageUrl;
   final String gender;
   final DateTime? birthday;
+  final DateTime dateCreated;
   final String religion;
   final String will;
   final String fixedWishes;
@@ -18,8 +19,9 @@ class PatientData {
     required this.firstName,
     required this.lastName,
     required this.profileImageUrl,
+    required this.dateCreated,
     required this.gender,
-    this.birthday,
+    required this.birthday,
     required this.religion,
     required this.will,
     required this.fixedWishes,
@@ -54,6 +56,7 @@ class PatientData {
       profileImageUrl: data['profileImageUrl'],
       gender: data['gender'] ?? '',
       birthday: birthday,
+      dateCreated: (data['dateCreated'] as Timestamp).toDate(),
       religion: data['religion'] ?? '',
       will: data['will'],
       fixedWishes: data['fixedWishes'],
@@ -70,6 +73,7 @@ class PatientData {
       'profileImageUrl': profileImageUrl,
       'gender': gender,
       'birthday': birthday != null ? Timestamp.fromDate(birthday!) : null,
+      'dateCreated': Timestamp.fromDate(dateCreated),
       'religion': religion,
       'will': will,
       'fixedWishes': fixedWishes,

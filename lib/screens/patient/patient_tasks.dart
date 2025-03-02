@@ -8,10 +8,10 @@ class PatientTasks extends StatefulWidget {
   final String currentUserId;
 
   @override
-  _PatientTasksState createState() => _PatientTasksState();
+  PatientTasksState createState() => PatientTasksState();
 }
 
-class _PatientTasksState extends State<PatientTasks> {
+class PatientTasksState extends State<PatientTasks> {
   List<Map<String, dynamic>> tasks = [];
   bool _isLoading = false;
   String _errorMessage = '';

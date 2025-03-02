@@ -3,7 +3,6 @@
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -279,33 +278,14 @@ class DatabaseService {
     });
   }
 
-
-// Helper method to map role to collection name
-  String _getCollectionNameFromRole(String role) {
-    switch (role.toLowerCase()) {
-      case 'admin':
-        return 'admin';
-      case 'caregiver':
-        return 'caregiver';
-      case 'doctor':
-        return 'doctor';
-      case 'patient':
-        return 'patient';
-      case 'unregistered':
-        return 'unregistered';
-      default:
-        throw ArgumentError('Invalid role: $role');
-    }
-  }
-
   Future<void> deleteUser(String userId) async {
     try {
       // 1. Identify and delete the Firestore user document from the appropriate collection
-      UserData? userData =
-          await getUserById(userId); // Fetch user data from all collections
+      UserData? userData = await getUserById(userId);
+
+      var collectionName = getTargetUserRole(userId).toString();
+
       if (userData != null) {
-        String collectionName =
-            _getCollectionNameFromRole(userData.userRole.toString());
         await FirebaseFirestore.instance
             .collection(collectionName)
             .doc(userId)
@@ -329,19 +309,6 @@ class DatabaseService {
       }
       await batch.commit();
       print("Related tracking records deleted.");
-
-      // 3. Delete the user from Firebase Authentication
-      User? user = FirebaseAuth.instance.currentUser;
-
-      if (user != null && user.uid == userId) {
-        // Ensure we are deleting the logged-in user if applicable
-        await user.delete();
-        print(
-            "User account deleted successfully from Firebase Authentication.");
-      } else {
-        print(
-            "User is not the authenticated user or the user is not logged in.");
-      }
     } catch (e) {
       print("Error deleting user: $e");
     }
@@ -448,23 +415,16 @@ class DatabaseService {
 
   Future<UserData?> getUserById(String userId) async {
     try {
-      // List of all roles as strings
-      const roles = ['doctor', 'caregiver', 'admin', 'patient', 'unregistered'];
+      final collectionName = getTargetUserRole(userId).toString();
 
-      // Check each collection for the user's document
-      for (String role in roles) {
-        final collectionName = _getCollectionForRole(role as UserRole);
+      // Attempt to fetch the user document
+      final docSnapshot = await FirebaseFirestore.instance
+          .collection(collectionName)
+          .doc(userId)
+          .get();
 
-        // Attempt to fetch the user document
-        final docSnapshot = await FirebaseFirestore.instance
-            .collection(collectionName)
-            .doc(userId)
-            .get();
-
-        if (docSnapshot.exists) {
-          // Parse the document into UserData
-          return UserData.fromDocument(docSnapshot);
-        }
+      if (docSnapshot.exists) {
+        return UserData.fromDocument(docSnapshot);
       }
 
       // Return null if the user is not found in any collection
@@ -1475,7 +1435,8 @@ class DatabaseService {
       final collectionName = getCollectionForRole(UserRole.patient);
 
       // Get the Firestore reference
-      final collectionRef = FirebaseFirestore.instance.collection(collectionName);
+      final collectionRef =
+          FirebaseFirestore.instance.collection(collectionName);
 
       // Prepare the updated data
       Map<String, dynamic> updatedData = {};
@@ -1517,7 +1478,8 @@ class DatabaseService {
       // Perform the update only if there's data to update
       if (updatedData.isNotEmpty) {
         await collectionRef.doc(uid).set(updatedData, SetOptions(merge: true));
-        print("Patient data updated successfully in collection: $collectionName");
+        print(
+            "Patient data updated successfully in collection: $collectionName");
       } else {
         print("No updates provided for patient data.");
       }

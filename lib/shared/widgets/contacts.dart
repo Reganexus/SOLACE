@@ -8,7 +8,6 @@ import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:solace/shared/widgets/qr_scan.dart';
 
 class Contacts extends StatefulWidget {
   final String currentUserId;
@@ -72,31 +71,6 @@ class ContactsScreenState extends State<Contacts> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to initialize user role: $e')),
       );
-    }
-  }
-
-  void _handleQRScanResult(BuildContext context, String result) async {
-    try {
-      if (currentUserRole == null) throw Exception('User role not initialized');
-
-      final targetUserRole = await db.getTargetUserRole(result);
-      if (targetUserRole == null) throw Exception('User not found');
-
-      if (await db.isUserFriend(currentUserId, result)) {
-        _showSnackBar('You are already friends with this user!');
-        return;
-      }
-
-      if (await db.hasPendingRequest(currentUserId, result)) {
-        _showSnackBar('Friend request already sent!');
-        return;
-      }
-
-      await db.sendFriendRequest(currentUserId, result);
-      _showSnackBar('Friend request successfully sent!');
-    } catch (e) {
-      debugPrint('Error handling QR scan result: $e');
-      _showSnackBar('Error: $e');
     }
   }
 
@@ -330,23 +304,6 @@ class ContactsScreenState extends State<Contacts> {
               padding: const EdgeInsets.only(right: 10.0),
               child: Icon(
                 Icons.person_add,
-                size: 30,
-                color: AppColors.black,
-              ),
-            ),
-          ),
-          GestureDetector(
-            onTap: () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const QRScannerPage()),
-              );
-              if (result != null) _handleQRScanResult(context, result);
-            },
-            child: Padding(
-              padding: const EdgeInsets.only(right: 24.0),
-              child: Icon(
-                Icons.qr_code_scanner,
                 size: 30,
                 color: AppColors.black,
               ),
