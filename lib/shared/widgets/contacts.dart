@@ -2,9 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -19,58 +17,33 @@ class Contacts extends StatefulWidget {
 }
 
 class ContactsScreenState extends State<Contacts> {
-  late final String currentUserId;
-  String? currentUserRole;
-  bool isLoading = true;
-
   final DatabaseService db = DatabaseService();
+  late final String currentUserId;
+  String? collectionName;
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
     currentUserId = widget.currentUserId;
-    _initializeUserRole();
+
+    debugPrint("Current user id is: $currentUserId");
+    _initializeCollectionName();
   }
 
-  Stream<DocumentSnapshot?> _getCurrentUserStream(String userId) async* {
-    const roles = ['admin', 'doctor', 'caregiver', 'patient', 'unregistered'];
-
-    for (final role in roles) {
-      final docStream =
-          FirebaseFirestore.instance.collection(role).doc(userId).snapshots();
-      final doc = await docStream.first;
-      if (doc.exists) {
-        yield* docStream;
-        return;
-      }
-    }
-    yield null;
-  }
-
-  Future<void> _initializeUserRole() async {
+  Future<void> _initializeCollectionName() async {
     try {
-      const roles = ['admin', 'doctor', 'caregiver', 'patient', 'unregistered'];
-      for (final role in roles) {
-        final doc = await FirebaseFirestore.instance
-            .collection(role)
-            .doc(currentUserId)
-            .get();
-        if (doc.exists) {
-          setState(() {
-            currentUserRole =
-                (doc.data() as Map<String, dynamic>)['userRole'] ?? 'unknown';
-            isLoading = false;
-          });
-          return;
-        }
-      }
-      throw Exception('User document not found');
+      final role = await db.getTargetUserRole(currentUserId); // Fetch user role
+      setState(() {
+        collectionName = role as String;
+        debugPrint("Collection Name is: $collectionName");
+        isLoading = false;
+      });
     } catch (e) {
-      debugPrint('Error initializing user role: $e');
-      setState(() => isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to initialize user role: $e')),
-      );
+      debugPrint("Error fetching collection name: $e");
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
@@ -87,266 +60,182 @@ class ContactsScreenState extends State<Contacts> {
     }
   }
 
-  Future<void> _showSearchModal(BuildContext context) async {
-    final uidController = TextEditingController();
-
+  void _addContact() {
     showDialog(
       context: context,
-      builder: (context) => LayoutBuilder(
-        builder: (context, constraints) {
-          return AlertDialog(
-            backgroundColor: AppColors.white,
-            contentPadding: const EdgeInsets.all(20),
-            title: const Text(
-              'Add Friend',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+      builder: (context) {
+        final TextEditingController firstNameController = TextEditingController();
+        final TextEditingController lastNameController = TextEditingController();
+        final TextEditingController numberController = TextEditingController();
+        final FocusNode firstNameFocusNode = FocusNode();
+        final FocusNode lastNameFocusNode = FocusNode();
+        final FocusNode numberFocusNode = FocusNode();
+        final FocusNode categoryFocusNode = FocusNode();
+        String category = "relative";
+
+        return Dialog(
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(15),
             ),
-            content: SizedBox(
-              width: constraints.maxWidth, // Full width of the screen
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: uidController,
-                    decoration: InputDecoration(
-                      labelText: 'Enter User UID',
-                      labelStyle: const TextStyle(
-                        color: AppColors.black, // Default label color
-                      ),
-                      floatingLabelStyle: const TextStyle(
-                        color: AppColors.neon, // Label color when focused
-                      ),
-                      filled: true,
-                      fillColor: AppColors.gray, // Subtle fill
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(
-                          color: AppColors.black, // Default border color
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "Add Contact",
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontFamily: 'Outfit',
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.black,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: firstNameController,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.normal,
+                    color: AppColors.black,
+                  ),
+                  focusNode: firstNameFocusNode,
+                  decoration: _buildInputDecoration("First Name", firstNameFocusNode),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: lastNameController,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.normal,
+                    color: AppColors.black,
+                  ),
+                  focusNode: lastNameFocusNode,
+                  decoration: _buildInputDecoration("Last Name", lastNameFocusNode),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: numberController,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.normal,
+                    color: AppColors.black,
+                  ),
+                  focusNode: numberFocusNode,
+                  decoration: _buildInputDecoration("Phone Number", numberFocusNode),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  value: category,
+                  items: const [
+                    DropdownMenuItem(value: "relative", child: Text("Relative")),
+                    DropdownMenuItem(value: "nurse", child: Text("Nurse")),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      category = value;
+                    }
+                  },
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.normal,
+                    color: AppColors.black,
+                  ),
+                  focusNode: categoryFocusNode,
+                  decoration: _buildInputDecoration("Category", categoryFocusNode),
+                  dropdownColor: AppColors.white,
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                          backgroundColor: AppColors.red,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(
-                          color: AppColors.neon, // Border color when focused
-                          width: 2.0,
-                        ),
-                      ),
-                      errorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(
-                          color: Colors.red, // Border color for errors
-                        ),
-                      ),
-                      focusedErrorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(
-                          color: Colors.red, // Border for focused error
+                        child: const Text(
+                          "Cancel",
+                          style: TextStyle(
+                            fontSize: 16.0,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Inter',
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Container(
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: AppColors.neon,
-                            borderRadius: BorderRadius.circular(10.0),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextButton(
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                          backgroundColor: AppColors.neon,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          child: TextButton(
-                            onPressed: () async {
-                              final targetUserId = uidController.text.trim();
-                              try {
-                                print("Starting friend request process...");
+                        ),
+                        onPressed: () async {
+                          if (firstNameController.text.isEmpty ||
+                              lastNameController.text.isEmpty ||
+                              numberController.text.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("All fields are required")),
+                            );
+                            return;
+                          }
 
-                                // Check if the user is trying to add themselves
-                                if (currentUserId == targetUserId) {
-                                  print("User is trying to add themselves.");
-                                  Navigator.of(context)
-                                      .pop(); // Close the dialog
-                                  _showSnackBar(
-                                      "You cannot add yourself as a friend!");
-                                  return;
-                                }
+                          final contactData = {
+                            "firstName": firstNameController.text.trim(),
+                            "lastName": lastNameController.text.trim(),
+                            "number": numberController.text.trim(),
+                            "category": category, // Include the category field
+                          };
 
-                                // Get the target user's role
-                                print("Fetching target user role...");
-                                final targetUserRole =
-                                    await db.getTargetUserRole(targetUserId);
-                                print("Target user role: $targetUserRole");
-
-                                if (targetUserRole == null) {
-                                  print("Target user role is null.");
-                                  Navigator.of(context)
-                                      .pop(); // Close the dialog
-                                  _showSnackBar('User not found!');
-                                  return;
-                                }
-
-                                // Check if users are already friends
-                                print(
-                                    "Checking if user is already a friend...");
-                                if (await db.isUserFriend(
-                                    currentUserId, targetUserId)) {
-                                  print("Users are already friends.");
-                                  Navigator.of(context)
-                                      .pop(); // Close the dialog
-                                  _showSnackBar(
-                                      'You are already friends with this user!');
-                                  return;
-                                }
-
-                                // Check for pending friend requests
-                                print("Checking for pending requests...");
-                                if (await db.hasPendingRequest(
-                                    currentUserId, targetUserId)) {
-                                  print("Pending request exists.");
-                                  Navigator.of(context)
-                                      .pop(); // Close the dialog
-                                  _showSnackBar('Friend request already sent!');
-                                  return;
-                                }
-
-                                // Send the friend request
-                                print("Sending friend request...");
-                                await db.sendFriendRequest(
-                                    currentUserId, targetUserId);
-                                print("Friend request sent successfully.");
-                                Navigator.of(context).pop(); // Close the dialog
-                                _showSnackBar('Friend request sent!');
-                              } catch (e) {
-                                debugPrint('Error adding friend: $e');
-                                Navigator.of(context).pop(); // Close the dialog
-                                _showSnackBar('Error: $e');
-                              }
-                            },
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.person_add,
-                                  color: AppColors.white,
-                                  size: 24,
-                                ),
-                                const SizedBox(width: 10),
-                                Text(
-                                  'Add Friend',
-                                  style: const TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
+                          try {
+                            await db.addContact(currentUserId, category, contactData);
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Contact added successfully")),
+                            );
+                          } catch (e) {
+                            debugPrint("Error adding contact: $e");
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Failed to add contact")),
+                            );
+                          }
+                        },
+                        child: const Text(
+                          "Add Contact",
+                          style: TextStyle(
+                            fontSize: 16.0,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Inter',
+                            color: Colors.white,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Container(
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: AppColors.red,
-                            borderRadius: BorderRadius.circular(10.0),
-                          ),
-                          child: TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop(); // Close the dialog
-                            },
-                            child: const Text(
-                              'Cancel',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.white,
-      appBar: AppBar(
-        backgroundColor: AppColors.white,
-        scrolledUnderElevation: 0.0,
-        title: const Text(
-          'Contacts',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        actions: [
-          GestureDetector(
-            onTap: () => _showSearchModal(context),
-            child: Padding(
-              padding: const EdgeInsets.only(right: 10.0),
-              child: Icon(
-                Icons.person_add,
-                size: 30,
-                color: AppColors.black,
-              ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-        ],
-      ),
-      body: StreamBuilder<DocumentSnapshot?>(
-        stream: _getCurrentUserStream(currentUserId),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (!snapshot.hasData) {
-            return const Center(child: Text('User data not found'));
-          }
-
-          final userDoc = snapshot.data!.data() as Map<String, dynamic>?;
-          if (userDoc == null) {
-            return const Center(child: Text('User data is empty'));
-          }
-
-          return SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-              child: Column(
-                children: [
-                  _buildHeader('Contacts'),
-                  const SizedBox(height: 10),
-                  _buildFriendsList(),
-                  const SizedBox(height: 20),
-                  _buildHeader('Contact Requests'),
-                  const SizedBox(height: 10),
-                  _buildRequestsList(),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+        );
+      },
     );
   }
+
+
 
   // Header for Friends & Requests list
   Widget _buildHeader(String title) {
@@ -365,398 +254,564 @@ class ContactsScreenState extends State<Contacts> {
     );
   }
 
-  Widget _buildContactsList(String type, String emptyMessage,
-      Function(String, UserRole) cardBuilder) {
-    return StreamBuilder<DocumentSnapshot?>(
-      stream: _getCurrentUserStream(currentUserId),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data == null) {
-          return Center(
-            child: CircularProgressIndicator(color: AppColors.neon),
-          );
-        }
-        final data = snapshot.data!.data() as Map<String, dynamic>?;
-        final contacts = data?['contacts'] as Map<String, dynamic>?;
-        final contactsData = contacts?[type] as Map<String, dynamic>?;
-
-        if (contactsData == null || contactsData.isEmpty) {
-          return _buildEmptyState(emptyMessage);
-        }
-
-        final items = contactsData.entries.toList();
-        return ListView.builder(
-          shrinkWrap: true,
-          physics: NeverScrollableScrollPhysics(),
-          itemCount: items.length,
-          itemBuilder: (context, index) {
-            final contactId = items[index].key;
-            final contactRole = items[index].value;
-            return cardBuilder(
-              contactId,
-              UserRole.values.firstWhere(
-                (role) => role.toString().split('.').last == contactRole,
-                orElse: () => UserRole.caregiver,
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildCard({
-    required String name,
-    required String profileImageUrl,
-    required Widget trailingWidget,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: AppColors.gray,
-        borderRadius: BorderRadius.circular(10.0),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundImage: profileImageUrl.isNotEmpty
-                ? NetworkImage(profileImageUrl)
-                : const AssetImage('lib/assets/images/shared/placeholder.png')
-                    as ImageProvider,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              name,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 18,
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.normal,
-                color: AppColors.black,
-              ),
-            ),
-          ),
-          trailingWidget,
-        ],
-      ),
-    );
-  }
-
-  // Friends list
-  Widget _buildFriendsList() {
-    return _buildContactsList('friends', 'No friends yet', _buildFriendCard);
-  }
-
-  Widget _buildRequestsList() {
-    return _buildContactsList('requests', 'No requests', _buildRequestCard);
-  }
-
-  // Friend Card
-  Widget _buildFriendCard(String friendId, UserRole friendRole) {
-    return FutureBuilder<String>(
-      future: db.getUserName(friendId, friendRole),
-      builder: (context, nameSnapshot) {
-        if (!nameSnapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        String friendName = nameSnapshot.data ?? 'Unknown';
-
-        return FutureBuilder<String>(
-          future: db.getProfileImageUrl(friendId, friendRole),
-          builder: (context, imageSnapshot) {
-            String profileImageUrl = imageSnapshot.data ?? '';
-
-            return _buildCard(
-              name: friendName,
-              profileImageUrl: profileImageUrl,
-              trailingWidget: IconButton(
-                icon: const Icon(Icons.more_vert),
-                onPressed: () =>
-                    _showFriendOptions(context, friendId, friendRole),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  // Request Card
-  Widget _buildRequestCard(String requestId, UserRole requestRole) {
-    return FutureBuilder<String>(
-      future: db.getUserName(requestId, requestRole),
-      builder: (context, nameSnapshot) {
-        if (!nameSnapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        String requesterName = nameSnapshot.data ?? 'Unknown';
-
-        return FutureBuilder<String>(
-          future: db.getProfileImageUrl(requestId, requestRole),
-          builder: (context, imageSnapshot) {
-            String profileImageUrl = imageSnapshot.data ?? '';
-
-            return _buildCard(
-              name: requesterName,
-              profileImageUrl: profileImageUrl,
-              trailingWidget: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.check, color: Colors.green),
-                    onPressed: () =>
-                        db.acceptFriendRequest(currentUserId, requestId),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.clear, color: Colors.red),
-                    onPressed: () =>
-                        db.declineFriendRequest(currentUserId, requestId),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  // Empty State Widget
-  Widget _buildEmptyState(String message) {
+  Widget _buildContactsList(List<dynamic> contacts) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: double.infinity,
-          padding: EdgeInsets.symmetric(vertical: 18),
-          decoration: BoxDecoration(
-            color: AppColors.gray,
-            borderRadius: BorderRadius.circular(10.0),
-          ),
-          child: Text(
-            message,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 18,
-              fontFamily: 'Inter',
-              fontWeight: FontWeight.normal,
-              color: AppColors.black,
+        ...contacts.map((contact) {
+          final contactData = Map<String, dynamic>.from(contact);
+
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+            decoration: BoxDecoration(
+              color: AppColors.gray,
+              borderRadius: BorderRadius.circular(10),
             ),
-          ),
-        ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "${contactData['firstName']} ${contactData['lastName']}",
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        contactData['number'],
+                        style: const TextStyle(
+                          fontSize: 18,
+                          color: AppColors.blackTransparent,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                GestureDetector(
+                  onTap: () {
+                    _showContactDialog(contactData);
+                  },
+                  child: const Icon(
+                    Icons.more_vert,
+                    size: 30,
+                    color: AppColors.black,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
       ],
     );
   }
 
-  Future<void> _showFriendOptions(
-      BuildContext context, String friendId, UserRole friendRole) async {
-    try {
-      // Fetch the friend's name and phone number based on role
-      String friendName = await db.getUserName(friendId, friendRole);
-
-      DocumentSnapshot friendDoc = await FirebaseFirestore.instance
-          .collection(
-              friendRole.toString().split('.').last) // Dynamic role-based collection
-          .doc(friendId)
-          .get();
-
-      String phoneNumber = friendDoc['phoneNumber'] ??
-          'Not available'; // Assuming phoneNumber field exists
-
-      // Extract the timestamp for when you became friends
-      var friendData = friendDoc['contacts']['friends'][currentUserId];
-
-      String formattedTimestamp = 'Unknown';
-      if (friendData is Timestamp) {
-        formattedTimestamp =
-            DateFormat('yyyy-MM-dd').format(friendData.toDate());
-      } else if (friendData is Map) {
-        var timestamp = friendData[
-            'timestamp']; // Assuming the timestamp is stored as 'timestamp'
-        if (timestamp is Timestamp) {
-          formattedTimestamp =
-              DateFormat('yyyy-MM-dd').format(timestamp.toDate());
-        }
-      }
-
-      showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            backgroundColor: AppColors.white,
-            title: Text(
-              friendName,
-              style: TextStyle(
-                fontFamily: 'Outfit',
-                fontWeight: FontWeight.bold,
-                fontSize: 24,
-              ),
+  void _showContactDialog(Map<String, dynamic> contactData) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppColors.white,
+          title: Text(
+            "${contactData['firstName']} ${contactData['lastName']}",
+            style: const TextStyle(
+              fontSize: 24,
+              fontFamily: 'Outfit',
+              fontWeight: FontWeight.bold,
+              color: AppColors.black,
             ),
-            content: SizedBox(
-              width: MediaQuery.of(context).size.width,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Column(
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.phone, color: AppColors.black),
-                          SizedBox(width: 10),
-                          Text(
-                            phoneNumber,
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 18,
-                              fontWeight: FontWeight.normal,
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Icon(Icons.people, color: AppColors.black),
-                          SizedBox(width: 10),
-                          Text(
-                            formattedTimestamp,
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 18,
-                              fontWeight: FontWeight.normal,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(
+                  Icons.phone,
+                  color: AppColors.black,
+                  size: 25,
+                ),
+                title: const Text(
+                  'Call',
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.normal,
+                      color: AppColors.black),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _makeCall(contactData['number']);
+                },
+              ),
+              ListTile(
+                leading: const Icon(
+                  Icons.edit,
+                  color: AppColors.black,
+                  size: 25,
+                ),
+                title: const Text(
+                  'Edit Contact',
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.normal,
+                      color: AppColors.black),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _editContact(contactData);
+                },
+              ),
+              ListTile(
+                leading: const Icon(
+                  Icons.delete,
+                  color: AppColors.black,
+                  size: 25,
+                ),
+                title: const Text(
+                  'Delete Contact',
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.normal,
+                      color: AppColors.black),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _deleteContact(contactData);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _editContact(Map<String, dynamic> contactData) {
+    final TextEditingController firstNameController =
+    TextEditingController(text: contactData['firstName']);
+    final TextEditingController lastNameController =
+    TextEditingController(text: contactData['lastName']);
+    final TextEditingController numberController =
+    TextEditingController(text: contactData['number']);
+    final FocusNode firstNameFocusNode = FocusNode();
+    final FocusNode lastNameFocusNode = FocusNode();
+    final FocusNode numberFocusNode = FocusNode();
+    final FocusNode categoryFocusNode = FocusNode();
+    String category = contactData['category']; // Retain the original category
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.8, // Adjust width as needed
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "Edit Contact",
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontFamily: 'Outfit',
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.black,
                   ),
-                  SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: AppColors.neon,
-                            borderRadius: BorderRadius.circular(10.0),
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: firstNameController,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.normal,
+                    color: AppColors.black,
+                  ),
+                  focusNode: firstNameFocusNode,
+                  decoration: _buildInputDecoration("First Name", firstNameFocusNode),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: lastNameController,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.normal,
+                    color: AppColors.black,
+                  ),
+                  focusNode: lastNameFocusNode,
+                  decoration: _buildInputDecoration("Last Name", lastNameFocusNode),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: numberController,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.normal,
+                    color: AppColors.black,
+                  ),
+                  focusNode: numberFocusNode,
+                  decoration: _buildInputDecoration("Phone Number", numberFocusNode),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  value: category,
+                  items: const [
+                    DropdownMenuItem(value: "relative", child: Text("Relative")),
+                    DropdownMenuItem(value: "nurse", child: Text("Nurse")),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      category = value;
+                    }
+                  },
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.normal,
+                    color: AppColors.black,
+                  ),
+                  focusNode: categoryFocusNode,
+                  decoration: _buildInputDecoration("Category", categoryFocusNode),
+                  dropdownColor: AppColors.white,
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 15, vertical: 5),
+                          backgroundColor: AppColors.red,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          child: TextButton(
-                            onPressed: () => _makeCall(phoneNumber),
-                            style: TextButton.styleFrom(
-                              backgroundColor: AppColors.neon,
-                              foregroundColor: AppColors.white,
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.call, color: AppColors.white),
-                                SizedBox(width: 10),
-                                Text(
-                                  'Call',
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text(
+                          "Cancel",
+                          style: TextStyle(
+                            fontSize: 16.0,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Inter',
+                            color: Colors.white,
                           ),
                         ),
                       ),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Container(
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: AppColors.red,
-                            borderRadius: BorderRadius.circular(10.0),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextButton(
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 15, vertical: 5),
+                          backgroundColor: AppColors.neon,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          child: TextButton(
-                            onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder: (BuildContext context) {
-                                  return AlertDialog(
-                                    title: const Text(
-                                      'Confirm Removal',
-                                      style: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                    content: const Text(
-                                      'Are you sure you want to remove this friend?',
-                                      style: TextStyle(fontSize: 16),
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () {
-                                          Navigator.of(context)
-                                              .pop(); // Close the confirmation dialog
-                                        },
-                                        child: const Text(
-                                          'Cancel',
-                                          style: TextStyle(color: Colors.grey),
-                                        ),
-                                      ),
-                                      TextButton(
-                                        onPressed: () {
-                                          db.removeFriend(
-                                            currentUserId,
-                                            friendId,
-                                          );
-                                          Navigator.of(context)
-                                              .pop(); // Close the confirmation dialog
-                                          Navigator.of(context)
-                                              .pop(); // Close the original dialog
-                                        },
-                                        style: TextButton.styleFrom(
-                                          foregroundColor: Colors.red,
-                                        ),
-                                        child: const Text('Remove'),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              );
-                            },
-                            style: TextButton.styleFrom(
-                              backgroundColor: AppColors.red,
-                              foregroundColor: AppColors.white,
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.group_remove,
-                                    color: AppColors.white),
-                                SizedBox(width: 10),
-                                Text(
-                                  'Remove',
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
+                        ),
+                        onPressed: () async {
+                          if (firstNameController.text.isEmpty ||
+                              lastNameController.text.isEmpty ||
+                              numberController.text.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("All fields are required")),
+                            );
+                            return;
+                          }
+
+                          final updatedContact = {
+                            'firstName': firstNameController.text.trim(),
+                            'lastName': lastNameController.text.trim(),
+                            'number': numberController.text.trim(),
+                            'category': category, // Update category
+                          };
+
+                          try {
+                            await db.editContact(
+                              widget.currentUserId,
+                              contactData['category'], // Original category
+                              updatedContact,
+                              contactData['number'], // Old phone number
+                            );
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text("Contact updated successfully")),
+                            );
+                          } catch (e) {
+                            debugPrint("Error updating contact: $e");
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Failed to update contact")),
+                            );
+                          }
+                        },
+                        child: const Text(
+                          "Save",
+                          style: TextStyle(
+                            fontSize: 16.0,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Inter',
+                            color: Colors.white,
                           ),
                         ),
                       ),
-                    ],
+                    )
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _deleteContact(Map<String, dynamic> contactData) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppColors.white,
+          title: const Text(
+            "Delete Contact",
+            style: TextStyle(
+              fontSize: 24,
+              fontFamily: 'Outfit',
+              fontWeight: FontWeight.bold,
+              color: AppColors.black,
+            ),
+          ),
+          content: const Text(
+            "Are you sure you want to delete this contact?",
+            style: TextStyle(
+                fontSize: 16,
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.normal,
+                color: AppColors.black),
+          ),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 15, vertical: 5),
+                      backgroundColor: AppColors.neon,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text(
+                      "Cancel",
+                      style: TextStyle(
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Inter',
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
-                ],
+                ),
+                SizedBox(
+                  width: 10.0,
+                ),
+                Expanded(
+                  child: TextButton(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 15, vertical: 5),
+                      backgroundColor: AppColors.red,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onPressed: () async {
+                      try {
+                        await db.deleteContact(
+                          widget.currentUserId,
+                          contactData[
+                              'category'], // Category for precise deletion
+                          contactData[
+                              'number'], // Unique identifier (phone number)
+                        );
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text("Contact deleted successfully")),
+                        );
+                      } catch (e) {
+                        debugPrint("Error deleting contact: $e");
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text("Failed to delete contact")),
+                        );
+                      }
+                    },
+                    child: const Text(
+                      "Delete",
+                      style: TextStyle(
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Inter',
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                )
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  InputDecoration _buildInputDecoration(String label, FocusNode focusNode) {
+    return InputDecoration(
+      labelText: label,
+      filled: true,
+      fillColor: AppColors.gray,
+      border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+      focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: AppColors.neon, width: 2)),
+      labelStyle: TextStyle(
+        fontSize: 16,
+        fontFamily: 'Inter',
+        fontWeight: FontWeight.normal,
+        color: focusNode.hasFocus ? AppColors.neon : AppColors.black,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.white,
+      appBar: AppBar(
+        backgroundColor: AppColors.white,
+        scrolledUnderElevation: 0.0,
+        title: const Text(
+          'Contacts',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'Inter',
+          ),
+        ),
+        actions: [
+          GestureDetector(
+            onTap: _addContact, // Call the _addContact function when tapped
+            child: Padding(
+              padding: const EdgeInsets.only(right: 24.0),
+              child: Icon(
+                Icons.person_add,
+                size: 30,
+                color: AppColors.black,
               ),
             ),
-          );
-        },
-      );
-    } catch (e) {
-      debugPrint('Error showing friend options: $e');
-    }
+          ),
+        ],
+      ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : (collectionName == null
+              ? const Center(child: Text("Failed to load data."))
+              : StreamBuilder<DocumentSnapshot?>(
+                  stream: FirebaseFirestore.instance
+                      .collection(
+                          collectionName!) // Use dynamic collection name
+                      .doc(currentUserId)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (!snapshot.hasData || snapshot.data!.data() == null) {
+                      return const Center(
+                          child: Text('No contact data available.'));
+                    }
+
+                    final userDoc =
+                        snapshot.data!.data() as Map<String, dynamic>;
+                    final contacts =
+                        userDoc['contacts'] ?? {'relative': [], 'nurse': []};
+
+                    return SingleChildScrollView(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildHeader('Relatives'),
+                            const SizedBox(height: 10),
+                            if ((contacts['relative'] as List).isNotEmpty)
+                              _buildContactsList(contacts['relative'])
+                            else
+                              Container(
+                                alignment: Alignment.center,
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade200,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Text(
+                                  "No relative contacts",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.normal,
+                                    color: AppColors.black,
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(height: 20),
+                            _buildHeader('Nurses'),
+                            const SizedBox(height: 10),
+                            if ((contacts['nurse'] as List).isNotEmpty)
+                              _buildContactsList(contacts['nurse'])
+                            else
+                              Container(
+                                alignment: Alignment.center,
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade200,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Text(
+                                  "No nurse contacts",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.normal,
+                                    color: AppColors.black,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+
+                  },
+                )),
+    );
   }
 }

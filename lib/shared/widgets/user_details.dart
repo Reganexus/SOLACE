@@ -4,13 +4,11 @@ import 'package:solace/themes/colors.dart';
 
 class UserDetailsDialog extends StatelessWidget {
   final UserData user;
-  final VoidCallback? onAddContact;
   final VoidCallback? onCall;
 
   const UserDetailsDialog({
     super.key,
     required this.user,
-    this.onAddContact,
     this.onCall,
   });
 
@@ -22,51 +20,30 @@ class UserDetailsDialog extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       contentPadding: const EdgeInsets.all(20),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // User Name Header
-          Center(
-            child: Text(
-              '${user.firstName} ${user.lastName}',
-              style: const TextStyle(
-                fontSize: 24,
-                fontFamily: 'Outfit',
-                fontWeight: FontWeight.bold,
-                color: AppColors.black,
+      content: SizedBox(
+        width: MediaQuery.of(context).size.width *
+            0.8, // Set the dialog width to 80% of the screen width
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // User Name Header
+            Center(
+              child: Text(
+                '${user.firstName} ${user.lastName}',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontFamily: 'Outfit',
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.black,
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 20.0),
+            const SizedBox(height: 20.0),
 
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              TextButton(
-                onPressed: onAddContact,
-                style: TextButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-                  backgroundColor: AppColors.neon,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                child: const Text(
-                  'Add Contact',
-                  style: TextStyle(
-                    fontSize: 16.0,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Inter',
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-              SizedBox(
-                width: 10,
-              ),
-              TextButton(
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
                 onPressed: onCall,
                 style: TextButton.styleFrom(
                   padding:
@@ -86,9 +63,9 @@ class UserDetailsDialog extends StatelessWidget {
                   ),
                 ),
               ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }

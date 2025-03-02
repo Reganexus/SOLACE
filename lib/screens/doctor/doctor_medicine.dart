@@ -1,18 +1,18 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:solace/models/my_user.dart';
-import 'package:solace/screens/doctor/view_patient_task.dart';
+import 'package:solace/screens/doctor/view_patient_medicine.dart';
 import 'package:solace/themes/colors.dart';
 
-class DoctorTasks extends StatefulWidget {
-  const DoctorTasks({super.key, required this.currentUserId});
+class DoctorMedicine extends StatefulWidget {
+  const DoctorMedicine({super.key, required this.currentUserId});
   final String currentUserId;
 
   @override
-  DoctorTasksState createState() => DoctorTasksState();
+  DoctorMedicineState createState() => DoctorMedicineState();
 }
 
-class DoctorTasksState extends State<DoctorTasks> {
+class DoctorMedicineState extends State<DoctorMedicine> {
   bool _isAscending = true;
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
@@ -76,7 +76,7 @@ class DoctorTasksState extends State<DoctorTasks> {
         backgroundColor: AppColors.white,
         scrolledUnderElevation: 0.0,
         title: const Text(
-          'Prescribe Tasks',
+          'Prescribe Medicine',
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
@@ -153,7 +153,7 @@ class DoctorTasksState extends State<DoctorTasks> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => ViewPatientTask(
+                                  builder: (context) => ViewPatientMedicine(
                                     patientId: caregiver.uid,
                                     patientName:
                                         '${caregiver.firstName} ${caregiver.lastName}',

@@ -9,9 +9,10 @@ import 'package:solace/screens/patient/chart_generator.dart';
 import 'package:solace/themes/colors.dart'; // Make sure to import your chart
 
 enum LoadingState {
-  loading, // Indicates data is being fetched
-  error, // Indicates an error occurred
-  success, // Indicates successful data fetch
+  loading,
+  error,
+  success,
+  noData, // Indicates no patient document found
 }
 
 class PatientHistory extends StatefulWidget {
@@ -255,12 +256,18 @@ class PatientHistoryState extends State<PatientHistory> {
           .get();
 
       if (!snapshot.exists) {
-        throw Exception("Patient document not found.");
+        setState(() {
+          _loadingState = LoadingState.noData;
+        });
+        return;
       }
 
       final trackingData = snapshot.data()?['tracking'];
       if (trackingData == null) {
-        throw Exception("No tracking data found.");
+        setState(() {
+          _loadingState = LoadingState.noData;
+        });
+        return;
       }
 
       List<DateTime> timestamps = [];
@@ -308,7 +315,7 @@ class PatientHistoryState extends State<PatientHistory> {
         this.saturation = saturation;
         this.respiration = respiration;
         this.painLevel = painLevel;
-        _loadingState = LoadingState.success; // Successfully fetched data
+        _loadingState = LoadingState.success;
       });
     } on TimeoutException {
       setState(() {
@@ -321,6 +328,37 @@ class PatientHistoryState extends State<PatientHistory> {
         _loadingState = LoadingState.error;
       });
     }
+  }
+
+  Widget _buildNoDataState() {
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        mainAxisSize: MainAxisSize.max,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Text(
+            'Patient is not Available',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+              fontFamily: 'Inter',
+            ),
+          ),
+          SizedBox(height: 10),
+          Text(
+            'Go to "Patient" at Home',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.normal,
+              fontFamily: 'Inter',
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   double? _parseVital(dynamic vitalValue) {
@@ -386,48 +424,53 @@ class PatientHistoryState extends State<PatientHistory> {
             ? _buildLoadingState()
             : _loadingState == LoadingState.error
                 ? _buildErrorState()
-                : Column(
-                    children: [
-                      // Fixed radio buttons at the top
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                : _loadingState == LoadingState.noData
+                    ? _buildNoDataState()
+                    : Column(
                         children: [
-                          _buildRadioButton('Every Hour'),
-                          const SizedBox(width: 10.0),
-                          _buildRadioButton('This Day'),
-                          const SizedBox(width: 10.0),
-                          _buildRadioButton('This Week'),
-                        ],
-                      ),
-                      const SizedBox(height: 20.0),
-
-                      // Scrollable content
-                      Expanded(
-                        child: SingleChildScrollView(
-                          child: Container(
-                            color: AppColors.white,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildVitalChartSection('Blood Pressure',
-                                    filteredBloodPressure, filteredTimestamps),
-                                _buildVitalChartSection('Heart Rate',
-                                    filteredHeartRate, filteredTimestamps),
-                                _buildVitalChartSection('Temperature',
-                                    filteredTemperature, filteredTimestamps),
-                                _buildVitalChartSection('Oxygen Saturation',
-                                    filteredSaturation, filteredTimestamps),
-                                _buildVitalChartSection('Respiration',
-                                    filteredRespiration, filteredTimestamps),
-                                _buildVitalChartSection('Pain Level',
-                                    filteredPainLevel, filteredTimestamps),
-                              ],
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              _buildRadioButton('Every Hour'),
+                              const SizedBox(width: 10.0),
+                              _buildRadioButton('This Day'),
+                              const SizedBox(width: 10.0),
+                              _buildRadioButton('This Week'),
+                            ],
+                          ),
+                          const SizedBox(height: 20.0),
+                          Expanded(
+                            child: SingleChildScrollView(
+                              child: Container(
+                                color: AppColors.white,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildVitalChartSection(
+                                        'Blood Pressure',
+                                        filteredBloodPressure,
+                                        filteredTimestamps),
+                                    _buildVitalChartSection('Heart Rate',
+                                        filteredHeartRate, filteredTimestamps),
+                                    _buildVitalChartSection(
+                                        'Temperature',
+                                        filteredTemperature,
+                                        filteredTimestamps),
+                                    _buildVitalChartSection('Oxygen Saturation',
+                                        filteredSaturation, filteredTimestamps),
+                                    _buildVitalChartSection(
+                                        'Respiration',
+                                        filteredRespiration,
+                                        filteredTimestamps),
+                                    _buildVitalChartSection('Pain Level',
+                                        filteredPainLevel, filteredTimestamps),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
-                  ),
       ),
     );
   }

@@ -62,7 +62,8 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
             .collection(selectedValue)
             .where('dateCreated', isGreaterThanOrEqualTo: startDate)
             .get();
-      } else if (widget.filterValue == "stable" || widget.filterValue == "unstable") {
+      } else if (widget.filterValue == "stable" ||
+          widget.filterValue == "unstable") {
         querySnapshot = await FirebaseFirestore.instance
             .collection('caregiver')
             .where('status', isEqualTo: widget.filterValue)
@@ -152,7 +153,8 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
   }
 
   // CSV Export
-  Future<void> exportToCSV(List<Map<String, dynamic>> data, String selectedValue) async {
+  Future<void> exportToCSV(
+      List<Map<String, dynamic>> data, String selectedValue) async {
     try {
       final headers = [
         'uid',
@@ -170,7 +172,8 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       ];
 
       final dateFormat = DateFormat('MMMM dd, yyyy'); // For birthday
-      final timestampFormat = DateFormat('MMMM dd, yyyy at h:mm:ss a \'UTC\'z'); // For dateCreated
+      final timestampFormat =
+          DateFormat('MMMM dd, yyyy at h:mm:ss a \'UTC\'z'); // For dateCreated
       List<List<String>> rows = [];
       rows.add(headers);
 
@@ -194,7 +197,8 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
           if (value is String &&
               header == 'phoneNumber' &&
               value.startsWith('0')) {
-            value = value.replaceFirst(RegExp(r'^0+'), ''); // Remove leading zeros
+            value =
+                value.replaceFirst(RegExp(r'^0+'), ''); // Remove leading zeros
           }
 
           row.add(value.toString());
@@ -205,7 +209,8 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       String csvData = const ListToCsvConverter().convert(rows);
       final csvBytes = Uint8List.fromList(utf8.encode(csvData));
 
-      String formattedDate = DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
+      String formattedDate =
+          DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
       String fileName = "${selectedValue}_exported_data_$formattedDate.csv";
 
       String? outputFile = await FilePicker.platform.saveFile(
@@ -233,7 +238,8 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
   }
 
 // PDF Export
-  Future<void> exportToPDF(List<Map<String, dynamic>> data, String selectedValue) async {
+  Future<void> exportToPDF(
+      List<Map<String, dynamic>> data, String selectedValue) async {
     try {
       final pdf = pw.Document();
       final headers = [
@@ -252,7 +258,8 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       ];
 
       final dateFormat = DateFormat('MMMM dd, yyyy'); // For birthday
-      final timestampFormat = DateFormat('MMMM dd, yyyy at h:mm:ss a \'UTC\'z'); // For dateCreated
+      final timestampFormat =
+          DateFormat('MMMM dd, yyyy at h:mm:ss a \'UTC\'z'); // For dateCreated
 
       pdf.addPage(
         pw.Page(
@@ -267,19 +274,22 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
                   if (header == 'birthday') {
                     if (value is Timestamp) {
                       value = dateFormat.format(
-                          DateTime.fromMillisecondsSinceEpoch(value.seconds * 1000));
+                          DateTime.fromMillisecondsSinceEpoch(
+                              value.seconds * 1000));
                     }
                   } else if (header == 'dateCreated') {
                     if (value is Timestamp) {
                       value = timestampFormat.format(
-                          DateTime.fromMillisecondsSinceEpoch(value.seconds * 1000));
+                          DateTime.fromMillisecondsSinceEpoch(
+                              value.seconds * 1000));
                     }
                   }
 
                   if (value is String &&
                       header == 'phoneNumber' &&
                       value.startsWith('0')) {
-                    value = value.replaceFirst(RegExp(r'^0+'), ''); // Remove leading zeros
+                    value = value.replaceFirst(
+                        RegExp(r'^0+'), ''); // Remove leading zeros
                   }
 
                   return value?.toString() ?? ''; // Handle null values
@@ -290,7 +300,8 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
             return pw.Table(
               border: pw.TableBorder.all(),
               columnWidths: {
-                for (int i = 0; i < headers.length; i++) i: const pw.FlexColumnWidth(1),
+                for (int i = 0; i < headers.length; i++)
+                  i: const pw.FlexColumnWidth(1),
               },
               children: rows.map((row) {
                 return pw.TableRow(
@@ -311,11 +322,11 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
         ),
       );
 
-
       final pdfBytes = Uint8List.fromList(await pdf.save());
 
       // Save the file using FilePicker
-      String formattedDate = DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
+      String formattedDate =
+          DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
       String fileName = "${selectedValue}_exported_data_$formattedDate.pdf";
 
       String? outputFile = await FilePicker.platform.saveFile(
@@ -323,7 +334,6 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
         fileName: fileName,
         bytes: pdfBytes,
       );
-
 
       if (outputFile != null) {
         // outputFile is the file path (String)
@@ -348,7 +358,14 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: AppBar(
-        title: Text('Export Data'),
+        title: Text(
+          'Export Data',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'Inter',
+          ),
+        ),
         backgroundColor: AppColors.white,
         scrolledUnderElevation: 0.0,
       ),

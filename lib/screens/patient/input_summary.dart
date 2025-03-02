@@ -357,6 +357,16 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     return shouldPop;
   }
 
+  final vitalsUnits = {
+    'Heart Rate': 'bpm',
+    'Blood Pressure': 'mmHg',
+    'Oxygen Saturation': '%',
+    'Respiration': 'b/min',
+    'Temperature': '°C',
+    'Cholesterol Level': 'mg/dL',
+    'Paint': '',
+  };
+
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
@@ -364,7 +374,14 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       child: Scaffold(
         backgroundColor: AppColors.white,
         appBar: AppBar(
-          title: const Text('Summary'),
+          title: const Text(
+            'Summary',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Inter',
+            ),
+          ),
           backgroundColor: AppColors.white,
           scrolledUnderElevation: 0.0,
         ),
@@ -375,6 +392,46 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Container(
+                  padding: EdgeInsets.all(20),
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: AppColors.neon,
+                    borderRadius: BorderRadius.circular(10.0),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.max,
+                    children: [
+                      Icon(
+                        Icons.info_outline_rounded,
+                        size: 40,
+                        color: AppColors.white,
+                      ),
+                      SizedBox(height: 10),
+                      Text(
+                        'Please check the input before submitting.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontWeight: FontWeight.normal,
+                            fontSize: 18,
+                            fontFamily: 'Inter',
+                            color: AppColors.white),
+                      ),
+                      Text(
+                        'Once submitted, it cannot be reverted',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Inter',
+                            color: AppColors.white),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(
+                  height: 20,
+                ),
                 const Text(
                   'Your Assessment',
                   textAlign: TextAlign.left,
@@ -397,6 +454,8 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                 ),
                 if (widget.inputs['Vitals'] is Map)
                   ...widget.inputs['Vitals'].entries.map((entry) {
+                    // Get the unit for the current vital
+                    final unit = vitalsUnits[entry.key] ?? '';
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 5.0),
                       child: Row(
@@ -412,7 +471,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                             ),
                           ),
                           Text(
-                            '${entry.value}',
+                            '${entry.value}$unit', // Append the unit
                             style: TextStyle(
                               fontSize: 18,
                               fontFamily: 'Inter',
@@ -560,7 +619,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                           );
                         }
 
-                          Navigator.pop(context);
+                        Navigator.pop(context);
                       } catch (e) {
                         // Handle any unexpected errors here
                         debugPrint("Unexpected error: $e");

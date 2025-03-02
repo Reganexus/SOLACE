@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:solace/shared/widgets/doctor_list.dart';
+import 'package:solace/screens/patient/doctor_list.dart';
 import 'package:solace/themes/colors.dart';
 
 class InterventionsView extends StatefulWidget {
@@ -16,11 +16,21 @@ class InterventionsViewState extends State<InterventionsView> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   Map<String, List<bool>> persistentCheckedStates = {};
+  Map<String, List<String>> symptomInterventions = {};
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadCheckedStates();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    await _loadCheckedStates();
+    symptomInterventions = await _fetchInterventions();
+    setState(() {
+      isLoading = false;
+    });
   }
 
   Future<void> _loadCheckedStates() async {
@@ -29,12 +39,10 @@ class InterventionsViewState extends State<InterventionsView> {
           await _firestore.collection('checkedStates').doc(widget.uid).get();
       if (doc.exists) {
         Map<String, dynamic> rawData = doc.data() as Map<String, dynamic>;
-        setState(() {
-          persistentCheckedStates = rawData.map((key, value) {
-            List<bool> boolList =
-                (value as List<dynamic>).map((item) => item as bool).toList();
-            return MapEntry(key, boolList);
-          });
+        persistentCheckedStates = rawData.map((key, value) {
+          List<bool> boolList =
+              (value as List<dynamic>).map((item) => item as bool).toList();
+          return MapEntry(key, boolList);
         });
       }
     } catch (e) {
@@ -75,162 +83,93 @@ class InterventionsViewState extends State<InterventionsView> {
     'Fatigue': 'fatigue',
     'Shortness of Breath': 'dyspnea',
     'Appetite': 'appetite',
-    'Coughing': 'cough'
+    'Coughing': 'cough',
+    'Nausea': 'nauseaOrVomiting',
+    'Drowsiness': 'drowsiness',
   };
 
 // Emotional Symptoms Mapping
   final Map<String, String> emotionalMapping = {
-    'Nausea': 'nauseaOrVomiting',
     'Depression': 'depression',
     'Anxiety': 'anxietyOrAgitation',
-    'Drowsiness': 'drowsiness',
   };
 
   Future<Map<String, List<String>>> _fetchInterventions() async {
-    Map<String, List<String>> symptomInterventions = {};
-
+    Map<String, List<String>> interventions = {};
     try {
-      // Determine the correct user collection based on uid
-      debugPrint('Fetching user document for UID: ${widget.uid}');
-      DocumentSnapshot? userDoc = await _firestore.collection('patient').doc(widget.uid).get();
-
-      // If user document not found, return an empty map
-      if (userDoc == null || !userDoc.exists) {
-        debugPrint('User document not found for UID: ${widget.uid}');
-        return {};
-      }
-
-      debugPrint('User document fetched: ${userDoc.data()}');
-
-      // Check if 'symptoms' field exists
-      if (!(userDoc.data()! as Map<String, dynamic>).containsKey('symptoms')) {
-        debugPrint('No symptoms field found in the user document');
-        return {};
-      }
-
-      List<String> symptoms = List<String>.from(userDoc['symptoms']);
-      debugPrint('Symptoms found: $symptoms');
-
-      // Combine all mappings into one for lookup
-      final allMappings = {
-        ...vitalsMapping,
-        ...physicalMapping,
-        ...emotionalMapping,
-      };
-      debugPrint('Combined mappings: $allMappings');
-
-      for (String symptom in symptoms) {
-        debugPrint('Processing symptom: $symptom');
-        String? mappedName = allMappings[symptom];
-        if (mappedName == null) {
-          debugPrint('No mapping found for symptom: $symptom');
-          continue;
-        }
-
-        // Query interventions based on mapped symptom name
-        debugPrint('Fetching intervention document for mapped name: $mappedName');
-        DocumentSnapshot interventionDoc =
-        await _firestore.collection('interventions').doc(mappedName).get();
-        if (interventionDoc.exists) {
-          List<String> interventions = List<String>.from(interventionDoc['interventions'] ?? []);
-          debugPrint('Interventions for $symptom: $interventions');
-          symptomInterventions[symptom] = interventions;
-        } else {
-          debugPrint('No interventions found for $symptom');
-          symptomInterventions[symptom] = ['No interventions found'];
+      DocumentSnapshot userDoc =
+          await _firestore.collection('patient').doc(widget.uid).get();
+      if (userDoc.exists && userDoc['symptoms'] != null) {
+        List<String> symptoms = List<String>.from(userDoc['symptoms']);
+        final allMappings = {
+          ...vitalsMapping,
+          ...physicalMapping,
+          ...emotionalMapping
+        };
+        for (String symptom in symptoms) {
+          String? mappedName = allMappings[symptom];
+          if (mappedName != null) {
+            DocumentSnapshot interventionDoc = await _firestore
+                .collection('interventions')
+                .doc(mappedName)
+                .get();
+            if (interventionDoc.exists) {
+              interventions[symptom] =
+                  List<String>.from(interventionDoc['interventions'] ?? []);
+            } else {
+              interventions[symptom] = ['No interventions found'];
+            }
+          }
         }
       }
     } catch (e) {
       debugPrint('Error fetching interventions: $e');
     }
-
-    debugPrint('Fetched interventions: $symptomInterventions');
-    return symptomInterventions;
+    return interventions;
   }
-
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: AppBar(
-        title: const Text(
-          'Intervention',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Inter',
-          ),
-        ),
+        title: const Text('Intervention',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
         backgroundColor: AppColors.white,
         scrolledUnderElevation: 0.0,
       ),
-      body: GestureDetector(
-        onTap: () {
-          FocusScope.of(context).unfocus();
-        },
-        child: FutureBuilder<Map<String, List<String>>>(
-          future: _fetchInterventions(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            } else if (snapshot.hasError) {
-              return const Center(child: Text('Error loading interventions'));
-            } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.error_outline_rounded,
-                      color: AppColors.black,
-                      size: 80,
-                    ),
-                    SizedBox(height: 20.0),
-                    Text(
-                      "No Interventions found",
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 18,
-                        fontWeight: FontWeight.normal,
-                        color: AppColors.black,
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : GestureDetector(
+              onTap: () => FocusScope.of(context).unfocus(),
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      buildSymptomSection(
+                        'Vitals',
+                        vitalsMapping.keys.toList(),
+                        symptomInterventions,
                       ),
-                    ),
-                  ],
-                ),
-              );;
-            }
-
-            Map<String, List<String>> symptomInterventions = snapshot.data!;
-            return SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    buildSymptomSection(
-                      'Vitals',
-                      vitalsMapping.keys.toList(),
-                      symptomInterventions,
-                    ),
-                    const SizedBox(height: 20),
-                    buildSymptomSection(
-                      'Physical Symptoms',
-                      physicalMapping.keys.toList(),
-                      symptomInterventions,
-                    ),
-                    const SizedBox(height: 20),
-                    buildSymptomSection(
-                      'Emotional Symptoms',
-                      emotionalMapping.keys.toList(),
-                      symptomInterventions,
-                    ),
-                  ],
+                      const SizedBox(height: 20),
+                      buildSymptomSection(
+                        'Physical Symptoms',
+                        physicalMapping.keys.toList(),
+                        symptomInterventions,
+                      ),
+                      const SizedBox(height: 20),
+                      buildSymptomSection(
+                        'Emotional Symptoms',
+                        emotionalMapping.keys.toList(),
+                        symptomInterventions,
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            );
-          },
-        ),
-      ),
+            ),
     );
   }
 
@@ -264,7 +203,7 @@ class InterventionsViewState extends State<InterventionsView> {
             ),
             child: const Center(
               child: Text(
-                'No Intervention Needed',
+                'Great Job! No Intervention Needed',
                 style: TextStyle(
                   fontSize: 18.0,
                   fontFamily: 'Inter',
@@ -348,57 +287,181 @@ class InterventionsViewState extends State<InterventionsView> {
                         const SizedBox(height: 10),
                         if (checkedStates.every((state) => state))
                           Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 10.0),
-                            child: TextButton(
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 15, vertical: 5),
-                                backgroundColor: AppColors.red,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                              onPressed: () async {
-                                bool confirm = await showDialog(
-                                  context: context,
-                                  builder: (context) => AlertDialog(
-                                    title: const Text('Confirm Action'),
-                                    content: const Text(
-                                        'Do you want to call a doctor?'),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.of(context).pop(false),
-                                        child: const Text('Cancel'),
-                                      ),
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.of(context).pop(true),
-                                        child: const Text('Yes'),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                                if (confirm) {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => DoctorList(
-                                        uid: widget.uid,
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 10.0, horizontal: 20.0),
+                            child: Column(
+                              children: [
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: TextButton(
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 15, vertical: 10),
+                                      backgroundColor: AppColors.neon,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
                                       ),
                                     ),
-                                  );
-                                }
-                              },
-                              child: const Text(
-                                'Call a Doctor',
-                                style: TextStyle(
-                                  fontSize: 16.0,
-                                  fontWeight: FontWeight.bold,
-                                  fontFamily: 'Inter',
-                                  color: Colors.white,
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => ContactList(
+                                            title: 'Relatives',
+                                            fetchContacts: () async {
+                                              // Fetch relatives from the current user's contacts field
+                                              DocumentSnapshot userSnapshot =
+                                                  await FirebaseFirestore
+                                                      .instance
+                                                      .collection('caregiver')
+                                                      .doc(widget.uid)
+                                                      .get();
+                                              List<dynamic> relatives =
+                                                  userSnapshot['contacts']
+                                                          ['relative'] ??
+                                                      [];
+                                              return relatives
+                                                  .map((relative) => {
+                                                        'name':
+                                                            '${relative['firstName']} ${relative['lastName']}'
+                                                                .trim(),
+                                                        'phone':
+                                                            relative['phone'],
+                                                        'profileImageUrl': relative[
+                                                                'profileImageUrl'] ??
+                                                            '',
+                                                      })
+                                                  .toList();
+                                            },
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: const Text(
+                                      'Call a Relative',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 16.0,
+                                        fontWeight: FontWeight.bold,
+                                        fontFamily: 'Inter',
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                const SizedBox(height: 5),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: TextButton(
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 15, vertical: 10),
+                                      backgroundColor: AppColors.purple,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => ContactList(
+                                            title: 'Nurses',
+                                            fetchContacts: () async {
+                                              // Fetch nurses from the current user's contacts field
+                                              DocumentSnapshot userSnapshot =
+                                                  await FirebaseFirestore
+                                                      .instance
+                                                      .collection('caregiver')
+                                                      .doc(widget.uid)
+                                                      .get();
+                                              List<dynamic> nurses =
+                                                  userSnapshot['contacts']
+                                                          ['nurse'] ??
+                                                      [];
+                                              return nurses
+                                                  .map((nurse) => {
+                                                        'name':
+                                                            '${nurse['firstName']} ${nurse['lastName']}'
+                                                                .trim(),
+                                                        'phone': nurse['phone'],
+                                                        'profileImageUrl': nurse[
+                                                                'profileImageUrl'] ??
+                                                            '',
+                                                      })
+                                                  .toList();
+                                            },
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: const Text(
+                                      'Call a Nurse',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 16.0,
+                                        fontWeight: FontWeight.bold,
+                                        fontFamily: 'Inter',
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 5),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: TextButton(
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 15, vertical: 10),
+                                      backgroundColor: AppColors.red,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => ContactList(
+                                            title: 'Doctors',
+                                            fetchContacts: () async {
+                                              // Fetch doctors from Firestore
+                                              QuerySnapshot doctorSnapshot =
+                                                  await FirebaseFirestore
+                                                      .instance
+                                                      .collection('doctor')
+                                                      .get();
+                                              return doctorSnapshot.docs
+                                                  .map((doc) => {
+                                                        'name':
+                                                            '${doc['firstName']} ${doc['lastName']}'
+                                                                .trim(),
+                                                        'phone':
+                                                            doc['phoneNumber'],
+                                                        'profileImageUrl':
+                                                            doc['profileImageUrl'] ??
+                                                                '',
+                                                      })
+                                                  .toList();
+                                            },
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: const Text(
+                                      'Call a Doctor',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 16.0,
+                                        fontWeight: FontWeight.bold,
+                                        fontFamily: 'Inter',
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                       ],

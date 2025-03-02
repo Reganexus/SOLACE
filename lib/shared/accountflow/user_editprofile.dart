@@ -142,8 +142,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: AppColors.white,
-          title: Text(title),
-          content: Text(content),
+          title: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 24,
+              fontFamily: 'Outfit',
+              fontWeight: FontWeight.bold,
+              color: AppColors.black,
+            ),
+          ),
+          content: Text(
+            content,
+            style: TextStyle(
+                fontSize: 16,
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.normal,
+                color: AppColors.black),
+          ),
           actions: actions,
         );
       },
@@ -158,7 +173,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       [
         TextButton(
           onPressed: () => Navigator.of(context).pop(true),
-          child: const Text('OK'),
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+            backgroundColor: AppColors.neon,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          child: const Text(
+            'OK',
+            style: TextStyle(
+              fontSize: 16.0,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Inter',
+              color: Colors.white,
+            ),
+          ),
         ),
       ],
     );
@@ -172,7 +202,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       [
         TextButton(
           onPressed: () => Navigator.of(context).pop(true),
-          child: const Text('OK'),
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+            backgroundColor: AppColors.neon,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          child: const Text(
+            'OK',
+            style: TextStyle(
+              fontSize: 16.0,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Inter',
+              color: Colors.white,
+            ),
+          ),
         ),
       ],
     );

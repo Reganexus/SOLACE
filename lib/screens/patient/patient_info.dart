@@ -392,7 +392,11 @@ class _PatientInfoState extends State<PatientInfo> {
           scrolledUnderElevation: 0.0,
           title: const Text(
             'Patient Info',
-            style: TextStyle(fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Inter',
+            ),
           ),
         ),
         body: isLoading
@@ -635,6 +639,7 @@ class _PatientInfoState extends State<PatientInfo> {
                     setState(() => organDonation = val ?? 'None'),
                 validator: (val) =>
                     val == null || val.isEmpty ? 'Select Organ Donation' : null,
+                dropdownColor: AppColors.white,
               ),
 
               const SizedBox(height: 10),

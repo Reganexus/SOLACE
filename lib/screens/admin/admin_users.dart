@@ -180,30 +180,78 @@ class AdminUsersState extends State<AdminUsers> {
         context: context,
         builder: (context) {
           return AlertDialog(
-            title: Text('Manage $userName'),
+            backgroundColor: AppColors.white,
+            title: Text(
+              'Manage $userName',
+              style: const TextStyle(
+                fontSize: 24,
+                fontFamily: 'Outfit',
+                fontWeight: FontWeight.bold,
+                color: AppColors.black,
+              ),
+            ),
             content: const Text(
               'Choose an action for this user.',
-              style: TextStyle(fontSize: 16),
+              style: TextStyle(
+                  fontSize: 16,
+                  fontFamily: 'Inter',
+                  fontWeight: FontWeight.normal,
+                  color: AppColors.black),
             ),
             actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context); // Close this dialog
-                  _showDeleteUserDialog(context, user.uid, userName);
-                },
-                child: const Text(
-                  'Delete User',
-                  style: TextStyle(color: Colors.red),
-                ),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context); // Cancel and close the dialog
-                },
-                child: const Text(
-                  'Cancel',
-                  style: TextStyle(color: Colors.grey),
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.pop(context); // Cancel and close the dialog
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 15, vertical: 5),
+                        backgroundColor: AppColors.neon,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(
+                          fontSize: 16.0,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Inter',
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10), // Add spacing between buttons
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.pop(context); // Close this dialog
+                        _showDeleteUserDialog(context, user.uid, userName);
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 15, vertical: 5),
+                        backgroundColor: AppColors.red,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: const Text(
+                        'Delete User',
+                        style: TextStyle(
+                          fontSize: 16.0,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Inter',
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           );
@@ -214,7 +262,8 @@ class AdminUsersState extends State<AdminUsers> {
     }
   }
 
-  void _showDeleteUserDialog(BuildContext context, String uid, String userName) {
+  void _showDeleteUserDialog(
+      BuildContext context, String uid, String userName) {
     showDialog(
       context: context,
       builder: (context) {
@@ -234,7 +283,6 @@ class AdminUsersState extends State<AdminUsers> {
       },
     );
   }
-
 
   InputDecoration _inputDecoration(String label, FocusNode focusNode) {
     return InputDecoration(
@@ -262,131 +310,134 @@ class AdminUsersState extends State<AdminUsers> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: Container(
-        color: AppColors.white,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-          child: Column(
-            children: [
-              IntrinsicHeight(
-                child: Row(
-                  children: [
-                    // Search TextField container
-                    Expanded(
-                      child: Container(
-                        height: double.infinity, // Match height of the Row
-                        decoration: BoxDecoration(
-                          color:
-                              AppColors.gray, // Background color for TextField
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(10),
-                            bottomLeft: Radius.circular(
-                                10), // Rounded corners for left side
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Container(
+          color: AppColors.white,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
+            child: Column(
+              children: [
+                IntrinsicHeight(
+                  child: Row(
+                    children: [
+                      // Search TextField container
+                      Expanded(
+                        child: Container(
+                          height: double.infinity, // Match height of the Row
+                          decoration: BoxDecoration(
+                            color: AppColors
+                                .gray, // Background color for TextField
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(10),
+                              bottomLeft: Radius.circular(
+                                  10), // Rounded corners for left side
+                            ),
+                          ),
+                          child: TextField(
+                            controller: _searchController,
+                            focusNode: _focusNode,
+                            onChanged: _filterUsers,
+                            decoration: _inputDecoration('Search', _focusNode),
                           ),
                         ),
-                        child: TextField(
-                          controller: _searchController,
-                          focusNode: _focusNode,
-                          onChanged: _filterUsers,
-                          decoration: _inputDecoration('Search', _focusNode),
-                        ),
                       ),
-                    ),
-                    // Dropdown container
-                    Container(
-                      width: 120, // Fixed width for DropdownButton
-                      height: double.infinity, // Match height of the Row
-                      decoration: BoxDecoration(
-                        color: AppColors
-                            .gray, // Background color for DropdownButton
-                        borderRadius: const BorderRadius.only(
-                          topRight: Radius.circular(10),
-                          bottomRight: Radius.circular(
-                              10), // Rounded corners for right side
+                      // Dropdown container
+                      Container(
+                        width: 120, // Fixed width for DropdownButton
+                        height: double.infinity, // Match height of the Row
+                        decoration: BoxDecoration(
+                          color: AppColors
+                              .gray, // Background color for DropdownButton
+                          borderRadius: const BorderRadius.only(
+                            topRight: Radius.circular(10),
+                            bottomRight: Radius.circular(
+                                10), // Rounded corners for right side
+                          ),
                         ),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _selectedRole,
-                          onChanged: (role) {
-                            if (role != null) {
-                              if (mounted) {
-                                setState(() {
-                                  _selectedRole = role;
-                                  _searchController.clear();
-                                  _refreshUserList();
-                                });
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _selectedRole,
+                            onChanged: (role) {
+                              if (role != null) {
+                                if (mounted) {
+                                  setState(() {
+                                    _selectedRole = role;
+                                    _searchController.clear();
+                                    _refreshUserList();
+                                  });
+                                }
                               }
+                            },
+                            items: ['admin', 'caregiver', 'doctor', 'patient']
+                                .map((role) => DropdownMenuItem(
+                                      value: role,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 10),
+                                        child: Text(
+                                          role.capitalize(),
+                                          style: const TextStyle(fontSize: 14),
+                                        ),
+                                      ),
+                                    ))
+                                .toList(),
+                            icon: const Icon(Icons.arrow_drop_down),
+                            isExpanded: true,
+                            dropdownColor: AppColors
+                                .white, // Match Dropdown background color
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Flexible(
+                  fit: FlexFit
+                      .loose, // Allows the child to shrink-wrap its content
+                  child: filteredUsers.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.error_outline_rounded,
+                                size: 50,
+                                color: AppColors.black,
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                'No ${_selectedRole}s available',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.normal,
+                                  fontFamily: 'Inter',
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: filteredUsers.length,
+                          itemBuilder: (context, index) {
+                            final user = filteredUsers[index];
+                            if (_selectedRole == 'patient' &&
+                                user is PatientData) {
+                              return _buildPatientItem(user);
+                            } else if (_selectedRole == 'caregiver') {
+                              return _buildCaregiverItem(user as UserData);
+                            } else if (_selectedRole == 'doctor') {
+                              return _buildDoctorItem(user as UserData);
+                            } else {
+                              return _buildAdminItem(user as UserData);
                             }
                           },
-                          items: ['admin', 'caregiver', 'doctor', 'patient']
-                              .map((role) => DropdownMenuItem(
-                                    value: role,
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 10),
-                                      child: Text(
-                                        role.capitalize(),
-                                        style: const TextStyle(fontSize: 14),
-                                      ),
-                                    ),
-                                  ))
-                              .toList(),
-                          icon: const Icon(Icons.arrow_drop_down),
-                          isExpanded: true,
-                          dropdownColor: AppColors
-                              .white, // Match Dropdown background color
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 10),
-              Flexible(
-                fit: FlexFit
-                    .loose, // Allows the child to shrink-wrap its content
-                child: filteredUsers.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.error_outline_rounded,
-                              size: 50,
-                              color: AppColors.black,
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              'No ${_selectedRole}s available',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.normal,
-                                fontFamily: 'Inter',
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: filteredUsers.length,
-                        itemBuilder: (context, index) {
-                          final user = filteredUsers[index];
-                          if (_selectedRole == 'patient' &&
-                              user is PatientData) {
-                            return _buildPatientItem(user);
-                          } else if (_selectedRole == 'caregiver') {
-                            return _buildCaregiverItem(user as UserData);
-                          } else if (_selectedRole == 'doctor') {
-                            return _buildDoctorItem(user as UserData);
-                          } else {
-                            return _buildAdminItem(user as UserData);
-                          }
-                        },
-                      ),
-              )
-            ],
+                )
+              ],
+            ),
           ),
         ),
       ),
@@ -405,10 +456,9 @@ class AdminUsersState extends State<AdminUsers> {
         children: [
           // Profile image
           CircleAvatar(
-            backgroundImage: patient.profileImageUrl.isNotEmpty
-                ? NetworkImage(patient.profileImageUrl)
-                : const AssetImage('lib/assets/images/shared/placeholder.png')
-            as ImageProvider,
+            backgroundImage: (patient.profileImageUrl != null && patient.profileImageUrl!.isNotEmpty)
+                ? NetworkImage(patient.profileImageUrl!)
+                : const AssetImage('lib/assets/images/shared/placeholder.png') as ImageProvider,
             radius: 24.0,
           ),
           const SizedBox(width: 10.0),
@@ -449,7 +499,7 @@ class AdminUsersState extends State<AdminUsers> {
             backgroundImage: caregiver.profileImageUrl.isNotEmpty
                 ? NetworkImage(caregiver.profileImageUrl)
                 : const AssetImage('lib/assets/images/shared/placeholder.png')
-            as ImageProvider,
+                    as ImageProvider,
             radius: 24.0,
           ),
           const SizedBox(width: 10.0),
@@ -490,7 +540,7 @@ class AdminUsersState extends State<AdminUsers> {
             backgroundImage: doctor.profileImageUrl.isNotEmpty
                 ? NetworkImage(doctor.profileImageUrl)
                 : const AssetImage('lib/assets/images/shared/placeholder.png')
-            as ImageProvider,
+                    as ImageProvider,
             radius: 24.0,
           ),
           const SizedBox(width: 10.0),
@@ -531,7 +581,7 @@ class AdminUsersState extends State<AdminUsers> {
             backgroundImage: admin.profileImageUrl.isNotEmpty
                 ? NetworkImage(admin.profileImageUrl)
                 : const AssetImage('lib/assets/images/shared/placeholder.png')
-            as ImageProvider,
+                    as ImageProvider,
             radius: 24.0,
           ),
           const SizedBox(width: 10.0),
@@ -556,7 +606,6 @@ class AdminUsersState extends State<AdminUsers> {
       ),
     );
   }
-
 }
 
 extension StringExtension on String {

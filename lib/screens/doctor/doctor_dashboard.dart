@@ -4,11 +4,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:solace/models/my_patient.dart';
+import 'package:solace/screens/doctor/doctor_medicine.dart';
 import 'package:solace/screens/doctor/doctor_tasks.dart';
 import 'package:solace/screens/doctor/doctor_users.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/shared/widgets/contacts.dart';
-import 'package:solace/shared/widgets/medicine.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:accordion/accordion.dart';
 import 'package:solace/models/my_user.dart';
@@ -49,7 +49,7 @@ class DoctorDashboardState extends State<DoctorDashboard> {
   final Map<String, Widget Function(String)> routes = {
     'Caregiver': (userId) => DoctorUsers(currentUserId: userId),
     'Contacts': (userId) => Contacts(currentUserId: userId),
-    'Medicine': (userId) => Medicine(currentUserId: userId),
+    'Medicine': (userId) => DoctorMedicine(currentUserId: userId),
     'Prescribe': (userId) => DoctorTasks(currentUserId: userId),
   };
 
@@ -126,10 +126,9 @@ class DoctorDashboardState extends State<DoctorDashboard> {
 
   Stream<List<PatientData>> _fetchPatients() {
     return FirebaseFirestore.instance.collection('patient').snapshots().map(
-            (snapshot) =>
+        (snapshot) =>
             snapshot.docs.map((doc) => PatientData.fromDocument(doc)).toList());
   }
-
 
   Future<List<String>> _getSymptoms(String patientId) async {
     final UserRole? role = await _databaseService.getUserRole(patientId);
@@ -141,27 +140,14 @@ class DoctorDashboardState extends State<DoctorDashboard> {
 
   void _handleOpenSection(int index) {
     _openSectionIndex.value = index;
-    _scrollToSection(index);
   }
 
   void _handleCloseSection() {
     _openSectionIndex.value = null;
   }
 
-  void _scrollToSection(int index) {
-    double sectionHeight = 100.0;
-    double headerHeight = 80.0;
-
-    double targetOffset = headerHeight + (index * sectionHeight);
-
-    _scrollController.animateTo(
-      targetOffset - (MediaQuery.of(context).size.height / 3),
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeInOut,
-    );
-  }
-
-  Future<void> _scheduleAppointment(String caregiverId, String patientId) async {
+  Future<void> _scheduleAppointment(
+      String caregiverId, String patientId) async {
     if (!mounted) return; // Ensure the widget is still mounted
     final DateTime today = DateTime.now();
 
@@ -191,7 +177,9 @@ class DoctorDashboardState extends State<DoctorDashboard> {
       },
     );
 
-    if (!mounted || selectedDate == null) return; // Ensure widget is still mounted
+    if (!mounted || selectedDate == null) {
+      return; // Ensure widget is still mounted
+    }
 
     // Show the customized time picker
     final TimeOfDay? selectedTime = await showTimePicker(
@@ -211,7 +199,9 @@ class DoctorDashboardState extends State<DoctorDashboard> {
       },
     );
 
-    if (!mounted || selectedTime == null) return; // Ensure widget is still mounted
+    if (!mounted || selectedTime == null) {
+      return; // Ensure widget is still mounted
+    }
 
     // Combine the selected date and time into a single DateTime object
     final DateTime scheduledDateTime = DateTime(
@@ -228,8 +218,10 @@ class DoctorDashboardState extends State<DoctorDashboard> {
       debugPrint("Schedule patientId: $patientId");
 
       // Save schedule in Firestore for both caregiver and patient
-      await _databaseService.saveScheduleForDoctor(caregiverId, scheduledDateTime, patientId);
-      await _databaseService.saveScheduleForPatient(patientId, scheduledDateTime, caregiverId);
+      await _databaseService.saveScheduleForDoctor(
+          caregiverId, scheduledDateTime, patientId);
+      await _databaseService.saveScheduleForPatient(
+          patientId, scheduledDateTime, caregiverId);
       print("Schedule saved for both caregiver and patient.");
     } catch (e) {
       print("Failed to save schedule: $e");
@@ -257,8 +249,8 @@ class DoctorDashboardState extends State<DoctorDashboard> {
           onCloseSection: _handleCloseSection,
           leftIcon: CircleAvatar(
             backgroundImage: (patient.profileImageUrl != null &&
-                    patient.profileImageUrl.isNotEmpty)
-                ? NetworkImage(patient.profileImageUrl)
+                    patient.profileImageUrl!.isNotEmpty)
+                ? NetworkImage(patient.profileImageUrl!)
                 : const AssetImage('lib/assets/images/shared/placeholder.png')
                     as ImageProvider,
             radius: 24.0,
@@ -281,18 +273,19 @@ class DoctorDashboardState extends State<DoctorDashboard> {
             child: Text(
               '${patient.firstName} ${patient.lastName}',
               style: TextStyle(
-                color: _openSectionIndex.value == unstablePatients.indexOf(patient)
-                    ? AppColors.white
-                    : AppColors.black,
+                color:
+                    _openSectionIndex.value == unstablePatients.indexOf(patient)
+                        ? AppColors.white
+                        : AppColors.black,
                 fontSize: 18.0,
                 fontWeight: FontWeight.normal,
                 fontFamily: 'Inter',
               ),
               maxLines: 1, // Ensures text is limited to one line
-              overflow: TextOverflow.ellipsis, // Adds ellipsis when text overflows
+              overflow:
+                  TextOverflow.ellipsis, // Adds ellipsis when text overflows
             ),
           ),
-
           content: FutureBuilder<List<String>>(
             future: _getSymptoms(patient.uid),
             builder: (context, snapshot) {
@@ -304,30 +297,46 @@ class DoctorDashboardState extends State<DoctorDashboard> {
               }
 
               final symptoms = snapshot.data ?? [];
-              return SizedBox(
-                width: double.infinity,
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Identified Conditions',
+                      'Identified Symptoms',
                       style: TextStyle(
-                        fontSize: 16.0,
+                        fontSize: 20.0,
                         fontWeight: FontWeight.bold,
                         fontFamily: 'Inter',
                       ),
                     ),
                     const SizedBox(height: 10.0),
                     if (symptoms.isNotEmpty)
-                      ...symptoms.map((symptom) => Text(symptom)),
+                      Wrap(
+                        spacing: 5.0, // Horizontal space between items
+                        runSpacing: 0.0, // Vertical space between items
+                        children: symptoms.map((symptom) {
+                          return Chip(
+                            backgroundColor: AppColors.white,
+                            label: Text(
+                              symptom,
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontWeight: FontWeight.normal,
+                                color: AppColors.black,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
                     if (symptoms.isEmpty)
-                      const Text("No identified conditions available"),
+                      const Text("No identified symptoms available"),
                     const SizedBox(height: 20.0),
                     _buildActionButton(
                       'Schedule',
                       'lib/assets/images/shared/functions/schedule.png',
-                      AppColors.darkblue,
-                          () => _scheduleAppointment(doctorId, patient.uid), // No null assertion
+                      AppColors.purple,
+                      () => _scheduleAppointment(doctorId, patient.uid),
                     ),
                   ],
                 ),
@@ -339,22 +348,25 @@ class DoctorDashboardState extends State<DoctorDashboard> {
     );
   }
 
-  Widget _buildActionButton(String label, String iconPath, Color bgColor, VoidCallback onPressed) {
+  Widget _buildActionButton(
+      String label, String iconPath, Color bgColor, VoidCallback onPressed) {
     return Container(
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 0.0, vertical: 0.0),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 0.0),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(5.0),
+        borderRadius: BorderRadius.circular(10.0),
       ),
       child: TextButton(
         onPressed: onPressed,
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image.asset(iconPath, height: 20, width: 20),
             const SizedBox(width: 5),
             Text(
               label,
+              textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 16,
@@ -378,71 +390,110 @@ class DoctorDashboardState extends State<DoctorDashboard> {
         },
         child: Padding(
           padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-          child: SingleChildScrollView(
-            controller: _scrollController,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Accordion section
-                StreamBuilder<List<PatientData>>(
-                  stream: _fetchPatients(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (snapshot.hasError) {
-                      return Center(
-                        child: Text("Error loading patients: ${snapshot.error}"),
-                      );
-                    }
-
-                    final patients = snapshot.data ?? [];
-                    final unstablePatients = patients
-                        .where((patient) => patient.status == 'unstable')
-                        .toList();
-
-                    if (unstablePatients.isEmpty) {
-                      return const Center(
-                        child: Text('No unstable patients available'),
-                      );
-                    }
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Priority Patients',
-                          style: TextStyle(
-                            fontSize: 24.0,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Outfit',
-                          ),
-                        ),
-                        const SizedBox(height: 20.0),
-                        // Wrap accordion in a Container to set height
-                        SizedBox(
-                          height: 300, // Set height for the scrollable accordion
-                          child: SingleChildScrollView(
-                            child: _buildAccordion(unstablePatients),
-                          ),
-                        ),
-                      ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Accordion section
+              StreamBuilder<List<PatientData>>(
+                stream: _fetchPatients(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Text("Error loading patients: ${snapshot.error}"),
                     );
-                  },
-                ),
+                  }
 
-                const SizedBox(height: 10),
-                const Divider(thickness: 1.0),
-                const SizedBox(height: 10),
+                  final patients = snapshot.data ?? [];
+                  final unstablePatients = patients
+                      .where((patient) => patient.status == 'unstable')
+                      .toList();
 
-                // Grid builder section
-                ..._buildItems(context, doctorId),
-              ],
-            ),
+                  if (unstablePatients.isEmpty) {
+                    return Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: AppColors.blackTransparent,
+                        borderRadius: BorderRadius.circular(10.0),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 30.0, horizontal: 15.0),
+                            child: Text(
+                              'Unavailable',
+                              style: const TextStyle(
+                                fontSize: 50.0,
+                                fontFamily: 'Outfit',
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12.0),
+                            decoration: const BoxDecoration(
+                              color: AppColors.blackTransparent,
+                              borderRadius: BorderRadius.only(
+                                bottomLeft: Radius.circular(10.0),
+                                bottomRight: Radius.circular(10.0),
+                              ),
+                            ),
+                            child: Text(
+                              'There are no unstable patients!',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12.0,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Priority Patients',
+                        style: TextStyle(
+                          fontSize: 24.0,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Outfit',
+                        ),
+                      ),
+                      const SizedBox(height: 20.0),
+                      // The accordion content wrapped in a scrollable view
+                      SingleChildScrollView(
+                        child: _buildAccordion(unstablePatients),
+                      ),
+                    ],
+                  );
+                },
+              ),
+
+              // Spacer to push the bottom section down
+              const Spacer(),
+
+              // Fixed bottom section (No Flexible or Wrap here)
+              const SizedBox(height: 10),
+              const Divider(thickness: 1.0),
+              const SizedBox(height: 10),
+              // Grid builder section
+              ..._buildItems(context, doctorId),
+            ],
           ),
         ),
       ),
     );
   }
-
 }

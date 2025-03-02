@@ -417,6 +417,7 @@ class PatientNoteState extends State<PatientNote> {
         title: const Text(
           'Notes',
           style: TextStyle(
+            fontSize: 24,
             fontWeight: FontWeight.bold,
             fontFamily: 'Inter',
           ),

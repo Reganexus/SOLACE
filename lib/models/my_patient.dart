@@ -4,28 +4,28 @@ class PatientData {
   final String uid;
   final String firstName;
   final String lastName;
-  final String profileImageUrl;
+  final String? profileImageUrl; // Made nullable
   final String gender;
   final DateTime? birthday;
   final DateTime dateCreated;
   final String religion;
-  final String will;
-  final String fixedWishes;
-  final String organDonation;
+  final String? will; // Made nullable
+  final String? fixedWishes; // Made nullable
+  final String? organDonation; // Made nullable
   final String status;
 
   PatientData({
     required this.uid,
     required this.firstName,
     required this.lastName,
-    required this.profileImageUrl,
+    this.profileImageUrl, // Nullable
     required this.dateCreated,
     required this.gender,
-    required this.birthday,
+    this.birthday, // Nullable
     required this.religion,
-    required this.will,
-    required this.fixedWishes,
-    required this.organDonation,
+    this.will, // Nullable
+    this.fixedWishes, // Nullable
+    this.organDonation, // Nullable
     required this.status,
   });
 
@@ -42,27 +42,35 @@ class PatientData {
 
   /// Factory method to create a PatientData object from Firestore document
   factory PatientData.fromDocument(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    try {
+      final data = doc.data() as Map<String, dynamic>;
 
-    // Calculate age based on birthday, if provided
-    final DateTime? birthday = data['birthday'] != null
-        ? (data['birthday'] as Timestamp).toDate()
-        : null;
+      // Safely parse birthday and dateCreated
+      final DateTime? birthday = data['birthday'] != null
+          ? (data['birthday'] as Timestamp).toDate()
+          : null;
 
-    return PatientData(
-      uid: doc.id,
-      firstName: data['firstName'] ?? '',
-      lastName: data['lastName'] ?? '',
-      profileImageUrl: data['profileImageUrl'],
-      gender: data['gender'] ?? '',
-      birthday: birthday,
-      dateCreated: (data['dateCreated'] as Timestamp).toDate(),
-      religion: data['religion'] ?? '',
-      will: data['will'],
-      fixedWishes: data['fixedWishes'],
-      organDonation: data['organDonation'],
-      status: data['status'] ?? 'stable',
-    );
+      final DateTime? dateCreated = data['dateCreated'] != null
+          ? (data['dateCreated'] as Timestamp).toDate()
+          : null;
+
+      return PatientData(
+        uid: doc.id,
+        firstName: data['firstName'] ?? '',
+        lastName: data['lastName'] ?? '',
+        profileImageUrl: data['profileImageUrl'] as String?, // Nullable
+        gender: data['gender'] ?? '',
+        birthday: birthday,
+        dateCreated: dateCreated ?? DateTime.now(), // Default to current date if missing
+        religion: data['religion'] ?? '',
+        will: data['will'] as String?, // Nullable
+        fixedWishes: data['fixedWishes'] as String?, // Nullable
+        organDonation: data['organDonation'] as String?, // Nullable
+        status: data['status'] ?? 'stable',
+      );
+    } catch (e) {
+      throw Exception('Error parsing patient data: $e');
+    }
   }
 
   /// Converts a PatientData object into a Firestore-compatible map

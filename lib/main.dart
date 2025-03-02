@@ -43,20 +43,8 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  // Request Camera Permission
-  final cameraPermissionGranted = await requestCameraPermission();
-  if (!cameraPermissionGranted) {
-    print("Camera permission is required to use this feature.");
-  }
-
   runApp(const MyApp());
 }
-
-Future<bool> requestCameraPermission() async {
-  final status = await Permission.camera.request();
-  return status.isGranted;
-}
-
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});

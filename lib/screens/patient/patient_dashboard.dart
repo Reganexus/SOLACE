@@ -14,7 +14,7 @@ import 'package:solace/screens/patient/patient_tasks.dart';
 import 'package:solace/screens/patient/patient_schedule.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/shared/widgets/contacts.dart';
-import 'package:solace/shared/widgets/medicine.dart';
+import 'package:solace/screens/patient/patient_medicine.dart';
 import 'package:solace/themes/colors.dart';
 
 class PatientDashboard extends StatefulWidget {
@@ -40,7 +40,7 @@ class PatientDashboardState extends State<PatientDashboard> {
     'Contacts': (userId) => Contacts(currentUserId: userId),
     'History': (userId) => PatientHistory(currentUserId: userId),
     'Intervention': (userId) => PatientIntervention(currentUserId: userId),
-    'Medicine': (userId) => Medicine(currentUserId: userId),
+    'Medicine': (userId) => PatientMedicine(currentUserId: userId),
     'Notes': (userId) => PatientNote(currentUserId: userId),
     'Schedule': (userId) => PatientSchedule(currentUserId: userId),
     'Tasks': (userId) => PatientTasks(currentUserId: userId),
@@ -166,7 +166,7 @@ class PatientDashboardState extends State<PatientDashboard> {
                   final isUnavailable = !hasData;
 
                   final statusMessage = isUnavailable
-                      ? 'No patient data available.'
+                      ? 'Go to "Patient" at Home'
                       : isUnstable
                           ? '⚠️ Symptoms detected. Please consult your doctor.'
                           : 'ⓘ No symptoms detected. Keep up the good work!';

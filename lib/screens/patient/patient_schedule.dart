@@ -148,6 +148,7 @@ class PatientScheduleState extends State<PatientSchedule> {
         title: const Text(
           'Schedule',
           style: TextStyle(
+            fontSize: 24,
             fontWeight: FontWeight.bold,
             fontFamily: 'Inter',
           ),

@@ -9,7 +9,14 @@ class HelpPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: AppBar(
-        title: Text('Help & Support'),
+        title: Text(
+          'Help & Support',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'Inter',
+          ),
+        ),
         backgroundColor: AppColors.white,
         scrolledUnderElevation: 0.0,
       ),
@@ -53,7 +60,7 @@ class HelpPage extends StatelessWidget {
               SizedBox(height: 20),
               Text(
                 'At SOLACE, we understand that you might need assistance from time to time, and we are committed to providing you with the utmost help. Whether you have questions, face challenges, or need support, we are here for you.\n\n'
-                    'Please don’t hesitate to reach out to us. Our dedicated support team is always ready to assist you with any queries or issues you may encounter during your experience with the app.',
+                'Please don’t hesitate to reach out to us. Our dedicated support team is always ready to assist you with any queries or issues you may encounter during your experience with the app.',
                 style: TextStyle(
                   fontFamily: 'Inter',
                   fontWeight: FontWeight.normal,
@@ -122,27 +129,27 @@ class HelpPage extends StatelessWidget {
       {
         'question': 'What is SOLACE?',
         'answer':
-        'SOLACE is a pain management application designed for palliative and hospice care. It allows users to track vitals, monitor symptoms, and connect with caregivers and doctors for timely interventions.',
+            'SOLACE is a pain management application designed for palliative and hospice care. It allows users to track vitals, monitor symptoms, and connect with caregivers and doctors for timely interventions.',
       },
       {
         'question': 'How can I track my vitals?',
         'answer':
-        'You can log your vitals in the app under the "Vitals" section. The app will help you monitor trends over time.',
+            'You can log your vitals in the app under the "Vitals" section. The app will help you monitor trends over time.',
       },
       {
         'question': 'Can I schedule tasks or appointments?',
         'answer':
-        'Yes! SOLACE allows users to schedule tasks and appointments directly within the app to keep you organized.',
+            'Yes! SOLACE allows users to schedule tasks and appointments directly within the app to keep you organized.',
       },
       {
         'question': 'How do I reset my password?',
         'answer':
-        'To reset your password, go to the login screen and click on "Forgot Password." Follow the instructions sent to your registered email.',
+            'To reset your password, go to the login screen and click on "Forgot Password." Follow the instructions sent to your registered email.',
       },
       {
         'question': 'Who can I contact for further support?',
         'answer':
-        'You can always contact us at solace@gmail.com, and we’ll assist you as soon as possible.',
+            'You can always contact us at solace@gmail.com, and we’ll assist you as soon as possible.',
       },
     ];
 
@@ -162,7 +169,8 @@ class HelpPage extends StatelessWidget {
         ),
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Text(
               faq['answer']!,
               style: TextStyle(

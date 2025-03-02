@@ -2,8 +2,10 @@
 
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:solace/controllers/getaccesstoken.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/screens/patient/input_summary.dart';
@@ -156,6 +158,7 @@ class PatientTrackingState extends State<PatientTracking> {
       } else {
         _countdownTimer?.cancel();
         setState(() => isCooldownActive = false);
+        _sendCooldownLiftedNotification(); // Send notification when cooldown ends
       }
     });
   }
@@ -276,6 +279,28 @@ class PatientTrackingState extends State<PatientTracking> {
 
     return null;
   }
+
+  void _sendCooldownLiftedNotification() async {
+    debugPrint("Running send cooldown lifted notification");
+    try {
+      final String? targetToken = await FirebaseMessaging.instance.getToken();
+
+      if (targetToken == null) {
+        print(
+            'Error: FCM token is null. Ensure Firebase is initialized properly.');
+        return;
+      }
+
+      const title = 'Cooldown Lifted';
+      const body = 'Your cooldown period has ended. You can submit again!';
+
+      // Send FCM notification
+      await FCMHelper.sendFCMMessage(targetToken, title, body);
+    } catch (e) {
+      print('Failed to send notification: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -400,7 +425,8 @@ class PatientTrackingState extends State<PatientTracking> {
                             SizedBox(
                               width: double.infinity,
                               child: TextButton(
-                                onPressed: hasData ? () => _submit(user!.uid) : null,
+                                onPressed:
+                                    hasData ? () => _submit(user!.uid) : null,
                                 style: TextButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 50,
@@ -435,7 +461,6 @@ class PatientTrackingState extends State<PatientTracking> {
       ),
     );
   }
-
 
   InputDecoration _inputDecoration(String label, FocusNode focusNode) {
     return InputDecoration(
@@ -490,12 +515,18 @@ class PatientTrackingState extends State<PatientTracking> {
               unitLabel = 'mg/dL';
               break;
             case 'Pain':
-              unitLabel = '1-10';
-              break;
+              // Use the slider for "Pain"
+              int painValue = int.tryParse(_vitalInputs[key] ?? '0') ?? 0;
+              return _buildSlider('Pain', painValue, (newValue) {
+                setState(() {
+                  _vitalInputs[key] = newValue.toString();
+                });
+              });
             default:
               unitLabel = '';
           }
 
+          // Default design for other inputs
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 10.0),
             child: IntrinsicHeight(
@@ -507,7 +538,7 @@ class PatientTrackingState extends State<PatientTracking> {
                       height: double.infinity, // Match height of the text field
                       decoration: BoxDecoration(
                         color: AppColors.gray, // Set background color
-                        borderRadius: BorderRadius.only(
+                        borderRadius: const BorderRadius.only(
                           topLeft: Radius.circular(10),
                           bottomLeft:
                               Radius.circular(10), // Apply border radius
@@ -534,17 +565,17 @@ class PatientTrackingState extends State<PatientTracking> {
                     decoration: BoxDecoration(
                       color: AppColors
                           .darkerGray, // Background color for the label
-                      borderRadius: BorderRadius.only(
+                      borderRadius: const BorderRadius.only(
                         topRight: Radius.circular(10),
                         bottomRight: Radius.circular(
-                            10), // Border radius for the label container
+                            10), // Border radius for label container
                       ),
                     ),
                     child: Align(
                       alignment: Alignment.center,
                       child: Text(
                         unitLabel,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 14, // Fixed size for the label
                           color: AppColors.blackTransparent, // Label color
                         ),
@@ -560,8 +591,21 @@ class PatientTrackingState extends State<PatientTracking> {
     );
   }
 
-  Widget _buildSlider(
-      String title, int value, Color color, Function(int) onChanged) {
+  Widget _buildSlider(String title, int value, Function(int) onChanged) {
+    Color getIndicatorColor(int value) {
+      if (value <= 2) {
+        return Colors.green; // Very low intensity
+      } else if (value <= 4) {
+        return Colors.lightGreen; // Low intensity
+      } else if (value <= 6) {
+        return Colors.yellow; // Moderate intensity
+      } else if (value <= 8) {
+        return Colors.orange; // High intensity
+      } else {
+        return Colors.red; // Very high intensity
+      }
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -572,14 +616,61 @@ class PatientTrackingState extends State<PatientTracking> {
         Row(
           children: [
             Expanded(
-              child: Slider(
-                value: value.toDouble(),
-                min: 0,
-                max: 10,
-                divisions: 10,
-                label: value.toString(),
-                activeColor: color,
-                onChanged: (val) => onChanged(val.toInt()),
+              child: SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  thumbColor: getIndicatorColor(value), // Thumb color
+                  valueIndicatorColor:
+                      getIndicatorColor(value), // Indicator color
+                  valueIndicatorTextStyle: const TextStyle(
+                    color: Colors.white, // Text color inside the indicator
+                    fontWeight: FontWeight.bold,
+                  ),
+                  trackHeight: 5,
+                  activeTrackColor: Colors.transparent,
+                  inactiveTrackColor: Colors.transparent,
+                  overlayShape:
+                      const RoundSliderOverlayShape(overlayRadius: 20),
+                  thumbShape:
+                      const RoundSliderThumbShape(enabledThumbRadius: 10),
+                  valueIndicatorShape: const PaddleSliderValueIndicatorShape(),
+                ),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Gradient background
+                    Container(
+                      height: 5,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [
+                            Colors.green, // Very low intensity
+                            Colors.lightGreen, // Low intensity
+                            Colors.yellow, // Moderate intensity
+                            Colors.orange, // High intensity
+                            Colors.red, // Very high intensity
+                          ],
+                          stops: [
+                            0.0,
+                            0.25,
+                            0.5,
+                            0.75,
+                            1.0
+                          ], // Define stops for each color
+                        ),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                    ),
+                    // Slider overlay
+                    Slider(
+                      value: value.toDouble(),
+                      min: 0,
+                      max: 10,
+                      divisions: 10,
+                      label: value.toString(),
+                      onChanged: (val) => onChanged(val.toInt()),
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(width: 20),
@@ -613,25 +704,29 @@ class PatientTrackingState extends State<PatientTracking> {
           ),
         ),
         const SizedBox(height: 10),
-        _buildSlider('Diarrhea', _diarrheaValue, AppColors.neon, (val) {
+        _buildSlider('Diarrhea', _diarrheaValue, (val) {
           setState(() => _diarrheaValue = val);
         }),
-        _buildSlider('Fatigue', _fatigueValue, AppColors.neon, (val) {
+        _buildSlider('Fatigue', _fatigueValue, (val) {
           setState(() => _fatigueValue = val);
         }),
-        _buildSlider(
-            'Shortness of Breath', _shortnessOfBreathValue, AppColors.neon,
-            (val) {
+        _buildSlider('Shortness of Breath', _shortnessOfBreathValue, (val) {
           setState(() => _shortnessOfBreathValue = val);
         }),
-        _buildSlider('Appetite', _appetiteValue, AppColors.neon, (val) {
+        _buildSlider('Appetite', _appetiteValue, (val) {
           setState(() => _appetiteValue = val);
         }),
-        _buildSlider('Coughing', _coughingValue, AppColors.neon, (val) {
+        _buildSlider('Coughing', _coughingValue, (val) {
           setState(() => _coughingValue = val);
         }),
-        _buildSlider('Well-being', _wellBeingValue, AppColors.neon, (val) {
+        _buildSlider('Well-being', _wellBeingValue, (val) {
           setState(() => _wellBeingValue = val);
+        }),
+        _buildSlider('Nausea', _nauseaValue, (val) {
+          setState(() => _nauseaValue = val);
+        }),
+        _buildSlider('Drowsiness', _drowsinessValue, (val) {
+          setState(() => _drowsinessValue = val);
         }),
         const Divider(thickness: 1.0),
         const Text(
@@ -643,17 +738,11 @@ class PatientTrackingState extends State<PatientTracking> {
           ),
         ),
         const SizedBox(height: 10),
-        _buildSlider('Nausea', _nauseaValue, AppColors.purple, (val) {
-          setState(() => _nauseaValue = val);
-        }),
-        _buildSlider('Depression', _depressionValue, AppColors.purple, (val) {
+        _buildSlider('Depression', _depressionValue, (val) {
           setState(() => _depressionValue = val);
         }),
-        _buildSlider('Anxiety', _anxietyValue, AppColors.purple, (val) {
+        _buildSlider('Anxiety', _anxietyValue, (val) {
           setState(() => _anxietyValue = val);
-        }),
-        _buildSlider('Drowsiness', _drowsinessValue, AppColors.purple, (val) {
-          setState(() => _drowsinessValue = val);
         }),
       ],
     );
@@ -735,9 +824,9 @@ class PatientTrackingState extends State<PatientTracking> {
         'Coughing': _coughingValue,
         'Well-being': _wellBeingValue,
         'Nausea': _nauseaValue,
+        'Drowsiness': _drowsinessValue,
         'Depression': _depressionValue,
         'Anxiety': _anxietyValue,
-        'Drowsiness': _drowsinessValue,
       },
     };
 

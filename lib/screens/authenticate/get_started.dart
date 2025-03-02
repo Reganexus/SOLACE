@@ -33,7 +33,8 @@ class _GetStartedState extends State<GetStarted> {
           const end = Offset.zero;
           const curve = Curves.easeInOut;
 
-          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+          var tween =
+              Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
           var offsetAnimation = animation.drive(tween);
 
           return SlideTransition(
@@ -45,53 +46,52 @@ class _GetStartedState extends State<GetStarted> {
     );
   }
 
-  // Request necessary permissions for the app
   Future<void> requestPermissions(BuildContext context) async {
-    // Check the statuses of all required permissions
     List<Permission> requiredPermissions = [
       Permission.notification,
       Permission.camera,
       Permission.microphone,
       Permission.location,
-      Permission.activityRecognition, // For exact alarm permission
-      Permission.storage, // For file read/write permission
+      Permission.activityRecognition,
     ];
 
-    Map<Permission, PermissionStatus> statuses = await requiredPermissions.request();
+    // Request permissions
+    Map<Permission, PermissionStatus> statuses =
+        await requiredPermissions.request();
 
     // Check if all permissions are granted
-    bool allPermissionsGranted = statuses.values.every((status) => status.isGranted);
+    bool allPermissionsGranted =
+        statuses.values.every((status) => status.isGranted);
 
     if (!allPermissionsGranted) {
-      // Show a dialog explaining why permissions are needed only if some are not granted
+      // Show dialog directing users to app settings
       await showDialog(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text("Permissions Required"),
           content: const Text(
-            "To ensure all features work smoothly, the app requires access to notifications, camera, microphone, and storage. Please allow these permissions when prompted.",
+            "Some permissions were not granted. Please enable all permissions in the app settings to continue.",
           ),
           actions: [
             TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                // Open app settings
+                await openAppSettings();
+              },
+              child: const Text("Open Settings"),
+            ),
+            TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text("OK"),
+              child: const Text("Cancel"),
             ),
           ],
         ),
       );
-
-      // Request necessary permissions again after showing the dialog
-      statuses = await requiredPermissions.request();
-
-      // Print statuses for debugging
-      statuses.forEach((permission, status) {
-        print('${permission.toString()} granted: ${status.isGranted}');
-      });
     } else {
-      print('All permissions already granted.');
+      print('All permissions granted!');
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -163,7 +163,8 @@ class _GetStartedState extends State<GetStarted> {
                 child: TextButton(
                   onPressed: navigateWithSwipeLeftAnimation,
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 15),
                     backgroundColor: AppColors.neon,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
