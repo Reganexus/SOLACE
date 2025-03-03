@@ -61,6 +61,7 @@ class CloudMessagingService {
   }
 
   /// Background message handler
+  @pragma('vm:entry-point')
   static Future<void> _firebaseMessagingBackgroundHandler(
       RemoteMessage message) async {
     print('Received message in the background: ${message.notification?.title}');

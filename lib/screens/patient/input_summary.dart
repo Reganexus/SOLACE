@@ -526,7 +526,8 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                 const SizedBox(height: 20),
                 const Divider(thickness: 1.0),
                 const SizedBox(height: 20),
-                Center(
+                SizedBox(
+                  width: double.infinity,
                   child: TextButton(
                     onPressed: () async {
                       try {
@@ -635,7 +636,12 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                     },
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 15),
+                        horizontal: 50,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       backgroundColor: AppColors.neon,
                     ),
                     child: const Text(

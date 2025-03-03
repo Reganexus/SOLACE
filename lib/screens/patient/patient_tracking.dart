@@ -140,7 +140,7 @@ class PatientTrackingState extends State<PatientTracking> {
 
         if (timeDifference < 1 * 60 * 1000) {
           isCooldownActive = true;
-          remainingCooldownTime = (1 * 60) - (timeDifference / 1000).round();
+          remainingCooldownTime = (1 * 10) - (timeDifference / 1000).round();
           debugPrint("Remaining Cooldown: $remainingCooldownTime");
           _startCountdown();
         } else {
