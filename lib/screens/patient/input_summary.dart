@@ -123,7 +123,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
     // Remove symptoms with a value of 0
     symptomAssessment
-        .removeWhere((key, value) => value == 0 || key == 'Well-being');
+        .removeWhere((key, value) => value == 0);
     // Sort symptoms in descending order by value
     List<MapEntry<String, int>> sortedSymptoms = symptomAssessment.entries
         .toList()

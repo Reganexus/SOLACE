@@ -80,9 +80,12 @@ class InterventionsViewState extends State<InterventionsView> {
 // Physical Symptoms Mapping
   final Map<String, String> physicalMapping = {
     'Diarrhea': 'diarrhea',
+    'Bowel Obstruction': 'bowelObstruction',
+    'Constipation': 'constipation',
     'Fatigue': 'fatigue',
-    'Shortness of Breath': 'dyspnea',
+    'Shortness of Breath': 'cough',
     'Appetite': 'appetite',
+    'Weight Loss': 'anorexia',
     'Coughing': 'cough',
     'Nausea': 'nauseaOrVomiting',
     'Drowsiness': 'drowsiness',
@@ -92,6 +95,7 @@ class InterventionsViewState extends State<InterventionsView> {
   final Map<String, String> emotionalMapping = {
     'Depression': 'depression',
     'Anxiety': 'anxietyOrAgitation',
+    'Confusion': 'delirium',
   };
 
   Future<Map<String, List<String>>> _fetchInterventions() async {

@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:solace/controllers/getaccesstoken.dart';
 import 'package:solace/models/my_user.dart';
@@ -11,6 +12,8 @@ import 'package:solace/services/database.dart';
 import 'package:solace/screens/patient/input_summary.dart';
 import 'package:solace/shared/globals.dart';
 import 'package:solace/themes/colors.dart';
+import 'package:flutter_form_builder/flutter_form_builder.dart';
+import 'package:form_builder_validators/form_builder_validators.dart';
 
 class PatientTracking extends StatefulWidget {
   const PatientTracking({super.key});
@@ -69,15 +72,18 @@ class PatientTrackingState extends State<PatientTracking> {
   };
 
   int _diarrheaValue = 0;
+  int _bowelObstructionValue = 0;
+  int _constipationValue = 0;
   int _fatigueValue = 0;
   int _shortnessOfBreathValue = 0;
   int _appetiteValue = 0;
+  int _weightLossValue = 0;
   int _coughingValue = 0;
-  int _wellBeingValue = 0;
   int _nauseaValue = 0;
   int _depressionValue = 0;
   int _anxietyValue = 0;
   int _drowsinessValue = 0;
+  int _confusionValue = 0;
 
   late Map<String, dynamic> _combinedInputs;
   late final MyUser? user;
@@ -111,15 +117,19 @@ class PatientTrackingState extends State<PatientTracking> {
 
       // Reset symptom values
       _diarrheaValue = 0;
+      _bowelObstructionValue = 0;
+      _constipationValue = 0;
       _fatigueValue = 0;
       _shortnessOfBreathValue = 0;
       _appetiteValue = 0;
+      _weightLossValue = 0;
       _coughingValue = 0;
-      _wellBeingValue = 0;
       _nauseaValue = 0;
       _depressionValue = 0;
       _anxietyValue = 0;
       _drowsinessValue = 0;
+      _confusionValue = 0;
+      
     });
   }
 
@@ -318,140 +328,67 @@ class PatientTrackingState extends State<PatientTracking> {
                   .snapshots(),
               builder: (context, snapshot) {
                 final hasData = snapshot.hasData && snapshot.data!.exists;
-
+             
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (isCooldownActive)
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10.0),
-                          color: AppColors.gray,
-                        ),
-                        child: Column(
-                          children: [
-                            const Text(
-                              'You cannot input vitals and assessment at the moment.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 20,
-                                fontFamily: 'Inter',
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              _formatCooldownTime(remainingCooldownTime),
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.normal,
-                                fontFamily: 'Inter',
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    if (!isCooldownActive)
-                      if (!hasData)
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10.0),
-                            color: AppColors.gray,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Vitals',
+                          style: TextStyle(
+                            fontSize: 24.0,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Outfit',
                           ),
-                          child: Column(
-                            children: [
-                              SizedBox(
-                                width: double.infinity,
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.max,
-                                  children: const [
-                                    Text(
-                                      'Patient is not Available',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 20,
-                                        fontFamily: 'Inter',
-                                      ),
-                                    ),
-                                    SizedBox(height: 10),
-                                    Text(
-                                      'Go to "Patient" at Home',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.normal,
-                                        fontFamily: 'Inter',
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              SizedBox(height: 20.0),
-                            ],
-                          ),
-                        )
-                      else
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Vitals',
-                              style: TextStyle(
-                                fontSize: 24.0,
-                                fontWeight: FontWeight.bold,
-                                fontFamily: 'Outfit',
-                              ),
-                            ),
-                            const SizedBox(height: 10.0),
-                            _buildVitalsInputs(),
-                            const SizedBox(height: 20.0),
-                            const Divider(thickness: 1.0),
-                            const SizedBox(height: 20.0),
-                            const Text(
-                              'Symptom Assessment',
-                              style: TextStyle(
-                                fontSize: 24.0,
-                                fontWeight: FontWeight.bold,
-                                fontFamily: 'Outfit',
-                              ),
-                            ),
-                            const SizedBox(height: 20.0),
-                            _buildSliders(),
-                            const SizedBox(height: 20.0),
-                            SizedBox(
-                              width: double.infinity,
-                              child: TextButton(
-                                onPressed:
-                                    hasData ? () => _submit(user!.uid) : null,
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 50,
-                                    vertical: 10,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  backgroundColor: hasData
-                                      ? AppColors.neon
-                                      : AppColors.blackTransparent,
-                                ),
-                                child: const Text(
-                                  'Submit',
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                    color: AppColors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
                         ),
+                        const SizedBox(height: 10.0),
+                        _buildVitalsInputs(),
+                        const SizedBox(height: 20.0),
+                        const Divider(thickness: 1.0),
+                        const SizedBox(height: 20.0),
+                        const Text(
+                          'Symptom Assessment',
+                          style: TextStyle(
+                            fontSize: 24.0,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Outfit',
+                          ),
+                        ),
+                        const SizedBox(height: 20.0),
+                        _buildSliders(),
+                        const SizedBox(height: 20.0),
+                        SizedBox(
+                          width: double.infinity,
+                          child: TextButton(
+                            onPressed:
+                                hasData ? () => _submit(user!.uid) : null,
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 50,
+                                vertical: 10,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              backgroundColor: hasData
+                                  ? AppColors.neon
+                                  : AppColors.blackTransparent,
+                            ),
+                            child: const Text(
+                              'Submit',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                color: AppColors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 );
               },
@@ -485,108 +422,145 @@ class PatientTrackingState extends State<PatientTracking> {
   }
 
   Widget _buildVitalsInputs() {
-    return Form(
+    return FormBuilder(
       key: _formKey,
-      child: Column(
-        children: _focusNodes.keys.map((key) {
-          final controller =
-              _controllers[key]!; // Access the controller for the key
-          final focusNode = _focusNodes[key]!; // Get the FocusNode for the key
+      child: ListView.builder(
+        shrinkWrap: true,
+        physics: NeverScrollableScrollPhysics(),
+        itemCount: _focusNodes.keys.length,
+        itemBuilder: (context, index) {
+          final key = _focusNodes.keys.elementAt(index);
+          return _buildVitalInputField(key);
+        },
+      ),
+    );
+  }
 
-          // Define the unit label for each vital
-          String unitLabel = '';
-          switch (key) {
-            case 'Temperature':
-              unitLabel = '°C';
-              break;
-            case 'Heart Rate':
-              unitLabel = 'bpm';
-              break;
-            case 'Blood Pressure':
-              unitLabel = 'mmHg';
-              break;
-            case 'Oxygen Saturation':
-              unitLabel = '%';
-              break;
-            case 'Respiration':
-              unitLabel = 'b/min';
-              break;
-            case 'Cholesterol Level':
-              unitLabel = 'mg/dL';
-              break;
-            case 'Pain':
-              // Use the slider for "Pain"
-              int painValue = int.tryParse(_vitalInputs[key] ?? '0') ?? 0;
-              return _buildSlider('Pain', painValue, (newValue) {
-                setState(() {
-                  _vitalInputs[key] = newValue.toString();
-                });
-              });
-            default:
-              unitLabel = '';
-          }
+  Widget _buildVitalInputField(String key) {
+    final controller = _controllers[key]!;
+    final focusNode = _focusNodes[key]!;
 
-          // Default design for other inputs
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10.0),
-            child: IntrinsicHeight(
-              child: Row(
-                children: [
-                  // Wrapping the TextFormField and label in a container
-                  Expanded(
-                    child: Container(
-                      height: double.infinity, // Match height of the text field
-                      decoration: BoxDecoration(
-                        color: AppColors.gray, // Set background color
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(10),
-                          bottomLeft:
-                              Radius.circular(10), // Apply border radius
-                        ),
-                      ),
-                      child: TextFormField(
-                        controller: controller,
-                        focusNode: focusNode,
-                        decoration: _inputDecoration(key, focusNode),
-                        keyboardType: TextInputType.text,
-                        validator: (value) {
-                          // Validate input dynamically
-                          return _validateInput(value ?? '', field: key);
-                        },
-                        onChanged: (value) => _vitalInputs[key] = value,
-                      ),
-                    ),
+    String unitLabel = '';
+    List<String? Function(String?)> validators = [FormBuilderValidators.required()];
+
+    List<TextInputFormatter> inputFormatters = [];
+
+    switch (key) {
+      case 'Temperature':
+        unitLabel = '°C';
+        validators.addAll([
+          FormBuilderValidators.numeric(),
+          FormBuilderValidators.min(28.0),
+          FormBuilderValidators.max(43.0),
+        ]);
+        inputFormatters.add(FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,1}$')));
+        break;
+      case 'Heart Rate':
+        unitLabel = 'bpm';
+        validators.addAll([
+          FormBuilderValidators.integer(),
+          FormBuilderValidators.min(30),
+          FormBuilderValidators.max(220),
+        ]);
+        inputFormatters.add(FilteringTextInputFormatter.digitsOnly);
+        break;
+      case 'Blood Pressure':
+        unitLabel = 'mmHg';
+        validators.add(FormBuilderValidators.match(
+          RegExp(r'^\d{2,3}/\d{2,3}$'),
+          errorText: 'Format: 120/80',
+        ));
+        inputFormatters.add(FilteringTextInputFormatter.allow(RegExp(r'^\d{0,3}/?\d{0,3}$')));
+        break;
+      case 'Oxygen Saturation':
+        unitLabel = '%';
+        validators.addAll([
+          FormBuilderValidators.numeric(),
+          FormBuilderValidators.min(50.0),
+          FormBuilderValidators.max(100.0),
+        ]);
+        inputFormatters.add(FilteringTextInputFormatter.digitsOnly);
+        break;
+      case 'Respiration':
+        unitLabel = 'b/min';
+        validators.addAll([
+          FormBuilderValidators.integer(),
+          FormBuilderValidators.min(4),
+          FormBuilderValidators.max(80),
+        ]);
+        inputFormatters.add(FilteringTextInputFormatter.digitsOnly);
+        break;
+      case 'Cholesterol Level':
+        unitLabel = 'mg/dL';
+        validators.addAll([
+          FormBuilderValidators.numeric(),
+          FormBuilderValidators.min(80),
+          FormBuilderValidators.max(500),
+        ]);
+        inputFormatters.add(FilteringTextInputFormatter.digitsOnly);
+        break;
+      case 'Pain':
+        int painValue = int.tryParse(_vitalInputs[key] ?? '0') ?? 0;
+        return _buildSlider('Pain', painValue, (newValue) {
+          setState(() {
+            _vitalInputs[key] = newValue.toString();
+          });
+        });
+      default:
+        unitLabel = '';
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10.0),
+      child: IntrinsicHeight(
+        child: Row(
+          children: [
+            Expanded(
+              child: Container(
+                height: double.infinity,
+                decoration: BoxDecoration(
+                  color: AppColors.gray,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(10),
+                    bottomLeft: Radius.circular(10),
                   ),
-                  // Label container for unit
-                  Container(
-                    width: 70,
-                    height:
-                        double.infinity, // Match height of the TextFormField
-                    decoration: BoxDecoration(
-                      color: AppColors
-                          .darkerGray, // Background color for the label
-                      borderRadius: const BorderRadius.only(
-                        topRight: Radius.circular(10),
-                        bottomRight: Radius.circular(
-                            10), // Border radius for label container
-                      ),
-                    ),
-                    child: Align(
-                      alignment: Alignment.center,
-                      child: Text(
-                        unitLabel,
-                        style: const TextStyle(
-                          fontSize: 14, // Fixed size for the label
-                          color: AppColors.blackTransparent, // Label color
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
+                child: FormBuilderTextField(
+                  name: key,
+                  controller: controller,
+                  focusNode: focusNode,
+                  decoration: _inputDecoration(key, focusNode),
+                  keyboardType: TextInputType.number,
+                  validator: FormBuilderValidators.compose(validators),
+                  inputFormatters: inputFormatters,
+                  onChanged: (value) => _vitalInputs[key] = value ?? '',
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                ),
               ),
             ),
-          );
-        }).toList(),
+            Container(
+              width: 70,
+              height: double.infinity,
+              decoration: BoxDecoration(
+                color: AppColors.darkerGray,
+                borderRadius: const BorderRadius.only(
+                  topRight: Radius.circular(10),
+                  bottomRight: Radius.circular(10),
+                ),
+              ),
+              child: Align(
+                alignment: Alignment.center,
+                child: Text(
+                  unitLabel,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.blackTransparent,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -707,6 +681,12 @@ class PatientTrackingState extends State<PatientTracking> {
         _buildSlider('Diarrhea', _diarrheaValue, (val) {
           setState(() => _diarrheaValue = val);
         }),
+        _buildSlider('Bowel Obstruction', _bowelObstructionValue, (val) {
+          setState(() => _bowelObstructionValue = val);
+        }),
+        _buildSlider('Constipation', _constipationValue, (val) {
+          setState(() => _constipationValue = val);
+        }),
         _buildSlider('Fatigue', _fatigueValue, (val) {
           setState(() => _fatigueValue = val);
         }),
@@ -716,11 +696,11 @@ class PatientTrackingState extends State<PatientTracking> {
         _buildSlider('Appetite', _appetiteValue, (val) {
           setState(() => _appetiteValue = val);
         }),
+        _buildSlider('Weight Loss', _weightLossValue, (val) {
+          setState(() => _weightLossValue = val);
+        }),
         _buildSlider('Coughing', _coughingValue, (val) {
           setState(() => _coughingValue = val);
-        }),
-        _buildSlider('Well-being', _wellBeingValue, (val) {
-          setState(() => _wellBeingValue = val);
         }),
         _buildSlider('Nausea', _nauseaValue, (val) {
           setState(() => _nauseaValue = val);
@@ -743,6 +723,9 @@ class PatientTrackingState extends State<PatientTracking> {
         }),
         _buildSlider('Anxiety', _anxietyValue, (val) {
           setState(() => _anxietyValue = val);
+        }),
+        _buildSlider('Confusion', _confusionValue, (val) {
+          setState(() => _confusionValue = val);
         }),
       ],
     );
@@ -818,15 +801,18 @@ class PatientTrackingState extends State<PatientTracking> {
       'Vitals': _vitalInputs,
       'Symptom Assessment': {
         'Diarrhea': _diarrheaValue,
+        'Bowel Obstruction': _bowelObstructionValue,
+        'Constipation': _constipationValue,
         'Fatigue': _fatigueValue,
         'Shortness of Breath': _shortnessOfBreathValue,
         'Appetite': _appetiteValue,
+        'Weight Loss': _weightLossValue,
         'Coughing': _coughingValue,
-        'Well-being': _wellBeingValue,
         'Nausea': _nauseaValue,
         'Drowsiness': _drowsinessValue,
         'Depression': _depressionValue,
         'Anxiety': _anxietyValue,
+        'Confusion': _confusionValue,
       },
     };
 

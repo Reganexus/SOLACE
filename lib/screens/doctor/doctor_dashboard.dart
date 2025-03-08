@@ -160,7 +160,6 @@ class DoctorDashboardState extends State<DoctorDashboard> {
       builder: (BuildContext context, Widget? child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            dialogBackgroundColor: AppColors.white,
             colorScheme: ColorScheme.light(
               primary: AppColors.neon,
               onPrimary: AppColors.white,
@@ -170,7 +169,7 @@ class DoctorDashboardState extends State<DoctorDashboard> {
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.neon,
               ),
-            ),
+            ), dialogTheme: DialogThemeData(backgroundColor: AppColors.white),
           ),
           child: child!,
         );

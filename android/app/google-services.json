@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "805655165429-da1ckreftg8ls402ifg0icb2567364sp.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.res.solace",
+            "certificate_hash": "a07229a58214db32e7f9483d3fa6a1291d9dc3c2"
+          }
+        },
+        {
           "client_id": "805655165429-eisc3465kla8ad2isgnldhjk6rfldodn.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
