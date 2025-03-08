@@ -332,63 +332,136 @@ class PatientTrackingState extends State<PatientTracking> {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Vitals',
-                          style: TextStyle(
-                            fontSize: 24.0,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Outfit',
-                          ),
-                        ),
-                        const SizedBox(height: 10.0),
-                        _buildVitalsInputs(),
-                        const SizedBox(height: 20.0),
-                        const Divider(thickness: 1.0),
-                        const SizedBox(height: 20.0),
-                        const Text(
-                          'Symptom Assessment',
-                          style: TextStyle(
-                            fontSize: 24.0,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Outfit',
-                          ),
-                        ),
-                        const SizedBox(height: 20.0),
-                        _buildSliders(),
-                        const SizedBox(height: 20.0),
-                        SizedBox(
-                          width: double.infinity,
-                          child: TextButton(
-                            onPressed:
-                                hasData ? () => _submit(user!.uid) : null,
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 50,
-                                vertical: 10,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              backgroundColor: hasData
-                                  ? AppColors.neon
-                                  : AppColors.blackTransparent,
-                            ),
-                            child: const Text(
-                              'Submit',
+                    if (isCooldownActive)
+                       Container(
+                         padding: const EdgeInsets.all(20),
+                         decoration: BoxDecoration(
+                           borderRadius: BorderRadius.circular(10.0),
+                           color: AppColors.gray,
+                         ),
+                         child: Column(
+                           children: [
+                             const Text(
+                               'You cannot input vitals and assessment at the moment.',
+                               textAlign: TextAlign.center,
+                               style: TextStyle(
+                                 fontWeight: FontWeight.bold,
+                                 fontSize: 20,
+                                 fontFamily: 'Inter',
+                               ),
+                             ),
+                             const SizedBox(height: 10),
+                             Text(
+                               _formatCooldownTime(remainingCooldownTime),
+                               textAlign: TextAlign.center,
+                               style: const TextStyle(
+                                 fontSize: 16,
+                                 fontWeight: FontWeight.normal,
+                                 fontFamily: 'Inter',
+                               ),
+                             ),
+                           ],
+                         ),
+                       ),
+                     if (!isCooldownActive)
+                       if (!hasData)
+                         Container(
+                           padding: const EdgeInsets.all(20),
+                           decoration: BoxDecoration(
+                             borderRadius: BorderRadius.circular(10.0),
+                             color: AppColors.gray,
+                           ),
+                           child: Column(
+                             children: [
+                               SizedBox(
+                                 width: double.infinity,
+                                 child: Column(
+                                   mainAxisSize: MainAxisSize.max,
+                                   children: const [
+                                     Text(
+                                       'Patient is not Available',
+                                       textAlign: TextAlign.center,
+                                       style: TextStyle(
+                                         fontWeight: FontWeight.bold,
+                                         fontSize: 20,
+                                         fontFamily: 'Inter',
+                                       ),
+                                     ),
+                                     SizedBox(height: 10),
+                                     Text(
+                                       'Go to "Patient" at Home',
+                                       textAlign: TextAlign.center,
+                                       style: TextStyle(
+                                         fontSize: 16,
+                                         fontWeight: FontWeight.normal,
+                                         fontFamily: 'Inter',
+                                       ),
+                                     ),
+                                   ],
+                                 ),
+                               ),
+                               SizedBox(height: 20.0),
+                             ],
+                           ),
+                         )
+                       else
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Vitals',
                               style: TextStyle(
-                                fontFamily: 'Inter',
+                                fontSize: 24.0,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                                color: AppColors.white,
+                                fontFamily: 'Outfit',
                               ),
                             ),
-                          ),
+                            const SizedBox(height: 10.0),
+                            _buildVitalsInputs(),
+                            const SizedBox(height: 20.0),
+                            const Divider(thickness: 1.0),
+                            const SizedBox(height: 20.0),
+                            const Text(
+                              'Symptom Assessment',
+                              style: TextStyle(
+                                fontSize: 24.0,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'Outfit',
+                              ),
+                            ),
+                            const SizedBox(height: 20.0),
+                            _buildSliders(),
+                            const SizedBox(height: 20.0),
+                            SizedBox(
+                              width: double.infinity,
+                              child: TextButton(
+                                onPressed:
+                                    hasData ? () => _submit(user!.uid) : null,
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 50,
+                                    vertical: 10,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  backgroundColor: hasData
+                                      ? AppColors.neon
+                                      : AppColors.blackTransparent,
+                                ),
+                                child: const Text(
+                                  'Submit',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                    color: AppColors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
                   ],
                 );
               },
