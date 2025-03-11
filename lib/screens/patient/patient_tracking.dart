@@ -312,15 +312,19 @@ class PatientTrackingState extends State<PatientTracking> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => FocusScope.of(context).unfocus(),
-      child: Scaffold(
-        backgroundColor: AppColors.white,
-        body: SingleChildScrollView(
-          child: Container(
-            color: AppColors.white,
-            padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
+Widget build(BuildContext context) {
+  return GestureDetector(
+    onTap: () => FocusScope.of(context).unfocus(),
+    child: Scaffold(
+      backgroundColor: AppColors.white,
+      body: SingleChildScrollView(
+        child: Container(
+          color: AppColors.white,
+          padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
+
+          // ✅ Move FormBuilder OUTSIDE StreamBuilder
+          child: FormBuilder(
+            key: _formKey, // ✅ _formKey now persists between rebuilds
             child: StreamBuilder<DocumentSnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('patient')
@@ -328,140 +332,143 @@ class PatientTrackingState extends State<PatientTracking> {
                   .snapshots(),
               builder: (context, snapshot) {
                 final hasData = snapshot.hasData && snapshot.data!.exists;
-             
+
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (isCooldownActive)
-                       Container(
-                         padding: const EdgeInsets.all(20),
-                         decoration: BoxDecoration(
-                           borderRadius: BorderRadius.circular(10.0),
-                           color: AppColors.gray,
-                         ),
-                         child: Column(
-                           children: [
-                             const Text(
-                               'You cannot input vitals and assessment at the moment.',
-                               textAlign: TextAlign.center,
-                               style: TextStyle(
-                                 fontWeight: FontWeight.bold,
-                                 fontSize: 20,
-                                 fontFamily: 'Inter',
-                               ),
-                             ),
-                             const SizedBox(height: 10),
-                             Text(
-                               _formatCooldownTime(remainingCooldownTime),
-                               textAlign: TextAlign.center,
-                               style: const TextStyle(
-                                 fontSize: 16,
-                                 fontWeight: FontWeight.normal,
-                                 fontFamily: 'Inter',
-                               ),
-                             ),
-                           ],
-                         ),
-                       ),
-                     if (!isCooldownActive)
-                       if (!hasData)
-                         Container(
-                           padding: const EdgeInsets.all(20),
-                           decoration: BoxDecoration(
-                             borderRadius: BorderRadius.circular(10.0),
-                             color: AppColors.gray,
-                           ),
-                           child: Column(
-                             children: [
-                               SizedBox(
-                                 width: double.infinity,
-                                 child: Column(
-                                   mainAxisSize: MainAxisSize.max,
-                                   children: const [
-                                     Text(
-                                       'Patient is not Available',
-                                       textAlign: TextAlign.center,
-                                       style: TextStyle(
-                                         fontWeight: FontWeight.bold,
-                                         fontSize: 20,
-                                         fontFamily: 'Inter',
-                                       ),
-                                     ),
-                                     SizedBox(height: 10),
-                                     Text(
-                                       'Go to "Patient" at Home',
-                                       textAlign: TextAlign.center,
-                                       style: TextStyle(
-                                         fontSize: 16,
-                                         fontWeight: FontWeight.normal,
-                                         fontFamily: 'Inter',
-                                       ),
-                                     ),
-                                   ],
-                                 ),
-                               ),
-                               SizedBox(height: 20.0),
-                             ],
-                           ),
-                         )
-                       else
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10.0),
+                          color: AppColors.gray,
+                        ),
+                        child: Column(
                           children: [
                             const Text(
-                              'Vitals',
+                              'You cannot input vitals and assessment at the moment.',
+                              textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontSize: 24.0,
                                 fontWeight: FontWeight.bold,
-                                fontFamily: 'Outfit',
+                                fontSize: 20,
+                                fontFamily: 'Inter',
                               ),
                             ),
-                            const SizedBox(height: 10.0),
-                            _buildVitalsInputs(),
-                            const SizedBox(height: 20.0),
-                            const Divider(thickness: 1.0),
-                            const SizedBox(height: 20.0),
-                            const Text(
-                              'Symptom Assessment',
-                              style: TextStyle(
-                                fontSize: 24.0,
-                                fontWeight: FontWeight.bold,
-                                fontFamily: 'Outfit',
-                              ),
-                            ),
-                            const SizedBox(height: 20.0),
-                            _buildSliders(),
-                            const SizedBox(height: 20.0),
-                            SizedBox(
-                              width: double.infinity,
-                              child: TextButton(
-                                onPressed:
-                                    hasData ? () => _submit(user!.uid) : null,
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 50,
-                                    vertical: 10,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  backgroundColor: hasData
-                                      ? AppColors.neon
-                                      : AppColors.blackTransparent,
-                                ),
-                                child: const Text(
-                                  'Submit',
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                    color: AppColors.white,
-                                  ),
-                                ),
+                            const SizedBox(height: 10),
+                            Text(
+                              _formatCooldownTime(remainingCooldownTime),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.normal,
+                                fontFamily: 'Inter',
                               ),
                             ),
                           ],
                         ),
+                      ),
+                    if (!isCooldownActive)
+                      Column(
+                        children: [
+                          if (!hasData)
+                            Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(10.0),
+                                color: AppColors.gray,
+                              ),
+                              child: Column(
+                                children: [
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.max,
+                                      children: const [
+                                        Text(
+                                          'Patient is not Available',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 20,
+                                            fontFamily: 'Inter',
+                                          ),
+                                        ),
+                                        SizedBox(height: 10),
+                                        Text(
+                                          'Go to "Patient" at Home',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.normal,
+                                            fontFamily: 'Inter',
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  SizedBox(height: 20.0),
+                                ],
+                              ),
+                            )
+                          else
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Vitals',
+                                  style: TextStyle(
+                                    fontSize: 24.0,
+                                    fontWeight: FontWeight.bold,
+                                    fontFamily: 'Outfit',
+                                  ),
+                                ),
+                                const SizedBox(height: 10.0),
+                                _buildVitalsInputs(),
+                                const SizedBox(height: 20.0),
+                                const Divider(thickness: 1.0),
+                                const SizedBox(height: 20.0),
+                                const Text(
+                                  'Symptom Assessment',
+                                  style: TextStyle(
+                                    fontSize: 24.0,
+                                    fontWeight: FontWeight.bold,
+                                    fontFamily: 'Outfit',
+                                  ),
+                                ),
+                                const SizedBox(height: 20.0),
+                                _buildSliders(),
+                                const SizedBox(height: 20.0),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: TextButton(
+                                    onPressed: hasData ? () => _submit(user!.uid) : null,
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 50,
+                                        vertical: 10,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      backgroundColor: hasData
+                                          ? AppColors.neon
+                                          : AppColors.blackTransparent,
+                                    ),
+                                    child: const Text(
+                                      'Submit',
+                                      style: TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                        color: AppColors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                        ],
+                      )
                   ],
                 );
               },
@@ -469,8 +476,10 @@ class PatientTrackingState extends State<PatientTracking> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
+
 
   InputDecoration _inputDecoration(String label, FocusNode focusNode) {
     return InputDecoration(
@@ -495,17 +504,14 @@ class PatientTrackingState extends State<PatientTracking> {
   }
 
   Widget _buildVitalsInputs() {
-    return FormBuilder(
-      key: _formKey,
-      child: ListView.builder(
-        shrinkWrap: true,
-        physics: NeverScrollableScrollPhysics(),
-        itemCount: _focusNodes.keys.length,
-        itemBuilder: (context, index) {
-          final key = _focusNodes.keys.elementAt(index);
-          return _buildVitalInputField(key);
-        },
-      ),
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: NeverScrollableScrollPhysics(),
+      itemCount: _focusNodes.keys.length,
+      itemBuilder: (context, index) {
+        final key = _focusNodes.keys.elementAt(index);
+        return _buildVitalInputField(key);
+      },
     );
   }
 
@@ -598,15 +604,14 @@ class PatientTrackingState extends State<PatientTracking> {
                     bottomLeft: Radius.circular(10),
                   ),
                 ),
-                child: FormBuilderTextField(
-                  name: key,
+                child: TextFormField(
                   controller: controller,
                   focusNode: focusNode,
                   decoration: _inputDecoration(key, focusNode),
                   keyboardType: TextInputType.number,
                   validator: FormBuilderValidators.compose(validators),
                   inputFormatters: inputFormatters,
-                  onChanged: (value) => _vitalInputs[key] = value ?? '',
+                  onChanged: (value) => _vitalInputs[key] = value,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                 ),
               ),
@@ -805,18 +810,18 @@ class PatientTrackingState extends State<PatientTracking> {
   }
 
   void _submit(String uid) async {
-    if (!_formKey.currentState!.validate()) {
-      // Validation failed, show error SnackBar
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Please correct the highlighted errors in the vitals form.',
-          ),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
+    // if (!_formKey.currentState!.validate()) {
+    //   // Validation failed, show error SnackBar
+    //   ScaffoldMessenger.of(context).showSnackBar(
+    //     SnackBar(
+    //       content: const Text(
+    //         'Please correct the highlighted errors in the vitals form.',
+    //       ),
+    //       backgroundColor: Colors.red,
+    //     ),
+    //   );
+    //   return;
+    // }
 
     final userData = await DatabaseService(uid: uid).getUserData();
     if (userData == null) {
@@ -838,18 +843,14 @@ class PatientTrackingState extends State<PatientTracking> {
 
     // Blood Pressure Parsing and Classification
     final parts = _vitalInputs['Blood Pressure']!.split('/');
-    final systolic =
-        int.tryParse(parts[0].trim()); // Trim spaces before parsing
-    final diastolic =
-        int.tryParse(parts[1].trim()); // Trim spaces before parsing
+    final systolic = int.tryParse(parts[0].trim());
+    final diastolic = int.tryParse(parts[1].trim());
 
-    // Check for valid systolic and diastolic values
     if (systolic == null || diastolic == null) {
       debugPrint("Invalid blood pressure input.");
       return;
     }
 
-    // Blood Pressure Classification
     if (systolic < lowBloodPressureSystolic &&
         diastolic < lowBloodPressureDiastolic) {
       _algoInputs['Blood Pressure'] = 'Low';
@@ -869,7 +870,6 @@ class PatientTrackingState extends State<PatientTracking> {
       _algoInputs['Cholesterol Level'] = 'High';
     }
 
-    // Only after successful validation, prepare data
     _combinedInputs = {
       'Vitals': _vitalInputs,
       'Symptom Assessment': {
