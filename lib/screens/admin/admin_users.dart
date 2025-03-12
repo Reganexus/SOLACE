@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:solace/models/my_patient.dart';
 import 'package:solace/models/my_user.dart';
+import 'package:solace/screens/admin/admin_logs.dart';
 import 'package:solace/screens/admin/delete_user.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/themes/colors.dart';
@@ -201,21 +202,27 @@ class AdminUsersState extends State<AdminUsers> {
             actions: [
               Row(
                 children: [
+                  // View Logs Button
                   Expanded(
                     child: TextButton(
                       onPressed: () {
-                        Navigator.pop(context); // Cancel and close the dialog
+                        Navigator.pop(context); // Close dialog first
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => AdminLogs(currentUserId: user.uid, userName: userName),
+                          ),
+                        );
                       },
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 15, vertical: 5),
-                        backgroundColor: AppColors.neon,
+                        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                        backgroundColor: AppColors.blue, // Adjust color as needed
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
                       child: const Text(
-                        'Cancel',
+                        'View Logs',
                         style: TextStyle(
                           fontSize: 16.0,
                           fontWeight: FontWeight.bold,
@@ -225,7 +232,7 @@ class AdminUsersState extends State<AdminUsers> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10), // Add spacing between buttons
+                  const SizedBox(width: 15),
                   Expanded(
                     child: TextButton(
                       onPressed: () {
@@ -242,6 +249,31 @@ class AdminUsersState extends State<AdminUsers> {
                       ),
                       child: const Text(
                         'Delete User',
+                        style: TextStyle(
+                          fontSize: 16.0,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Inter',
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.pop(context); // Cancel and close the dialog
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 15, vertical: 5),
+                        backgroundColor: AppColors.neon,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: const Text(
+                        'Cancel',
                         style: TextStyle(
                           fontSize: 16.0,
                           fontWeight: FontWeight.bold,

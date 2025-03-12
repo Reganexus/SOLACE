@@ -810,19 +810,6 @@ Widget build(BuildContext context) {
   }
 
   void _submit(String uid) async {
-    // if (!_formKey.currentState!.validate()) {
-    //   // Validation failed, show error SnackBar
-    //   ScaffoldMessenger.of(context).showSnackBar(
-    //     SnackBar(
-    //       content: const Text(
-    //         'Please correct the highlighted errors in the vitals form.',
-    //       ),
-    //       backgroundColor: Colors.red,
-    //     ),
-    //   );
-    //   return;
-    // }
-
     final userData = await DatabaseService(uid: uid).getUserData();
     if (userData == null) {
       debugPrint('Submit Algo Input No User Data');

@@ -7,6 +7,7 @@ import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
 import 'package:flutter/foundation.dart';
 import 'package:solace/controllers/cloud_messaging.dart';
+import 'package:solace/services/log_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -14,6 +15,7 @@ class AuthService {
 
   // Initialize GoogleSignIn instance
   final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final LogService _logService = LogService();
 
   // Cache to store user data
   MyUser? _cachedUser;
@@ -172,6 +174,12 @@ class AuthService {
       UserCredential result = await _auth.signInWithEmailAndPassword(
           email: email, password: password);
       User? user = result.user;
+
+      await _logService.addLog(
+        userId: user!.uid,
+        action: 'Logged in with email and password'
+      );
+
       return user != null ? await _userFromFirebaseUser(user) : null;
     } catch (e) {
       debugPrint("Log in error: ${e.toString()}");
@@ -282,6 +290,11 @@ class AuthService {
 
       debugPrint("User document initialized for UID: ${user.uid}");
 
+      await _logService.addLog(
+        userId: user.uid,
+        action: 'Created account with email and password'
+      );
+
       // Set cached user data
       _cachedUser = MyUser(
         uid: user.uid,
@@ -348,6 +361,12 @@ class AuthService {
             userRole: UserRole.unregistered,
             profileImageUrl: profileImageUrl,
           );
+
+          await _logService.addLog(
+            userId: user.uid,
+            action: 'Created account with Google'
+          );
+
         } else {
           debugPrint("User email already exists in collections: $email");
         }
@@ -362,6 +381,11 @@ class AuthService {
         }
 
         debugPrint("User data fetched successfully for UID: ${user.uid}");
+
+        await _logService.addLog(
+          userId: user.uid,
+          action: 'Logged in with Google'
+        );
 
         // Cache user data
         _cachedUser = MyUser(
@@ -396,6 +420,16 @@ class AuthService {
 
   Future<void> signOut() async {
     try {
+      // Get the current authenticated user
+      User? user = FirebaseAuth.instance.currentUser;
+
+      if (user != null) {
+        await _logService.addLog(
+          userId: user.uid,
+          action: 'Logged out',
+        );
+      }
+
       // Sign out from Firebase
       await FirebaseAuth.instance.signOut();
 

@@ -7,6 +7,7 @@ import 'package:solace/shared/globals.dart';
 import 'package:solace/themes/colors.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:solace/services/log_service.dart';
 
 class ReceiptScreen extends StatefulWidget {
   final String uid;
@@ -26,6 +27,7 @@ class ReceiptScreen extends StatefulWidget {
 
 class _ReceiptScreenState extends State<ReceiptScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final LogService _logService = LogService();
 
   void _identifySymptoms() async {
     List<String> symptoms = [];
@@ -619,6 +621,12 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                             ),
                           );
                         }
+
+                        // Add log entry
+                        await _logService.addLog(
+                          userId: widget.uid,
+                          action: 'Submitted tracking information',
+                        );
 
                         Navigator.pop(context);
                       } catch (e) {
