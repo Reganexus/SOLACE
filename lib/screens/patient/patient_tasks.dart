@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class PatientTasks extends StatefulWidget {
-  const PatientTasks({super.key, required this.currentUserId});
-  final String currentUserId;
+  const PatientTasks({super.key, required this.patientId});
+  final String patientId;
 
   @override
   PatientTasksState createState() => PatientTasksState();
@@ -30,13 +31,10 @@ class PatientTasksState extends State<PatientTasks> {
 
     final User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      final String patientId = widget.currentUserId; // Use the passed user ID
       try {
-        // Query the 'caregiver' collection for the document of the current user
         final snapshot = await FirebaseFirestore.instance
-            .collection(
-                'caregiver') // Assuming tasks are stored in the 'caregiver' collection
-            .doc(patientId) // Fetch the specific caregiver document
+            .collection('patient')
+            .doc(widget.patientId)
             .get();
 
         debugPrint("Snapshot: $snapshot");
@@ -100,103 +98,6 @@ class PatientTasksState extends State<PatientTasks> {
     }
   }
 
-  void _showTaskModal(
-    BuildContext context,
-    String taskTitle,
-    String taskDescription,
-    Timestamp startDate,
-    Timestamp endDate,
-  ) {
-    // Format the start and end dates
-    String startFormatted = startDate != null
-        ? DateTime.fromMillisecondsSinceEpoch(startDate.seconds * 1000)
-            .toLocal()
-            .toString()
-        : 'No start date available';
-    String endFormatted = endDate != null
-        ? DateTime.fromMillisecondsSinceEpoch(endDate.seconds * 1000)
-            .toLocal()
-            .toString()
-        : 'No end date available';
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: AppColors.white,
-          title: Text(
-            taskTitle,
-            style: const TextStyle(
-              fontSize: 24,
-              fontFamily: 'Outfit',
-              fontWeight: FontWeight.bold,
-              color: AppColors.black,
-            ),
-          ),
-          content: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Description: $taskDescription',
-                style: TextStyle(
-                    fontSize: 16,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.normal,
-                    color: AppColors.black),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Start Date: $startFormatted',
-                style: TextStyle(
-                    fontSize: 16,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.normal,
-                    color: AppColors.black),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'End Date: $endFormatted',
-                style: TextStyle(
-                    fontSize: 16,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.normal,
-                    color: AppColors.black),
-              ),
-            ],
-          ),
-          actions: [
-            SizedBox(
-              width: double.infinity,
-              child: TextButton(
-                style: TextButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-                  backgroundColor: AppColors.neon,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                child: const Text(
-                  'Close',
-                  style: TextStyle(
-                    fontSize: 16.0,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Inter',
-                    color: Colors.white,
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -224,57 +125,124 @@ class PatientTasksState extends State<PatientTasks> {
                     : ListView.builder(
                         itemCount: tasks.length,
                         itemBuilder: (context, index) {
-                          // Safely check if the values exist
                           final task = tasks[index];
                           final taskTitle = task['title'];
                           final taskIcon = task['icon'];
                           final taskDescription =
                               task['description'] ?? 'No description available';
+                          final startDate = task['startDate'];
+                          final endDate = task['endDate'];
 
+                          // Format start and end dates
+                          final startFormatted = startDate != null
+                              ? DateFormat('MMMM d, y \'at\' h:mm a').format(
+                                  DateTime.fromMillisecondsSinceEpoch(
+                                          startDate.seconds * 1000)
+                                      .toLocal())
+                              : 'No start date available';
+
+                          final endFormatted = endDate != null
+                              ? DateFormat('MMMM d, y \'at\' h:mm a').format(
+                                  DateTime.fromMillisecondsSinceEpoch(
+                                          endDate.seconds * 1000)
+                                      .toLocal())
+                              : 'No end date available';
+
+                          // Skip tasks with missing title or icon
                           if (taskTitle == null || taskIcon == null) {
-                            // If task title or icon is null, skip this task
                             return SizedBox.shrink();
                           }
 
-                          return GestureDetector(
-                            onTap: () {
-                              _showTaskModal(
-                                context,
-                                taskTitle,
-                                taskDescription,
-                                task[
-                                    'startDate'], // Assuming 'startDate' is a Timestamp field
-                                task[
-                                    'endDate'], // Assuming 'endDate' is a Timestamp field
-                              );
-                            },
-                            child: Container(
-                              margin: const EdgeInsets.only(bottom: 15.0),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10.0),
-                                color: AppColors
-                                    .gray, // Or whatever background color you want
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 20.0, horizontal: 15.0),
-                              child: Row(
-                                children: [
-                                  Image.asset(
-                                    taskIcon,
-                                    height: 30,
-                                  ),
-                                  const SizedBox(width: 10.0),
-                                  Text(
-                                    taskTitle,
-                                    style: const TextStyle(
-                                      color: Colors.black,
-                                      fontFamily: 'Outfit',
-                                      fontSize: 16.0,
-                                      fontWeight: FontWeight.bold,
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 15.0),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10.0),
+                              color: AppColors.gray,
+                            ),
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Image.asset(
+                                      taskIcon,
+                                      height: 30,
                                     ),
+                                    const SizedBox(width: 10.0),
+                                    Text(
+                                      taskTitle,
+                                      style: const TextStyle(
+                                          fontSize: 20,
+                                          fontFamily: 'Inter',
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.black),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                const Divider(thickness: 1.0),
+                                const SizedBox(height: 10),
+                                const Text(
+                                  "Description",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.black,
                                   ),
-                                ],
-                              ),
+                                ),
+                                const SizedBox(height: 5),
+                                Text(
+                                  taskDescription,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.normal,
+                                    color: AppColors.black,
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                                const Text(
+                                  "Start Date",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.black,
+                                  ),
+                                ),
+                                const SizedBox(height: 5),
+                                Text(
+                                  startFormatted,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.normal,
+                                    color: AppColors.black,
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                                const Text(
+                                  "End Date",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.black,
+                                  ),
+                                ),
+                                const SizedBox(height: 5),
+                                Text(
+                                  endFormatted,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.normal,
+                                    color: AppColors.black,
+                                  ),
+                                ),
+                              ],
                             ),
                           );
                         },

@@ -7,12 +7,12 @@ plugins {
 
 android {
     namespace = "com.res.solace"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId "com.res.solace"
         minSdkVersion 26
-        targetSdkVersion 34
+        targetSdkVersion 35
         versionCode flutter.versionCode
         versionName flutter.versionName
         multiDexEnabled true

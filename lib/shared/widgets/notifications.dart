@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:solace/models/my_user.dart';
+import 'package:solace/services/database.dart';
 import 'package:solace/themes/colors.dart';
 
 class NotificationList extends StatelessWidget {
@@ -46,70 +47,65 @@ class NotificationsListState extends State<NotificationsList> {
     fetchNotifications();
   }
 
-  Future<String> _determineUserRole(String userId) async {
-    List<String> userCollections = ['caregiver', 'doctor', 'admin', 'patient', 'unregistered'];
-    for (String collection in userCollections) {
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection(collection)
-          .doc(userId)
-          .get();
-      if (userDoc.exists) {
-        return collection; // Return the role corresponding to the collection
-      }
-    }
-    throw Exception('User role not found');
-  }
-
   Future<void> deleteAllNotifications() async {
-    debugPrint("Function got called!");
+    debugPrint("deleteAllNotifications function called!");
     try {
-      // Determine the correct user collection
-      List<String> userCollections = ['caregiver', 'doctor', 'admin', 'patient', 'unregistered'];
-      DocumentReference? userRef;
+      // Initialize the DatabaseService
+      DatabaseService db = DatabaseService();
 
-      for (String collection in userCollections) {
-        DocumentReference ref = FirebaseFirestore.instance
-            .collection(collection)
-            .doc(widget.userId);
-        DocumentSnapshot userDocSnapshot = await ref.get();
-        if (userDocSnapshot.exists) {
-          userRef = ref; // Assign only if document exists
-          break; // Exit loop if user document is found
-        }
-      }
-
-      if (userRef == null) {
-        debugPrint('User document does not exist!');
+      // Fetch the user's role
+      String? userRole = await db.getTargetUserRole(widget.userId);
+      if (userRole == null) {
+        debugPrint(
+            'User role could not be determined for userId: ${widget.userId}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to determine user role.')),
+        );
         return;
       }
 
-      // Fetch and clear notifications
-      final userDocSnapshot = await userRef.get();
-      final data = userDocSnapshot.data() as Map<String, dynamic>?;
+      // Reference the user's document
+      DocumentReference userRef =
+          FirebaseFirestore.instance.collection(userRole).doc(widget.userId);
 
-      if (data == null ||
-          data['notifications'] == null ||
-          (data['notifications'] as List).isEmpty) {
+      // Fetch the user's document
+      DocumentSnapshot userDocSnapshot = await userRef.get();
+      if (!userDocSnapshot.exists) {
+        debugPrint('User document does not exist for userId: ${widget.userId}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('User document not found.')),
+        );
+        return;
+      }
+
+      // Get the notifications field
+      final data = userDocSnapshot.data() as Map<String, dynamic>?;
+      final notifications = data?['notifications'] as List<dynamic>?;
+
+      if (notifications == null || notifications.isEmpty) {
+        debugPrint('No notifications found for userId: ${widget.userId}');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('No notifications to clear.')),
         );
         return;
       }
 
-      // Clear notifications
+      // Clear notifications in Firestore
       await userRef.update({'notifications': []});
 
-      // Clear the local notifications list
+      // Update local state
       setState(() {
-        this.notifications.clear(); // Refresh local state
+        this.notifications.clear();
       });
 
+      debugPrint('All notifications cleared for userId: ${widget.userId}');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('All notifications deleted successfully.')),
       );
     } catch (e) {
-      debugPrint('Error deleting all notifications: $e');
+      debugPrint(
+          'Error deleting all notifications for userId: ${widget.userId}: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Failed to delete notifications. Please try again.')),
@@ -123,40 +119,36 @@ class NotificationsListState extends State<NotificationsList> {
     });
 
     try {
-      // List of possible user collections
-      List<String> userCollections = ['caregiver', 'doctor', 'admin', 'patient', 'unregistered'];
-      DocumentSnapshot? snapshot;
+      // Initialize DatabaseService and fetch user role
+      DatabaseService db = DatabaseService();
+      String? userRole = await db.getTargetUserRole(widget.userId);
 
-      // Iterate through collections to find the user document
-      for (String collection in userCollections) {
-        snapshot = await FirebaseFirestore.instance
-            .collection(collection)
-            .doc(widget.userId)
-            .get();
-        if (snapshot.exists) {
-          break; // Exit loop if document is found
-        }
+      if (userRole == null) {
+        throw Exception('Failed to determine user role.');
       }
 
-      if (snapshot == null || !snapshot.exists) {
+      // Fetch the user's document
+      DocumentReference userRef =
+          FirebaseFirestore.instance.collection(userRole).doc(widget.userId);
+      DocumentSnapshot snapshot = await userRef.get();
+
+      if (!snapshot.exists) {
         throw Exception('No notifications found for this user.');
       }
 
-      // Safely cast the data to the expected type
+      // Extract data safely
       final data = snapshot.data() as Map<String, dynamic>?;
+      final notificationsData = data?['notifications'] as List<dynamic>?;
 
-      if (data == null || data['notifications'] == null) {
+      if (notificationsData == null || notificationsData.isEmpty) {
         setState(() {
           notifications = []; // No notifications found
-          _errorMessage = 'No notifications found.';
+          _errorMessage = null; // Clear the error message
         });
         return;
       }
 
-      // Safely cast the notifications list
-      final notificationsData =
-          List<Map<String, dynamic>>.from(data['notifications']);
-
+      // Process notifications
       final loadedNotifications = notificationsData.map((notification) {
         final timestamp = notification['timestamp'];
         DateTime? convertedTimestamp;
@@ -176,6 +168,7 @@ class NotificationsListState extends State<NotificationsList> {
         };
       }).toList();
 
+      // Sort notifications by timestamp (newest first)
       loadedNotifications.sort((a, b) {
         final aTimestamp = a['timestamp'] as DateTime?;
         final bTimestamp = b['timestamp'] as DateTime?;
@@ -183,11 +176,13 @@ class NotificationsListState extends State<NotificationsList> {
         return bTimestamp.compareTo(aTimestamp);
       });
 
+      // Update local state
       setState(() {
-        notifications = loadedNotifications; // Update local state
-        _errorMessage = null;
+        notifications = loadedNotifications;
+        _errorMessage = null; // Clear error message
       });
     } catch (e) {
+      debugPrint('Error fetching notifications: $e');
       setState(() {
         _errorMessage = e.toString().replaceFirst(RegExp(r'^Exception: '), '');
       });
@@ -316,9 +311,11 @@ class NotificationsListState extends State<NotificationsList> {
 
                   return GestureDetector(
                     onTap: () async {
-                      String role = await _determineUserRole(widget.userId);
+                      DatabaseService db = DatabaseService();
+                      String? userRole =
+                          await db.getTargetUserRole(widget.userId);
                       await markNotificationAsRead(
-                          widget.userId, notification, role);
+                          widget.userId, notification, userRole!);
 
                       _showNotificationDetails(context, notification);
                     },
@@ -390,57 +387,67 @@ class NotificationsListState extends State<NotificationsList> {
 
   Future<void> deleteNotification(
       BuildContext context, String notificationId) async {
+    // Get the current user
     final user = Provider.of<MyUser?>(context, listen: false);
-    if (user == null) return;
+    if (user == null) {
+      debugPrint('User is not logged in.');
+      return;
+    }
 
     try {
-      // Find the correct user collection
-      List<String> userCollections = ['caregiver', 'doctor', 'admin', 'patient', 'unregistered'];
-      DocumentReference? userDocRef;
+      // Fetch user role
+      DatabaseService db = DatabaseService();
+      String? userRole = await db.getTargetUserRole(user.uid);
 
-      for (String collection in userCollections) {
-        userDocRef =
-            FirebaseFirestore.instance.collection(collection).doc(user.uid);
-        DocumentSnapshot userDocSnapshot = await userDocRef.get();
-        if (userDocSnapshot.exists) {
-          break; // Exit loop if document is found
-        }
-      }
-
-      if (userDocRef == null) {
-        print('User document does not exist!');
+      if (userRole == null) {
+        debugPrint('User role could not be determined.');
         return;
       }
 
-      // Fetch notifications and update
-      final userDocSnapshot = await userDocRef.get();
+      // Reference to the user's document
+      DocumentReference userDocRef =
+          FirebaseFirestore.instance.collection(userRole).doc(user.uid);
+
+      // Fetch the document snapshot
+      DocumentSnapshot userDocSnapshot = await userDocRef.get();
+      if (!userDocSnapshot.exists) {
+        debugPrint('User document does not exist!');
+        return;
+      }
+
+      // Extract notifications data
       final data = userDocSnapshot.data() as Map<String, dynamic>?;
+      final notificationsData = data?['notifications'] as List<dynamic>?;
 
-      if (data == null || data['notifications'] == null) {
-        print('No notifications found.');
+      if (notificationsData == null || notificationsData.isEmpty) {
+        debugPrint('No notifications found.');
         return;
       }
 
-      var notifications =
-          List<Map<String, dynamic>>.from(data['notifications']);
-
+      // Find and remove the notification by ID
+      List<Map<String, dynamic>> notifications =
+          List<Map<String, dynamic>>.from(notificationsData);
       final notificationIndex = notifications
           .indexWhere((n) => n['notificationId'] == notificationId);
 
-      if (notificationIndex != -1) {
-        notifications.removeAt(notificationIndex);
-        await userDocRef.update({'notifications': notifications});
-
-        setState(() {
-          this.notifications = notifications; // Refresh local state
-        });
-
-        print("Notification successfully deleted");
-      } else {
-        print('Notification not found');
+      if (notificationIndex == -1) {
+        debugPrint('Notification not found.');
+        return;
       }
+
+      notifications.removeAt(notificationIndex);
+
+      // Update the user's document
+      await userDocRef.update({'notifications': notifications});
+
+      // Update local state
+      setState(() {
+        this.notifications = notifications;
+      });
+
+      debugPrint('Notification successfully deleted.');
     } catch (e) {
-      print('Error deleting notification: $e');
+      debugPrint('Error deleting notification: $e');
     }
   }
 

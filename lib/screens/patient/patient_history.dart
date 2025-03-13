@@ -1,476 +1,647 @@
-// ignore_for_file: use_build_context_synchronously
+// ignore_for_file: library_private_types_in_public_api
 
-import 'dart:async';
-
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:solace/screens/patient/chart_generator.dart';
-import 'package:solace/themes/colors.dart'; // Make sure to import your chart
-
-enum LoadingState {
-  loading,
-  error,
-  success,
-  noData, // Indicates no patient document found
-}
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
+import 'package:solace/themes/colors.dart';
 
 class PatientHistory extends StatefulWidget {
-  const PatientHistory({super.key, required this.currentUserId});
-  final String currentUserId;
+  final String patientId;
+
+  const PatientHistory({
+    super.key,
+    required this.patientId,
+  });
 
   @override
-  PatientHistoryState createState() => PatientHistoryState();
+  _PatientHistoryState createState() => _PatientHistoryState();
 }
 
-class PatientHistoryState extends State<PatientHistory> {
-  LoadingState _loadingState = LoadingState.loading;
-  String _errorMessage = "";
-
-  String _selectedTimeFrame = 'This Week';
-  List<DateTime> timestamps = [];
-  List<double> heartRate = [];
-  List<double> bloodPressure = [];
-  List<double> saturation = [];
-  List<double> respiration = [];
-  List<double> temperature = [];
-  List<double> painLevel = [];
+class _PatientHistoryState extends State<PatientHistory> {
+  DateTime? _selectedDate;
+  bool isDescending = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchVitalsData(); // Fetch vitals when the screen is initialized
+    _selectedDate = null;
+    dateController.text =
+        _selectedDate != null ? _formatDate(_selectedDate!) : '';
+    _resetDateControllers();
   }
 
-  DateTime getStartOfWeek(DateTime date) {
-    final dayOfWeek = date.weekday;
-    final daysToSubtract = dayOfWeek - DateTime.monday;
-    return date.subtract(Duration(days: daysToSubtract));
+  @override
+  void dispose() {
+    diagnosisFocusNode.dispose();
+    descriptionFocusNode.dispose();
+    dateFocusNode.dispose();
+    diagnosisController.dispose();
+    descriptionController.dispose();
+    dateController.dispose();
+    super.dispose();
   }
 
-  DateTime getStartOfMonth(DateTime date) {
-    return DateTime(date.year, date.month, 1);
+  // Controller for the dialog input fields
+  final TextEditingController diagnosisController = TextEditingController();
+  final TextEditingController descriptionController = TextEditingController();
+  final TextEditingController dateController = TextEditingController();
+  final FocusNode diagnosisFocusNode = FocusNode();
+  final FocusNode descriptionFocusNode = FocusNode();
+  final FocusNode dateFocusNode = FocusNode();
+
+  void _resetDateControllers() {
+    diagnosisController.clear();
+    descriptionController.clear();
+    dateController.clear();
+    _selectedDate = null; // Reset date
   }
 
-  DateTime getEndOfMonth(DateTime date) {
-    final nextMonth = date.month == 12 ? 1 : date.month + 1;
-    final nextMonthFirstDay = DateTime(date.year, nextMonth, 1);
-    return nextMonthFirstDay.subtract(Duration(days: 1));
+  void _toggleSortingOrder() {
+    setState(() {
+      isDescending = !isDescending;
+    });
   }
 
-  // Loading state widget
-  Widget _buildLoadingState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          CircularProgressIndicator(),
-          SizedBox(height: 20.0),
-          Text(
-            "Loading... Please Wait",
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 18,
-              fontWeight: FontWeight.normal,
-            ),
-          ),
-        ],
+  InputDecoration _buildInputDecoration(String label, FocusNode focusNode) {
+    return InputDecoration(
+      labelText: label,
+      filled: true,
+      fillColor: AppColors.gray,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: AppColors.neon, width: 2),
+      ),
+      labelStyle: TextStyle(
+        fontSize: 16,
+        fontFamily: 'Inter',
+        fontWeight: FontWeight.normal,
+        color: focusNode.hasFocus ? AppColors.neon : AppColors.black,
       ),
     );
   }
 
-  // Error state widget
-  Widget _buildErrorState() {
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? DateTime.now(),
+      firstDate: DateTime(1900),
+      lastDate: DateTime(2100),
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: AppColors.neon,
+              onPrimary: AppColors.white,
+              onSurface: AppColors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedDate != null) {
+      setState(() {
+        _selectedDate = pickedDate;
+
+        // Format the date for the text field
+        dateController.text = _formatDate(_selectedDate!);
+      });
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    final monthNames = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December'
+    ];
+    return '${monthNames[date.month - 1]} ${date.day}, ${date.year}';
+  }
+
+  // Fetching previous diagnoses from Firestore
+  Future<List<Map<String, dynamic>>> _getDiagnoses() async {
+    final diagnosisSnapshot = await FirebaseFirestore.instance
+        .collection('patient')
+        .doc(widget.patientId)
+        .collection('diagnoses')
+        .get();
+
+    return diagnosisSnapshot.docs.map((doc) {
+      final data = doc.data();
+      data['id'] = doc.id; // Include the Firestore document ID
+      return data;
+    }).toList();
+  }
+
+  Future<void> _addDiagnosis(
+      String diagnosis, String description, DateTime date) async {
+    // Capitalize the input
+    String capitalize(String input) {
+      if (input.isEmpty) return input;
+      return toBeginningOfSentenceCase(input.toLowerCase()) ?? input;
+    }
+
+    await FirebaseFirestore.instance
+        .collection('patient')
+        .doc(widget.patientId)
+        .collection('diagnoses')
+        .add({
+      'diagnosis': capitalize(diagnosis), // Capitalized diagnosis
+      'description': capitalize(description), // Capitalized description
+      'date': date,
+    });
+  }
+
+  // Delete Diagnosis from Firestore
+  Future<void> _deleteDiagnosis(String diagnosisId) async {
+    await FirebaseFirestore.instance
+        .collection('patient')
+        .doc(widget.patientId)
+        .collection('diagnoses')
+        .doc(diagnosisId)
+        .delete();
+  }
+
+// Show dialog to add diagnosis
+  void _showAddDiagnosisDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            return AlertDialog(
+              backgroundColor: AppColors.white,
+              title: const Text(
+                'Add Previous Diagnosis',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Inter',
+                ),
+              ),
+              content: SizedBox(
+                width: constraints.maxWidth * 0.9,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: diagnosisController,
+                        focusNode: diagnosisFocusNode,
+                        decoration: _buildInputDecoration(
+                            'Previous Diagnosis', diagnosisFocusNode),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.normal,
+                          color: AppColors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        controller: descriptionController,
+                        focusNode: descriptionFocusNode,
+                        decoration: _buildInputDecoration(
+                            'Description', descriptionFocusNode),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.normal,
+                          color: AppColors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        controller: dateController,
+                        focusNode: dateFocusNode,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.normal,
+                          color: AppColors.black,
+                        ),
+                        decoration: InputDecoration(
+                          labelText: 'Date',
+                          filled: true,
+                          fillColor: AppColors.gray,
+                          suffixIcon: Icon(
+                            Icons.calendar_today,
+                            color: dateFocusNode.hasFocus
+                                ? AppColors.neon
+                                : AppColors.black,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide:
+                                BorderSide(color: AppColors.neon, width: 2),
+                          ),
+                          labelStyle: TextStyle(
+                            fontSize: 16,
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.normal,
+                            color: dateFocusNode.hasFocus
+                                ? AppColors.neon
+                                : AppColors.black,
+                          ),
+                        ),
+                        validator: (val) => _selectedDate == null
+                            ? 'Please select a date'
+                            : null,
+                        readOnly: true,
+                        onTap: () => _selectDate(context),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () {
+                          _resetDateControllers();
+                          Navigator.of(context).pop();
+                        },
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 10),
+                          backgroundColor: AppColors.red,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: AppColors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () async {
+                          final diagnosis = diagnosisController.text.trim();
+                          final description = descriptionController.text.trim();
+
+                          if (diagnosis.isNotEmpty &&
+                              description.isNotEmpty &&
+                              _selectedDate != null) {
+                            // Save _selectedDate to the database
+                            await _addDiagnosis(
+                                diagnosis, description, _selectedDate!);
+
+                            _resetDateControllers();
+                            Navigator.of(context).pop();
+                            setState(() {});
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text(
+                                      'Please fill all fields correctly.')),
+                            );
+                          }
+                        },
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 10),
+                          backgroundColor: AppColors.neon,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: const Text(
+                          'Save',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: AppColors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Show dialog with options to delete or cancel
+  void _showDiagnosisOptionsDialog(String diagnosisId) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            return AlertDialog(
+              backgroundColor: AppColors.white,
+              title: const Text(
+                'Options',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Inter',
+                ),
+              ),
+              content: SizedBox(
+                width: constraints.maxWidth * 0.9,
+                child: Text(
+                  "Do you want to delete this record?",
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.normal,
+                    color: AppColors.black,
+                  ),
+                ),
+              ),
+              actions: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () {
+                          _resetDateControllers();
+                          Navigator.of(context).pop();
+                        },
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 10),
+                          backgroundColor: AppColors.neon,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: AppColors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () async {
+                          await _deleteDiagnosis(diagnosisId);
+                          Navigator.of(context).pop();
+                          setState(() {}); // Refresh the diagnoses list
+                        },
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 10),
+                          backgroundColor: AppColors.red,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: const Text(
+                          'Delete',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: AppColors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildNoHistoryState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(
-            Icons.error_outline,
+        children: const [
+          Icon(
+            Icons.event_busy,
             color: AppColors.black,
             size: 80,
           ),
-          const SizedBox(height: 20.0),
+          SizedBox(height: 20.0),
           Text(
-            _errorMessage,
-            style: const TextStyle(
+            "No Previous Diagnosis",
+            style: TextStyle(
               fontFamily: 'Inter',
               fontSize: 18,
               fontWeight: FontWeight.normal,
               color: AppColors.black,
             ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 20.0),
-          TextButton(
-            onPressed: _fetchVitalsData,
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-              backgroundColor: AppColors.neon,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            child: const Text(
-              'Retry',
-              style: TextStyle(
-                fontSize: 16.0,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Inter',
-                color: Colors.white,
-              ),
-            ),
           ),
         ],
       ),
     );
   }
 
-  // Widget to build chart sections dynamically
-  Widget _buildVitalChartSection(
-      String title, List<double> vitalData, List<DateTime> timestamps) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 24.0,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Outfit',
-          ),
-        ),
-        const SizedBox(height: 20.0),
-        ChartTesting(
-          vitalArray: vitalData,
-          timestampArray: timestamps,
-        ),
-        const SizedBox(height: 20.0),
-      ],
-    );
-  }
-
-  // Widget to create radio button
-  Widget _buildRadioButton(String title) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          // Immediately update the selected button color
-          setState(() {
-            _selectedTimeFrame = title;
-          });
-          // Then fetch data asynchronously
-          _fetchVitalsData();
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 5.0),
-          decoration: BoxDecoration(
-            color:
-                _selectedTimeFrame == title ? AppColors.neon : AppColors.purple,
-            borderRadius: BorderRadius.circular(10.0),
-          ),
-          child: Center(
-            child: Text(
-              title,
-              style: TextStyle(
-                color: AppColors.white,
-                fontFamily: 'Inter',
-                fontWeight: _selectedTimeFrame == title
-                    ? FontWeight.bold
-                    : FontWeight.normal,
-                fontSize: 16.0,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Helper function to filter vitals based on timestamps
-  List<double> filterVitalsData(
-      List<DateTime> filteredTimestamps, List<double> vitalData) {
-    return List.generate(filteredTimestamps.length, (index) {
-      final timestamp = filteredTimestamps[index];
-      final indexInAllData = timestamps.indexOf(timestamp);
-      return vitalData[indexInAllData];
-    });
-  }
-
-  List<DateTime> filterTimestamps(List<DateTime> timestamps, String timeFrame) {
-    DateTime now = DateTime.now();
-
-    if (timeFrame == 'Every Hour') {
-      // Filter data for today, per hour
-      DateTime startOfDay =
-          DateTime(now.year, now.month, now.day); // Midnight of today
-      DateTime endOfDay = startOfDay
-          .add(Duration(days: 1)); // Start of the next day (exclusive)
-
-      // Filter timestamps that are within today and fall within the current hour
-      return timestamps.where((timestamp) {
-        return timestamp.isAfter(startOfDay) &&
-            timestamp.isBefore(endOfDay) &&
-            timestamp.hour ==
-                now.hour; // Ensure the hour matches the current hour
-      }).toList();
-    } else if (timeFrame == 'This Day') {
-      // Filter data for today (same date)
-      DateTime startOfDay = DateTime(now.year, now.month, now.day);
-      DateTime endOfDay = startOfDay.add(Duration(days: 1));
-      return timestamps
-          .where((timestamp) =>
-              timestamp.isAfter(startOfDay) && timestamp.isBefore(endOfDay))
-          .toList();
-    } else if (timeFrame == 'This Week') {
-      // Filter data for this week (from the start of the week to now)
-      DateTime startOfWeek =
-          getStartOfWeek(now); // Get the first Monday of the week
-      DateTime endOfWeek =
-          startOfWeek.add(Duration(days: 7)); // Sunday (end of week)
-
-      return timestamps
-          .where((timestamp) =>
-              timestamp.isAfter(startOfWeek) && timestamp.isBefore(endOfWeek))
-          .toList();
-    } else {
-      return timestamps; // Default case: return all timestamps
-    }
-  }
-
-  Future<void> _fetchVitalsData() async {
-    setState(() {
-      _loadingState = LoadingState.loading;
-    });
-
-    try {
-      final User? user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        throw Exception("User is not logged in.");
-      }
-
-      final patientId = user.uid;
-      final snapshot = await FirebaseFirestore.instance
-          .collection('tracking')
-          .doc(patientId)
-          .get();
-
-      if (!snapshot.exists) {
-        setState(() {
-          _loadingState = LoadingState.noData;
-        });
-        return;
-      }
-
-      final trackingData = snapshot.data()?['tracking'];
-      if (trackingData == null) {
-        setState(() {
-          _loadingState = LoadingState.noData;
-        });
-        return;
-      }
-
-      List<DateTime> timestamps = [];
-      List<double> heartRate = [];
-      List<double> bloodPressure = [];
-      List<double> saturation = [];
-      List<double> respiration = [];
-      List<double> temperature = [];
-      List<double> painLevel = [];
-
-      for (var track in trackingData) {
-        final vitals = track['Vitals'];
-        final timestamp = track['timestamp'];
-
-        if (timestamp != null) {
-          timestamps.add((timestamp as Timestamp).toDate());
-        }
-
-        if (vitals != null) {
-          final parsedHeartRate = _parseVital(vitals['Heart Rate']);
-          if (parsedHeartRate != null) heartRate.add(parsedHeartRate);
-
-          final parsedBP = _parseVital(vitals['Blood Pressure']);
-          if (parsedBP != null) bloodPressure.add(parsedBP);
-
-          final parsedSaturation = _parseVital(vitals['Oxygen Saturation']);
-          if (parsedSaturation != null) saturation.add(parsedSaturation);
-
-          final parsedRespiration = _parseVital(vitals['Respiration']);
-          if (parsedRespiration != null) respiration.add(parsedRespiration);
-
-          final parsedTemperature = _parseVital(vitals['Temperature']);
-          if (parsedTemperature != null) temperature.add(parsedTemperature);
-
-          final parsedPainLevel = _parseVital(vitals['Pain']);
-          if (parsedPainLevel != null) painLevel.add(parsedPainLevel);
-        }
-      }
-
-      setState(() {
-        this.timestamps = timestamps;
-        this.bloodPressure = bloodPressure;
-        this.heartRate = heartRate;
-        this.temperature = temperature;
-        this.saturation = saturation;
-        this.respiration = respiration;
-        this.painLevel = painLevel;
-        _loadingState = LoadingState.success;
-      });
-    } on TimeoutException {
-      setState(() {
-        _errorMessage = "Connection timed out. Please check your internet.";
-        _loadingState = LoadingState.error;
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = e.toString().replaceFirst("Exception: ", "");
-        _loadingState = LoadingState.error;
-      });
-    }
-  }
-
-  Widget _buildNoDataState() {
-    return SizedBox(
-      width: double.infinity,
-      child: Column(
-        mainAxisSize: MainAxisSize.max,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          Text(
-            'Patient is not Available',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
-              fontFamily: 'Inter',
-            ),
-          ),
-          SizedBox(height: 10),
-          Text(
-            'Go to "Patient" at Home',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.normal,
-              fontFamily: 'Inter',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  double? _parseVital(dynamic vitalValue) {
-    if (vitalValue != null && vitalValue is String) {
-      // Special case for Blood Pressure
-      if (vitalValue.contains('/')) {
-        // Split the string into systolic and diastolic
-        List<String> parts = vitalValue.split('/');
-        if (parts.length == 2) {
-          // Try to parse both systolic and diastolic values
-          double? systolic = double.tryParse(parts[0].trim());
-          double? diastolic = double.tryParse(parts[1].trim());
-
-          // If both are valid, return a suitable representation (e.g., a List or Object)
-          if (systolic != null && diastolic != null) {
-            // You can store both values or calculate the average
-            // For now, we'll return the systolic value, but you could return both.
-            return systolic;
-          }
-        }
-      } else {
-        // Handle other vitals as usual
-        return double.tryParse(vitalValue);
-      }
-    }
-    return null;
-  }
 
   @override
   Widget build(BuildContext context) {
-    // Filter vitals data based on selected time frame
-    List<DateTime> filteredTimestamps =
-        filterTimestamps(timestamps, _selectedTimeFrame);
-    List<double> filteredHeartRate =
-        filterVitalsData(filteredTimestamps, heartRate);
-    List<double> filteredBloodPressure =
-        filterVitalsData(filteredTimestamps, bloodPressure);
-    List<double> filteredSaturation =
-        filterVitalsData(filteredTimestamps, saturation);
-    List<double> filteredRespiration =
-        filterVitalsData(filteredTimestamps, respiration);
-    List<double> filteredTemperature =
-        filterVitalsData(filteredTimestamps, temperature);
-    List<double> filteredPainLevel =
-        filterVitalsData(filteredTimestamps, painLevel);
-
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: AppBar(
         title: const Text(
-          'History',
+          "Patient History",
           style: TextStyle(
+            fontSize: 24,
             fontWeight: FontWeight.bold,
             fontFamily: 'Inter',
           ),
         ),
         backgroundColor: AppColors.white,
         scrolledUnderElevation: 0.0,
+        automaticallyImplyLeading: true,
+        elevation: 0.0,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 25.0),
+            child: GestureDetector(
+              onTap: _toggleSortingOrder,
+              child: Image.asset(
+                isDescending
+                    ? 'lib/assets/images/shared/navigation/date_ascending.png'
+                    : 'lib/assets/images/shared/navigation/date_descending.png',
+                height: 24,
+              ),
+            ),
+          ),
+        ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-        child: _loadingState == LoadingState.loading
-            ? _buildLoadingState()
-            : _loadingState == LoadingState.error
-                ? _buildErrorState()
-                : _loadingState == LoadingState.noData
-                    ? _buildNoDataState()
-                    : Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              _buildRadioButton('Every Hour'),
-                              const SizedBox(width: 10.0),
-                              _buildRadioButton('This Day'),
-                              const SizedBox(width: 10.0),
-                              _buildRadioButton('This Week'),
-                            ],
-                          ),
-                          const SizedBox(height: 20.0),
-                          Expanded(
-                            child: SingleChildScrollView(
-                              child: Container(
-                                color: AppColors.white,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _getDiagnoses(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return const Center(child: Text('Error fetching data'));
+          }
+
+          final diagnoses = snapshot.data ?? [];
+
+          if (diagnoses.isEmpty) {
+            // Show no history state if there are no diagnoses
+            return _buildNoHistoryState();
+          }
+
+          // Sort the diagnoses list based on the current sorting order
+          diagnoses.sort((a, b) {
+            final dateA = a['date'] is Timestamp
+                ? (a['date'] as Timestamp).toDate()
+                : DateTime(0); // Default to epoch if no valid date
+            final dateB = b['date'] is Timestamp
+                ? (b['date'] as Timestamp).toDate()
+                : DateTime(0); // Default to epoch if no valid date
+
+            return isDescending
+                ? dateB.compareTo(dateA) // Descending order
+                : dateA.compareTo(dateB); // Ascending order
+          });
+
+          return Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Container(
+                    color: AppColors.white,
+                    padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
+                    child: Column(
+                      children: List.generate(diagnoses.length, (index) {
+                        final diagnosis = diagnoses[index];
+                        final diagnosisId = diagnosis['id'] as String? ?? '';
+                        final diagnosisText =
+                            diagnosis['diagnosis'] as String? ?? 'Unknown';
+                        final description =
+                            diagnosis['description'] as String? ??
+                                'No description';
+                        final diagnosisDate = (diagnosis['date'] != null &&
+                                diagnosis['date'] is Timestamp)
+                            ? DateFormat('MMMM dd, yyyy').format(
+                                (diagnosis['date'] as Timestamp).toDate())
+                            : 'Unknown date';
+
+                        return GestureDetector(
+                          onTap: () => _showDiagnosisOptionsDialog(diagnosisId),
+                          child: Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 10.0),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 15, horizontal: 20),
+                            decoration: BoxDecoration(
+                              color: AppColors.gray,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
                                   children: [
-                                    _buildVitalChartSection(
-                                        'Blood Pressure',
-                                        filteredBloodPressure,
-                                        filteredTimestamps),
-                                    _buildVitalChartSection('Heart Rate',
-                                        filteredHeartRate, filteredTimestamps),
-                                    _buildVitalChartSection(
-                                        'Temperature',
-                                        filteredTemperature,
-                                        filteredTimestamps),
-                                    _buildVitalChartSection('Oxygen Saturation',
-                                        filteredSaturation, filteredTimestamps),
-                                    _buildVitalChartSection(
-                                        'Respiration',
-                                        filteredRespiration,
-                                        filteredTimestamps),
-                                    _buildVitalChartSection('Pain Level',
-                                        filteredPainLevel, filteredTimestamps),
+                                    Icon(
+                                      Icons.file_copy_rounded,
+                                      size: 20,
+                                    ),
+                                    SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        diagnosisDate,
+                                        style: TextStyle(
+                                          fontFamily: 'Inter',
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ),
                                   ],
                                 ),
-                              ),
+                                const SizedBox(height: 5),
+                                const Divider(thickness: 1.0),
+                                const SizedBox(height: 5),
+                                const Text(
+                                  "Date",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.black,
+                                  ),
+                                ),
+                                SizedBox(height: 5),
+                                Text(diagnosisText,
+                                    style: TextStyle(fontSize: 16)),
+                                SizedBox(height: 20),
+                                const Text(
+                                  "Description",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.black,
+                                  ),
+                                ),
+                                SizedBox(height: 5),
+                                Text(description,
+                                    style: TextStyle(fontSize: 16)),
+                              ],
                             ),
                           ),
-                        ],
-                      ),
+                        );
+                      }),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: AppColors.neon,
+        onPressed: _showAddDiagnosisDialog,
+        child: const Icon(
+          Icons.add,
+          color: AppColors.white,
+        ),
       ),
     );
   }

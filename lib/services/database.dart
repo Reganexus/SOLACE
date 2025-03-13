@@ -3,11 +3,13 @@
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:solace/controllers/getaccesstoken.dart';
+import 'package:solace/models/my_patient.dart';
 import 'package:solace/models/my_user.dart';
+import 'package:solace/controllers/messaging_service.dart';
 
 class DatabaseService {
   final String? uid;
@@ -15,10 +17,12 @@ class DatabaseService {
   DatabaseService({this.uid});
 
   // Method to dynamically get the collection reference based on user role
-  String _getCollectionForRole(UserRole role) {
+  String getCollectionForRole(UserRole role) {
     switch (role) {
       case UserRole.admin:
         return 'admin';
+      case UserRole.nurse:
+        return 'nurse';
       case UserRole.caregiver:
         return 'caregiver';
       case UserRole.doctor:
@@ -41,8 +45,8 @@ class DatabaseService {
         throw Exception('User role not found for ID: $userId');
       }
 
-      final currentCollection = _getCollectionForRole(currentRole);
-      final newCollection = _getCollectionForRole(newRole);
+      final currentCollection = getCollectionForRole(currentRole);
+      final newCollection = getCollectionForRole(newRole);
 
       // Move the user document to the new collection if the role is changing
       if (currentCollection != newCollection) {
@@ -89,7 +93,7 @@ class DatabaseService {
   Future<UserRole?> _getUserRoleById(String userId) async {
     // Check all user role collections for the user
     for (UserRole role in UserRole.values) {
-      final collection = _getCollectionForRole(role);
+      final collection = getCollectionForRole(role);
       final userDoc = await FirebaseFirestore.instance
           .collection(collection)
           .doc(userId)
@@ -113,23 +117,6 @@ class DatabaseService {
       }
     }
     return null; // User role not found
-  }
-
-  String getCollectionForRole(UserRole userRole) {
-    switch (userRole) {
-      case UserRole.admin:
-        return 'admin';
-      case UserRole.caregiver:
-        return 'caregiver';
-      case UserRole.doctor:
-        return 'doctor';
-      case UserRole.patient:
-        return 'patient';
-      case UserRole.unregistered:
-        return 'unregistered';
-      default:
-        throw Exception('Unhandled UserRole: $userRole');
-    }
   }
 
   // Update user data in Firestore
@@ -236,30 +223,32 @@ class DatabaseService {
     }
   }
 
-  // Fetch user data by email
-  Future<UserData?> getUserDataByEmail(String email) async {
+  Future<UserData?> getUserDataByEmail(email) async {
     try {
-      // List of collections to search
-      final List<String> collections = [
-        'caregiver',
-        'admin',
-        'doctor',
-        'patient',
-        'unregistered'
-      ];
+      final FirebaseAuth auth = FirebaseAuth.instance;
+      User? user = auth.currentUser;
 
-      for (String collection in collections) {
-        QuerySnapshot querySnapshot = await FirebaseFirestore.instance
-            .collection(collection)
-            .where('email', isEqualTo: email)
-            .get();
-
-        if (querySnapshot.docs.isNotEmpty) {
-          // If found, return the user data from the appropriate collection
-          return UserData.fromDocument(querySnapshot.docs.first);
-        }
+      if (user == null) {
+        throw Exception("No user is currently signed in.");
       }
-      // If not found in any collection, return null
+
+      final String uid = user.uid;
+      final DatabaseService db = DatabaseService();
+
+      String? userRole = await db.getTargetUserRole(uid);
+      if (userRole == null || userRole.isEmpty) {
+        return null;
+      }
+
+      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+          .collection(userRole)
+          .where('email', isEqualTo: email)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        return UserData.fromDocument(querySnapshot.docs.first);
+      }
+
       return null;
     } catch (e) {
       print("Error fetching user data by email: ${e.toString()}");
@@ -284,11 +273,11 @@ class DatabaseService {
       // 1. Identify and delete the Firestore user document from the appropriate collection
       UserData? userData = await getUserById(userId);
 
-      var collectionName = getTargetUserRole(userId).toString();
+      String? collectionName = await getTargetUserRole(userId);
 
       if (userData != null) {
         await FirebaseFirestore.instance
-            .collection(collectionName)
+            .collection(collectionName!)
             .doc(userId)
             .delete();
         print(
@@ -387,23 +376,14 @@ class DatabaseService {
   Future<UserData?> getUserData() async {
     try {
       print("Fetching data for UID: $uid");
-      final collections = [
-        'caregiver',
-        'admin',
-        'doctor',
-        'patient',
-        'unregistered'
-      ];
 
-      for (String collection in collections) {
-        DocumentSnapshot snapshot = await FirebaseFirestore.instance
-            .collection(collection)
-            .doc(uid)
-            .get();
+      String? userRole = await getTargetUserRole(uid!);
 
-        if (snapshot.exists) {
-          return UserData.fromDocument(snapshot);
-        }
+      DocumentSnapshot snapshot =
+          await FirebaseFirestore.instance.collection(userRole!).doc(uid).get();
+
+      if (snapshot.exists) {
+        return UserData.fromDocument(snapshot);
       }
 
       print("No document found for UID: $uid");
@@ -415,23 +395,38 @@ class DatabaseService {
   }
 
   Future<UserData?> getUserById(String userId) async {
-    try {
-      final collectionName = getTargetUserRole(userId).toString();
+    if (userId.isEmpty) {
+      debugPrint('User ID is empty. Cannot fetch user data.');
+      return null;
+    }
 
-      // Attempt to fetch the user document
+    try {
+      debugPrint("Fetching user data for ID: $userId");
+
+      // Retrieve the user's role to determine the collection name
+      String? collectionName = await getTargetUserRole(userId);
+      if (collectionName == null) {
+        debugPrint("User role could not be determined for user ID: $userId");
+        return null;
+      }
+
+      // Fetch the user document from Firestore
       final docSnapshot = await FirebaseFirestore.instance
           .collection(collectionName)
           .doc(userId)
           .get();
 
+      // Check if the document exists and convert it into UserData
       if (docSnapshot.exists) {
+        debugPrint("User data found for ID: $userId");
         return UserData.fromDocument(docSnapshot);
       }
 
-      // Return null if the user is not found in any collection
+      debugPrint("No document found for user ID: $userId");
       return null;
-    } catch (e) {
-      print("Error fetching user by ID: $e");
+    } catch (e, stackTrace) {
+      debugPrint("Error fetching user by ID $userId: $e");
+      debugPrint("Stack trace: $stackTrace");
       return null;
     }
   }
@@ -440,30 +435,37 @@ class DatabaseService {
 
   Stream<UserData?>? get userData {
     if (_userDataStream == null) {
-      print('Get userdata: $uid');
-      final collections = [
-        'caregiver',
-        'admin',
-        'doctor',
-        'patient',
-        'unregistered'
-      ];
-
+      debugPrint('Fetching user data for UID: $uid');
       _userDataStream = Stream.fromFuture(() async {
-        for (final collection in collections) {
-          print('Checking in collection: $collection');
-          final snapshot = await FirebaseFirestore.instance
-              .collection(collection)
-              .doc(uid)
-              .get();
+        if (uid == null) {
+          debugPrint('UID is null. Cannot fetch user data.');
+          return null;
+        }
+
+        try {
+          // Use getTargetUserRole to determine the collection
+          final role = await getTargetUserRole(uid!);
+          if (role == null) {
+            debugPrint('User role could not be determined for UID: $uid');
+            return null;
+          }
+
+          debugPrint('User role: $role. Fetching document...');
+          final snapshot =
+              await FirebaseFirestore.instance.collection(role).doc(uid).get();
 
           if (snapshot.exists) {
-            print('User found in collection: $collection');
+            debugPrint('User data found in role: $role');
             return UserData.fromDocument(snapshot);
+          } else {
+            debugPrint('No user data found for UID: $uid in role: $role');
+            return null;
           }
+        } catch (e, stackTrace) {
+          debugPrint('Error fetching user data for UID: $uid - $e');
+          debugPrint('Stack trace: $stackTrace');
+          return null;
         }
-        print('User not found in any collection');
-        return null; // User not found in any collection
       }());
     }
     return _userDataStream;
@@ -501,28 +503,34 @@ class DatabaseService {
 
   Future<String?> getTargetUserRole(String userId) async {
     try {
+      // List of collections to check
       List<String> collections = [
         'caregiver',
         'admin',
         'doctor',
+        'nurse',
         'patient',
         'unregistered'
       ];
 
+      // Loop through each collection to find the user document
       for (String collection in collections) {
         var userDoc = await FirebaseFirestore.instance
             .collection(collection)
             .doc(userId)
             .get();
+
         if (userDoc.exists) {
-          final data = userDoc.data() as Map<String, dynamic>;
-          return data['userRole']; // Assuming the userRole field exists
+          // Safely retrieve data and userRole field
+          final data = userDoc.data() ?? {};
+          return data['userRole'] as String?; // Ensure userRole is a String
         }
       }
 
-      return null; // User not found
+      // If no matching document is found
+      return null;
     } catch (e) {
-      print('Error fetching target user role: $e');
+      debugPrint('Error fetching target user role: $e');
       return null;
     }
   }
@@ -546,17 +554,9 @@ class DatabaseService {
       // Get the user's role
       String? userRole = await getTargetUserRole(userId);
 
-      if (userRole == null) {
-        print('Error: Could not determine user role for userId: $userId');
-        return;
-      }
-
-      // Pluralize the user role to match Firestore collection naming
-      String userCollection = userRole;
-
       // Add the notification to the appropriate user document in the collection
       await FirebaseFirestore.instance
-          .collection(userCollection)
+          .collection(userRole!)
           .doc(userId)
           .update({
         'notifications': FieldValue.arrayUnion([
@@ -569,7 +569,7 @@ class DatabaseService {
           }
         ]),
       });
-      print('Notification added for userId: $userId in $userCollection');
+      print('Notification added for userId: $userId in $userRole');
     } catch (e) {
       print('Error adding notification: $e');
     }
@@ -583,9 +583,9 @@ class DatabaseService {
     String usage,
     String doctorId,
   ) async {
-    // Fetch doctor's name
+    String? userRole = await getTargetUserRole(doctorId);
     final doctorSnapshot = await FirebaseFirestore.instance
-        .collection('doctor')
+        .collection(userRole!)
         .doc(doctorId)
         .get();
     String doctorName = '';
@@ -599,7 +599,7 @@ class DatabaseService {
     try {
       // Add medicine to the patient's document
       await FirebaseFirestore.instance
-          .collection('caregiver')
+          .collection('patient')
           .doc(patientId)
           .update({
         'medicine': FieldValue.arrayUnion([
@@ -619,28 +619,6 @@ class DatabaseService {
         "New medicine $medicineTitle assigned by Dr. $doctorName.",
         'medicine',
       );
-
-      // Fetch patient's FCM token
-      final patientSnapshot = await FirebaseFirestore.instance
-          .collection('caregiver')
-          .doc(patientId)
-          .get();
-
-      if (patientSnapshot.exists) {
-        final patientData = patientSnapshot.data() as Map<String, dynamic>;
-        final fcmToken = patientData['fcmToken'];
-
-        if (fcmToken != null) {
-          // Send push notification
-          await FCMHelper.sendFCMMessage(
-            fcmToken,
-            "New Medicine Assigned",
-            "Dr. $doctorName has assigned $medicineTitle to you.",
-          );
-        } else {
-          print("Patient's FCM token not found.");
-        }
-      }
     } catch (e) {
       throw Exception('Error saving medicine for patient: $e');
     }
@@ -656,7 +634,7 @@ class DatabaseService {
   ) async {
     // Fetch patient's name
     final patientSnapshot = await FirebaseFirestore.instance
-        .collection('caregiver')
+        .collection('patient')
         .doc(patientId)
         .get();
     String patientName = '';
@@ -668,9 +646,9 @@ class DatabaseService {
     }
 
     try {
-      // Add medicine to the doctor's document
+      String? userRole = await getTargetUserRole(doctorId);
       await FirebaseFirestore.instance
-          .collection('doctor')
+          .collection(userRole!)
           .doc(doctorId)
           .update({
         'assignedMedicine': FieldValue.arrayUnion([
@@ -693,7 +671,7 @@ class DatabaseService {
 
       // Fetch doctor's FCM token
       final doctorSnapshot = await FirebaseFirestore.instance
-          .collection('doctor')
+          .collection(userRole)
           .doc(doctorId)
           .get();
 
@@ -703,7 +681,7 @@ class DatabaseService {
 
         if (fcmToken != null) {
           // Send push notification
-          await FCMHelper.sendFCMMessage(
+          await MessagingService.sendFCMMessage(
             fcmToken,
             "Medicine Assignment",
             "You assigned $medicineTitle to $patientName.",
@@ -722,16 +700,18 @@ class DatabaseService {
     String taskId,
     String taskTitle,
     String taskDescription,
-    String category,
     Timestamp startDate,
     Timestamp endDate,
     String doctorId,
   ) async {
+    debugPrint("Save Task for Patient caregiverId: $doctorId");
     final timestamp = Timestamp.now();
 
     // Fetch doctor's name
+    String? userRole = await getTargetUserRole(doctorId);
+    debugPrint("Save task for patient userRole: $userRole");
     final doctorSnapshot = await FirebaseFirestore.instance
-        .collection('doctor')
+        .collection(userRole!)
         .doc(doctorId)
         .get();
     String doctorName = '';
@@ -751,7 +731,7 @@ class DatabaseService {
     try {
       // Add task to the patient's document
       await FirebaseFirestore.instance
-          .collection('caregiver')
+          .collection('patient')
           .doc(patientId)
           .update({
         'tasks': FieldValue.arrayUnion([
@@ -759,7 +739,6 @@ class DatabaseService {
             'id': taskId,
             'title': taskTitle,
             'description': taskDescription,
-            'category': category,
             'timestamp': timestamp,
             'startDate': startDate,
             'endDate': endDate,
@@ -771,51 +750,30 @@ class DatabaseService {
       // Send in-app notification
       await addNotification(
         patientId,
-        "New task assigned by Dr. $doctorName: $taskTitle ($startDateString to $endDateString).",
+        "New task assigned by $doctorName: $taskTitle ($startDateString to $endDateString).",
         'task',
       );
-
-      // Fetch patient's FCM token
-      final patientSnapshot = await FirebaseFirestore.instance
-          .collection('caregiver')
-          .doc(patientId)
-          .get();
-
-      if (patientSnapshot.exists) {
-        final patientData = patientSnapshot.data() as Map<String, dynamic>;
-        final fcmToken = patientData['fcmToken'];
-
-        if (fcmToken != null) {
-          // Send push notification
-          await FCMHelper.sendFCMMessage(
-            fcmToken,
-            "New Task Assigned",
-            "Dr. $doctorName assigned a new task: $taskTitle ($startDateString to $endDateString).",
-          );
-        } else {
-          print("Patient's FCM token not found.");
-        }
-      }
     } catch (e) {
       throw Exception('Error saving task for patient: $e');
     }
   }
 
-  Future<void> saveTaskForDoctor(
-    String doctorId,
+  Future<void> saveTaskForCaregiver(
+    String caregiverId,
     String taskId,
     String taskTitle,
     String taskDescription,
-    String category,
     dynamic startDate,
     dynamic endDate,
     String patientId,
   ) async {
     final timestamp = Timestamp.now();
 
+    debugPrint("Save Task for Caregiver caregiverId: $caregiverId");
+
     // Fetch patient's name
     final patientSnapshot = await FirebaseFirestore.instance
-        .collection('caregiver')
+        .collection('patient')
         .doc(patientId)
         .get();
     String patientName = '';
@@ -838,16 +796,17 @@ class DatabaseService {
 
     try {
       // Add task to the doctor's document
+      String? userRole = await getTargetUserRole(caregiverId);
+      debugPrint("Add task for doctor user role: $userRole");
       await FirebaseFirestore.instance
-          .collection('doctor')
-          .doc(doctorId)
+          .collection(userRole!)
+          .doc(caregiverId)
           .update({
         'assignedTasks': FieldValue.arrayUnion([
           {
             'id': taskId,
             'title': taskTitle,
             'description': taskDescription,
-            'category': category,
             'timestamp': timestamp,
             'startDate': startTimestamp,
             'endDate': endTimestamp,
@@ -860,32 +819,10 @@ class DatabaseService {
 
       // Send in-app notification
       await addNotification(
-        doctorId,
+        caregiverId,
         "You assigned a task to $patientName: $taskTitle ($startDateString to $endDateString).",
         'task',
       );
-
-      // Fetch doctor's FCM token
-      final doctorSnapshot = await FirebaseFirestore.instance
-          .collection('doctor')
-          .doc(doctorId)
-          .get();
-
-      if (doctorSnapshot.exists) {
-        final doctorData = doctorSnapshot.data() as Map<String, dynamic>;
-        final fcmToken = doctorData['fcmToken'];
-
-        if (fcmToken != null) {
-          // Send push notification
-          await FCMHelper.sendFCMMessage(
-            fcmToken,
-            "Task Assignment",
-            "You assigned a task: $taskTitle to $patientName ($startDateString to $endDateString).",
-          );
-        } else {
-          print("Doctor's FCM token not found.");
-        }
-      }
     } catch (e) {
       throw Exception('Error saving task for doctor: $e');
     }
@@ -894,7 +831,7 @@ class DatabaseService {
 // Remove task for the patient
   Future<void> removeTaskForPatient(String patientId, String taskId) async {
     try {
-      final collection = FirebaseFirestore.instance.collection('caregiver');
+      final collection = FirebaseFirestore.instance.collection('patient');
       final snapshot = await collection.doc(patientId).get();
       if (snapshot.exists) {
         final tasks =
@@ -909,7 +846,8 @@ class DatabaseService {
 
   Future<void> removeTaskForDoctor(String doctorId, String taskId) async {
     try {
-      final collection = FirebaseFirestore.instance.collection('doctor');
+      String? userRole = await getTargetUserRole(doctorId);
+      final collection = FirebaseFirestore.instance.collection(userRole!);
       final snapshot = await collection.doc(doctorId).get();
 
       if (snapshot.exists) {
@@ -934,6 +872,9 @@ class DatabaseService {
       case UserRole.caregiver:
         collectionName = 'caregiver';
         break;
+      case UserRole.nurse:
+        collectionName = 'nurse';
+        break;
       case UserRole.doctor:
         collectionName = 'doctor';
         break;
@@ -942,9 +883,6 @@ class DatabaseService {
         break;
       case UserRole.patient:
         collectionName = 'patient';
-        break;
-      case UserRole.unregistered:
-        collectionName = 'unregistered';
         break;
       default:
         throw Exception('Unhandled UserRole: $userRole');
@@ -971,7 +909,7 @@ class DatabaseService {
 
     // Fetch patient name from the 'caregivers' collection
     final patientSnapshot = await FirebaseFirestore.instance
-        .collection('caregiver')
+        .collection('patient')
         .doc(patientId)
         .get();
 
@@ -988,8 +926,9 @@ class DatabaseService {
 
     try {
       // Save schedule for the doctor in the 'doctors' collection
+      String? userRole = await getTargetUserRole(doctorId);
       await FirebaseFirestore.instance
-          .collection('doctor')
+          .collection(userRole!)
           .doc(doctorId)
           .update({
         'schedule': FieldValue.arrayUnion([
@@ -1011,7 +950,7 @@ class DatabaseService {
 
       // Fetch doctor's FCM token
       final doctorSnapshot = await FirebaseFirestore.instance
-          .collection('doctor')
+          .collection(userRole)
           .doc(doctorId)
           .get();
 
@@ -1021,7 +960,7 @@ class DatabaseService {
 
         if (fcmToken != null) {
           // Send push notification
-          await FCMHelper.sendFCMMessage(
+          await MessagingService.sendFCMMessage(
             fcmToken,
             "New Schedule Created",
             "Visit scheduled with patient $patientName on $formattedDateTime.",
@@ -1036,13 +975,14 @@ class DatabaseService {
   }
 
   Future<void> saveScheduleForPatient(
-      String patientId, DateTime scheduledDateTime, String doctorId) async {
+      String patientId, DateTime scheduledDateTime, String caregiverId) async {
     final Timestamp timestamp = Timestamp.fromDate(scheduledDateTime);
 
     // Fetch doctor name from the 'doctors' collection
+    String? userRole = await getTargetUserRole(caregiverId);
     final doctorSnapshot = await FirebaseFirestore.instance
-        .collection('doctor')
-        .doc(doctorId)
+        .collection(userRole!)
+        .doc(caregiverId)
         .get();
 
     String doctorName = '';
@@ -1059,14 +999,14 @@ class DatabaseService {
     try {
       // Save schedule for the patient in the 'caregivers' collection
       await FirebaseFirestore.instance
-          .collection('caregiver')
+          .collection('patient')
           .doc(patientId)
           .update({
         'schedule': FieldValue.arrayUnion([
           {
             'date': timestamp,
             'time': DateFormat.jm().format(scheduledDateTime),
-            'doctorId': doctorId,
+            'doctorId': caregiverId,
             'doctorName': doctorName,
           }
         ]),
@@ -1078,28 +1018,6 @@ class DatabaseService {
         "Scheduled appointment with doctor $doctorName at $formattedDateTime.",
         'schedule',
       );
-
-      // Fetch patient's FCM token
-      final patientSnapshot = await FirebaseFirestore.instance
-          .collection('caregiver')
-          .doc(patientId)
-          .get();
-
-      if (patientSnapshot.exists) {
-        final patientData = patientSnapshot.data() as Map<String, dynamic>;
-        final fcmToken = patientData['fcmToken'];
-
-        if (fcmToken != null) {
-          // Send push notification
-          await FCMHelper.sendFCMMessage(
-            fcmToken,
-            "New Appointment Scheduled",
-            "Appointment scheduled with Dr. $doctorName on $formattedDateTime.",
-          );
-        } else {
-          print("Patient's FCM token not found.");
-        }
-      }
     } catch (e) {
       throw Exception('Error saving schedule for patient: $e');
     }
@@ -1110,7 +1028,7 @@ class DatabaseService {
         DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
 
     try {
-      final collection = _getCollectionForRole(userRole as UserRole);
+      final collection = getCollectionForRole(userRole as UserRole);
 
       // Get the user document
       final userDoc = await FirebaseFirestore.instance
@@ -1153,7 +1071,7 @@ class DatabaseService {
   Future<void> _removeScheduleFromUser(
       String userId, String userRole, Map<String, dynamic> schedule) async {
     try {
-      final collection = _getCollectionForRole(userRole as UserRole);
+      final collection = getCollectionForRole(userRole as UserRole);
 
       if (schedule['date'] != null) {
         final scheduleTimestamp = schedule['date'] as Timestamp;
@@ -1192,16 +1110,8 @@ class DatabaseService {
   ) async {
     debugPrint("Add Contact function userid: $userId");
 
-    // Await the result of getTargetUserRole
-    String? collectionName = await getTargetUserRole(userId);
-    if (collectionName == null) {
-      throw Exception("Failed to determine collection name for user role");
-    }
-
-    debugPrint("Collection name from addContact is: $collectionName");
-
     final userDocRef =
-        FirebaseFirestore.instance.collection(collectionName).doc(userId);
+        FirebaseFirestore.instance.collection('patient').doc(userId);
 
     await FirebaseFirestore.instance.runTransaction((transaction) async {
       final snapshot = await transaction.get(userDocRef);
@@ -1210,12 +1120,13 @@ class DatabaseService {
       }
 
       // Get the current contacts or initialize them if not present
-      Map<String, dynamic> contacts =
-          Map<String, dynamic>.from(snapshot.data()?['contacts'] ??
-              {
-                'relative': [],
-                'nurse': [],
-              });
+      Map<String, dynamic> contacts = Map<String, dynamic>.from(
+        snapshot.data()?['contacts'] ??
+            {
+              'relative': [],
+              'nurse': [],
+            },
+      );
 
       // Ensure the category exists as a list
       if (contacts[category] == null) {
@@ -1239,15 +1150,8 @@ class DatabaseService {
     debugPrint(
         "Edit Contact: userId: $userId, previousCategory: $previousCategory, oldPhoneNumber: $oldPhoneNumber");
 
-    String? collectionName = await getTargetUserRole(userId);
-    if (collectionName == null) {
-      throw Exception("Failed to determine collection name for user role.");
-    }
-
-    debugPrint("Collection name for editContact: $collectionName");
-
     final userDocRef =
-        FirebaseFirestore.instance.collection(collectionName).doc(userId);
+        FirebaseFirestore.instance.collection('patient').doc(userId);
 
     await FirebaseFirestore.instance.runTransaction((transaction) async {
       final snapshot = await transaction.get(userDocRef);
@@ -1309,15 +1213,8 @@ class DatabaseService {
     debugPrint(
         "Delete Contact: userId: $userId, category: $category, phoneNumberToDelete: $phoneNumberToDelete");
 
-    String? collectionName = await getTargetUserRole(userId);
-    if (collectionName == null) {
-      throw Exception("Failed to determine collection name for user role.");
-    }
-
-    debugPrint("Collection name for deleteContact: $collectionName");
-
     final userDocRef =
-        FirebaseFirestore.instance.collection(collectionName).doc(userId);
+        FirebaseFirestore.instance.collection('patient').doc(userId);
 
     await FirebaseFirestore.instance.runTransaction((transaction) async {
       final snapshot = await transaction.get(userDocRef);
@@ -1358,28 +1255,33 @@ class DatabaseService {
 // Check if the user exists by UID
   Future<bool> checkUserExists(String userId) async {
     try {
-      List<String> collections = [
-        'caregiver',
-        'admin',
-        'doctor',
-        'patient',
-        'unregistered'
-      ];
-
-      for (String collection in collections) {
-        var userDoc = await FirebaseFirestore.instance
-            .collection(collection)
-            .doc(userId)
-            .get();
-        if (userDoc.exists) {
-          return true; // User found
-        }
+      if (userId.isEmpty) {
+        debugPrint('Invalid userId: Cannot be empty');
+        return false;
       }
 
-      return false; // User not found in any collection
-    } catch (e) {
-      print('Error checking user existence: $e');
-      return false;
+      // Get the user role using the helper function
+      final userRole = await getTargetUserRole(userId);
+      if (userRole == null) {
+        debugPrint('Could not determine user role for userId: $userId');
+        return false;
+      }
+
+      debugPrint('Checking existence for userId: $userId in role: $userRole');
+
+      // Fetch the user document
+      final userDoc = await FirebaseFirestore.instance
+          .collection(userRole)
+          .doc(userId)
+          .get();
+
+      final exists = userDoc.exists;
+      debugPrint('User existence for userId $userId in $userRole: $exists');
+      return exists;
+    } catch (e, stackTrace) {
+      debugPrint('Error checking user existence for userId $userId: $e');
+      debugPrint('Stack trace: $stackTrace');
+      return false; // Assume the user doesn't exist if an error occurs
     }
   }
 
@@ -1415,7 +1317,7 @@ class DatabaseService {
 
   Future<String> getUserName(String userId, UserRole userRole) async {
     try {
-      final userCollection = _getCollectionForRole(userRole);
+      final userCollection = getCollectionForRole(userRole);
       DocumentSnapshot userDoc = await FirebaseFirestore.instance
           .collection(userCollection)
           .doc(userId)
@@ -1443,31 +1345,51 @@ class DatabaseService {
 
   Future<bool> isPhoneNumberUnique(String phoneNumber) async {
     try {
-      // Collections to check (caregivers, admins, doctors)
-      List<String> collections = [
-        'caregiver',
-        'admin',
-        'doctor',
-        'patient',
-        'unregistered'
-      ];
+      // Check for empty phone number
+      if (phoneNumber.isEmpty) {
+        debugPrint('Invalid phoneNumber: Cannot be empty');
+        return false;
+      }
 
-      for (String collection in collections) {
-        QuerySnapshot querySnapshot = await FirebaseFirestore.instance
-            .collection(collection)
-            .where('phoneNumber', isEqualTo: phoneNumber)
-            .get();
+      debugPrint('Checking uniqueness of phoneNumber: $phoneNumber');
 
-        // If the phone number exists in any collection, return false
-        if (querySnapshot.docs.isNotEmpty) {
-          return false;
+      // Ensure the current user is logged in
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        debugPrint('No user is currently signed in.');
+        return false;
+      }
+
+      final String uid = currentUser.uid;
+
+      // Get the current user's role
+      final String? userRole = await getTargetUserRole(uid);
+      if (userRole == null) {
+        debugPrint('Could not determine user role for current user');
+        return false;
+      }
+
+      // Query the user's role collection for the phone number
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection(userRole)
+          .where('phoneNumber', isEqualTo: phoneNumber)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        // Ensure the phone number doesn't belong to the current user
+        final isCurrentUser = querySnapshot.docs.any((doc) => doc.id == uid);
+
+        if (!isCurrentUser) {
+          debugPrint('Phone number $phoneNumber already exists in $userRole');
+          return false; // Phone number is not unique
         }
       }
 
-      // If not found in any collection, it's unique
-      return true;
-    } catch (e) {
-      print("Error checking phone number uniqueness: $e");
+      debugPrint('Phone number $phoneNumber is unique in $userRole');
+      return true; // Phone number is unique
+    } catch (e, stackTrace) {
+      debugPrint('Error checking phone number uniqueness: $e');
+      debugPrint('Stack trace: $stackTrace');
       return false; // Assume not unique in case of error
     }
   }
@@ -1511,46 +1433,49 @@ class DatabaseService {
   }
 
   Future<UserData?> getUserDataById(String uid) async {
-    List<String> roles = [
-      'admin',
-      'doctor',
-      'caregiver',
-      'patient',
-      'unregistered'
-    ];
-    for (String role in roles) {
-      final String collectionName = role;
-      final doc = await FirebaseFirestore.instance
-          .collection(collectionName)
-          .doc(uid)
-          .get();
-      if (doc.exists) {
-        return UserData.fromDocument(doc); // Found the user
+    try {
+      // Attempt to determine the user's role using getTargetUserRole
+      final String? userRole = await getTargetUserRole(uid);
+
+      if (userRole == null) {
+        debugPrint('Unable to determine role for user with UID: $uid');
+        return null;
       }
+
+      // Query the user's document in the determined role-based collection
+      final DocumentSnapshot userDoc =
+          await FirebaseFirestore.instance.collection(userRole).doc(uid).get();
+
+      if (userDoc.exists) {
+        debugPrint('User with UID $uid found in the $userRole collection.');
+        return UserData.fromDocument(userDoc);
+      }
+
+      debugPrint('User with UID $uid not found in the $userRole collection.');
+      return null; // User not found in the determined collection
+    } catch (e, stackTrace) {
+      debugPrint('Error fetching user data for UID $uid: $e');
+      debugPrint('Stack trace: $stackTrace');
+      return null;
     }
-    debugPrint('User with UID $uid not found in any role-based collection.');
-    return null; // User not found
   }
 
-  Future<Map<String, dynamic>?> getPatientData(String uid) async {
+  Future<PatientData?> getPatientData(String patientId) async {
     try {
-      debugPrint("Get Patient Data uid: $uid");
-      // Specify the collection you want to get data from, in this case, 'patients'
-      DocumentSnapshot patientDoc = await FirebaseFirestore.instance
-          .collection(
-              'patient') // Ensure your collection name is 'patients' (plural)
-          .doc(uid) // Use the UID to fetch the specific patient
+      final doc = await FirebaseFirestore.instance
+          .collection('patient')
+          .doc(patientId)
           .get();
 
-      if (patientDoc.exists) {
-        // If the patient data exists, return it as a Map
-        return patientDoc.data() as Map<String, dynamic>;
+      if (doc.exists) {
+        debugPrint('Document found for patientId: $patientId');
+        return PatientData.fromDocument(doc);
       } else {
-        // If no patient data exists, return null
+        debugPrint('No document exists for patientId: $patientId');
         return null;
       }
     } catch (e) {
-      print("Error fetching patient data: $e");
+      debugPrint("Error fetching patient data for Patient ID $patientId: $e");
       return null;
     }
   }
@@ -1568,6 +1493,9 @@ class DatabaseService {
     String? organDonation,
     String? profileImageUrl,
     DateTime? birthday,
+    String? caseTitle,
+    String? caseDescription,
+    String? status,
   }) async {
     try {
       // Get the appropriate collection for the user role
@@ -1613,6 +1541,13 @@ class DatabaseService {
       if (profileImageUrl != null) {
         updatedData['profileImageUrl'] = profileImageUrl;
       }
+
+      // Add case-related data
+      if (caseTitle?.isNotEmpty ?? false) updatedData['caseTitle'] = caseTitle;
+      if (caseDescription?.isNotEmpty ?? false) {
+        updatedData['caseDescription'] = caseDescription;
+      }
+      if (status?.isNotEmpty ?? false) updatedData['status'] = status;
 
       // Perform the update only if there's data to update
       if (updatedData.isNotEmpty) {

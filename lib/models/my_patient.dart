@@ -1,40 +1,41 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 
 class PatientData {
   final String uid;
   final String firstName;
   final String lastName;
-  final String? profileImageUrl; // Made nullable
+  final String profileImageUrl;
   final String gender;
-  final DateTime? birthday;
+  final DateTime birthday;
   final DateTime dateCreated;
   final String religion;
-  final String? will; // Made nullable
-  final String? fixedWishes; // Made nullable
-  final String? organDonation; // Made nullable
+  final String will;
+  final String fixedWishes;
+  final String organDonation;
   final String status;
 
   PatientData({
     required this.uid,
     required this.firstName,
     required this.lastName,
-    this.profileImageUrl, // Nullable
+    required this.profileImageUrl, // Nullable
     required this.dateCreated,
     required this.gender,
-    this.birthday, // Nullable
+    required this.birthday, // Nullable
     required this.religion,
-    this.will, // Nullable
-    this.fixedWishes, // Nullable
-    this.organDonation, // Nullable
+    required this.will, // Nullable
+    required this.fixedWishes, // Nullable
+    required this.organDonation, // Nullable
     required this.status,
   });
 
   int? get age {
     if (birthday == null) return null; // No age if birthday is not set
     final now = DateTime.now();
-    int years = now.year - birthday!.year;
-    if (now.month < birthday!.month ||
-        (now.month == birthday!.month && now.day < birthday!.day)) {
+    int years = now.year - birthday.year;
+    if (now.month < birthday.month ||
+        (now.month == birthday.month && now.day < birthday.day)) {
       years--;
     }
     return years;
@@ -45,7 +46,6 @@ class PatientData {
     try {
       final data = doc.data() as Map<String, dynamic>;
 
-      // Safely parse birthday and dateCreated
       final DateTime? birthday = data['birthday'] != null
           ? (data['birthday'] as Timestamp).toDate()
           : null;
@@ -58,17 +58,18 @@ class PatientData {
         uid: doc.id,
         firstName: data['firstName'] ?? '',
         lastName: data['lastName'] ?? '',
-        profileImageUrl: data['profileImageUrl'] as String?, // Nullable
+        profileImageUrl: data['profileImageUrl'] ?? '',
         gender: data['gender'] ?? '',
-        birthday: birthday,
-        dateCreated: dateCreated ?? DateTime.now(), // Default to current date if missing
+        birthday: birthday ?? DateTime.now(),
+        dateCreated: dateCreated ?? DateTime.now(),
         religion: data['religion'] ?? '',
-        will: data['will'] as String?, // Nullable
-        fixedWishes: data['fixedWishes'] as String?, // Nullable
-        organDonation: data['organDonation'] as String?, // Nullable
+        will: data['will'] ?? '',
+        fixedWishes: data['fixedWishes'] ?? '',
+        organDonation: data['organDonation'] ?? '',
         status: data['status'] ?? 'stable',
       );
     } catch (e) {
+      debugPrint('Error parsing patient data: $e');
       throw Exception('Error parsing patient data: $e');
     }
   }
@@ -80,7 +81,7 @@ class PatientData {
       'lastName': lastName,
       'profileImageUrl': profileImageUrl,
       'gender': gender,
-      'birthday': birthday != null ? Timestamp.fromDate(birthday!) : null,
+      'birthday': Timestamp.fromDate(birthday),
       'dateCreated': Timestamp.fromDate(dateCreated),
       'religion': religion,
       'will': will,

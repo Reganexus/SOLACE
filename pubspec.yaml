@@ -40,7 +40,6 @@ dependencies:
   url_launcher: ^6.3.1
   googleapis: ^13.2.0
   googleapis_auth: ^1.6.0
-  geolocator: ^13.0.2
   local_auth: ^2.3.0
   flutter_form_builder: ^10.0.0
   form_builder_validators: ^11.1.2
@@ -66,13 +65,13 @@ flutter:
     - lib/assets/
     - lib/assets/images/auth/
     - lib/assets/images/caregiver/
-    - lib/assets/images/user/
-    - lib/assets/images/doctor/
     - lib/assets/images/admin/
+    - lib/assets/images/predefined/
+    - lib/assets/images/predefined/caregiver/
+    - lib/assets/images/predefined/doctor/
+    - lib/assets/images/predefined/nurse/
+    - lib/assets/images/predefined/patient/
     - lib/assets/images/shared/
-    - lib/assets/images/shared/header/
-    - lib/assets/images/shared/info/
-    - lib/assets/images/shared/functions/
     - lib/assets/images/shared/navigation/
     - lib/assets/images/shared/profile/
     - lib/assets/images/shared/vitals/

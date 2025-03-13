@@ -1,10 +1,13 @@
+// ignore_for_file: unused_import
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:solace/screens/home/home.dart';
+import 'package:solace/screens/wrapper.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/shared/accountflow/user_data_form.dart';
-import 'package:solace/screens/home/home.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -14,6 +17,8 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
+  bool _hasChanges = false;
+
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<MyUser?>(context);
@@ -31,31 +36,49 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         if (stateWidget != null) return stateWidget;
 
         final userData = snapshot.data!;
+        final showBackButton = !userData.newUser && userData.isVerified;
 
-        if (userData.newUser) {
-          Future.delayed(Duration.zero, () async {
-            await _showNewUserAlert(context);
-          });
-        }
-
-        return PopScope<void>(
-          canPop: false,
-          onPopInvokedWithResult: (bool didPop, Object? result) async {
-            if (didPop) return;
-            if (userData.newUser) {
-              final bool shouldPop = await _showAlertDialog(context);
-              if (context.mounted && shouldPop) {
-                Navigator.pop(context);
+        return PopScope(
+          canPop: showBackButton,
+          onPopInvokedWithResult: (canPop, result) async {
+            if (canPop && _hasChanges) {
+              final shouldProceed = await _showUnsavedChangesDialog(context);
+              if (shouldProceed) {
+                Navigator.of(context)
+                    .pop(result); // Proceed with pop navigation
               }
+              // Do not perform any action if the user chooses to cancel
+            } else if (canPop) {
+              Navigator.of(context)
+                  .pop(result); // Proceed if no unsaved changes
             }
+            // No explicit return; `void` is implied
           },
           child: Scaffold(
             backgroundColor: AppColors.white,
             appBar: AppBar(
-              title: const Text('Edit Profile'),
+              title: const Text('Edit Profile', style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Inter',
+              ),),
               backgroundColor: AppColors.white,
               scrolledUnderElevation: 0.0,
-              automaticallyImplyLeading: false,
+              automaticallyImplyLeading: showBackButton,
+              leading: showBackButton
+                  ? IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: () async {
+                        if (_hasChanges) {
+                          final shouldProceed =
+                              await _showUnsavedChangesDialog(context);
+                          if (shouldProceed) Navigator.pop(context);
+                        } else {
+                          Navigator.pop(context);
+                        }
+                      },
+                    )
+                  : null,
             ),
             body: GestureDetector(
               onTap: () => FocusScope.of(context).unfocus(),
@@ -66,11 +89,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   child: Column(
                     children: [
                       UserDataForm(
-                        isSignUp: false,
+                        age: userData.age ?? 0,
                         userData: userData,
                         newUser: userData.newUser,
                         isVerified: userData.isVerified,
                         userRole: userData.userRole,
+                        onFieldChanged: () {
+                          setState(() {
+                            _hasChanges = true;
+                          });
+                        },
                         onButtonPressed: ({
                           required String firstName,
                           required String lastName,
@@ -107,23 +135,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   content:
                                       Text('Profile updated successfully')),
                             );
-
-                            debugPrint("User UID: ${user.uid}");
-                            debugPrint("User Role: ${userData.userRole}");
-
+                            setState(() {
+                              _hasChanges = false;
+                            });
+                            // Navigate to Home() and clear navigation stack
                             Navigator.pushAndRemoveUntil(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => Home(
-                                    uid: user.uid,
-                                    role: userData.userRole.toString()),
-                              ),
-                              (Route<dynamic> route) => false,
+                                  builder: (context) => const Wrapper()),
+                              (route) => false, // Remove all previous routes
                             );
                           }
                         },
-                        age: userData.age ?? 0,
-                      )
+                      ),
                     ],
                   ),
                 ),
@@ -135,91 +159,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  Future<bool> _showDialog(BuildContext context, String title, String content,
-      List<Widget> actions) async {
+  Future<bool> _showUnsavedChangesDialog(BuildContext context) async {
     return await showDialog(
       context: context,
-      builder: (BuildContext context) {
+      builder: (context) {
         return AlertDialog(
-          backgroundColor: AppColors.white,
-          title: Text(
-            title,
-            style: const TextStyle(
-              fontSize: 24,
-              fontFamily: 'Outfit',
-              fontWeight: FontWeight.bold,
-              color: AppColors.black,
+          title: const Text('Unsaved Changes'),
+          content: const Text(
+              'You have unsaved changes. Do you want to discard them and go back?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
             ),
-          ),
-          content: Text(
-            content,
-            style: TextStyle(
-                fontSize: 16,
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.normal,
-                color: AppColors.black),
-          ),
-          actions: actions,
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Discard'),
+            ),
+          ],
         );
       },
-    );
-  }
-
-  Future<bool> _showNewUserAlert(BuildContext context) async {
-    return await _showDialog(
-      context,
-      'Profile Setup Required',
-      'Please fill out the form to complete your profile.',
-      [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          style: TextButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-            backgroundColor: AppColors.neon,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-          child: const Text(
-            'OK',
-            style: TextStyle(
-              fontSize: 16.0,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Inter',
-              color: Colors.white,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Future<bool> _showAlertDialog(BuildContext context) async {
-    return await _showDialog(
-      context,
-      'Profile Incomplete',
-      'Please fill out the entire form before proceeding.',
-      [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          style: TextButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-            backgroundColor: AppColors.neon,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-          child: const Text(
-            'OK',
-            style: TextStyle(
-              fontSize: 16.0,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Inter',
-              color: Colors.white,
-            ),
-          ),
-        ),
-      ],
     );
   }
 

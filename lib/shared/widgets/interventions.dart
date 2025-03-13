@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:solace/screens/patient/doctor_list.dart';
+import 'package:solace/screens/patient/patient_doctor_list.dart';
 import 'package:solace/themes/colors.dart';
 
 class InterventionsView extends StatefulWidget {
-  final String uid;
+  final String patientId;
 
-  const InterventionsView({super.key, required this.uid});
+  const InterventionsView({super.key, required this.patientId});
 
   @override
   InterventionsViewState createState() => InterventionsViewState();
@@ -36,7 +36,7 @@ class InterventionsViewState extends State<InterventionsView> {
   Future<void> _loadCheckedStates() async {
     try {
       DocumentSnapshot doc =
-          await _firestore.collection('checkedStates').doc(widget.uid).get();
+          await _firestore.collection('checkedStates').doc(widget.patientId).get();
       if (doc.exists) {
         Map<String, dynamic> rawData = doc.data() as Map<String, dynamic>;
         persistentCheckedStates = rawData.map((key, value) {
@@ -54,7 +54,7 @@ class InterventionsViewState extends State<InterventionsView> {
     try {
       await _firestore
           .collection('checkedStates')
-          .doc(widget.uid)
+          .doc(widget.patientId)
           .set(persistentCheckedStates);
     } catch (e) {
       debugPrint('Error saving persistent states: $e');
@@ -102,7 +102,7 @@ class InterventionsViewState extends State<InterventionsView> {
     Map<String, List<String>> interventions = {};
     try {
       DocumentSnapshot userDoc =
-          await _firestore.collection('patient').doc(widget.uid).get();
+          await _firestore.collection('patient').doc(widget.patientId).get();
       if (userDoc.exists && userDoc['symptoms'] != null) {
         List<String> symptoms = List<String>.from(userDoc['symptoms']);
         final allMappings = {
@@ -317,8 +317,8 @@ class InterventionsViewState extends State<InterventionsView> {
                                               DocumentSnapshot userSnapshot =
                                                   await FirebaseFirestore
                                                       .instance
-                                                      .collection('caregiver')
-                                                      .doc(widget.uid)
+                                                      .collection('patient')
+                                                      .doc(widget.patientId)
                                                       .get();
                                               List<dynamic> relatives =
                                                   userSnapshot['contacts']
@@ -376,8 +376,8 @@ class InterventionsViewState extends State<InterventionsView> {
                                               DocumentSnapshot userSnapshot =
                                                   await FirebaseFirestore
                                                       .instance
-                                                      .collection('caregiver')
-                                                      .doc(widget.uid)
+                                                      .collection('patient')
+                                                      .doc(widget.patientId)
                                                       .get();
                                               List<dynamic> nurses =
                                                   userSnapshot['contacts']

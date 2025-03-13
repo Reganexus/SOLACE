@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class PatientMedicine extends StatefulWidget {
-  const PatientMedicine({super.key, required this.currentUserId});
-  final String currentUserId;
+  const PatientMedicine({super.key, required this.patientId});
+  final String patientId;
 
   @override
   PatientMedicineState createState() => PatientMedicineState();
@@ -28,66 +27,60 @@ class PatientMedicineState extends State<PatientMedicine> {
       _errorMessage = '';
     });
 
-    final User? user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      final String patientId = widget.currentUserId; // Use the passed user ID
-      try {
-        // Query the 'caregiver' collection for the document of the current user
-        final snapshot = await FirebaseFirestore.instance
-            .collection(
-                'caregiver') // Assuming tasks are stored in the 'caregiver' collection
-            .doc(patientId) // Fetch the specific caregiver document
-            .get();
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('patient')
+          .doc(widget.patientId)
+          .get();
 
-        debugPrint("Snapshot: $snapshot");
+      debugPrint("Snapshot: $snapshot");
 
-        if (snapshot.exists) {
-          // Extract the tasks from the document
-          final List<dynamic> medicineData = snapshot.data()?['medicine'] ??
-              []; // Assuming 'tasks' is an array in the document
-          debugPrint("Medicine Data: $medicineData");
-          if (medicineData.isEmpty) {
-            // No tasks available, handle it here
-            setState(() {
-              _isLoading = false;
-              medicines = []; // Clear any previously fetched tasks
-            });
-            return;
-          }
-
-          // Process the tasks data
-          final List<Map<String, dynamic>> medicineList = [];
-          for (var medicine in medicineData) {
-            medicineList.add({
-              'id': medicine['id'], // Assuming task has an 'id' field
-              'title': medicine['title'] ??
-                  'No Medicine Title', // Assuming task has a 'title' field
-              'dosage': medicine['dosage'] ??
-                  'No Dosage', // Default description if null
-              'usage': medicine['usage'] ?? 'No Usage',
-              'isCompleted': medicine['isCompleted'],
-            });
-          }
-
-          debugPrint("Medicine List: $medicineList");
-
-          // Update the state with the fetched tasks
+      if (snapshot.exists) {
+        // Extract the tasks from the document
+        final List<dynamic> medicineData = snapshot.data()?['medicine'] ??
+            []; // Assuming 'tasks' is an array in the document
+        debugPrint("Medicine Data: $medicineData");
+        if (medicineData.isEmpty) {
+          // No tasks available, handle it here
           setState(() {
-            medicines = medicineList; // Assign tasks to your state variable
             _isLoading = false;
+            medicines = []; // Clear any previously fetched tasks
           });
-        } else {
-          setState(() {
-            _isLoading = false;
-            _errorMessage = 'No tasks found for the user.';
+          return;
+        }
+
+        // Process the tasks data
+        final List<Map<String, dynamic>> medicineList = [];
+        for (var medicine in medicineData) {
+          medicineList.add({
+            'id': medicine['id'], // Assuming task has an 'id' field
+            'title': medicine['title'] ??
+                'No Medicine Title', // Assuming task has a 'title' field
+            'dosage': medicine['dosage'] ??
+                'No Dosage', // Default description if null
+            'usage': medicine['usage'] ?? 'No Usage',
+            'isCompleted': medicine['isCompleted'],
           });
         }
-      } catch (e) {
+
+        debugPrint("Medicine List: $medicineList");
+
+        // Update the state with the fetched tasks
+        setState(() {
+          medicines = medicineList; // Assign tasks to your state variable
+          _isLoading = false;
+        });
+      } else {
         setState(() {
           _isLoading = false;
-          _errorMessage = 'Failed to fetch tasks: $e';
+          _errorMessage = 'No tasks found for the user.';
         });
       }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Failed to fetch tasks: $e';
+      });
     }
   }
 
@@ -318,7 +311,7 @@ class PatientMedicineState extends State<PatientMedicine> {
           ),
           SizedBox(height: 20.0),
           Text(
-            "No medicines available",
+            "No Medicines Yet",
             style: TextStyle(
               fontFamily: 'Inter',
               fontSize: 18,

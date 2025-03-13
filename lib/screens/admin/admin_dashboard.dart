@@ -12,11 +12,10 @@ class AdminDashboard extends StatefulWidget {
 }
 
 class _AdminDashboardState extends State<AdminDashboard> {
-
   int caregiverCount = 0;
   int doctorCount = 0;
   int adminCount = 0;
-  int totalUsers = 0;
+  int nurseCount = 0; // Added nurse count
   int stableCount = 0;
   int unstableCount = 0;
 
@@ -43,17 +42,19 @@ class _AdminDashboardState extends State<AdminDashboard> {
             .collection('admin')
             .where('userRole', isEqualTo: 'admin')
             .get(),
+        firestore
+            .collection('nurse') // Fetch nurse count
+            .where('userRole', isEqualTo: 'nurse')
+            .get(),
       ]);
 
       final statusCounts = await Future.wait([
         firestore
-            .collection('caregiver')
-            .where('userRole', isEqualTo: 'patient')
+            .collection('patient')
             .where('status', isEqualTo: 'stable')
             .get(),
         firestore
-            .collection('caregiver')
-            .where('userRole', isEqualTo: 'patient')
+            .collection('patient')
             .where('status', isEqualTo: 'unstable')
             .get(),
       ]);
@@ -62,8 +63,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         caregiverCount = userCounts[0].size;
         doctorCount = userCounts[1].size;
         adminCount = userCounts[2].size;
-        totalUsers = caregiverCount + doctorCount + adminCount;
-
+        nurseCount = userCounts[3].size; // Set nurse count
         stableCount = statusCounts[0].size;
         unstableCount = statusCounts[1].size;
       });
@@ -129,7 +129,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget _buildLabel(String label, double fontSize) {
     return Container(
       alignment: Alignment.center,
-      height: fontSize + 10, // Add padding for better visual spacing
+      height: fontSize + 10,
       child: Text(
         label,
         style: TextStyle(
@@ -162,8 +162,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
             const SizedBox(height: 20),
             GridView.count(
-              crossAxisCount:
-                  2, // Two items in a row for "Stable" and "Unstable"
+              crossAxisCount: 2,
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
               shrinkWrap: true,
@@ -193,26 +192,22 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 _buildSquareContainer('$caregiverCount', AppColors.gray),
                 _buildSquareContainer('$doctorCount', AppColors.gray),
                 _buildSquareContainer('$adminCount', AppColors.gray),
-                _buildSquareContainer('$totalUsers', AppColors.gray),
+                _buildSquareContainer('$nurseCount', AppColors.gray), // Added nurse count
               ],
             ),
-            SizedBox(
-              height: 5,
-            ),
+            const SizedBox(height: 5),
             GridView.builder(
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 4,
                 crossAxisSpacing: 10,
-                childAspectRatio:
-                    4, // Make the grid cells rectangular, suitable for text
+                childAspectRatio: 4,
               ),
-              itemCount: 4, // Number of labels
+              itemCount: 4,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemBuilder: (context, index) {
-                final labels = ['Caregivers', 'Doctors', 'Admins', 'Users'];
-                return _buildLabel(
-                    labels[index], 12); // Use dynamic font size if needed
+                final labels = ['Caregivers', 'Doctors', 'Admins', 'Nurses'];
+                return _buildLabel(labels[index], 12);
               },
             ),
           ],

@@ -1,10 +1,12 @@
 // ignore_for_file: avoid_print, use_build_context_synchronously
 
 import 'dart:io';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Ensure Firebase Database is imported
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:solace/shared/widgets/select_profile_image.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
@@ -12,9 +14,10 @@ import 'package:solace/services/database.dart';
 class UserDataForm extends StatefulWidget {
   final UserData? userData;
   final UserDataCallback onButtonPressed;
+  final VoidCallback? onFieldChanged;
   final bool isSignUp;
   final bool newUser;
-  final bool isVerified; // New field
+  final bool isVerified;
   final int age;
   final UserRole userRole;
 
@@ -27,6 +30,7 @@ class UserDataForm extends StatefulWidget {
     required this.newUser,
     required this.isVerified,
     required this.age,
+    this.onFieldChanged,
   });
 
   @override
@@ -47,6 +51,7 @@ typedef UserDataCallback = Future<void> Function({
 });
 
 class UserDataFormState extends State<UserDataForm> {
+  DatabaseService db = DatabaseService();
   final _formKey = GlobalKey<FormState>();
 
   late List<FocusNode> _focusNodes;
@@ -59,11 +64,10 @@ class UserDataFormState extends State<UserDataForm> {
 
   File? _profileImage;
   String? _profileImageUrl;
+  String? role;
   String gender = '';
   String religion = '';
   DateTime? birthday;
-
-  final _imagePicker = ImagePicker();
 
   @override
   void initState() {
@@ -77,6 +81,9 @@ class UserDataFormState extends State<UserDataForm> {
 
     _focusNodes = List.generate(focusNodeCount, (_) => FocusNode());
     debugPrint('Focus nodes count: ${_focusNodes.length}');
+
+    role = db.getCollectionForRole(widget.userRole);
+    debugPrint("User Data Form user role: $role");
 
     firstNameController =
         TextEditingController(text: widget.userData?.firstName ?? '');
@@ -147,29 +154,100 @@ class UserDataFormState extends State<UserDataForm> {
     'Other', // Add 'Other' option
   ];
 
-  Future<void> _pickProfileImage() async {
-    final XFile? pickedFile =
-        await _imagePicker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() {
-        _profileImage = File(pickedFile.path);
-      });
+  Future<File> getFileFromAsset(String assetPath) async {
+    final byteData = await rootBundle.load(assetPath); // Load the asset
+    final tempDir = await getTemporaryDirectory(); // Get temp directory
+    final tempFile =
+        File('${tempDir.path}/${assetPath.split('/').last}'); // Create file
+    return await tempFile
+        .writeAsBytes(byteData.buffer.asUint8List()); // Write byte data to file
+  }
+
+  Future<String> uploadProfileImage({
+    required String userId,
+    required File file,
+  }) async {
+    try {
+      // Reference to Firebase Storage
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('profile_pictures')
+          .child('$userId.jpg');
+
+      // Upload file
+      final uploadTask = storageRef.putFile(
+        file,
+        SettableMetadata(
+            contentType: 'image/jpeg'), // Ensure correct content type
+      );
+
+      // Wait for upload to complete
+      final snapshot = await uploadTask.whenComplete(() {});
+
+      // Get the download URL
+      final downloadUrl = await snapshot.ref.getDownloadURL();
+
+      print("Image uploaded successfully: $downloadUrl");
+      return downloadUrl; // Return the URL
+    } catch (e) {
+      print("Error uploading image: $e");
+      throw Exception("Error uploading profile image: $e");
+    }
+  }
+
+  Future<void> _pickProfileImage(String role) async {
+    try {
+      final selectedImage = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SelectProfileImageScreen(
+            role: role,
+            currentImage: _profileImageUrl,
+          ),
+        ),
+      );
+
+      if (selectedImage != null) {
+        if (selectedImage.startsWith('lib/')) {
+          // Convert asset to file
+          _profileImage = await getFileFromAsset(selectedImage);
+        } else {
+          // Regular file path
+          _profileImage = File(selectedImage);
+        }
+
+        setState(() {
+          _profileImageUrl = null; // Clear old URLs
+        });
+
+        debugPrint("Selected image file path: ${_profileImage!.path}");
+      } else {
+        debugPrint('No image selected.');
+      }
+    } catch (e) {
+      debugPrint('Error picking profile image: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to pick a profile image.')),
+      );
     }
   }
 
   Future<void> _selectDate(BuildContext context) async {
     // Define the minimum and maximum date limits
     final DateTime today = DateTime.now();
-    final DateTime minDate = DateTime(today.year - 120); // Set 120 years ago as the minimum
-    final DateTime maxDate = DateTime(today.year - 1);  // Ensure user is at least 1 year old
+    final DateTime minDate =
+        DateTime(today.year - 120); // Set 120 years ago as the minimum
+    final DateTime maxDate =
+        DateTime(today.year - 1); // Ensure user is at least 1 year old
 
-    final DateTime initialDate = birthday ?? maxDate;  // Default to maxDate if birthday is null
+    final DateTime initialDate =
+        birthday ?? maxDate; // Default to maxDate if birthday is null
 
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: initialDate,
       firstDate: minDate,
-      lastDate: maxDate,  // Allow selecting up to the current date minus 1 year
+      lastDate: maxDate, // Allow selecting up to the current date minus 1 year
       builder: (BuildContext context, Widget? child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -188,11 +266,10 @@ class UserDataFormState extends State<UserDataForm> {
       setState(() {
         birthday = picked;
         birthdayController.text =
-        '${_getMonthName(picked.month)} ${picked.day}, ${picked.year}';
+            '${_getMonthName(picked.month)} ${picked.day}, ${picked.year}';
       });
     }
   }
-
 
   InputDecoration _buildInputDecoration(String label, FocusNode focusNode) {
     return InputDecoration(
@@ -213,63 +290,8 @@ class UserDataFormState extends State<UserDataForm> {
     );
   }
 
-  Future<bool> _isPhoneNumberUnique(String phoneNumber) async {
-    try {
-      final userId = FirebaseAuth.instance.currentUser?.uid;
-      if (userId == null) return false;
-
-      // Check across all role-based collections
-      List<String> roles = [
-        'admin',
-        'doctor',
-        'caregiver',
-        'patient',
-        'unregistered'
-      ];
-      String? currentPhoneNumber;
-
-      for (String role in roles) {
-        final String collectionName = role;
-
-        // Fetch the current user's document from the collection
-        final userDoc = await FirebaseFirestore.instance
-            .collection(collectionName)
-            .doc(userId)
-            .get();
-
-        if (userDoc.exists) {
-          currentPhoneNumber = userDoc.data()?['phoneNumber'];
-          break; // Stop searching once the user's document is found
-        }
-      }
-
-      // If the current user's phone number matches the input, it's valid
-      if (phoneNumber == currentPhoneNumber) return true;
-
-      // Check if the phone number exists in any collection
-      for (String role in roles) {
-        final String collectionName = role;
-
-        final snapshot = await FirebaseFirestore.instance
-            .collection(collectionName)
-            .where('phoneNumber', isEqualTo: phoneNumber)
-            .get();
-
-        // If the phone number is found, it's not unique
-        if (snapshot.docs.isNotEmpty) return false;
-      }
-
-      // If no matching phone number is found in any collection, it's unique
-      return true;
-    } catch (e) {
-      debugPrint('Error checking phone number uniqueness: $e');
-      return false; // Fail-safe: Assume it's not unique if an error occurs
-    }
-  }
-
   Future<void> _submitForm() async {
-    // Assuming `userRole` is passed as a property
-
+    DatabaseService db = DatabaseService();
     final nameRegExp = RegExp(r"^[\p{L}\s]+(?:\.\s?[\p{L}]+)*$", unicode: true);
 
     // Validate name fields
@@ -301,7 +323,7 @@ class UserDataFormState extends State<UserDataForm> {
       return;
     }
 
-    final isUnique = await _isPhoneNumberUnique(phoneNumber);
+    final isUnique = await db.isPhoneNumberUnique(phoneNumber);
     if (!isUnique) {
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Phone number already exists.')));
@@ -413,17 +435,22 @@ class UserDataFormState extends State<UserDataForm> {
                           ? FileImage(_profileImage!)
                           : (_profileImageUrl != null &&
                                   _profileImageUrl!.isNotEmpty
-                              ? NetworkImage(_profileImageUrl!)
+                              ? (_profileImageUrl!.startsWith('http')
+                                  ? NetworkImage(_profileImageUrl!)
+                                  : AssetImage(_profileImageUrl!)
+                                      as ImageProvider)
                               : AssetImage(
                                   'lib/assets/images/shared/placeholder.png')),
                     ),
                     Container(
                       decoration: BoxDecoration(
                         color: AppColors.blackTransparent,
-                        shape: BoxShape.circle, // Makes the container circular
+                        shape: BoxShape.circle,
                       ),
                       child: IconButton(
-                        onPressed: _pickProfileImage,
+                        onPressed: () {
+                          _pickProfileImage(role!);
+                        },
                         icon: Icon(Icons.camera_alt, color: AppColors.white),
                         iconSize: 20,
                       ),
@@ -431,6 +458,7 @@ class UserDataFormState extends State<UserDataForm> {
                   ],
                 ),
               ),
+
               const SizedBox(height: 20),
               const Divider(thickness: 1.0),
               const SizedBox(height: 10),

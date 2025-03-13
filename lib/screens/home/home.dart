@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:solace/controllers/cloud_messaging.dart';
+import 'package:solace/controllers/messaging_service.dart';
 import 'package:solace/screens/admin/admin_home.dart';
-import 'package:solace/screens/doctor/doctor_home.dart';
-import 'package:solace/screens/patient/patient_home.dart';
+import 'package:solace/screens/caregiver/caregiver_home.dart';
 import 'package:solace/screens/wrapper.dart';
 
 class Home extends StatefulWidget {
@@ -25,7 +24,7 @@ class HomeState extends State<Home> {
 
   Future<void> _initializeFCM() async {
     try {
-      await CloudMessagingService.fetchAndSaveToken();
+      await MessagingService.fetchAndSaveToken();
       debugPrint('FCM token updated successfully.');
     } catch (e) {
       debugPrint('Error fetching and saving FCM token: $e');
@@ -39,9 +38,11 @@ class HomeState extends State<Home> {
       case 'admin':
         return const AdminHome();
       case 'doctor':
-        return const DoctorHome();
+        return const CaregiverHome();
       case 'caregiver':
-        return const PatientHome();
+        return const CaregiverHome();
+      case 'nurse':
+        return const CaregiverHome();
       default:
         return const Wrapper();
     }

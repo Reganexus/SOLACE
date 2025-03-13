@@ -488,8 +488,8 @@ class AdminUsersState extends State<AdminUsers> {
         children: [
           // Profile image
           CircleAvatar(
-            backgroundImage: (patient.profileImageUrl != null && patient.profileImageUrl!.isNotEmpty)
-                ? NetworkImage(patient.profileImageUrl!)
+            backgroundImage: (patient.profileImageUrl != null && patient.profileImageUrl.isNotEmpty)
+                ? NetworkImage(patient.profileImageUrl)
                 : const AssetImage('lib/assets/images/shared/placeholder.png') as ImageProvider,
             radius: 24.0,
           ),

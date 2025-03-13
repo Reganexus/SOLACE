@@ -89,49 +89,6 @@ class _RoleChooserState extends State<RoleChooser> {
     }
   }
 
-  Future<Map<String, String>?> _findUserInCollections(String uid) async {
-    final List<String> collections = [
-      'admin',
-      'doctor',
-      'caregiver',
-      'patient',
-      'unregistered'
-    ];
-
-    for (String collection in collections) {
-      final docSnapshot = await FirebaseFirestore.instance
-          .collection(collection)
-          .doc(uid)
-          .get();
-
-      if (docSnapshot.exists) {
-        return {
-          'role': collection.substring(
-              0, collection.length - 1), // Singular role name
-          'collection': collection,
-        };
-      }
-    }
-
-    // Return null if user is not found
-    return null;
-  }
-
-  UserRole _mapStringToUserRole(String role) {
-    switch (role.toLowerCase()) {
-      case 'admin':
-        return UserRole.admin;
-      case 'caregiver':
-        return UserRole.caregiver;
-      case 'doctor':
-        return UserRole.doctor;
-      case 'patient':
-        return UserRole.patient;
-      default:
-        throw Exception("Invalid role string: $role");
-    }
-  }
-
   Future<void> _showAlertDialog(BuildContext context) async {
     showDialog(
       context: context,
@@ -200,11 +157,10 @@ class _RoleChooserState extends State<RoleChooser> {
           content: Text(
             message,
             style: const TextStyle(
-              fontSize: 18,
-              fontFamily: 'Inter',
-              fontWeight: FontWeight.normal,
-              color: AppColors.black,
-            ),
+                fontSize: 18,
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.normal,
+                color: AppColors.black),
           ),
           actions: [
             TextButton(
@@ -283,18 +239,21 @@ class _RoleChooserState extends State<RoleChooser> {
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
                               borderSide: const BorderSide(
-                                color: AppColors.neon, // Border color when focused
+                                color:
+                                    AppColors.neon, // Border color when focused
                                 width: 2.0,
                               ),
                             ),
                           ),
                           items: const [
                             DropdownMenuItem(
+                                value: 'admin', child: Text('Admin')),
+                            DropdownMenuItem(
                                 value: 'caregiver', child: Text('Caregiver')),
                             DropdownMenuItem(
                                 value: 'doctor', child: Text('Doctor')),
                             DropdownMenuItem(
-                                value: 'admin', child: Text('Admin')),
+                                value: 'nurse', child: Text('Nurse')),
                           ],
                           value: _selectedRole,
                           onChanged: (value) =>

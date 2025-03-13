@@ -9,7 +9,7 @@ import 'package:solace/shared/widgets/help_page.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/services/auth.dart';
 import 'package:solace/shared/accountflow/user_editprofile.dart';
-import 'package:solace/shared/widgets/contacts.dart';
+import 'package:solace/screens/patient/patient_contacts.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:url_launcher/url_launcher.dart';
 

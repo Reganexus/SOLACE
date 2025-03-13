@@ -1,20 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:solace/shared/widgets/interventions.dart';
 import 'package:solace/themes/colors.dart';
 
 class PatientIntervention extends StatefulWidget {
-  const PatientIntervention({super.key, required this.currentUserId});
-  final String currentUserId;
+  const PatientIntervention({super.key, required this.patientId});
+  final String patientId;
 
   @override
   PatientInterventionState createState() => PatientInterventionState();
 }
 
 class PatientInterventionState extends State<PatientIntervention> {
-  final String patientId =
-      FirebaseAuth.instance.currentUser!.uid; // Fetch patientId
-
   @override
   void initState() {
     super.initState();
@@ -24,7 +20,7 @@ class PatientInterventionState extends State<PatientIntervention> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: InterventionsView(uid: patientId),
+      body: InterventionsView(patientId: widget.patientId),
     );
   }
 }

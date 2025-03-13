@@ -201,7 +201,7 @@ class _SignUpState extends State<SignUp> {
 
       if (mounted && myUser != null) {
         // Check if the email exists in any role-based collection
-        final List<String> collections = ['caregiver', 'admin', 'doctor', 'patient', 'unregistered'];
+        final List<String> collections = ['admin', 'doctor', 'patient', 'nurse', 'unregistered'];
         DocumentSnapshot? userDoc;
         String? userRole;
 

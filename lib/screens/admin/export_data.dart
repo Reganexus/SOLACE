@@ -65,7 +65,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       } else if (widget.filterValue == "stable" ||
           widget.filterValue == "unstable") {
         querySnapshot = await FirebaseFirestore.instance
-            .collection('caregiver')
+            .collection('patient')
             .where('status', isEqualTo: widget.filterValue)
             .where('dateCreated', isGreaterThanOrEqualTo: startDate)
             .get();

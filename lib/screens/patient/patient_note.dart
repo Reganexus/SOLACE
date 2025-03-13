@@ -1,16 +1,14 @@
 // ignore_for_file: use_build_context_synchronously, avoid_print
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:solace/services/database.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 class PatientNote extends StatefulWidget {
-  const PatientNote({super.key, required this.currentUserId});
-  final String currentUserId;
+  const PatientNote({super.key, required this.patientId});
+  final String patientId;
 
   @override
   PatientNoteState createState() => PatientNoteState();
@@ -30,88 +28,73 @@ class PatientNoteState extends State<PatientNote> {
   }
 
   Future<void> fetchUserCreationDate() async {
-    final User? user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      try {
-        // Get the user's role from DatabaseService
-        String? userRole = await DatabaseService().getTargetUserRole(user.uid);
+    try {
+      // Use the user's role to fetch data from the appropriate collection
+      final snapshot = await FirebaseFirestore.instance
+          .collection('patient')
+          .doc(widget.patientId)
+          .get();
 
-        if (userRole != null) {
-          // Use the user's role to fetch data from the appropriate collection
-          final snapshot = await FirebaseFirestore.instance
-              .collection(userRole)
-              .doc(user.uid)
-              .get();
+      if (snapshot.exists && snapshot.data() != null) {
+        final userData = snapshot.data()!;
+        final dateCreatedTimestamp = userData['dateCreated'] as Timestamp?;
 
-          if (snapshot.exists && snapshot.data() != null) {
-            final userData = snapshot.data()!;
-            final dateCreatedTimestamp = userData['dateCreated'] as Timestamp?;
-
-            if (dateCreatedTimestamp != null) {
-              setState(() {
-                userCreatedDate = dateCreatedTimestamp.toDate();
-              });
-            }
-          }
+        if (dateCreatedTimestamp != null) {
+          setState(() {
+            userCreatedDate = dateCreatedTimestamp.toDate();
+          });
         }
-      } catch (e) {
-        print("Error fetching user creation date: $e");
       }
+    } catch (e) {
+      print("Error fetching user creation date: $e");
     }
   }
 
   Future<void> fetchNotesForDay(DateTime day) async {
-    final User? user = FirebaseAuth.instance.currentUser;
-
     setState(() {
       isLoading = true;
       notes = [];
     });
 
-    if (user != null) {
-      String? userRole = await DatabaseService().getTargetUserRole(user.uid);
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('patient')
+          .doc(widget.patientId)
+          .get();
 
-      try {
-        // Fetch the user document containing the notes array
-        final snapshot = await FirebaseFirestore.instance
-            .collection(userRole!) // Use the user's role here
-            .doc(user.uid)
-            .get();
+      if (snapshot.exists && snapshot.data() != null) {
+        final userData = snapshot.data()!;
 
-        if (snapshot.exists && snapshot.data() != null) {
-          final userData = snapshot.data()!;
+        // Ensure that 'notes' is a List and not null
+        final notesArray = userData['notes'] as List<dynamic>?;
 
-          // Ensure that 'notes' is a List and not null
-          final notesArray = userData['notes'] as List<dynamic>?;
+        if (notesArray != null) {
+          // Filter notes that match the selected day
+          final selectedDateString = DateFormat('yyyy-MM-dd').format(day);
+          final filteredNotes = notesArray.where((note) {
+            final timestamp = (note['timestamp'] as Timestamp).toDate();
+            final formattedDate = DateFormat('yyyy-MM-dd').format(timestamp);
+            return formattedDate == selectedDateString;
+          }).toList();
 
-          if (notesArray != null) {
-            // Filter notes that match the selected day
-            final selectedDateString = DateFormat('yyyy-MM-dd').format(day);
-            final filteredNotes = notesArray.where((note) {
-              final timestamp = (note['timestamp'] as Timestamp).toDate();
-              final formattedDate = DateFormat('yyyy-MM-dd').format(timestamp);
-              return formattedDate == selectedDateString;
+          setState(() {
+            notes = filteredNotes.map((note) {
+              return {
+                'noteId': note['noteId'],
+                'timestamp': (note['timestamp'] as Timestamp).toDate(),
+                'note': note['note'],
+                'title': note['title'],
+              };
             }).toList();
-
-            setState(() {
-              notes = filteredNotes.map((note) {
-                return {
-                  'noteId': note['noteId'],
-                  'timestamp': (note['timestamp'] as Timestamp).toDate(),
-                  'note': note['note'],
-                  'title': note['title'],
-                };
-              }).toList();
-            });
-          } else {
-            setState(() {
-              notes = [];
-            });
-          }
+          });
+        } else {
+          setState(() {
+            notes = [];
+          });
         }
-      } catch (e) {
-        print('Error fetching notes: $e');
       }
+    } catch (e) {
+      print('Error fetching notes: $e');
     }
 
     setState(() {
@@ -120,95 +103,78 @@ class PatientNoteState extends State<PatientNote> {
   }
 
   Future<void> addNoteForToday(String title, String noteText) async {
-    final User? user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      final String caregiverId = user.uid;
+    try {
+      // Use selectedDay as the reference date for the note
+      final DateTime selectedDate = selectedDay;
+      final String uniqueId = '${selectedDate.millisecondsSinceEpoch}';
 
-      try {
-        String? userRole = await DatabaseService().getTargetUserRole(user.uid);
+      // Create the new note
+      final newNote = {
+        'noteId': uniqueId, // Add the unique ID
+        'timestamp': Timestamp.fromDate(
+            selectedDate), // Use selectedDate for the timestamp
+        'date': DateFormat('yyyy-MM-dd')
+            .format(selectedDate), // Format the selected date
+        'title': title.isNotEmpty ? title : 'Untitled',
+        'note': noteText.isNotEmpty ? noteText : 'No content provided',
+      };
 
-        // Use selectedDay as the reference date for the note
-        final DateTime selectedDate = selectedDay;
-        final String uniqueId = '${selectedDate.millisecondsSinceEpoch}';
+      // Reference to the user document using their role
+      final userRef = FirebaseFirestore.instance
+          .collection('patient')
+          .doc(widget.patientId);
 
-        // Create the new note
-        final newNote = {
-          'noteId': uniqueId, // Add the unique ID
-          'timestamp': Timestamp.fromDate(
-              selectedDate), // Use selectedDate for the timestamp
-          'date': DateFormat('yyyy-MM-dd')
-              .format(selectedDate), // Format the selected date
-          'title': title.isNotEmpty ? title : 'Untitled',
-          'note': noteText.isNotEmpty ? noteText : 'No content provided',
-        };
+      // Update the notes field of the user document
+      await userRef.update({
+        'notes': FieldValue.arrayUnion(
+            [newNote]), // Add the new note to the 'notes' array
+      });
 
-        // Reference to the user document using their role
-        final userRef =
-        FirebaseFirestore.instance.collection(userRole!).doc(caregiverId);
-
-        // Update the notes field of the user document
-        await userRef.update({
-          'notes': FieldValue.arrayUnion(
-              [newNote]), // Add the new note to the 'notes' array
-        });
-
-        fetchNotesForDay(selectedDay);
-        print('Note added successfully!');
-      } catch (e) {
-        print("Error adding note: $e"); // Print any error
-      }
-    } else {
-      print("User is not authenticated.");
+      fetchNotesForDay(selectedDay);
+      print('Note added successfully!');
+    } catch (e) {
+      print("Error adding note: $e"); // Print any error
     }
   }
 
   Future<void> _deleteNote(Map<String, dynamic> note) async {
-    final User? user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      final String caregiverId = user.uid;
+    try {
+      // Reference to the user document using their role
+      final userRef = FirebaseFirestore.instance
+          .collection('patient')
+          .doc(widget.patientId);
 
-      try {
-        String? userRole = await DatabaseService().getTargetUserRole(user.uid);
+      // Fetch the user document to get the current notes array
+      final userDocSnapshot = await userRef.get();
 
-        // Reference to the user document using their role
-        final userRef =
-        FirebaseFirestore.instance.collection(userRole!).doc(caregiverId);
-
-        // Fetch the user document to get the current notes array
-        final userDocSnapshot = await userRef.get();
-
-        if (!userDocSnapshot.exists) {
-          print('User document does not exist!');
-          return;
-        }
-
-        // Get the current notes array
-        List<Map<String, dynamic>> notes = List<Map<String, dynamic>>.from(
-            userDocSnapshot.data()?['notes'] ?? []);
-
-        // Find the index of the note by noteId
-        final noteIndex =
-        notes.indexWhere((n) => n['noteId'] == note['noteId']);
-
-        if (noteIndex != -1) {
-          // Remove the note from the list
-          notes.removeAt(noteIndex);
-
-          // Update the notes field in Firestore to remove the note
-          await userRef.update({'notes': notes});
-
-          // After deleting, fetch updated notes for the day
-          fetchNotesForDay(selectedDay);
-
-          print('Note deleted successfully!');
-        } else {
-          print('Note not found');
-        }
-      } catch (e) {
-        print('Error deleting note: $e'); // Print any error
+      if (!userDocSnapshot.exists) {
+        print('User document does not exist!');
+        return;
       }
-    } else {
-      print('User is not authenticated.');
+
+      // Get the current notes array
+      List<Map<String, dynamic>> notes = List<Map<String, dynamic>>.from(
+          userDocSnapshot.data()?['notes'] ?? []);
+
+      // Find the index of the note by noteId
+      final noteIndex = notes.indexWhere((n) => n['noteId'] == note['noteId']);
+
+      if (noteIndex != -1) {
+        // Remove the note from the list
+        notes.removeAt(noteIndex);
+
+        // Update the notes field in Firestore to remove the note
+        await userRef.update({'notes': notes});
+
+        // After deleting, fetch updated notes for the day
+        fetchNotesForDay(selectedDay);
+
+        print('Note deleted successfully!');
+      } else {
+        print('Note not found');
+      }
+    } catch (e) {
+      print('Error deleting note: $e'); // Print any error
     }
   }
 
@@ -219,7 +185,7 @@ class PatientNoteState extends State<PatientNote> {
         return AlertDialog(
           backgroundColor: AppColors.white,
           title: Text(
-            'Note Details - $formattedTime',
+            'Note Details',
             style: const TextStyle(
               fontSize: 24,
               fontFamily: 'Outfit',
@@ -227,76 +193,115 @@ class PatientNoteState extends State<PatientNote> {
               color: AppColors.black,
             ),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Time: $formattedTime',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.black,
-                ),
-              ),
-              const SizedBox(height: 10.0),
-              Text(
-                note['note'], // Display the note content as text
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.normal,
-                  color: AppColors.black,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              style: TextButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-                backgroundColor: AppColors.neon,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: const Text(
-                'Close',
-                style: TextStyle(
-                  fontSize: 16.0,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Inter',
-                  color: Colors.white,
-                ),
+          content: ConstrainedBox(
+            constraints: BoxConstraints(
+              minWidth: 280.0, // Minimum width
+              maxWidth: 400.0, // Maximum width
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Time Added",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    formattedTime,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.normal,
+                      color: AppColors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    "Notes",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    note['note'], // Display the note content as text
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.normal,
+                      color: AppColors.black,
+                    ),
+                  ),
+                ],
               ),
             ),
-            TextButton(
-              onPressed: () async {
-                await _deleteNote(note);
-                Navigator.of(context).pop();
-              },
-              style: TextButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-                backgroundColor: AppColors.red,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+          ),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 15, vertical: 10),
+                      backgroundColor: AppColors.neon,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Text(
+                      'Close',
+                      style: TextStyle(
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Inter',
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-              child: const Text(
-                'Delete',
-                style: TextStyle(
-                  fontSize: 16.0,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Inter',
-                  color: Colors.white,
+                SizedBox(
+                  width: 10.0,
                 ),
-              ),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () async {
+                      await _deleteNote(note);
+                      Navigator.of(context).pop();
+                    },
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 15, vertical: 10),
+                      backgroundColor: AppColors.red,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Text(
+                      'Delete',
+                      style: TextStyle(
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Inter',
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                )
+              ],
             ),
           ],
         );
@@ -306,8 +311,9 @@ class PatientNoteState extends State<PatientNote> {
 
   void _showAddNoteDialog() {
     final TextEditingController noteController = TextEditingController();
-    final TextEditingController titleController =
-        TextEditingController(); // New title controller
+    final TextEditingController titleController = TextEditingController();
+    final FocusNode titleFocusNode = FocusNode();
+    final FocusNode noteFocusNode = FocusNode();
 
     showDialog(
       context: context,
@@ -323,83 +329,119 @@ class PatientNoteState extends State<PatientNote> {
               color: AppColors.black,
             ),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Title TextField
-              TextField(
-                controller: titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Title',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 10.0),
-              // Note TextField
-              TextField(
-                controller: noteController,
-                decoration: const InputDecoration(
-                  labelText: 'Note',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              style: TextButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-                backgroundColor: AppColors.red,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: const Text(
-                'Cancel',
-                style: TextStyle(
-                  fontSize: 16.0,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Inter',
-                  color: Colors.white,
-                ),
+          content: ConstrainedBox(
+            constraints: BoxConstraints(
+              minWidth: 280.0, // Minimum width
+              maxWidth: 400.0, // Maximum width
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: titleController,
+                    focusNode: titleFocusNode,
+                    decoration: _buildInputDecoration('Title', titleFocusNode),
+                  ),
+                  const SizedBox(height: 10.0),
+                  TextField(
+                    controller: noteController,
+                    focusNode: noteFocusNode,
+                    maxLines: 1,
+                    decoration: _buildInputDecoration('Note', noteFocusNode),
+                  ),
+                ],
               ),
             ),
-            TextButton(
-              onPressed: () async {
-                final noteText = noteController.text.trim();
-                final titleText =
-                    titleController.text.trim(); // Get the title text
-                if (noteText.isNotEmpty && titleText.isNotEmpty) {
-                  await addNoteForToday(
-                      titleText, noteText); // Pass both title and note
-                  Navigator.of(context).pop();
-                }
-              },
-              style: TextButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-                backgroundColor: AppColors.neon,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+          ),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 15, vertical: 10),
+                      backgroundColor: AppColors.red,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Inter',
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-              child: const Text(
-                'Save',
-                style: TextStyle(
-                  fontSize: 16.0,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Inter',
-                  color: Colors.white,
+                SizedBox(
+                  width: 10,
                 ),
-              ),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () async {
+                      final noteText = noteController.text.trim();
+                      final titleText = titleController.text.trim();
+                      if (noteText.isNotEmpty && titleText.isNotEmpty) {
+                        await addNoteForToday(titleText, noteText);
+                        Navigator.of(context).pop();
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Both fields are required!')),
+                        );
+                      }
+                    },
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 15, vertical: 10),
+                      backgroundColor: AppColors.neon,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Text(
+                      'Save',
+                      style: TextStyle(
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Inter',
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         );
       },
+    );
+  }
+
+  InputDecoration _buildInputDecoration(String label, FocusNode focusNode) {
+    return InputDecoration(
+      labelText: label,
+      filled: true,
+      fillColor: AppColors.gray,
+      border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+      focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: AppColors.neon, width: 2)),
+      labelStyle: TextStyle(
+        fontSize: 16,
+        fontFamily: 'Inter',
+        fontWeight: FontWeight.normal,
+        color: focusNode.hasFocus ? AppColors.neon : AppColors.black,
+      ),
     );
   }
 
@@ -441,10 +483,9 @@ class PatientNoteState extends State<PatientNote> {
                   if (userCreatedDate == null) {
                     return true; // Temporarily enable all dates for testing
                   }
-                  return day.isAfter(userCreatedDate!
-                          .subtract(const Duration(days: 1))) &&
-                      day.isBefore(
-                          DateTime.now().add(const Duration(days: 1)));
+                  return day.isAfter(
+                          userCreatedDate!.subtract(const Duration(days: 1))) &&
+                      day.isBefore(DateTime.now().add(const Duration(days: 1)));
                 },
                 onDaySelected: (selectedDay, focusedDay) {
                   setState(() {
@@ -476,7 +517,7 @@ class PatientNoteState extends State<PatientNote> {
                 child: Text(
                   'Notes for ${DateFormat('MMM d, y (EEEE)').format(selectedDay)}',
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                     fontFamily: 'Outfit',
                   ),
@@ -519,26 +560,47 @@ class PatientNoteState extends State<PatientNote> {
                                   _showNoteDetailsDialog(note, formattedTime),
                               child: Container(
                                 margin: const EdgeInsets.only(bottom: 10.0),
-                                padding: const EdgeInsets.all(15.0),
+                                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
                                 decoration: BoxDecoration(
                                   color: AppColors.gray,
                                   borderRadius: BorderRadius.circular(10.0),
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                child: Row(
                                   children: [
-                                    // Check if 'title' exists and provide a default value if it's null
-                                    Text(
-                                      note['title'] ??
-                                          'No Title', // Default value for null
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            note['title'] ??
+                                                'No Title', // Default value for null
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontFamily: 'Inter',
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.black,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 5.0),
+                                          // Check if 'note' exists and provide a default value if it's null
+                                          Text(
+                                            note['note'] ??
+                                                'No content available',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontFamily: 'Inter',
+                                              fontWeight: FontWeight.normal,
+                                              color: AppColors.black,
+                                            ),
+                                          ), // Default value for null
+                                        ],
                                       ),
                                     ),
-                                    const SizedBox(height: 5.0),
-                                    // Check if 'note' exists and provide a default value if it's null
-                                    Text(note['note'] ??
-                                        'No content available'), // Default value for null
+                                    Icon(
+                                      Icons.more_vert,
+                                      size: 30,
+                                    )
                                   ],
                                 ),
                               ),

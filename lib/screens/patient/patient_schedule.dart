@@ -6,8 +6,8 @@ import 'package:solace/themes/colors.dart';
 import 'package:solace/services/database.dart';
 
 class PatientSchedule extends StatefulWidget {
-  const PatientSchedule({super.key, required this.currentUserId});
-  final String currentUserId;
+  const PatientSchedule({super.key, required this.patientId});
+  final String patientId;
 
   @override
   PatientScheduleState createState() => PatientScheduleState();
@@ -27,7 +27,6 @@ class PatientScheduleState extends State<PatientSchedule> {
       fetchPatientSchedules();
     }
   }
-
   Future<void> fetchPatientSchedules() async {
     setState(() {
       _isLoading = true;
@@ -35,77 +34,76 @@ class PatientScheduleState extends State<PatientSchedule> {
     });
 
     final User? user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      final String patientId =
-          widget.currentUserId; // Get the current user's ID
-      try {
-        // Fetch the patient data
-        final snapshot = await FirebaseFirestore.instance
-            .collection(
-                'caregiver') // Assuming you still store user info in 'users' collection
-            .doc(patientId)
-            .get();
+    if (user == null) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'User not logged in.';
+      });
+      return;
+    }
 
-        if (snapshot.exists) {
-          final List<dynamic> schedulesData =
-              snapshot.data()?['schedule'] ?? [];
+    try {
+      // Fetch patient data
+      final snapshot = await FirebaseFirestore.instance
+          .collection('patient')
+          .doc(widget.patientId)
+          .get();
 
-          if (schedulesData.isEmpty) {
-            // No schedules available, no need to continue
-            setState(() {
-              _isLoading = false;
-              upcomingSchedules = []; // Clear any previously fetched schedules
-            });
-            return;
-          }
-
-          final List<Map<String, dynamic>> schedules = [];
-          for (var schedule in schedulesData) {
-            final scheduleDate = (schedule['date'] as Timestamp).toDate();
-            final time = schedule['time'];
-            final doctorId =
-                schedule['doctorId']; // Fetch the doctorId (caregiver)
-
-            // Fetch the user's role (doctor's role in this case)
-            UserRole? doctorRole = await db.getUserRole(
-                doctorId); // Use your existing function to get the user role
-
-            if (doctorRole == null) {
-              // Handle case if doctor role is not found
-              continue;
-            }
-
-            // Fetch doctor's name and add to the schedule data
-            String caregiverName = await db.getUserName(
-                doctorId, doctorRole); // Pass userRole here
-
-            schedules.add({
-              'date': scheduleDate,
-              'time': time,
-              'caregiverName': caregiverName,
-            });
-          }
-
-          schedules.sort((a, b) => a['date'].compareTo(b['date']));
-
-          setState(() {
-            upcomingSchedules = schedules;
-            _isLoading = false; // Set loading state to false when done
-          });
-        } else {
-          setState(() {
-            _isLoading = false;
-            _errorMessage = 'No data found for the user.';
-          });
-        }
-      } catch (e) {
+      if (!snapshot.exists) {
         setState(() {
           _isLoading = false;
-          _errorMessage = 'Failed to fetch schedules: $e';
+          _errorMessage = 'No data found for the user.';
+        });
+        return;
+      }
+
+      final List<dynamic> schedulesData = snapshot.data()?['schedule'] ?? [];
+      if (schedulesData.isEmpty) {
+        setState(() {
+          _isLoading = false;
+          upcomingSchedules = [];
+        });
+        return;
+      }
+
+      // Process schedules
+      final List<Map<String, dynamic>> schedules = [];
+      for (var schedule in schedulesData) {
+        if (schedule['date'] == null) continue;
+
+        final scheduleDate = (schedule['date'] as Timestamp).toDate();
+        final time = schedule['time'] ?? 'No time available';
+        final doctorId = schedule['doctorId'];
+
+        if (doctorId == null) continue;
+
+        final UserRole? doctorRole = await db.getUserRole(doctorId);
+        if (doctorRole == null) continue;
+
+        final caregiverName = await db.getUserName(doctorId, doctorRole);
+        schedules.add({
+          'date': scheduleDate,
+          'time': time,
+          'caregiverName': caregiverName,
         });
       }
+
+      // Sort schedules by date
+      schedules.sort((a, b) => a['date'].compareTo(b['date']));
+
+      // Update state once
+      setState(() {
+        upcomingSchedules = schedules;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Failed to fetch schedules: $e';
+      });
     }
   }
+
 
   // Helper function to format date as "Month Day, Year"
   String formatDate(DateTime date) {
@@ -172,8 +170,7 @@ class PatientScheduleState extends State<PatientSchedule> {
                                 i++) ...[
                               Container(
                                 width: double.infinity,
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 10, horizontal: 15),
+                                padding: EdgeInsets.all(16.0),
                                 decoration: BoxDecoration(
                                   color: AppColors.gray,
                                   borderRadius: BorderRadius.circular(10),
@@ -181,27 +178,66 @@ class PatientScheduleState extends State<PatientSchedule> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      formatDate(upcomingSchedules[i]['date']),
-                                      style: const TextStyle(
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.calendar_today,
+                                          size: 30,
+                                        ),
+                                        SizedBox(
+                                          width: 10.0,
+                                        ),
+                                        Text(
+                                          formatDate(
+                                              upcomingSchedules[i]['date']),
+                                          style: const TextStyle(
+                                              fontSize: 20,
+                                              fontFamily: 'Inter',
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.black),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    const Divider(thickness: 1.0),
+                                    const SizedBox(height: 10),
+                                    const Text(
+                                      "Time",
+                                      style: TextStyle(
                                         fontSize: 18,
+                                        fontFamily: 'Inter',
                                         fontWeight: FontWeight.bold,
+                                        color: AppColors.black,
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
+                                    const SizedBox(height: 5),
                                     Text(
                                       '${upcomingSchedules[i]['time'] ?? 'No time available'} ${getWeekdayName(upcomingSchedules[i]['date'])}',
                                       style: const TextStyle(
-                                        fontSize: 16,
+                                          fontSize: 18,
+                                          fontFamily: 'Inter',
+                                          fontWeight: FontWeight.normal,
+                                          color: AppColors.black),
+                                    ),
+                                    const SizedBox(height: 20),
+                                    const Text(
+                                      "Healthcare Provider",
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.black,
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
+                                    const SizedBox(height: 5),
                                     Text(
                                       upcomingSchedules[i]['caregiverName'] ??
                                           'Caregiver not found',
                                       style: const TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.black54,
+                                        fontSize: 18,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.normal,
+                                        color: AppColors.black,
                                       ),
                                     ),
                                   ],

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/home/home.dart';
 import 'package:solace/services/auth.dart';
+import 'package:solace/services/database.dart';
 import 'package:solace/shared/accountflow/rolechooser.dart';
 import 'package:solace/shared/accountflow/user_editprofile.dart';
 import 'package:solace/shared/globals.dart';
@@ -103,7 +104,7 @@ class _VerifyState extends State<Verify> {
             String? role = await getUserRoleBySearching(user.uid);
             if (role != null) {
               await FirebaseFirestore.instance
-                  .collection(role) // e.g., 'admin', 'caregiver'
+                  .collection(role)
                   .doc(user.uid)
                   .update({
                 'isVerified': true,
@@ -152,21 +153,12 @@ class _VerifyState extends State<Verify> {
   }
 
   Future<String?> getUserRoleBySearching(String uid) async {
-    const roleCollections = [
-      'admin',
-      'caregiver',
-      'doctor',
-      'patient',
-      'unregistered'
-    ];
-    for (String collection in roleCollections) {
-      final userDoc = await FirebaseFirestore.instance
-          .collection(collection)
-          .doc(uid)
-          .get();
-      if (userDoc.exists) {
-        return collection;
-      }
+    DatabaseService db = DatabaseService();
+    String? userRole = await db.getTargetUserRole(uid);
+    final userDoc =
+        await FirebaseFirestore.instance.collection(userRole!).doc(uid).get();
+    if (userDoc.exists) {
+      return userRole;
     }
     return null;
   }

@@ -6,7 +6,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
 import 'package:flutter/foundation.dart';
-import 'package:solace/controllers/cloud_messaging.dart';
+import 'package:solace/controllers/messaging_service.dart';
 import 'package:solace/services/log_service.dart';
 
 class AuthService {
@@ -19,23 +19,6 @@ class AuthService {
 
   // Cache to store user data
   MyUser? _cachedUser;
-
-  String getCollectionName(UserRole role) {
-    switch (role) {
-      case UserRole.caregiver:
-        return 'caregiver';
-      case UserRole.admin:
-        return 'admin';
-      case UserRole.doctor:
-        return 'doctor';
-      case UserRole.patient:
-        return 'patient';
-      case UserRole.unregistered:
-        return 'unregistered';
-      default:
-        throw UnimplementedError();
-    }
-  }
 
   // Check if a user exists with the given email
   Future<bool> userExists(String email) async {
@@ -112,23 +95,6 @@ class AuthService {
 
   String? get currentUserId => _auth.currentUser?.uid;
 
-  static String? getUserRoleString(UserRole role) {
-    switch (role) {
-      case UserRole.caregiver:
-        return 'caregiver';
-      case UserRole.admin:
-        return 'admin';
-      case UserRole.doctor:
-        return 'doctor';
-      case UserRole.patient:
-        return 'patient';
-      case UserRole.unregistered:
-        return 'unregistered';
-      default:
-        throw UnimplementedError();
-    }
-  }
-
   Future<bool> emailExists(String email, String userRole) async {
     final String collectionName =
         userRole; // Dynamically create collection name
@@ -147,6 +113,7 @@ class AuthService {
         'doctor',
         'caregiver',
         'patient',
+        'nurse'
         'unregistered'
       ];
 
@@ -189,7 +156,7 @@ class AuthService {
 
   Future<void> _fetchAndSaveFCMToken({int retryCount = 0}) async {
     try {
-      await CloudMessagingService.fetchAndSaveToken();
+      await MessagingService.fetchAndSaveToken();
       debugPrint("FCM token saved successfully.");
     } catch (e) {
       if (retryCount < 3) {
@@ -231,10 +198,7 @@ class AuthService {
             'profileImageUrl': profileImageUrl ?? '',
             'userRole': UserRole.unregistered.name,
             'dateCreated': DateTime.now(),
-            'contacts': {'friends': {}, 'requests': {}},
             'notifications': [],
-            'status': 'stable',
-            'symptoms': [],
           }, SetOptions(merge: true));
 
           debugPrint("Document successfully created for UID: $uid");
@@ -429,6 +393,12 @@ class AuthService {
           action: 'Logged out',
         );
       }
+      // Wait for Firestore operations to complete
+      await FirebaseFirestore.instance.collection('caregiver').get();
+
+      // Clear Firestore persistence safely
+      await FirebaseFirestore.instance.terminate();
+      await FirebaseFirestore.instance.clearPersistence();
 
       // Sign out from Firebase
       await FirebaseAuth.instance.signOut();
@@ -439,13 +409,12 @@ class AuthService {
       // Clear cached user data
       _cachedUser = null;
 
-      await FirebaseFirestore.instance.clearPersistence();
-
       debugPrint("User signed out and cache cleared.");
     } catch (e) {
       debugPrint("Error signing out: $e");
     }
   }
+
 
   Future<bool?> resetPassword(String email) async {
     try {

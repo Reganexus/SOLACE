@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/services.dart';
-import 'package:solace/controllers/cloud_messaging.dart';
+import 'package:solace/controllers/messaging_service.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/authenticate/get_started.dart';
 import 'package:solace/services/auth.dart';
@@ -24,7 +24,7 @@ void main() async {
   }
 
   // Initialize Firebase Cloud Messaging
-  await CloudMessagingService.initialize();
+  await MessagingService.initialize();
 
   // Initialize Firebase App Check
   FirebaseAppCheck.instance.activate(
