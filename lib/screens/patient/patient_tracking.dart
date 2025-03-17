@@ -356,7 +356,7 @@ class PatientTrackingState extends State<PatientTracking> {
                   controller: controller,
                   focusNode: focusNode,
                   decoration: _inputDecoration(key, focusNode),
-                  keyboardType: TextInputType.number,
+                  // keyboardType: TextInputType.number,
                   validator: FormBuilderValidators.compose(validators),
                   inputFormatters: inputFormatters,
                   onChanged: (value) => _vitalInputs[key] = value,

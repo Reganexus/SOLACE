@@ -181,7 +181,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         debugPrint('Tracking algo inputs: $algoInputs');
 
         // Send the inputs for prediction
-        // await getPrediction(algoInputs);
+        await getPrediction(algoInputs);
 
         // Show success message
         if (mounted) {
@@ -208,39 +208,39 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   }
 
   Future<void> getPrediction(List<dynamic> algoInputs) async {
-    // choose from these depending on testing device
+    // Choose appropriate IP address
+    final virtualAddress = '10.0.2.2'; // Use for virtual devices (e.g., Android emulator)
     // final localHostAddress = '127.0.0.1'; // default
-    final virtualAddress = '10.0.2.2'; // if using virtual device
-    // if using physical device, use computer’s IP address instead of 127.0.0.1 or localhost.
 
+    // if using physical device, use computer’s IP address instead of 127.0.0.1 or localhost.
     final url = Uri.parse('http://$virtualAddress:5000/predict');
     final headers = {"Content-Type": "application/json"};
 
-    // Format algoInputs to match the input size expected by the model (8 features)
-    List<dynamic>? formattedInputs;
+    // Ensure inputs are formatted correctly
+    List<dynamic> formattedInputs;
     try {
       formattedInputs = [
-        algoInputs[0] == 'Male' ? 1 : (algoInputs[0] == 'Female' ? 0 : -1), // Gender
-        (algoInputs[1] ?? 0) as int, // Age
-        algoInputs[2] ?? 0.0, // Temperature
-        (algoInputs[3] ?? 0) as int, // Oxygen Saturation
-        (algoInputs[4] ?? 0) as int, // Heart Rate
-        algoInputs[5] ?? 0.0, // Respiration
-        (algoInputs[6] ?? 0) as int, // Systolic
-        (algoInputs[7] ?? 0) as int, // Diastolic
+        algoInputs[0] == 'Male' ? 1 : (algoInputs[0] == 'Female' ? 0 : -1), // Gender (int)
+        int.tryParse(algoInputs[1].toString()) ?? 0,  // Age (int)
+        double.tryParse(algoInputs[2].toString()) ?? 0.0, // Temperature (double)
+        int.tryParse(algoInputs[3].toString()) ?? 0, // Oxygen Saturation (int)
+        int.tryParse(algoInputs[4].toString()) ?? 0, // Heart Rate (int)
+        int.tryParse(algoInputs[5].toString()) ?? 0, // Respiration Rate (int)
+        int.tryParse(algoInputs[6].toString()) ?? 0, // Systolic BP (int)
+        int.tryParse(algoInputs[7].toString()) ?? 0  // Diastolic BP (int)
       ];
 
       debugPrint('Formatted Inputs: $formattedInputs');
     } catch (e, stackTrace) {
       debugPrint('Error formatting inputs: $e');
       debugPrint('StackTrace: $stackTrace');
+      return;
     }
 
     try {
-      // Wrap formattedInputs in a JSON object with the 'data' key
-      final body = json.encode({
-        'data': [formattedInputs]
-      });
+      // Wrap formattedInputs inside 'data' key
+      final body = json.encode({"data": [formattedInputs]});
+      debugPrint("JSON Body: $body");
 
       final response = await http.post(
         url,
@@ -248,25 +248,29 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         body: body,
       );
 
-      debugPrint("Json body: $body");
-
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
-        debugPrint(
-            "Status: ${responseData['prediction']}  Type: ${(responseData['prediction']).runtimeType}");
-        // set status to either stable or unstable here
-        if (responseData['prediction'][0] == 0) {
+
+        // Extract prediction result
+        List<dynamic> predictions = responseData['predictions']; 
+        int predictionResult = predictions[0]; // Get first result
+
+        debugPrint("Raw Response: ${response.body}");
+        debugPrint("Prediction Result: $predictionResult");
+
+        // Handle Prediction Output
+        if (predictionResult == 0) {
           debugPrint(
-              'Prediction: Negative (No complications detected based on algo)');
+              'Prediction: Stable (No complications detected based on algorithm)');
         } else {
           debugPrint(
-              'Prediction: Positive (Complications detected based on algo but not specified what)');
+              'Prediction: Unstable (Complications detected based on algorithm)');
         }
       } else {
-        debugPrint("Error: ${response.statusCode}");
+        debugPrint("API Error: ${response.statusCode}");
       }
     } catch (e) {
-      debugPrint("Error: $e");
+      debugPrint("Network/Parsing Error: $e");
     }
   }
 

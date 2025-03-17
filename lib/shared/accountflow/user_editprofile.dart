@@ -49,8 +49,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               }
               // Do not perform any action if the user chooses to cancel
             } else if (canPop) {
-              Navigator.of(context)
+              if(mounted) {
+                Navigator.of(context)
                   .pop(result); // Proceed if no unsaved changes
+              }
             }
             // No explicit return; `void` is implied
           },
