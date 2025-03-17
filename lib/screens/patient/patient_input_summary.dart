@@ -163,7 +163,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   }
 
   void _submitAlgoInputs(String uid) async {
-    final userData = await DatabaseService(uid: uid).getUserData();
+    final userData = DatabaseService(uid: uid).userData;
     if (userData == null) {
       debugPrint('Submit Algo Input No User Data');
       if (mounted) {
@@ -181,7 +181,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         debugPrint('Tracking algo inputs: $algoInputs');
 
         // Send the inputs for prediction
-        await getPrediction(algoInputs);
+        // await getPrediction(algoInputs);
 
         // Show success message
         if (mounted) {
@@ -216,25 +216,18 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     final url = Uri.parse('http://$virtualAddress:5000/predict');
     final headers = {"Content-Type": "application/json"};
 
-    // Define mappings for Blood Pressure and Cholesterol Level
-    const severityMapping = {
-      "Low": 0,
-      "Normal": 1,
-      "High": 2,
-    };
-
     // Format algoInputs to match the input size expected by the model (8 features)
-    List<int>? formattedInputs;
+    List<dynamic>? formattedInputs;
     try {
       formattedInputs = [
-        algoInputs[0] == true ? 1 : 0, // Fever
-        algoInputs[1] == true ? 1 : 0, // Cough
-        algoInputs[2] == true ? 1 : 0, // Fatigue
-        algoInputs[3] == true ? 1 : 0, // Difficulty Breathing
-        (algoInputs[4] ?? 0) as int, // Age
-        algoInputs[5] == 'Male' ? 1 : 0, // Gender
-        severityMapping[algoInputs[6]] ?? 0, // Blood Pressure
-        severityMapping[algoInputs[7]] ?? 0, // Cholesterol Level
+        algoInputs[0] == 'Male' ? 1 : (algoInputs[0] == 'Female' ? 0 : -1), // Gender
+        (algoInputs[1] ?? 0) as int, // Age
+        algoInputs[2] ?? 0.0, // Temperature
+        (algoInputs[3] ?? 0) as int, // Oxygen Saturation
+        (algoInputs[4] ?? 0) as int, // Heart Rate
+        algoInputs[5] ?? 0.0, // Respiration
+        (algoInputs[6] ?? 0) as int, // Systolic
+        (algoInputs[7] ?? 0) as int, // Diastolic
       ];
 
       debugPrint('Formatted Inputs: $formattedInputs');
@@ -273,7 +266,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         debugPrint("Error: ${response.statusCode}");
       }
     } catch (e) {
-      debugPrint("wowow Error: $e");
+      debugPrint("Error: $e");
     }
   }
 
