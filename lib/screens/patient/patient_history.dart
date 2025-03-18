@@ -8,10 +8,7 @@ import 'package:solace/themes/colors.dart';
 class PatientHistory extends StatefulWidget {
   final String patientId;
 
-  const PatientHistory({
-    super.key,
-    required this.patientId,
-  });
+  const PatientHistory({super.key, required this.patientId});
 
   @override
   _PatientHistoryState createState() => _PatientHistoryState();
@@ -85,11 +82,12 @@ class _PatientHistoryState extends State<PatientHistory> {
   }
 
   Future<void> _selectDate(BuildContext context) async {
+    final DateTime now = DateTime.now();
     final DateTime? pickedDate = await showDatePicker(
       context: context,
-      initialDate: _selectedDate ?? DateTime.now(),
+      initialDate: _selectedDate ?? now,
       firstDate: DateTime(1900),
-      lastDate: DateTime(2100),
+      lastDate: now, // Restrict the selection to today or earlier
       builder: (BuildContext context, Widget? child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -127,17 +125,18 @@ class _PatientHistoryState extends State<PatientHistory> {
       'September',
       'October',
       'November',
-      'December'
+      'December',
     ];
     return '${monthNames[date.month - 1]} ${date.day}, ${date.year}';
   }
 
   Future<List<Map<String, dynamic>>> _getDiagnoses() async {
-    final diagnosisSnapshot = await FirebaseFirestore.instance
-        .collection('patient')
-        .doc(widget.patientId)
-        .collection('diagnoses')
-        .get();
+    final diagnosisSnapshot =
+        await FirebaseFirestore.instance
+            .collection('patient')
+            .doc(widget.patientId)
+            .collection('diagnoses')
+            .get();
 
     return diagnosisSnapshot.docs.map((doc) {
       final data = doc.data();
@@ -146,7 +145,11 @@ class _PatientHistoryState extends State<PatientHistory> {
     }).toList();
   }
 
-  Future<void> _addDiagnosis(String diagnosis, String description, DateTime date) async {
+  Future<void> _addDiagnosis(
+    String diagnosis,
+    String description,
+    DateTime date,
+  ) async {
     String capitalize(String input) {
       if (input.isEmpty) return input;
       return toBeginningOfSentenceCase(input.toLowerCase()) ?? input;
@@ -157,10 +160,10 @@ class _PatientHistoryState extends State<PatientHistory> {
         .doc(widget.patientId)
         .collection('diagnoses')
         .add({
-      'diagnosis': capitalize(diagnosis), // Capitalized diagnosis
-      'description': capitalize(description), // Capitalized description
-      'date': date,
-    });
+          'diagnosis': capitalize(diagnosis), // Capitalized diagnosis
+          'description': capitalize(description), // Capitalized description
+          'date': date,
+        });
   }
 
   Future<void> _deleteDiagnosis(String diagnosisId) async {
@@ -198,7 +201,9 @@ class _PatientHistoryState extends State<PatientHistory> {
                         controller: diagnosisController,
                         focusNode: diagnosisFocusNode,
                         decoration: _buildInputDecoration(
-                            'Previous Diagnosis', diagnosisFocusNode),
+                          'Previous Diagnosis',
+                          diagnosisFocusNode,
+                        ),
                         style: const TextStyle(
                           fontSize: 16,
                           fontFamily: 'Inter',
@@ -211,7 +216,9 @@ class _PatientHistoryState extends State<PatientHistory> {
                         controller: descriptionController,
                         focusNode: descriptionFocusNode,
                         decoration: _buildInputDecoration(
-                            'Description', descriptionFocusNode),
+                          'Description',
+                          descriptionFocusNode,
+                        ),
                         style: const TextStyle(
                           fontSize: 16,
                           fontFamily: 'Inter',
@@ -235,9 +242,10 @@ class _PatientHistoryState extends State<PatientHistory> {
                           fillColor: AppColors.gray,
                           suffixIcon: Icon(
                             Icons.calendar_today,
-                            color: dateFocusNode.hasFocus
-                                ? AppColors.neon
-                                : AppColors.black,
+                            color:
+                                dateFocusNode.hasFocus
+                                    ? AppColors.neon
+                                    : AppColors.black,
                           ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
@@ -245,21 +253,26 @@ class _PatientHistoryState extends State<PatientHistory> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
-                            borderSide:
-                                BorderSide(color: AppColors.neon, width: 2),
+                            borderSide: BorderSide(
+                              color: AppColors.neon,
+                              width: 2,
+                            ),
                           ),
                           labelStyle: TextStyle(
                             fontSize: 16,
                             fontFamily: 'Inter',
                             fontWeight: FontWeight.normal,
-                            color: dateFocusNode.hasFocus
-                                ? AppColors.neon
-                                : AppColors.black,
+                            color:
+                                dateFocusNode.hasFocus
+                                    ? AppColors.neon
+                                    : AppColors.black,
                           ),
                         ),
-                        validator: (val) => _selectedDate == null
-                            ? 'Please select a date'
-                            : null,
+                        validator:
+                            (val) =>
+                                _selectedDate == null
+                                    ? 'Please select a date'
+                                    : null,
                         readOnly: true,
                         onTap: () => _selectDate(context),
                       ),
@@ -278,7 +291,9 @@ class _PatientHistoryState extends State<PatientHistory> {
                         },
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 10),
+                            horizontal: 20,
+                            vertical: 10,
+                          ),
                           backgroundColor: AppColors.red,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
@@ -307,7 +322,10 @@ class _PatientHistoryState extends State<PatientHistory> {
                               _selectedDate != null) {
                             // Save _selectedDate to the database
                             await _addDiagnosis(
-                                diagnosis, description, _selectedDate!);
+                              diagnosis,
+                              description,
+                              _selectedDate!,
+                            );
 
                             _resetDateControllers();
                             Navigator.of(context).pop();
@@ -315,14 +333,18 @@ class _PatientHistoryState extends State<PatientHistory> {
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                  content: Text(
-                                      'Please fill all fields correctly.')),
+                                content: Text(
+                                  'Please fill all fields correctly.',
+                                ),
+                              ),
                             );
                           }
                         },
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 10),
+                            horizontal: 20,
+                            vertical: 10,
+                          ),
                           backgroundColor: AppColors.neon,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
@@ -388,7 +410,9 @@ class _PatientHistoryState extends State<PatientHistory> {
                         },
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 10),
+                            horizontal: 20,
+                            vertical: 10,
+                          ),
                           backgroundColor: AppColors.neon,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
@@ -415,7 +439,9 @@ class _PatientHistoryState extends State<PatientHistory> {
                         },
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 10),
+                            horizontal: 20,
+                            vertical: 10,
+                          ),
                           backgroundColor: AppColors.red,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
@@ -447,11 +473,7 @@ class _PatientHistoryState extends State<PatientHistory> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: const [
-          Icon(
-            Icons.event_busy,
-            color: AppColors.black,
-            size: 80,
-          ),
+          Icon(Icons.event_busy, color: AppColors.black, size: 80),
           SizedBox(height: 20.0),
           Text(
             "No Previous Diagnosis",
@@ -519,12 +541,14 @@ class _PatientHistoryState extends State<PatientHistory> {
 
           // Sort the diagnoses list based on the current sorting order
           diagnoses.sort((a, b) {
-            final dateA = a['date'] is Timestamp
-                ? (a['date'] as Timestamp).toDate()
-                : DateTime(0); // Default to epoch if no valid date
-            final dateB = b['date'] is Timestamp
-                ? (b['date'] as Timestamp).toDate()
-                : DateTime(0); // Default to epoch if no valid date
+            final dateA =
+                a['date'] is Timestamp
+                    ? (a['date'] as Timestamp).toDate()
+                    : DateTime(0); // Default to epoch if no valid date
+            final dateB =
+                b['date'] is Timestamp
+                    ? (b['date'] as Timestamp).toDate()
+                    : DateTime(0); // Default to epoch if no valid date
 
             return isDescending
                 ? dateB.compareTo(dateA) // Descending order
@@ -546,12 +570,14 @@ class _PatientHistoryState extends State<PatientHistory> {
                             diagnosis['diagnosis'] as String? ?? 'Unknown';
                         final description =
                             diagnosis['description'] as String? ??
-                                'No description';
-                        final diagnosisDate = (diagnosis['date'] != null &&
-                                diagnosis['date'] is Timestamp)
-                            ? DateFormat('MMMM dd, yyyy').format(
-                                (diagnosis['date'] as Timestamp).toDate())
-                            : 'Unknown date';
+                            'No description';
+                        final diagnosisDate =
+                            (diagnosis['date'] != null &&
+                                    diagnosis['date'] is Timestamp)
+                                ? DateFormat('MMMM dd, yyyy').format(
+                                  (diagnosis['date'] as Timestamp).toDate(),
+                                )
+                                : 'Unknown date';
 
                         return GestureDetector(
                           onTap: () => _showDiagnosisOptionsDialog(diagnosisId),
@@ -559,7 +585,9 @@ class _PatientHistoryState extends State<PatientHistory> {
                             width: double.infinity,
                             margin: const EdgeInsets.only(bottom: 10.0),
                             padding: const EdgeInsets.symmetric(
-                                vertical: 15, horizontal: 20),
+                              vertical: 15,
+                              horizontal: 20,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.gray,
                               borderRadius: BorderRadius.circular(10),
@@ -569,17 +597,14 @@ class _PatientHistoryState extends State<PatientHistory> {
                               children: [
                                 Row(
                                   children: [
-                                    Icon(
-                                      Icons.file_copy_rounded,
-                                      size: 20,
-                                    ),
+                                    Icon(Icons.file_copy_rounded, size: 25),
                                     SizedBox(width: 10),
                                     Expanded(
                                       child: Text(
                                         diagnosisDate,
-                                        style: TextStyle(
+                                        style: const TextStyle(
                                           fontFamily: 'Inter',
-                                          fontSize: 20,
+                                          fontSize: 18,
                                           fontWeight: FontWeight.bold,
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -599,10 +624,16 @@ class _PatientHistoryState extends State<PatientHistory> {
                                     color: AppColors.black,
                                   ),
                                 ),
-                                SizedBox(height: 5),
-                                Text(diagnosisText,
-                                    style: TextStyle(fontSize: 16)),
-                                SizedBox(height: 20),
+                                Text(
+                                  diagnosisText,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.normal,
+                                    color: AppColors.black,
+                                  ),
+                                ),
+                                SizedBox(height: 10),
                                 const Text(
                                   "Description",
                                   style: TextStyle(
@@ -612,9 +643,15 @@ class _PatientHistoryState extends State<PatientHistory> {
                                     color: AppColors.black,
                                   ),
                                 ),
-                                SizedBox(height: 5),
-                                Text(description,
-                                    style: TextStyle(fontSize: 16)),
+                                Text(
+                                  description,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.normal,
+                                    color: AppColors.black,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -631,10 +668,7 @@ class _PatientHistoryState extends State<PatientHistory> {
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.neon,
         onPressed: _showAddDiagnosisDialog,
-        child: const Icon(
-          Icons.add,
-          color: AppColors.white,
-        ),
+        child: const Icon(Icons.add, color: AppColors.white),
       ),
     );
   }

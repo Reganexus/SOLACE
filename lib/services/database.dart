@@ -555,41 +555,36 @@ class DatabaseService {
   }
 
   Future<void> addNotification(
-    String userId,
-    String notificationMessage,
-    String type,
-  ) async {
+      String userId,
+      String notificationMessage,
+      String type,
+      ) async {
     final timestamp = Timestamp.now();
-    final notificationId =
-        DateTime.now().millisecondsSinceEpoch.toString(); // Unique ID
-
-    // Adjust the notification message if it is for a task
-    if (type == 'task' && notificationMessage.contains("assigned by Dr.")) {
-      notificationMessage = notificationMessage.replaceFirst(
-        'New task',
-        'Task Assigned',
-      );
-    }
+    final notificationId = DateTime.now().millisecondsSinceEpoch.toString();
 
     try {
       // Get the user's role
       String? userRole = await getTargetUserRole(userId);
 
-      // Add the notification to the appropriate user document in the collection
-      await FirebaseFirestore.instance.collection(userRole!).doc(userId).update(
-        {
-          'notifications': FieldValue.arrayUnion([
-            {
-              'notificationId': notificationId,
-              'message': notificationMessage,
-              'timestamp': timestamp,
-              'type': type,
-              'read': false, // Default to unread
-            },
-          ]),
-        },
-      );
-      print('Notification added for userId: $userId in $userRole');
+      if (userRole != null) {
+        final notificationRef = FirebaseFirestore.instance
+            .collection(userRole)
+            .doc(userId)
+            .collection('notifications')
+            .doc(notificationId);
+
+        await notificationRef.set({
+          'notificationId': notificationId,
+          'message': notificationMessage,
+          'timestamp': timestamp,
+          'type': type,
+          'read': false, // Default to unread
+        });
+
+        print('Notification added for userId: $userId');
+      } else {
+        print('Error: Could not determine user role for userId: $userId');
+      }
     } catch (e) {
       print('Error adding notification: $e');
     }
@@ -644,13 +639,6 @@ class DatabaseService {
           'medicines': [medicineData],
         });
       }
-
-      // Send in-app notification
-      await addNotification(
-        patientId,
-        "New medicine $medicineTitle assigned by Dr. $doctorName.",
-        'medicine',
-      );
     } catch (e) {
       throw Exception('Error saving medicine for patient: $e');
     }

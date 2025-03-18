@@ -57,41 +57,25 @@ class PatientNoteState extends State<PatientNote> {
     });
 
     try {
-      final snapshot = await FirebaseFirestore.instance
+      final notesSnapshot = await FirebaseFirestore.instance
           .collection('patient')
           .doc(widget.patientId)
+          .collection('notes')
+          .where('date', isEqualTo: DateFormat('yyyy-MM-dd').format(day))
           .get();
 
-      if (snapshot.exists && snapshot.data() != null) {
-        final userData = snapshot.data()!;
-
-        // Ensure that 'notes' is a List and not null
-        final notesArray = userData['notes'] as List<dynamic>?;
-
-        if (notesArray != null) {
-          // Filter notes that match the selected day
-          final selectedDateString = DateFormat('yyyy-MM-dd').format(day);
-          final filteredNotes = notesArray.where((note) {
-            final timestamp = (note['timestamp'] as Timestamp).toDate();
-            final formattedDate = DateFormat('yyyy-MM-dd').format(timestamp);
-            return formattedDate == selectedDateString;
+      if (notesSnapshot.docs.isNotEmpty) {
+        setState(() {
+          notes = notesSnapshot.docs.map((doc) {
+            final data = doc.data();
+            return {
+              'noteId': doc.id,
+              'timestamp': (data['timestamp'] as Timestamp).toDate(),
+              'note': data['note'],
+              'title': data['title'],
+            };
           }).toList();
-
-          setState(() {
-            notes = filteredNotes.map((note) {
-              return {
-                'noteId': note['noteId'],
-                'timestamp': (note['timestamp'] as Timestamp).toDate(),
-                'note': note['note'],
-                'title': note['title'],
-              };
-            }).toList();
-          });
-        } else {
-          setState(() {
-            notes = [];
-          });
-        }
+        });
       }
     } catch (e) {
       print('Error fetching notes: $e');
@@ -104,77 +88,45 @@ class PatientNoteState extends State<PatientNote> {
 
   Future<void> addNoteForToday(String title, String noteText) async {
     try {
-      // Use selectedDay as the reference date for the note
       final DateTime selectedDate = selectedDay;
-      final String uniqueId = '${selectedDate.millisecondsSinceEpoch}';
+      final String noteId = '${selectedDate.millisecondsSinceEpoch}';
 
-      // Create the new note
       final newNote = {
-        'noteId': uniqueId, // Add the unique ID
-        'timestamp': Timestamp.fromDate(
-            selectedDate), // Use selectedDate for the timestamp
-        'date': DateFormat('yyyy-MM-dd')
-            .format(selectedDate), // Format the selected date
+        'timestamp': Timestamp.fromDate(selectedDate),
+        'date': DateFormat('yyyy-MM-dd').format(selectedDate),
         'title': title.isNotEmpty ? title : 'Untitled',
         'note': noteText.isNotEmpty ? noteText : 'No content provided',
       };
 
-      // Reference to the user document using their role
-      final userRef = FirebaseFirestore.instance
+      final noteRef = FirebaseFirestore.instance
           .collection('patient')
-          .doc(widget.patientId);
+          .doc(widget.patientId)
+          .collection('notes')
+          .doc(noteId);
 
-      // Update the notes field of the user document
-      await userRef.update({
-        'notes': FieldValue.arrayUnion(
-            [newNote]), // Add the new note to the 'notes' array
-      });
+      await noteRef.set(newNote);
 
       fetchNotesForDay(selectedDay);
       print('Note added successfully!');
     } catch (e) {
-      print("Error adding note: $e"); // Print any error
+      print('Error adding note: $e');
     }
   }
 
   Future<void> _deleteNote(Map<String, dynamic> note) async {
     try {
-      // Reference to the user document using their role
-      final userRef = FirebaseFirestore.instance
+      final noteRef = FirebaseFirestore.instance
           .collection('patient')
-          .doc(widget.patientId);
+          .doc(widget.patientId)
+          .collection('notes')
+          .doc(note['noteId']);
 
-      // Fetch the user document to get the current notes array
-      final userDocSnapshot = await userRef.get();
+      await noteRef.delete();
 
-      if (!userDocSnapshot.exists) {
-        print('User document does not exist!');
-        return;
-      }
-
-      // Get the current notes array
-      List<Map<String, dynamic>> notes = List<Map<String, dynamic>>.from(
-          userDocSnapshot.data()?['notes'] ?? []);
-
-      // Find the index of the note by noteId
-      final noteIndex = notes.indexWhere((n) => n['noteId'] == note['noteId']);
-
-      if (noteIndex != -1) {
-        // Remove the note from the list
-        notes.removeAt(noteIndex);
-
-        // Update the notes field in Firestore to remove the note
-        await userRef.update({'notes': notes});
-
-        // After deleting, fetch updated notes for the day
-        fetchNotesForDay(selectedDay);
-
-        print('Note deleted successfully!');
-      } else {
-        print('Note not found');
-      }
+      fetchNotesForDay(selectedDay);
+      print('Note deleted successfully!');
     } catch (e) {
-      print('Error deleting note: $e'); // Print any error
+      print('Error deleting note: $e');
     }
   }
 

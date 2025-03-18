@@ -1,6 +1,7 @@
 // ignore_for_file: unused_local_variable, avoid_print
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:solace/models/my_user.dart';
@@ -10,7 +11,7 @@ import 'package:solace/themes/colors.dart';
 class BottomNavBar extends StatelessWidget {
   final int currentIndex;
   final Function(int) onTap;
-  final String role; // Add a role parameter for differentiating user roles
+  final String role;
   final BuildContext context;
 
   const BottomNavBar({
@@ -55,10 +56,11 @@ class BottomNavBar extends StatelessWidget {
       }
 
       // Fetch user document
-      final doc = await FirebaseFirestore.instance
-          .collection(userRole)
-          .doc(userId)
-          .get();
+      final doc =
+          await FirebaseFirestore.instance
+              .collection(userRole)
+              .doc(userId)
+              .get();
 
       if (doc.exists) {
         return doc;
@@ -122,14 +124,15 @@ class BottomNavBar extends StatelessWidget {
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: FutureBuilder<DocumentSnapshot>(
-              future:
-                  getUserDocument(context), // Pass the context to the function
-              builder: (context, snapshot) {
-                if (!snapshot.hasData ||
-                    snapshot.data == null ||
-                    !snapshot.data!.exists) {
-                  // If the user document is not found
+            icon: FutureBuilder<String?>(
+              future: () async {
+                final userId = FirebaseAuth.instance.currentUser!.uid;
+                DatabaseService db = DatabaseService();
+                return await db.getTargetUserRole(userId); // Fetch user role
+              }(),
+              builder: (context, userRoleSnapshot) {
+                if (!userRoleSnapshot.hasData || userRoleSnapshot.data == null) {
+                  // Show default icon while loading or if userRole is null
                   return Image.asset(
                     currentIndex == 1
                         ? 'lib/assets/images/caregiver/inbox_selected.png'
@@ -139,54 +142,76 @@ class BottomNavBar extends StatelessWidget {
                   );
                 }
 
-                // Extract the notifications field from the user document
-                final Map<String, dynamic>? userData =
-                    snapshot.data!.data() as Map<String, dynamic>?;
-                final List<dynamic> notifications =
-                    userData?['notifications'] ?? [];
-                final int unreadCount =
-                    notifications.where((n) => n['read'] == false).length;
+                final userRole = userRoleSnapshot.data!;
 
-                return Stack(
-                  children: [
-                    Image.asset(
-                      currentIndex == 1
-                          ? 'lib/assets/images/caregiver/inbox_selected.png'
-                          : 'lib/assets/images/caregiver/inbox.png',
-                      width: 30,
-                      height: 30,
-                    ),
-                    if (unreadCount > 0)
-                      Positioned(
-                        right: 0,
-                        top: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
-                          ),
-                          constraints: const BoxConstraints(
-                            minWidth: 16,
-                            minHeight: 16,
-                          ),
-                          child: Text(
-                            '$unreadCount',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
+                // StreamBuilder for notifications
+                return StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection(userRole)
+                      .doc(FirebaseAuth.instance.currentUser!.uid)
+                      .collection('notifications') // Access the subcollection
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      // Show default icon while loading notifications
+                      return Image.asset(
+                        currentIndex == 1
+                            ? 'lib/assets/images/caregiver/inbox_selected.png'
+                            : 'lib/assets/images/caregiver/inbox.png',
+                        width: 30,
+                        height: 30,
+                      );
+                    }
+
+                    // Count unread notifications in the subcollection
+                    final notifications = snapshot.data!.docs;
+                    final int unreadCount =
+                        notifications.where((doc) => (doc['read'] ?? false) == false).length;
+
+                    return Stack(
+                      children: [
+                        Image.asset(
+                          currentIndex == 1
+                              ? 'lib/assets/images/caregiver/inbox_selected.png'
+                              : 'lib/assets/images/caregiver/inbox.png',
+                          width: 30,
+                          height: 30,
                         ),
-                      ),
-                  ],
+                        if (unreadCount > 0)
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                              constraints: const BoxConstraints(
+                                minWidth: 16,
+                                minHeight: 16,
+                              ),
+                              child: Text(
+                                '$unreadCount',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
                 );
               },
             ),
             label: 'Inbox',
           ),
+
+
           BottomNavigationBarItem(
             icon: Image.asset(
               currentIndex == 2
