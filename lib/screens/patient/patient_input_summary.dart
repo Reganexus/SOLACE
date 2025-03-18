@@ -261,14 +261,28 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         debugPrint("Raw Response: ${response.body}");
         debugPrint("Prediction Result: $predictionResult");
 
+        String status = '';
+        String predictionString = '';
         // Handle Prediction Output
         if (predictionResult == 0) {
-          debugPrint(
-            'Prediction: Stable (No complications detected based on algorithm)',
-          );
+          status = 'stable';
+          predictionString = 'Prediction: Stable (No complications detected based on algorithm)';
         } else {
-          debugPrint(
-            'Prediction: Unstable (Complications detected based on algorithm)',
+          status = 'unstable';
+          predictionString = 'Prediction: Unstable (Complications detected based on algorithm)';
+        }
+        await _firestore.collection('patient').doc(widget.uid).update({
+          'status': status,
+        });
+        debugPrint(predictionString);
+
+        // Show success message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(predictionString),
+              backgroundColor: Colors.green,
+            ),
           );
         }
       } else {
@@ -628,16 +642,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                                   );
                                 }
                               });
-                        }
-
-                        // Show success message after data submission
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Data submitted successfully!'),
-                              backgroundColor: Colors.green,
-                            ),
-                          );
                         }
 
                         DocumentSnapshot doc =
