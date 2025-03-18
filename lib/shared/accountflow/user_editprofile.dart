@@ -8,6 +8,7 @@ import 'package:solace/themes/colors.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/shared/accountflow/user_data_form.dart';
+import 'package:solace/services/log_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -22,7 +23,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<MyUser?>(context);
-
+    final LogService logService = LogService();
     if (user == null) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -130,6 +131,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           );
 
                           if (mounted) {
+                            // Add log entry
+                            await logService.addLog(
+                              userId: user.uid,
+                              action: 'Edited profile',
+                            );
+
                             ScaffoldMessenger.of(context)
                                 .removeCurrentSnackBar();
                             ScaffoldMessenger.of(context).showSnackBar(

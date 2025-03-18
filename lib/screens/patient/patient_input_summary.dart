@@ -1,6 +1,7 @@
 // ignore_for_file: avoid_print, use_build_context_synchronously, deprecated_member_use
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/shared/globals.dart';
@@ -28,6 +29,7 @@ class ReceiptScreen extends StatefulWidget {
 class _ReceiptScreenState extends State<ReceiptScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final LogService _logService = LogService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   void _identifySymptoms() async {
     List<String> symptoms = [];
@@ -619,10 +621,16 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                           );
                         }
 
+                        DocumentSnapshot doc = await _firestore.collection('patient').doc(widget.uid).get();
+                        String fName = doc.get('firstName');
+                        String lName = doc.get('lastName');
+                        String patientName = '$fName $lName';
+
                         // Add log entry
                         await _logService.addLog(
-                          userId: widget.uid,
-                          action: 'Submitted tracking information',
+                          userId: _auth.currentUser!.uid,
+                          action: 'Submitted $patientName\'s tracking information',
+                          relatedUsers: widget.uid,
                         );
 
                         Navigator.pop(context);
