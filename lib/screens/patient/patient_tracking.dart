@@ -328,11 +328,16 @@ class PatientTrackingState extends State<PatientTracking> {
         break;
       case 'Pain':
         int painValue = int.tryParse(_vitalInputs[key] ?? '0') ?? 0;
-        return _buildSlider('Pain', painValue, (newValue) {
-          setState(() {
-            _vitalInputs[key] = newValue.toString();
-          });
-        });
+        return Column(
+          children: [
+            SizedBox(height: 10.0,),
+            _buildSlider('Pain', painValue, (newValue) {
+              setState(() {
+                _vitalInputs[key] = newValue.toString();
+              });
+            }),
+          ],
+        );
       default:
         unitLabel = '';
     }
@@ -507,7 +512,9 @@ class PatientTrackingState extends State<PatientTracking> {
         _buildSlider('Drowsiness', _drowsinessValue, (val) {
           setState(() => _drowsinessValue = val);
         }),
+        const SizedBox(height: 10),
         const Divider(thickness: 1.0),
+        const SizedBox(height: 10),
         const Text(
           'Emotional',
           style: TextStyle(
@@ -625,6 +632,18 @@ class PatientTrackingState extends State<PatientTracking> {
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         backgroundColor: AppColors.white,
+        appBar: AppBar(
+          title: const Text(
+            'Tracking',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Inter',
+            ),
+          ),
+          backgroundColor: AppColors.white,
+          scrolledUnderElevation: 0.0,
+        ),
         body: SingleChildScrollView(
           child: Container(
             color: AppColors.white,
@@ -732,9 +751,9 @@ class PatientTrackingState extends State<PatientTracking> {
                                   ),
                                   const SizedBox(height: 10.0),
                                   _buildVitalsInputs(),
-                                  const SizedBox(height: 20.0),
+                                  const SizedBox(height: 10.0),
                                   const Divider(thickness: 1.0),
-                                  const SizedBox(height: 20.0),
+                                  const SizedBox(height: 10.0),
                                   const Text(
                                     'Symptom Assessment',
                                     style: TextStyle(

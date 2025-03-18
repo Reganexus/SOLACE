@@ -1,12 +1,14 @@
 // ignore_for_file: use_build_context_synchronously, unused_field
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/authenticate/forgot.dart';
 import 'package:solace/screens/authenticate/verify.dart';
 import 'package:solace/screens/home/home.dart';
 import 'package:solace/services/auth.dart';
 import 'package:flutter/material.dart';
+import 'package:solace/services/database.dart';
 import 'package:solace/themes/colors.dart';
 
 class LogIn extends StatefulWidget {
@@ -94,47 +96,41 @@ class _LogInState extends State<LogIn> {
       MyUser? myUser = await _auth.signInWithGoogle();
 
       if (mounted && myUser != null) {
-        // Check if the email exists in any role-based collection
-        final List<String> collections = ['nurse', 'admin', 'doctor', 'patient', 'unregistered'];
-        DocumentSnapshot? userDoc;
-        String? userRole;
+        DatabaseService db = DatabaseService(uid: myUser.uid);
 
-        for (final collection in collections) {
-          final querySnapshot = await FirebaseFirestore.instance
-              .collection(collection)
-              .where('email', isEqualTo: myUser.email)
-              .limit(1)
+        // Get the user role directly using DatabaseService
+        String? userRole = await db.getTargetUserRole(myUser.uid);
+
+        if (userRole != null) {
+          // Fetch the user document from the corresponding collection
+          final userDoc = await FirebaseFirestore.instance
+              .collection(userRole)
+              .doc(myUser.uid)
               .get();
 
-          if (querySnapshot.docs.isNotEmpty) {
-            userDoc = querySnapshot.docs.first;
-            userRole =
-                collection.substring(0, collection.length - 1); // Remove 's'
-            break;
-          }
-        }
+          if (userDoc.exists) {
+            final userData = userDoc.data();
 
-        if (userDoc != null) {
-          // Email exists in the database
-          final userData = userDoc.data() as Map<String, dynamic>?;
-
-          if (userData != null && userData['isVerified'] == true) {
-            // Verified user: Redirect to Home
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => Home(uid: myUser.uid, role: userRole!),
-              ),
-            );
+            if (userData != null && userData['isVerified'] == true) {
+              // Verified user: Redirect to Home
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => Home(uid: myUser.uid, role: userRole),
+                ),
+              );
+            } else {
+              // Not verified: Redirect to Verify
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const Verify()),
+              );
+            }
           } else {
-            // Not verified: Redirect to Verify
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const Verify()),
-            );
+            _showError(["Email not associated with a verified account."]);
           }
         } else {
-          _showError(["Email not associated with a verified account."]);
+          _showError(["User role not found. Please contact support."]);
         }
       }
     } catch (e) {
@@ -156,23 +152,144 @@ class _LogInState extends State<LogIn> {
     }
   }
 
-  void _showError(List<String> errorMessages) {
-    // First, check if there are multiple errors or just one
-    if (errorMessages.isNotEmpty) {
-      // Show error messages in a Snackbar one by one
-      for (var error in errorMessages) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              error,
-              style: const TextStyle(fontSize: 16),
-            ),
-            duration: const Duration(seconds: 3), // Customize the duration
-            backgroundColor: Colors.red, // Background color of the Snackbar
-          ),
-        );
+  Future<void> _handleLogin() async {
+    FocusScope.of(context).unfocus();
+
+    if (_formKey.currentState!.validate()) {
+      setState(() => _isLoading = true);
+
+      final email = _emailController.text.trim();
+      final password = _passwordController.text.trim();
+
+      try {
+        MyUser? result = await _auth.logInWithEmailAndPassword(email, password);
+        if (result != null) {
+          await _processLogin(result);
+        } else {
+          _showError(['Invalid email or password.']);
+        }
+      } catch (e) {
+        String errorMessage;
+        if (e is FirebaseAuthException) {
+          switch (e.code) {
+            case 'user-not-found':
+              errorMessage = 'No user found for that email.';
+              break;
+            case 'wrong-password':
+              errorMessage = 'Wrong password provided.';
+              break;
+            case 'invalid-email':
+              errorMessage = 'The email address is invalid.';
+              break;
+            default:
+              errorMessage = 'An error occurred. Please try again.';
+          }
+        } else {
+          errorMessage = 'Login failed: $e';
+        }
+        _showError([errorMessage]);
+      } finally {
+        setState(() => _isLoading = false);
       }
     }
+  }
+
+  Future<void> _processLogin(MyUser result) async {
+    final uid = result.uid;
+    final db = DatabaseService(uid: uid);
+    final role = await db.getTargetUserRole(uid);
+
+    if (role != null) {
+      final docExists = await _checkDocumentExists(role, uid);
+      if (docExists) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => Home(uid: uid, role: role)),
+        );
+      } else {
+        setState(() => error = 'User document not found.');
+      }
+    } else {
+      setState(() => error = 'User role not found.');
+    }
+  }
+
+  Future<bool> _checkDocumentExists(String role, String uid) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection(role)
+          .doc(uid)
+          .get()
+          .timeout(const Duration(seconds: 10));
+      return doc.exists;
+    } catch (e) {
+      debugPrint('Error fetching document: $e');
+      return false;
+    }
+  }
+
+  void _showError(List<String> errorMessages) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: AppColors.white,
+          title: const Text(
+            'Error',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min, // Prevent unnecessary space
+            crossAxisAlignment:
+                CrossAxisAlignment.start, // Aligns children to the left
+            children: [
+              Text(
+                errorMessages.join('\n'), // Join messages with a newline
+                textAlign: TextAlign.left, // Left-align the text
+                style: const TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity, // Full-width button
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Close the dialog
+                  },
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
+                    backgroundColor: AppColors.neon,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text(
+                    'OK',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: AppColors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void togglePasswordVisibility() {
+    setState(() {
+      _isPasswordVisible = !_isPasswordVisible;
+    });
   }
 
   TextStyle get focusedLabelStyle => const TextStyle(
@@ -202,298 +319,246 @@ class _LogInState extends State<LogIn> {
     );
   }
 
+  Widget _buildLoginHeader() {
+    return Column(
+      children: [
+        Image.asset(
+          'lib/assets/images/auth/solace.png',
+          width: 100,
+        ),
+        const SizedBox(height: 40),
+        const Text(
+          'Login',
+          style: TextStyle(
+            fontFamily: 'Outfit',
+            fontWeight: FontWeight.bold,
+            fontSize: 30,
+            color: AppColors.black,
+          ),
+        ),
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+
+  Widget buildTextFormField({
+    required TextEditingController controller,
+    required FocusNode focusNode,
+    required String labelText,
+    bool obscureText = false,
+    Widget? suffixIcon,
+    required String? Function(String?) validator,
+    required Function(String) onChanged,
+  }) {
+    return TextFormField(
+      controller: controller,
+      focusNode: focusNode,
+      obscureText: obscureText,
+      decoration: _inputDecoration(labelText, focusNode).copyWith(
+        suffixIcon: suffixIcon,
+      ),
+      validator: validator,
+      onChanged: onChanged,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-
     return Scaffold(
       backgroundColor: AppColors.white,
       body: GestureDetector(
         onTap: () {
           FocusScope.of(context).unfocus(); // Dismiss the keyboard
         },
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 30),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: screenHeight,
-            ),
-            child: Center(
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
-                    Image.asset(
-                      'lib/assets/images/auth/solace.png',
-                      width: 100,
-                    ),
-                    const SizedBox(height: 40),
-                    const Text(
-                      'Login',
-                      style: TextStyle(
-                        fontFamily: 'Outfit',
-                        fontWeight: FontWeight.bold,
-                        fontSize: 30,
-                        color: AppColors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    TextFormField(
-                      controller: _emailController,
-                      focusNode: _emailFocusNode,
-                      decoration: _inputDecoration('Email', _emailFocusNode),
-                      onChanged: (val) => setState(() => _email = val),
-                      validator: _emailValidator,
-                    ),
-                    const SizedBox(height: 20),
-                    TextFormField(
-                      controller: _passwordController,
-                      focusNode: _passwordFocusNode,
-                      obscureText: !_isPasswordVisible,
-                      decoration:
-                          _inputDecoration('Password', _passwordFocusNode)
-                              .copyWith(
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _isPasswordVisible
-                                ? Icons.visibility
-                                : Icons.visibility_off,
-                            color: _passwordFocusNode.hasFocus
-                                ? AppColors.neon
-                                : AppColors.black,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight, // Full screen height
+                ),
+                child: IntrinsicHeight(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 30),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          _buildLoginHeader(), // Header widget
+                          buildTextFormField(
+                            controller: _emailController,
+                            focusNode: _emailFocusNode,
+                            labelText: 'Email',
+                            validator: _emailValidator,
+                            onChanged: (val) => setState(() => _email = val),
                           ),
-                          onPressed: () {
-                            if (mounted) {
-                              setState(() {
-                                _isPasswordVisible = !_isPasswordVisible;
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                      onChanged: (val) => setState(() => _password = val),
-                      validator: _passwordValidator,
-                    ),
-                    const SizedBox(height: 20),
-                    Container(
-                      constraints: BoxConstraints(minHeight: 50),
-                      child: Center(
-                        child: GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => const Forgot()),
-                            );
-                          },
-                          child: const Text(
-                            'Forgot Password?',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 16.0,
-                              fontWeight: FontWeight.bold,
-                              decoration: TextDecoration.underline,
-                              color: AppColors.black,
+                          const SizedBox(height: 20),
+                          buildTextFormField(
+                            controller: _passwordController,
+                            focusNode: _passwordFocusNode,
+                            labelText: 'Password',
+                            obscureText: !_isPasswordVisible,
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _isPasswordVisible
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                                color: AppColors.darkgray,
+                              ),
+                              onPressed: togglePasswordVisibility,
+                            ),
+                            validator: _passwordValidator,
+                            onChanged: (val) => setState(() => _password = val),
+                          ),
+                          const SizedBox(height: 20),
+                          SizedBox(
+                            height: 40,
+                            child: Center(
+                              // Center the text
+                              child: GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const Forgot(),
+                                    ),
+                                  );
+                                },
+                                child: const Text(
+                                  'Forgot Password?',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 16.0,
+                                    fontWeight: FontWeight.bold,
+                                    decoration: TextDecoration.underline,
+                                    color: AppColors.black,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: TextButton(
-                        onPressed: _isLoading
-                            ? null
-                            : () async {
-                                if (_formKey.currentState!.validate()) {
-                                  if (mounted) {
-                                    setState(() => _isLoading = true);
-                                  }
 
-                                  String email = _emailController.text.trim();
-                                  String password =
-                                      _passwordController.text.trim();
-
-                                  try {
-                                    MyUser? result =
-                                        await _auth.logInWithEmailAndPassword(
-                                            email, password);
-
-                                    if (result != null) {
-                                      if (mounted) setState(() => error = '');
-
-                                      String uid = result.uid;
-                                      String? role;
-
-                                      for (final collection in [
-                                        'caregiver',
-                                        'admin',
-                                        'doctor', 'patient', 'unregistered'
-                                      ]) {
-                                        try {
-                                          final doc = await FirebaseFirestore
-                                              .instance
-                                              .collection(collection)
-                                              .doc(uid)
-                                              .get()
-                                              .timeout(
-                                                  const Duration(seconds: 10));
-                                          if (doc.exists) {
-                                            role = collection;
-                                            break;
-                                          }
-                                        } catch (e) {
-                                          debugPrint(
-                                              "Error fetching document: $e");
-                                        }
-                                      }
-
-                                      if (role != null) {
-                                        Navigator.of(context).pushReplacement(
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                Home(uid: uid, role: role!),
-                                          ),
-                                        );
-                                        return;
-                                      } else {
-                                        if (mounted) {
-                                          setState(() =>
-                                              error = 'User role not found.');
-                                        }
-                                      }
-                                    } else {
-                                      if (mounted) {
-                                        setState(() => error =
-                                            'Invalid email or password.');
-                                      }
-                                    }
-                                  } catch (e) {
-                                    if (mounted) {
-                                      setState(() => error =
-                                          'Login failed: ${e.toString()}');
-                                    }
-                                  } finally {
-                                    if (mounted) {
-                                      setState(() => _isLoading = false);
-                                    }
-                                  }
-                                }
-                              },
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 50, vertical: 15),
-                          backgroundColor: AppColors.neon,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
-                        ),
-                        child:
-                            _isLoading // Show CircularProgressIndicator if loading
-                                ? SizedBox(
-                                    width: 26,
-                                    height: 26,
-                                    child: const CircularProgressIndicator(
-                                      color: AppColors.white,
-                                      strokeWidth: 4.0,
+                          const SizedBox(height: 20),
+                          SizedBox(
+                            width: double.infinity,
+                            child: TextButton(
+                              onPressed: _isLoading ? null : _handleLogin,
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 50,
+                                  vertical: 15,
+                                ),
+                                backgroundColor: AppColors.neon,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      width: 26,
+                                      height: 26,
+                                      child: CircularProgressIndicator(
+                                        color: AppColors.white,
+                                        strokeWidth: 4.0,
+                                      ),
+                                    )
+                                  : const Text(
+                                      'Login',
+                                      style: TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                        color: AppColors.white,
+                                      ),
                                     ),
-                                  )
-                                : const Text(
-                                    'Login',
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          const Row(
+                            children: <Widget>[
+                              Expanded(child: Divider()),
+                              Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 10),
+                                child: Text("or"),
+                              ),
+                              Expanded(child: Divider()),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          SizedBox(
+                            width: double.infinity,
+                            child: TextButton(
+                              onPressed: _handleSignUpWithGoogle,
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 50,
+                                  vertical: 15,
+                                ),
+                                backgroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  side: const BorderSide(
+                                    color: AppColors.darkgray,
+                                  ),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Image.asset(
+                                    'lib/assets/images/auth/google.png',
+                                    height: 24,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  const Text(
+                                    'Sign up with Google',
                                     style: TextStyle(
                                       fontFamily: 'Inter',
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 18,
-                                      color: AppColors.white,
+                                      fontSize: 16,
+                                      color: Colors.black,
                                     ),
                                   ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    const Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: Divider(thickness: 1, color: Colors.grey),
-                        ),
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 10),
-                          child: Text("or"),
-                        ),
-                        Expanded(
-                          child: Divider(thickness: 1, color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: TextButton(
-                        onPressed: _handleSignUpWithGoogle,
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 50, vertical: 15),
-                          backgroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            side: const BorderSide(color: Colors.grey),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Image.asset(
-                              'lib/assets/images/auth/google.png',
-                              height: 24,
-                            ),
-                            const SizedBox(width: 10),
-                            const Text(
-                              'Sign in with Google',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Colors.black,
+                                ],
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(height: 20),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: <Widget>[
+                              const Text(
+                                'Don\'t have an account?',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 16,
+                                  color: AppColors.black,
+                                ),
+                              ),
+                              const SizedBox(width: 5),
+                              GestureDetector(
+                                onTap: () => widget.toggleView(),
+                                child: const Text(
+                                  'Sign Up',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: AppColors.neon,
+                                  ),
+                                ),
+                              )
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: <Widget>[
-                        const Text(
-                          'Don\'t have an account?',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 16,
-                            color: AppColors.black,
-                          ),
-                        ),
-                        SizedBox(
-                          width: 5,
-                        ),
-                        GestureDetector(
-                          onTap: () => widget.toggleView(),
-                          child: const Text(
-                            'Sign Up',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: AppColors.neon,
-                            ),
-                          ),
-                        )
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );

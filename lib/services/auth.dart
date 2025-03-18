@@ -114,7 +114,7 @@ class AuthService {
         'caregiver',
         'patient',
         'nurse'
-        'unregistered'
+            'unregistered'
       ];
 
       for (String collection in collections) {
@@ -143,9 +143,7 @@ class AuthService {
       User? user = result.user;
 
       await _logService.addLog(
-        userId: user!.uid,
-        action: 'Logged in with email and password'
-      );
+          userId: user!.uid, action: 'Logged in with email and password');
 
       return user != null ? await _userFromFirebaseUser(user) : null;
     } catch (e) {
@@ -222,7 +220,7 @@ class AuthService {
     }
   }
 
-  Future<MyUser?> signUpWithEmailAndPassword(String email, String password,
+  Future<bool> signUpWithEmailAndPassword(String email, String password,
       {String? profileImageUrl}) async {
     try {
       debugPrint("Starting signUpWithEmailAndPassword for email: $email");
@@ -234,7 +232,7 @@ class AuthService {
 
       if (user == null) {
         debugPrint("Sign-up failed: user is null for email: $email");
-        return null;
+        return false; // Indicate failure
       }
 
       debugPrint("Sign-up successful for UID: ${user.uid}");
@@ -255,9 +253,7 @@ class AuthService {
       debugPrint("User document initialized for UID: ${user.uid}");
 
       await _logService.addLog(
-        userId: user.uid,
-        action: 'Created account with email and password'
-      );
+          userId: user.uid, action: 'Created account with email and password');
 
       // Set cached user data
       _cachedUser = MyUser(
@@ -268,16 +264,21 @@ class AuthService {
       );
 
       debugPrint("Cached user data set for UID: ${user.uid}");
-      return _cachedUser; // Return cached user data
+      return true; // Indicate success
     } catch (e) {
       debugPrint("Sign-up error for email: $email. Error: ${e.toString()}");
-      return null;
+      return false; // Indicate failure
     }
   }
 
   Future<MyUser?> signInWithGoogle() async {
     try {
       debugPrint("Starting signInWithGoogle");
+
+      // Sign out the current user to force account selection
+      await _googleSignIn.signOut();
+
+      // Initiate Google Sign-In
       GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
       if (googleUser == null) {
@@ -287,7 +288,7 @@ class AuthService {
 
       debugPrint("Google sign-in successful. Fetching credentials.");
       final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
+      await googleUser.authentication;
 
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
@@ -327,10 +328,7 @@ class AuthService {
           );
 
           await _logService.addLog(
-            userId: user.uid,
-            action: 'Created account with Google'
-          );
-
+              userId: user.uid, action: 'Created account with Google');
         } else {
           debugPrint("User email already exists in collections: $email");
         }
@@ -347,9 +345,7 @@ class AuthService {
         debugPrint("User data fetched successfully for UID: ${user.uid}");
 
         await _logService.addLog(
-          userId: user.uid,
-          action: 'Logged in with Google'
-        );
+            userId: user.uid, action: 'Logged in with Google');
 
         // Cache user data
         _cachedUser = MyUser(
@@ -367,6 +363,7 @@ class AuthService {
     }
     return null;
   }
+
 
   Future<void> setUserVerificationStatus(
       String uid, bool isVerified, String userRole) async {
@@ -414,7 +411,6 @@ class AuthService {
       debugPrint("Error signing out: $e");
     }
   }
-
 
   Future<bool?> resetPassword(String email) async {
     try {

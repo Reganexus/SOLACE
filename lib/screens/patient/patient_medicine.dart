@@ -1,4 +1,6 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:solace/services/database.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -11,154 +13,185 @@ class PatientMedicine extends StatefulWidget {
 }
 
 class PatientMedicineState extends State<PatientMedicine> {
-  List<Map<String, dynamic>> medicines = [];
+  List<Map<String, dynamic>> patientMedicines = [];
+  final DatabaseService db = DatabaseService();
   bool _isLoading = false;
   String _errorMessage = '';
 
   @override
   void initState() {
     super.initState();
-    fetchPatientMedicine();
+    fetchPatientMedicines();
   }
 
-  Future<void> fetchPatientMedicine() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
+  Future<void> fetchPatientMedicines() async {
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = '';
+      });
+    }
+
+    final User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'User not logged in.';
+        });
+      }
+      return;
+    }
 
     try {
-      final snapshot = await FirebaseFirestore.instance
+      final caregiverMedicinesSnapshot = await FirebaseFirestore.instance
           .collection('patient')
           .doc(widget.patientId)
+          .collection('medicines')
           .get();
 
-      debugPrint("Snapshot: $snapshot");
-
-      if (snapshot.exists) {
-        // Extract the tasks from the document
-        final List<dynamic> medicineData = snapshot.data()?['medicine'] ??
-            []; // Assuming 'tasks' is an array in the document
-        debugPrint("Medicine Data: $medicineData");
-        if (medicineData.isEmpty) {
-          // No tasks available, handle it here
+      if (caregiverMedicinesSnapshot.docs.isEmpty) {
+        if (mounted) {
           setState(() {
+            patientMedicines = [];
             _isLoading = false;
-            medicines = []; // Clear any previously fetched tasks
-          });
-          return;
-        }
-
-        // Process the tasks data
-        final List<Map<String, dynamic>> medicineList = [];
-        for (var medicine in medicineData) {
-          medicineList.add({
-            'id': medicine['id'], // Assuming task has an 'id' field
-            'title': medicine['title'] ??
-                'No Medicine Title', // Assuming task has a 'title' field
-            'dosage': medicine['dosage'] ??
-                'No Dosage', // Default description if null
-            'usage': medicine['usage'] ?? 'No Usage',
-            'isCompleted': medicine['isCompleted'],
           });
         }
+        return;
+      }
 
-        debugPrint("Medicine List: $medicineList");
+      final List<Map<String, dynamic>> medicines = [];
+      for (var caregiverDoc in caregiverMedicinesSnapshot.docs) {
+        final caregiverData = caregiverDoc.data();
+        final caregiverId = caregiverDoc.id;
+        final caregiverMedicines = List<Map<String, dynamic>>.from(
+          caregiverData['medicines'] ?? [],
+        );
 
-        // Update the state with the fetched tasks
+        // Fetch caregiver details
+        final caregiverRole = await db.getTargetUserRole(caregiverId);
+        if (caregiverRole == null) continue;
+
+        final caregiverSnapshot = await FirebaseFirestore.instance
+            .collection(caregiverRole)
+            .doc(caregiverId)
+            .get();
+        if (caregiverSnapshot.exists) {
+          for (var medicine in caregiverMedicines) {
+            final medicineName = medicine['medicineName'] as String?;
+            final dosage = medicine['dosage'] as String?;
+            final usage = medicine['usage'] as String?;
+            final medicineId = medicine['medicineId'] as String?;
+            if (medicineName == null || dosage == null || usage == null || medicineId == null) continue;
+
+            medicines.add({
+              'medicineName': medicineName,
+              'dosage': dosage,
+              'usage': usage,
+              'medicineId': medicineId,
+            });
+          }
+        }
+      }
+
+      medicines.sort((a, b) => a['medicineName'].compareTo(b['medicineName']));
+
+      if (mounted) {
         setState(() {
-          medicines = medicineList; // Assign tasks to your state variable
+          patientMedicines = medicines;
           _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = 'No tasks found for the user.';
         });
       }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'Failed to fetch tasks: $e';
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Failed to fetch medicines: $e';
+        });
+      }
     }
   }
 
-  void _showMedicineModal(
-    BuildContext context,
-    String medicineTitle,
-    String dosage,
-    String usage,
-  ) {
+
+  void _showMedicineDetailsDialog(Map<String, dynamic> medicine) {
+    final String medicineName = medicine['medicineName'] ?? 'Untitled Medicine';
+    final String dosage = medicine['dosage'] ?? '';
+    final String usage = medicine['usage'] ?? '';
+    debugPrint("Medicine $medicine");
+    debugPrint("MedicineName: $medicineName");
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: AppColors.white,
-          title: Text(
-            medicineTitle,
-            style: const TextStyle(
-              fontSize: 24,
-              fontFamily: 'Outfit',
-              fontWeight: FontWeight.bold,
-              color: AppColors.black,
+      builder: (context) {
+        return Dialog(
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(15),
             ),
-          ),
-          content: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Dosage: $dosage',
-                style: TextStyle(
-                    fontSize: 16,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  medicineName,
+                  style: const TextStyle(
+                    fontSize: 24,
                     fontFamily: 'Inter',
-                    fontWeight: FontWeight.normal,
-                    color: AppColors.black),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Usage: $usage',
-                style: TextStyle(
-                    fontSize: 16,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.normal,
-                    color: AppColors.black),
-              ),
-            ],
-          ),
-          actions: [
-            SizedBox(
-              width: double.infinity,
-              child: TextButton(
-                style: TextButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-                  backgroundColor: AppColors.neon,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: const Text(
-                  'Close',
-                  style: TextStyle(
-                    fontSize: 16.0,
                     fontWeight: FontWeight.bold,
-                    fontFamily: 'Inter',
-                    color: Colors.white,
+                    color: AppColors.black,
                   ),
                 ),
-              ),
+                const SizedBox(height: 10.0),
+                Text(
+                  "Use $dosage of this medicine for $usage",
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.normal,
+                    color: AppColors.black,
+                  ),
+                ),
+                SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.of(
+                            context,
+                          ).pop(); // Close dialog without doing anything
+                        },
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 15,
+                            vertical: 5,
+                          ),
+                          backgroundColor: AppColors.neon,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: const Text(
+                          'Close',
+                          style: TextStyle(
+                            fontSize: 16.0,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Inter',
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
+          ),
         );
       },
     );
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -177,58 +210,112 @@ class PatientMedicineState extends State<PatientMedicine> {
       ),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-        child: _isLoading
-            ? _buildLoadingState()
-            : _errorMessage.isNotEmpty
+        child:
+            _isLoading
+
+                ? _buildLoadingState()
+                : _errorMessage.isNotEmpty
                 ? _buildErrorState()
-                : medicines.isEmpty
-                    ? _buildNoTasksState()
-                    : ListView.builder(
-                        itemCount: medicines.length,
-                        itemBuilder: (context, index) {
-                          // Safely check if the values exist
-                          final medicine = medicines[index];
-                          final taskTitle =
-                              medicine['title'] ?? 'No Medicine Title';
-                          final dosage = medicine['dosage'] ?? 'No Dosage';
-                          final usage = medicine['usage'] ?? 'No Usage';
+                : patientMedicines.isEmpty
+                ? _buildNoMedicineState()
+                : _buildMedicineList(),
+      ),
+    );
+  }
 
-                          if (taskTitle == null) {
-                            // If task title or icon is null, skip this task
-                            return SizedBox.shrink();
-                          }
+  Widget _buildMedicineList() {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          for (var i = 0; i < patientMedicines.length; i++) ...[
+            _buildMedicineCard(patientMedicines[i]),
+            if (i < patientMedicines.length - 1) const SizedBox(height: 20),
+          ],
+        ],
+      ),
+    );
+  }
 
-                          return GestureDetector(
-                            onTap: () {
-                              _showMedicineModal(
-                                  context, taskTitle, dosage, usage);
-                            },
-                            child: Container(
-                              margin: const EdgeInsets.only(bottom: 15.0),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10.0),
-                                color: AppColors
-                                    .gray, // Or whatever background color you want
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 20.0, horizontal: 15.0),
-                              child: Row(
-                                children: [
-                                  Text(
-                                    taskTitle,
-                                    style: const TextStyle(
-                                      color: Colors.black,
-                                      fontFamily: 'Outfit',
-                                      fontSize: 16.0,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
+  Widget _buildMedicineCard(Map<String, dynamic> medicine) {
+    final String medicineName = medicine['medicineName'] ?? 'Untitled Medicine';
+    final String dosage = medicine['dosage'] ?? 'No Dosage';
+    final String usage = medicine['usage'] ?? 'No Usage';
+
+    return GestureDetector(
+      onTap: () => _showMedicineDetailsDialog(medicine),
+      child: Container(
+        padding: const EdgeInsets.all(16.0),
+        decoration: BoxDecoration(
+          color: AppColors.gray,
+          borderRadius: BorderRadius.circular(10.0),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Image.asset(
+                  'lib/assets/images/shared/vitals/medicine_black.png',
+                  height: 25,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    medicineName,
+                    style: const TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 5),
+            const Divider(thickness: 1.0),
+            const SizedBox(height: 5),
+
+            // Description
+            const Text(
+              "Dosage",
+              style: TextStyle(
+                fontSize: 18,
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.bold,
+                color: AppColors.black,
+              ),
+            ),
+            Text(
+              dosage,
+              style: const TextStyle(
+                fontSize: 16,
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.normal,
+                color: AppColors.black,
+              ),
+            ),
+            const SizedBox(height: 10.0),
+            const Text(
+              "Usage",
+              style: TextStyle(
+                fontSize: 18,
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.bold,
+                color: AppColors.black,
+              ),
+            ),
+            Text(
+              usage,
+              style: const TextStyle(
+                fontSize: 16,
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.normal,
+                color: AppColors.black,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -258,11 +345,7 @@ class PatientMedicineState extends State<PatientMedicine> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.error_outline,
-            color: AppColors.black,
-            size: 80,
-          ),
+          const Icon(Icons.error_outline, color: AppColors.black, size: 80),
           const SizedBox(height: 20.0),
           Text(
             _errorMessage,
@@ -276,7 +359,7 @@ class PatientMedicineState extends State<PatientMedicine> {
           ),
           const SizedBox(height: 20.0),
           TextButton(
-            onPressed: fetchPatientMedicine,
+            onPressed: fetchPatientMedicines,
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
               backgroundColor: AppColors.neon,
@@ -299,16 +382,12 @@ class PatientMedicineState extends State<PatientMedicine> {
     );
   }
 
-  Widget _buildNoTasksState() {
+  Widget _buildNoMedicineState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: const [
-          Icon(
-            Icons.error_outline_rounded,
-            color: AppColors.black,
-            size: 80,
-          ),
+          Icon(Icons.error_outline_rounded, color: AppColors.black, size: 80),
           SizedBox(height: 20.0),
           Text(
             "No Medicines Yet",

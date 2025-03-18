@@ -2,6 +2,7 @@
 
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,12 +10,13 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:googleapis_auth/auth_io.dart';
-import 'package:solace/models/my_user.dart';
-import 'package:solace/services/auth.dart';
 import 'package:solace/services/database.dart';
 
+import '../firebase_options.dart';
+
 class MessagingService {
-  static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+  static final FirebaseMessaging _firebaseMessaging =
+      FirebaseMessaging.instance;
   static final FlutterLocalNotificationsPlugin _localNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
@@ -39,16 +41,14 @@ class MessagingService {
     // Initialize local notifications
     const AndroidInitializationSettings androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
-
     const InitializationSettings initializationSettings =
         InitializationSettings(android: androidSettings);
-
     await _localNotificationsPlugin.initialize(initializationSettings);
 
     // Handle foreground messages
     FirebaseMessaging.onMessage.listen(_onForegroundMessage);
 
-    // Handle background and terminated state messages
+    // Register background message handler
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
     // Manage FCM token
@@ -70,8 +70,13 @@ class MessagingService {
 
   /// Background message handler
   @pragma('vm:entry-point')
-  static Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-    print('Received message in the background: ${message.notification?.title}');
+  static Future<void> _firebaseMessagingBackgroundHandler(
+      RemoteMessage message) async {
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform);
+    }
+    print("Handling a background message: ${message.messageId}");
   }
 
   /// Show local notification
@@ -146,20 +151,17 @@ class MessagingService {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       try {
-        await AuthService().initializeUserDocument(
-          uid: user.uid,
-          email: user.email!,
-          isVerified: user.emailVerified,
-          newUser: false,
-          userRole: UserRole.caregiver, // Adjust this for dynamic role handling
-          profileImageUrl: user.photoURL,
-        );
-        print('FCM token updated successfully: $token');
+        final role = await DatabaseService().getTargetUserRole(user.uid);
+        if (role == null) {
+          debugPrint('User role not found for UID: ${user.uid}');
+          return;
+        }
+        await _saveTokenToDatabase(token, user.uid, role);
       } catch (e) {
-        print('Error saving FCM token: $e');
+        debugPrint('Error updating FCM token: $e');
       }
     } else {
-      print('No authenticated user found for token update.');
+      debugPrint('No authenticated user found for token update.');
     }
   }
 
@@ -188,7 +190,8 @@ class MessagingService {
       return _cachedAccessToken!;
     } catch (e) {
       print('Error fetching access token: $e');
-      rethrow;
+      throw Exception(
+          'Failed to fetch access token. Check network or credentials.');
     }
   }
 
@@ -204,36 +207,41 @@ class MessagingService {
   /// Send FCM message
   static Future<void> sendFCMMessage(
       String targetToken, String title, String body) async {
-    final String accessToken = await getAccessToken();
-    final String fcmEndpoint = await getFcmEndpoint();
+    try {
+      final String accessToken = await getAccessToken();
+      final String fcmEndpoint = await getFcmEndpoint();
 
-    final payload = {
-      "message": {
-        "token": targetToken,
-        "notification": {
-          "title": title,
-          "body": body,
-        },
-        "data": {
-          "key1": "value1",
-          "key2": "value2",
+      final payload = {
+        "message": {
+          "token": targetToken,
+          "notification": {
+            "title": title,
+            "body": body,
+          },
+          "data": {
+            "key1": "value1",
+            "key2": "value2",
+          }
         }
+      };
+
+      final response = await http.post(
+        Uri.parse(fcmEndpoint),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $accessToken',
+        },
+        body: json.encode(payload),
+      );
+
+      if (response.statusCode == 200) {
+        debugPrint('FCM message sent successfully.');
+      } else {
+        throw Exception('Failed to send FCM message: ${response.body}');
       }
-    };
-
-    final response = await http.post(
-      Uri.parse(fcmEndpoint),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $accessToken',
-      },
-      body: json.encode(payload),
-    );
-
-    if (response.statusCode == 200) {
-      print('FCM message sent successfully.');
-    } else {
-      print('Failed to send FCM message: ${response.body}');
+    } catch (e, stackTrace) {
+      debugPrint('Error sending FCM message: $e');
+      debugPrint('Stack trace: $stackTrace');
     }
   }
 
@@ -243,7 +251,8 @@ class MessagingService {
       final targetToken = await FirebaseMessaging.instance.getToken();
 
       if (targetToken == null) {
-        print('Error: FCM token is null. Ensure Firebase is initialized properly.');
+        print(
+            'Error: FCM token is null. Ensure Firebase is initialized properly.');
         return;
       }
 

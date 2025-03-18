@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:solace/models/my_user.dart';
+import 'package:intl/intl.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/services/database.dart';
 
@@ -22,88 +22,126 @@ class PatientScheduleState extends State<PatientSchedule> {
   @override
   void initState() {
     super.initState();
-    // Check if there are schedules, if not skip fetching
-    if (upcomingSchedules.isEmpty) {
-      fetchPatientSchedules();
+    debugPrint("Patient Dashboard Patient ID: ${widget.patientId}");
+    refreshSchedules();
+  }
+
+  Future<void> refreshSchedules() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = ''; // Clear previous errors
+      });
+
+      await removePastSchedules();
+      await fetchPatientSchedules();
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to fetch schedules. Please try again.';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false; // Ensure loading is stopped after refresh
+        });
+      }
     }
   }
+
+  Future<void> removePastSchedules() async {
+    debugPrint("Removing Past Schedules");
+    await db.removePastSchedules(widget.patientId);
+  }
+
   Future<void> fetchPatientSchedules() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = '';
+      });
+    }
 
     final User? user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'User not logged in.';
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'User not logged in.';
+        });
+      }
       return;
     }
 
     try {
-      // Fetch patient data
-      final snapshot = await FirebaseFirestore.instance
-          .collection('patient')
-          .doc(widget.patientId)
-          .get();
+      // Fetch the caregiver documents under the patient's schedules subcollection
+      final caregiverSchedulesSnapshot =
+          await FirebaseFirestore.instance
+              .collection('patient') // Top-level patient collection
+              .doc(widget.patientId) // Target patient document
+              .collection('schedules') // Schedules subcollection
+              .get();
 
-      if (!snapshot.exists) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = 'No data found for the user.';
-        });
+      if (caregiverSchedulesSnapshot.docs.isEmpty) {
+        if (mounted) {
+          setState(() {
+            upcomingSchedules = []; // No schedules found
+            _isLoading = false;
+          });
+        }
         return;
       }
 
-      final List<dynamic> schedulesData = snapshot.data()?['schedule'] ?? [];
-      if (schedulesData.isEmpty) {
-        setState(() {
-          _isLoading = false;
-          upcomingSchedules = [];
-        });
-        return;
-      }
-
-      // Process schedules
+      // Accumulate all schedules from different caregiver documents
       final List<Map<String, dynamic>> schedules = [];
-      for (var schedule in schedulesData) {
-        if (schedule['date'] == null) continue;
+      for (var caregiverDoc in caregiverSchedulesSnapshot.docs) {
+        final caregiverData = caregiverDoc.data();
+        final caregiverId = caregiverDoc.id;
+        final caregiverSchedules = List<Map<String, dynamic>>.from(
+          caregiverData['schedules'] ?? [],
+        );
 
-        final scheduleDate = (schedule['date'] as Timestamp).toDate();
-        final time = schedule['time'] ?? 'No time available';
-        final doctorId = schedule['doctorId'];
+        // Fetch caregiver details
+        final caregiverRole = await db.getTargetUserRole(caregiverId);
+        if (caregiverRole == null) continue;
 
-        if (doctorId == null) continue;
+        final caregiverSnapshot =
+            await FirebaseFirestore.instance
+                .collection(caregiverRole)
+                .doc(caregiverId)
+                .get();
 
-        final UserRole? doctorRole = await db.getUserRole(doctorId);
-        if (doctorRole == null) continue;
+        if (caregiverSnapshot.exists) {
+          final caregiverName =
+              '${caregiverSnapshot['firstName']} ${caregiverSnapshot['lastName']}';
 
-        final caregiverName = await db.getUserName(doctorId, doctorRole);
-        schedules.add({
-          'date': scheduleDate,
-          'time': time,
-          'caregiverName': caregiverName,
-        });
+          for (var schedule in caregiverSchedules) {
+            final date = (schedule['date'] as Timestamp?)?.toDate();
+            if (date == null) continue;
+
+            schedules.add({'date': date, 'caregiverName': caregiverName});
+          }
+        }
       }
 
       // Sort schedules by date
       schedules.sort((a, b) => a['date'].compareTo(b['date']));
-
-      // Update state once
-      setState(() {
-        upcomingSchedules = schedules;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          upcomingSchedules = schedules;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'Failed to fetch schedules: $e';
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Failed to fetch schedules: $e';
+        });
+      }
     }
   }
-
 
   // Helper function to format date as "Month Day, Year"
   String formatDate(DateTime date) {
@@ -119,7 +157,7 @@ class PatientScheduleState extends State<PatientSchedule> {
       'September',
       'October',
       'November',
-      'December'
+      'December',
     ];
     return '${monthNames[date.month - 1]} ${date.day}, ${date.year}';
   }
@@ -133,7 +171,7 @@ class PatientScheduleState extends State<PatientSchedule> {
       'Wednesday',
       'Thursday',
       'Friday',
-      'Saturday'
+      'Saturday',
     ];
     return weekdayNames[date.weekday - 1];
   }
@@ -156,99 +194,101 @@ class PatientScheduleState extends State<PatientSchedule> {
       ),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-        child: _isLoading
-            ? _buildLoadingState()
-            : _errorMessage.isNotEmpty
+        child:
+            _isLoading
+                ? _buildLoadingState()
+                : _errorMessage.isNotEmpty
                 ? _buildErrorState()
                 : upcomingSchedules.isEmpty
-                    ? _buildNoScheduleState()
-                    : SingleChildScrollView(
-                        child: Column(
-                          children: [
-                            for (var i = 0;
-                                i < upcomingSchedules.length;
-                                i++) ...[
-                              Container(
-                                width: double.infinity,
-                                padding: EdgeInsets.all(16.0),
-                                decoration: BoxDecoration(
-                                  color: AppColors.gray,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.calendar_today,
-                                          size: 30,
-                                        ),
-                                        SizedBox(
-                                          width: 10.0,
-                                        ),
-                                        Text(
-                                          formatDate(
-                                              upcomingSchedules[i]['date']),
-                                          style: const TextStyle(
-                                              fontSize: 20,
-                                              fontFamily: 'Inter',
-                                              fontWeight: FontWeight.bold,
-                                              color: AppColors.black),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 10),
-                                    const Divider(thickness: 1.0),
-                                    const SizedBox(height: 10),
-                                    const Text(
-                                      "Time",
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontFamily: 'Inter',
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.black,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 5),
-                                    Text(
-                                      '${upcomingSchedules[i]['time'] ?? 'No time available'} ${getWeekdayName(upcomingSchedules[i]['date'])}',
-                                      style: const TextStyle(
-                                          fontSize: 18,
-                                          fontFamily: 'Inter',
-                                          fontWeight: FontWeight.normal,
-                                          color: AppColors.black),
-                                    ),
-                                    const SizedBox(height: 20),
-                                    const Text(
-                                      "Healthcare Provider",
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontFamily: 'Inter',
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.black,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 5),
-                                    Text(
-                                      upcomingSchedules[i]['caregiverName'] ??
-                                          'Caregiver not found',
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontFamily: 'Inter',
-                                        fontWeight: FontWeight.normal,
-                                        color: AppColors.black,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              if (i < upcomingSchedules.length - 1)
-                                const SizedBox(height: 20),
-                            ],
-                          ],
-                        ),
-                      ),
+                ? _buildNoScheduleState()
+                : _buildScheduleList(),
+      ),
+    );
+  }
+
+  Widget _buildScheduleList() {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          for (var i = 0; i < upcomingSchedules.length; i++) ...[
+            _buildScheduleCard(upcomingSchedules[i]),
+            if (i < upcomingSchedules.length - 1) const SizedBox(height: 20),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScheduleCard(Map<String, dynamic> schedule) {
+    final DateTime date = schedule['date'];
+    final String formattedDate = DateFormat('MMMM d, y').format(date);
+    final String formattedTime = DateFormat('h:mm a').format(date);
+    final String caregiverName =
+        schedule['caregiverName'] ?? 'Caregiver not found';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: AppColors.gray,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.calendar_today, size: 25),
+              const SizedBox(width: 10.0),
+              Text(
+                formattedDate,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontFamily: 'Inter',
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.black,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          Row(
+            children: [
+              const Icon(Icons.access_time, size: 25),
+              const SizedBox(width: 10.0),
+              Text(
+                formattedTime,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontFamily: 'Inter',
+                  fontWeight: FontWeight.normal,
+                  color: AppColors.black,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          const Divider(thickness: 1.0),
+          const SizedBox(height: 5),
+          const Text(
+            "Healthcare Professional",
+            style: TextStyle(
+              fontSize: 16,
+              fontFamily: 'Inter',
+              fontWeight: FontWeight.bold,
+              color: AppColors.black,
+            ),
+          ),
+          Text(
+            caregiverName,
+            style: const TextStyle(
+              fontSize: 16,
+              fontFamily: 'Inter',
+              fontWeight: FontWeight.normal,
+              color: AppColors.black,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -258,18 +298,7 @@ class PatientScheduleState extends State<PatientSchedule> {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          CircularProgressIndicator(),
-          SizedBox(height: 20.0),
-          Text(
-            "Loading... Please Wait",
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 18,
-              fontWeight: FontWeight.normal,
-            ),
-          ),
-        ],
+        children: const [CircularProgressIndicator()],
       ),
     );
   }
@@ -280,11 +309,7 @@ class PatientScheduleState extends State<PatientSchedule> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.error_outline,
-            color: AppColors.black,
-            size: 80,
-          ),
+          const Icon(Icons.error_outline, color: AppColors.black, size: 80),
           const SizedBox(height: 20.0),
           Text(
             _errorMessage,
@@ -327,11 +352,7 @@ class PatientScheduleState extends State<PatientSchedule> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: const [
-          Icon(
-            Icons.event_busy,
-            color: AppColors.black,
-            size: 80,
-          ),
+          Icon(Icons.event_busy, color: AppColors.black, size: 80),
           SizedBox(height: 20.0),
           Text(
             "No schedule yet",

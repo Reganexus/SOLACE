@@ -44,15 +44,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             if (canPop && _hasChanges) {
               final shouldProceed = await _showUnsavedChangesDialog(context);
               if (shouldProceed) {
-                Navigator.of(context)
-                    .pop(result); // Proceed with pop navigation
+                if (Navigator.canPop(context)) {
+                  Future.microtask(() {
+                    Navigator.of(context).pop(result);
+                  });
+                } else {
+                  debugPrint("No routes to pop");
+                }
               }
-              // Do not perform any action if the user chooses to cancel
+              // Do nothing if the user cancels
             } else if (canPop) {
-              Navigator.of(context)
-                  .pop(result); // Proceed if no unsaved changes
+              if (Navigator.canPop(context)) {
+                Future.microtask(() {
+                  Navigator.of(context).pop(result);
+                });
+              } else {
+                debugPrint("No routes to pop");
+              }
             }
-            // No explicit return; `void` is implied
           },
           child: Scaffold(
             backgroundColor: AppColors.white,

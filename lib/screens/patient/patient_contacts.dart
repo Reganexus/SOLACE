@@ -81,6 +81,7 @@ class ContactsScreenState extends State<Contacts> {
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
                   "Add Contact",
@@ -276,7 +277,7 @@ class ContactsScreenState extends State<Contacts> {
         textAlign: TextAlign.left,
         style: TextStyle(
           fontSize: 24,
-          fontFamily: 'Outfit',
+          fontFamily: 'Inter',
           fontWeight: FontWeight.bold,
           color: AppColors.black,
         ),
@@ -310,7 +311,6 @@ class ContactsScreenState extends State<Contacts> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 5),
                       Text(
                         contactData['phone'],
                         style: const TextStyle(

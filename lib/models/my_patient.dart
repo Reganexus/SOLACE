@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 class PatientData {
   final String uid;
+  final String userRole;
   final String firstName;
   final String lastName;
   final String profileImageUrl;
@@ -14,9 +15,11 @@ class PatientData {
   final String fixedWishes;
   final String organDonation;
   final String status;
+  final String address;
 
   PatientData({
     required this.uid,
+    this.userRole = 'patient',
     required this.firstName,
     required this.lastName,
     required this.profileImageUrl, // Nullable
@@ -28,6 +31,7 @@ class PatientData {
     required this.fixedWishes, // Nullable
     required this.organDonation, // Nullable
     required this.status,
+    required this.address,
   });
 
   int? get age {
@@ -46,13 +50,15 @@ class PatientData {
     try {
       final data = doc.data() as Map<String, dynamic>;
 
-      final DateTime? birthday = data['birthday'] != null
-          ? (data['birthday'] as Timestamp).toDate()
-          : null;
+      final DateTime? birthday =
+          data['birthday'] != null
+              ? (data['birthday'] as Timestamp).toDate()
+              : null;
 
-      final DateTime? dateCreated = data['dateCreated'] != null
-          ? (data['dateCreated'] as Timestamp).toDate()
-          : null;
+      final DateTime? dateCreated =
+          data['dateCreated'] != null
+              ? (data['dateCreated'] as Timestamp).toDate()
+              : null;
 
       return PatientData(
         uid: doc.id,
@@ -67,6 +73,7 @@ class PatientData {
         fixedWishes: data['fixedWishes'] ?? '',
         organDonation: data['organDonation'] ?? '',
         status: data['status'] ?? 'stable',
+        address: data['address'] ?? '',
       );
     } catch (e) {
       debugPrint('Error parsing patient data: $e');
@@ -77,6 +84,7 @@ class PatientData {
   /// Converts a PatientData object into a Firestore-compatible map
   Map<String, dynamic> toMap() {
     return {
+      'userRole': userRole,
       'firstName': firstName,
       'lastName': lastName,
       'profileImageUrl': profileImageUrl,
@@ -88,11 +96,12 @@ class PatientData {
       'fixedWishes': fixedWishes,
       'organDonation': organDonation,
       'status': status,
+      'address': address,
     };
   }
 
   @override
   String toString() {
-    return 'PatientData(uid: $uid, firstName: $firstName, lastName: $lastName, gender: $gender, birthday: $birthday, age: $age, religion: $religion, status: $status)';
+    return 'PatientData(uid: $uid, userRole: $userRole, firstName: $firstName, lastName: $lastName, gender: $gender, birthday: $birthday, age: $age, religion: $religion, address: $address, status: $status)';
   }
 }

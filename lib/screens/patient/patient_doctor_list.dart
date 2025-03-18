@@ -1,12 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class ContactList extends StatelessWidget {
   final String title;
   final Future<List<Map<String, dynamic>>> Function() fetchContacts;
 
   const ContactList({super.key, required this.title, required this.fetchContacts});
+
+  Future<void> _makeCall(String phoneNumber) async {
+    final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
+    if (await Permission.phone.request().isGranted) {
+      if (await canLaunchUrl(launchUri)) {
+        await launchUrl(launchUri);
+      } else {
+        debugPrint('Could not launch $launchUri');
+      }
+    } else {
+      debugPrint('Phone permission denied');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,26 +90,22 @@ class ContactList extends StatelessWidget {
                         ),
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.phone, color: AppColors.black,),
-                      onPressed: () async {
-                        if (phone != 'No phone available') {
-                          final Uri phoneUri = Uri(scheme: 'tel', path: phone);
-                          if (await canLaunchUrl(phoneUri)) {
-                            await launchUrl(phoneUri);
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Cannot make a call')),
-                            );
-                          }
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('No phone number available')),
-                          );
-                        }
-                      },
-                    ),
-                  ],
+                  IconButton(
+                    icon: const Icon(Icons.phone, color: AppColors.black),
+                    onPressed: () async {
+                      if (phone != 'No phone available') {
+                        await _makeCall(phone);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('No phone number available')),
+                        );
+                      }
+                    },
+                  ),
+
+
+
+              ],
                 ),
               );
             },

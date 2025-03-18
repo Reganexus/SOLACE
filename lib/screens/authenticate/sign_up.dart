@@ -1,12 +1,14 @@
 // ignore_for_file: use_build_context_synchronously, unused_import, unnecessary_null_comparison
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/authenticate/verify.dart';
 import 'package:solace/screens/home/home.dart';
 import 'package:solace/services/auth.dart';
+import 'package:solace/services/database.dart';
 import 'package:solace/shared/accountflow/rolechooser.dart';
 import 'package:solace/themes/colors.dart';
 import 'dart:convert';
@@ -60,57 +62,175 @@ class _SignUpState extends State<SignUp> {
     super.dispose();
   }
 
-  TextStyle get focusedLabelStyle => const TextStyle(
-        color: AppColors.neon,
-        fontSize: 16,
-      );
-
-  InputDecoration _inputDecoration(String label, FocusNode focusNode) {
-    return InputDecoration(
-      labelText: label,
-      filled: true,
-      fillColor: AppColors.gray,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(
-          color: AppColors.neon,
-          width: 2,
-        ),
-      ),
-      labelStyle: TextStyle(
-        color: focusNode.hasFocus ? AppColors.neon : AppColors.black,
-      ),
-    );
-  }
-
   Future<Map<String, dynamic>> loadJson() async {
     final String response =
         await rootBundle.loadString('lib/assets/terms_and_conditions.json');
+    debugPrint("Terms and Conditions: $response");
     return json.decode(response);
   }
 
-  // Sign-up method in your sign-up screen
-  void _showError(List<String> errorMessages) {
-    // First, check if there are multiple errors or just one
-    if (errorMessages.isNotEmpty) {
-      // Show error messages in a Snackbar one by one
-      for (var error in errorMessages) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              error,
-              style: const TextStyle(fontSize: 16),
+  void _showTermsDialog(Map<String, dynamic> termsData) {
+    final terms = termsData['terms'];
+    final sections = terms['sections'] as Map<String, dynamic>;
+
+    // Start building the dialog content
+    List<Widget> contentWidgets = [
+      if (terms['welcomeMessage'] != null)
+        Text(
+          terms['welcomeMessage'],
+          style: const TextStyle(
+            fontSize: 16,
+            color: AppColors.black,
+            fontFamily: 'Inter',
+          ),
+        ),
+      const SizedBox(height: 16), // Add spacing after the welcome message
+    ];
+
+    // Add sections dynamically
+    sections.forEach((key, section) {
+      final sectionMap = section as Map<String, dynamic>;
+      contentWidgets.add(
+        Text(
+          sectionMap['numberHeader'] ?? '',
+          style: const TextStyle(
+            fontFamily: 'Inter',
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: AppColors.black,
+          ),
+        ),
+      );
+      contentWidgets.add(
+        Text(
+          sectionMap['content'] ?? '',
+          style: const TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 16,
+            color: AppColors.black,
+          ),
+        ),
+      );
+      contentWidgets
+          .add(const SizedBox(height: 16)); // Spacing between sections
+    });
+
+    // Show the dialog
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: AppColors.white,
+          title: Text(
+            terms['title'] ?? 'Terms and Conditions',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontWeight: FontWeight.bold,
             ),
-            duration: const Duration(seconds: 3), // Customize the duration
-            backgroundColor: Colors.red, // Background color of the Snackbar
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ...contentWidgets,
+                  const SizedBox(height: 10),
+                  const Divider(),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity, // Full-width button
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop(); // Close the dialog
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 10),
+                        backgroundColor: AppColors.neon,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: const Text(
+                        'OK',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: AppColors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         );
-      }
-    }
+      },
+    );
+  }
+
+  void _showError(List<String> errorMessages) {
+    debugPrint(
+        "Displaying error dialog with messages: ${errorMessages.join(', ')}");
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: AppColors.white,
+          title: const Text(
+            'Error',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min, // Prevent unnecessary space
+            crossAxisAlignment:
+                CrossAxisAlignment.start, // Aligns children to the left
+            children: [
+              Text(
+                errorMessages.join('\n'), // Join messages with a newline
+                textAlign: TextAlign.left, // Left-align the text
+                style: const TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity, // Full-width button
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Close the dialog
+                  },
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
+                    backgroundColor: AppColors.neon,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text(
+                    'OK',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: AppColors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   List<String> validateInput(String email, String password) {
@@ -139,14 +259,19 @@ class _SignUpState extends State<SignUp> {
   }
 
   Future<void> _handleSignUp() async {
-    // Validation checks
+    debugPrint("Starting sign-up process...");
+
+    // Validate input fields
     List<String> errorMessages = validateInput(_email, _password);
     if (errorMessages.isNotEmpty) {
+      debugPrint("Validation errors: $errorMessages");
       _showError(errorMessages);
       return;
     }
 
     if (_formKey.currentState!.validate() && _agreeToTerms) {
+      debugPrint("Input validated, and terms accepted.");
+
       if (mounted) {
         setState(() {
           _isLoading = true;
@@ -154,17 +279,12 @@ class _SignUpState extends State<SignUp> {
       }
 
       try {
-        // Check if the email already exists in any collection
-        bool emailExists = await _auth.emailExistsAcrossCollections(_email);
-        if (emailExists) {
-          _showError(
-              ["An account with this email already exists. Please log in."]);
-          return;
-        }
+        debugPrint("Attempting to sign up user with email: $_email");
+        bool success =
+            await _auth.signUpWithEmailAndPassword(_email, _password);
 
-        // Attempt to sign up
-        var result = await _auth.signUpWithEmailAndPassword(_email, _password);
-        if (result != null) {
+        if (success) {
+          debugPrint("Sign-up successful for email: $_email");
           if (mounted) {
             Navigator.pushReplacement(
               context,
@@ -172,10 +292,20 @@ class _SignUpState extends State<SignUp> {
             );
           }
         } else {
-          _showError(["Registration failed. Please try again."]);
+          debugPrint("Sign-up failed for email: $_email");
+          if (mounted) {
+            _showError([
+              "The email is already in use or there was an issue. Please log in or try again."
+            ]);
+          }
         }
       } catch (e) {
-        _showError(["Network error. Please try again later."]);
+        debugPrint("Unexpected error: ${e.toString()}");
+        if (mounted) {
+          _showError([
+            "An unexpected error occurred. Please check your connection and try again."
+          ]);
+        }
       } finally {
         if (mounted) {
           setState(() {
@@ -183,8 +313,11 @@ class _SignUpState extends State<SignUp> {
           });
         }
       }
-    } else if (!_agreeToTerms) {
-      _showError(["You must agree to the terms and conditions."]);
+    } else {
+      debugPrint("Terms not accepted or form validation failed.");
+      if (!_agreeToTerms) {
+        _showError(["You must agree to the terms and conditions."]);
+      }
     }
   }
 
@@ -200,47 +333,41 @@ class _SignUpState extends State<SignUp> {
       MyUser? myUser = await _auth.signInWithGoogle();
 
       if (mounted && myUser != null) {
-        // Check if the email exists in any role-based collection
-        final List<String> collections = ['admin', 'doctor', 'patient', 'nurse', 'unregistered'];
-        DocumentSnapshot? userDoc;
-        String? userRole;
+        DatabaseService db = DatabaseService(uid: myUser.uid);
 
-        for (final collection in collections) {
-          final querySnapshot = await FirebaseFirestore.instance
-              .collection(collection)
-              .where('email', isEqualTo: myUser.email)
-              .limit(1)
+        // Get the user role directly using DatabaseService
+        String? userRole = await db.getTargetUserRole(myUser.uid);
+
+        if (userRole != null) {
+          // Fetch the user document from the corresponding collection
+          final userDoc = await FirebaseFirestore.instance
+              .collection(userRole)
+              .doc(myUser.uid)
               .get();
 
-          if (querySnapshot.docs.isNotEmpty) {
-            userDoc = querySnapshot.docs.first;
-            userRole =
-                collection.substring(0, collection.length - 1); // Remove 's'
-            break;
-          }
-        }
+          if (userDoc.exists) {
+            final userData = userDoc.data();
 
-        if (userDoc != null) {
-          // Email exists in the database
-          final userData = userDoc.data() as Map<String, dynamic>?;
-
-          if (userData != null && userData['isVerified'] == true) {
-            // Verified user: Redirect to Home
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => Home(uid: myUser.uid, role: userRole!),
-              ),
-            );
+            if (userData != null && userData['isVerified'] == true) {
+              // Verified user: Redirect to Home
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => Home(uid: myUser.uid, role: userRole),
+                ),
+              );
+            } else {
+              // Not verified: Redirect to Verify
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const Verify()),
+              );
+            }
           } else {
-            // Not verified: Redirect to Verify
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const Verify()),
-            );
+            _showError(["Email not associated with a verified account."]);
           }
         } else {
-          _showError(["Email not associated with a verified account."]);
+          _showError(["User role not found. Please contact support."]);
         }
       }
     } catch (e) {
@@ -262,380 +389,294 @@ class _SignUpState extends State<SignUp> {
     }
   }
 
+  Widget _buildSignUpHeader() {
+    return Column(
+      children: [
+        Image.asset(
+          'lib/assets/images/auth/solace.png',
+          width: 100,
+        ),
+        const SizedBox(height: 40),
+        const Text(
+          'Sign Up',
+          style: TextStyle(
+            fontFamily: 'Outfit',
+            fontWeight: FontWeight.bold,
+            fontSize: 30,
+            color: AppColors.black,
+          ),
+        ),
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+
+  TextStyle get focusedLabelStyle => const TextStyle(
+        color: AppColors.neon,
+        fontSize: 16,
+      );
+
+  InputDecoration _inputDecoration(String label, FocusNode focusNode) {
+    return InputDecoration(
+      labelText: label,
+      filled: true,
+      fillColor: AppColors.gray,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(
+          color: AppColors.neon,
+          width: 2,
+        ),
+      ),
+      labelStyle: TextStyle(
+        color: focusNode.hasFocus ? AppColors.neon : AppColors.black,
+      ),
+    );
+  }
+
+  Widget buildTextFormField({
+    required TextEditingController controller,
+    required FocusNode focusNode,
+    required String labelText,
+    required String? Function(String?) validator,
+    required ValueChanged<String> onChanged,
+    bool obscureText = false,
+    TextInputType keyboardType = TextInputType.text, // Default to text input
+    Widget? suffixIcon,
+  }) {
+    return TextFormField(
+      controller: controller,
+      focusNode: focusNode,
+      obscureText: obscureText,
+      keyboardType: keyboardType, // Add the keyboardType property here
+      decoration: _inputDecoration(labelText, focusNode).copyWith(
+        suffixIcon: suffixIcon,
+      ),
+      validator: validator,
+      onChanged: onChanged,
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: AppColors.white,
       body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: () {
           FocusScope.of(context).unfocus(); // Dismiss the keyboard
         },
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 30),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: screenHeight,
-            ),
-            child: Center(
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
-                    Image.asset(
-                      'lib/assets/images/auth/solace.png',
-                      width: 100,
-                    ),
-                    const SizedBox(height: 40),
-                    const Text(
-                      'Sign Up',
-                      style: TextStyle(
-                        fontFamily: 'Outfit',
-                        fontWeight: FontWeight.bold,
-                        fontSize: 30,
-                        color: AppColors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    TextFormField(
-                      controller: _emailController,
-                      focusNode: _emailFocusNode,
-                      decoration: _inputDecoration('Email', _emailFocusNode),
-                      onChanged: (val) => setState(() => _email = val),
-                    ),
-                    const SizedBox(height: 20),
-                    TextFormField(
-                      controller: _passwordController,
-                      focusNode: _passwordFocusNode,
-                      obscureText: !_isPasswordVisible,
-                      decoration:
-                          _inputDecoration('Password', _passwordFocusNode)
-                              .copyWith(
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _isPasswordVisible
-                                ? Icons.visibility
-                                : Icons.visibility_off,
-                            color: _passwordFocusNode.hasFocus
-                                ? AppColors.neon
-                                : AppColors.black,
-                          ),
-                          onPressed: () => setState(
-                              () => _isPasswordVisible = !_isPasswordVisible),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 30),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget>[
+                        _buildSignUpHeader(),
+                        buildTextFormField(
+                          controller: _emailController,
+                          focusNode: _emailFocusNode,
+                          keyboardType: TextInputType.emailAddress,
+                          labelText: 'Email',
+                          validator: (val) =>
+                              val!.isEmpty ? 'Enter a valid email' : null,
+                          onChanged: (val) => setState(() => _email = val),
                         ),
-                      ),
-                      onChanged: (val) => setState(() => _password = val),
-                    ),
-                    const SizedBox(height: 20),
-                    Container(
-                      constraints: BoxConstraints(
-                        minHeight: 50, // Set a minimum height
-                      ),
-                      child: Center(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Transform.scale(
-                              scale:
-                                  1.2, // Decrease size to make it more compact
-                              child: Checkbox(
-                                value: _agreeToTerms,
-                                onChanged: (bool? value) {
-                                  setState(() {
-                                    _agreeToTerms = value ?? false;
-                                  });
-                                },
-                                activeColor: AppColors.neon,
-                                checkColor: Colors.white,
-                                side: const BorderSide(
-                                  color: AppColors.neon,
-                                  width:
-                                      1.5, // Thinner border for a more compact look
-                                ),
-                              ),
+                        const SizedBox(height: 20),
+                        buildTextFormField(
+                          controller: _passwordController,
+                          focusNode: _passwordFocusNode,
+                          labelText: 'Password',
+                          obscureText: !_isPasswordVisible,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _isPasswordVisible
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
+                              color: AppColors.darkgray,
                             ),
-                            GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _agreeToTerms = !_agreeToTerms;
-                                });
-                              },
-                              child: Row(
-                                children: [
-                                  const Text(
-                                    'I agree to ',
+                            onPressed: () => setState(() =>
+                                _isPasswordVisible = !_isPasswordVisible),
+                          ),
+                          validator: (val) => val!.length < 6
+                              ? 'Password must be at least 6 characters long.'
+                              : null,
+                          onChanged: (val) => setState(() => _password = val),
+                        ),
+                        const SizedBox(height: 20),
+                        SizedBox(
+                          height: 40,
+                          child: Center(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Checkbox(
+                                  value: _agreeToTerms,
+                                  onChanged: (val) =>
+                                      setState(() => _agreeToTerms = val!),
+                                ),
+                                const Text(
+                                  'I agree to the ',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.normal,
+                                    fontFamily: 'Inter',
+                                  ),
+                                ),
+                                GestureDetector(
+                                  onTap: () async {
+                                    // Load the terms and conditions JSON
+                                    final terms = await loadJson();
+                                    debugPrint("terms: $terms");
+                                    _showTermsDialog(terms);
+                                  },
+                                  child: const Text(
+                                    'terms and conditions',
                                     style: TextStyle(
+                                      fontSize: 16,
+                                      color: AppColors.neon,
                                       fontFamily: 'Inter',
-                                      fontSize: 16.0,
-                                      color: AppColors.black,
-                                      fontWeight: FontWeight.normal,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  GestureDetector(
-                                    onTap: () async {
-                                      // Load the JSON data
-                                      Map<String, dynamic> termsData =
-                                          await loadJson();
-
-                                      // Start with the welcome message
-                                      List<Widget> contentWidgets = [
-                                        Text(
-                                          termsData['terms']['welcomeMessage'],
-                                          style: const TextStyle(
-                                              fontSize: 16,
-                                              color: AppColors.black),
-                                        ),
-                                        const SizedBox(
-                                            height: 16), // Add some spacing
-                                      ];
-
-                                      // Loop through the sections and build the content
-                                      termsData['terms']['sections']
-                                          .forEach((key, section) {
-                                        contentWidgets.add(
-                                          Text(
-                                            section['numberHeader'],
-                                            style: const TextStyle(
-                                              fontFamily: 'Inter',
-                                              fontWeight: FontWeight.bold,
-                                              fontSize:
-                                                  18, // You can adjust the font size if needed
-                                              color: AppColors.black,
-                                            ),
-                                          ),
-                                        );
-                                        contentWidgets.add(
-                                          Text(
-                                            section['content'],
-                                            style: const TextStyle(
-                                              fontFamily: 'Inter',
-                                              fontSize: 16,
-                                              color: AppColors.black,
-                                            ),
-                                          ),
-                                        );
-                                        contentWidgets.add(const SizedBox(
-                                            height:
-                                                16)); // Add spacing between sections
-                                      });
-
-                                      // Show the dialog with the loaded content
-                                      showDialog(
-                                        context: context,
-                                        builder: (BuildContext context) {
-                                          return AlertDialog(
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(15),
-                                            ),
-                                            backgroundColor: Colors
-                                                .white, // Change to your desired color
-                                            title: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  'Terms and Conditions',
-                                                  style: const TextStyle(
-                                                    fontSize: 24,
-                                                    fontFamily: 'Outfit',
-                                                    fontWeight: FontWeight.bold,
-                                                    color: AppColors.black,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            content: Container(
-                                              constraints: BoxConstraints(
-                                                  maxHeight:
-                                                      400), // Set max height
-                                              child: SingleChildScrollView(
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: contentWidgets,
-                                                ),
-                                              ),
-                                            ),
-                                            actions: <Widget>[
-                                              TextButton(
-                                                style: TextButton.styleFrom(
-                                                  padding: const EdgeInsets
-                                                      .symmetric(
-                                                      horizontal: 15,
-                                                      vertical: 5),
-                                                  backgroundColor:
-                                                      AppColors.neon,
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            10),
-                                                    side: const BorderSide(
-                                                        color: AppColors.neon),
-                                                  ),
-                                                ),
-                                                onPressed: () {
-                                                  Navigator.of(context).pop();
-                                                },
-                                                child: const Text(
-                                                  'Close',
-                                                  style: TextStyle(
-                                                    fontSize: 16.0,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontFamily: 'Inter',
-                                                    color: Colors.white,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          );
-                                        },
-                                      );
-                                    },
-                                    child: const Text(
-                                      'terms and conditions',
-                                      style: TextStyle(
-                                        fontFamily: 'Inter',
-                                        fontSize: 16.0,
-                                        fontWeight: FontWeight.bold,
-                                        decoration: TextDecoration.underline,
-                                        color: AppColors.black,
-                                      ),
-                                    ),
-                                  )
-                                ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        SizedBox(
+                          width: double.infinity,
+                          child: TextButton(
+                            onPressed: _isLoading ? null : _handleSignUp,
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 50,
+                                vertical: 15,
+                              ),
+                              backgroundColor: AppColors.neon,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
                               ),
                             ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 26,
+                                    height: 26,
+                                    child: CircularProgressIndicator(
+                                      color: AppColors.white,
+                                      strokeWidth: 4.0,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Sign Up',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                      color: AppColors.white,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        const Row(
+                          children: <Widget>[
+                            Expanded(child: Divider()),
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10),
+                              child: Text("or"),
+                            ),
+                            Expanded(child: Divider()),
                           ],
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: TextButton(
-                        onPressed: _isLoading
-                            ? null
-                            : _handleSignUp, // Disable button if loading
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 50, vertical: 15),
-                          backgroundColor: AppColors.neon,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
-                        ),
-                        child: _isLoading
-                            ? SizedBox(
-                                width: 26,
-                                height: 26,
-                                child: const CircularProgressIndicator(
-                                  color: AppColors.white,
-                                  strokeWidth: 4.0,
+                        const SizedBox(height: 20),
+                        SizedBox(
+                          width: double.infinity,
+                          child: TextButton(
+                            onPressed: _handleSignUpWithGoogle,
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 50,
+                                vertical: 15,
+                              ),
+                              backgroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                side: const BorderSide(
+                                  color: AppColors.darkgray,
                                 ),
-                              ) // Loading indicator
-                            : const Text(
-                                'Sign up',
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Image.asset(
+                                  'lib/assets/images/auth/google.png',
+                                  height: 24,
+                                ),
+                                const SizedBox(width: 10),
+                                const Text(
+                                  'Sign up with Google',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: <Widget>[
+                            const Text(
+                              'Already have an account?',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 16,
+                                color: AppColors.black,
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            GestureDetector(
+                              onTap: () => widget.toggleView(),
+                              child: const Text(
+                                ' Login',
                                 style: TextStyle(
                                   fontFamily: 'Inter',
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 18,
-                                  color: AppColors.white,
+                                  fontSize: 16,
+                                  color: AppColors.neon,
                                 ),
                               ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    const Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: Divider(
-                            thickness: 1,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 10),
-                          child: Text("or"),
-                        ),
-                        Expanded(
-                          child: Divider(
-                            thickness: 1,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: TextButton(
-                        onPressed: _handleSignUpWithGoogle,
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 50, vertical: 15),
-                          backgroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            side: const BorderSide(color: Colors.grey),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Image.asset(
-                              'lib/assets/images/auth/google.png',
-                              height: 24,
-                            ),
-                            const SizedBox(width: 10),
-                            const Text(
-                              'Sign in with Google',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Colors.black,
-                              ),
-                            ),
+                            )
                           ],
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: <Widget>[
-                        const Text(
-                          'Already have an account?',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 16,
-                            color: AppColors.black,
-                          ),
-                        ),
-                        SizedBox(
-                          width: 5,
-                        ),
-                        GestureDetector(
-                          onTap: () => widget.toggleView(),
-                          child: const Text(
-                            'Login',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: AppColors.neon,
-                            ),
-                          ),
-                        )
                       ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );

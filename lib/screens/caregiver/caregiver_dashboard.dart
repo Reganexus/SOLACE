@@ -42,17 +42,21 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
   }
 
   Stream<List<PatientData>> _fetchPatients() {
-    return FirebaseFirestore.instance.collection('patient').snapshots().map(
-            (snapshot) =>
-            snapshot.docs.map((doc) => PatientData.fromDocument(doc)).toList());
+    return FirebaseFirestore.instance
+        .collection('patient')
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map((doc) => PatientData.fromDocument(doc))
+                  .toList(),
+        );
   }
 
   void _navigateToPatientDashboard(PatientData patient) {
     if (userRole == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Unable to determine user role.'),
-        ),
+        const SnackBar(content: Text('Unable to determine user role.')),
       );
       return;
     }
@@ -60,11 +64,12 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => PatientsDashboard(
-          patientId: patient.uid,
-          caregiverId: caregiverId,
-          role: userRole!, // Safely pass the role
-        ),
+        builder:
+            (context) => PatientsDashboard(
+              patientId: patient.uid,
+              caregiverId: caregiverId,
+              role: userRole!, // Safely pass the role
+            ),
       ),
     );
   }
@@ -81,7 +86,10 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
           onTap: () => _navigateToPatientDashboard(patient),
           child: Container(
             margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 15.0),
+            padding: const EdgeInsets.symmetric(
+              vertical: 10.0,
+              horizontal: 15.0,
+            ),
             decoration: BoxDecoration(
               color: AppColors.gray,
               borderRadius: BorderRadius.circular(10.0),
@@ -90,12 +98,9 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
               children: [
                 CircleAvatar(
                   radius: 24.0,
-                  backgroundImage: NetworkImage(
-                    patient.profileImageUrl,
-                  ),
-                  onBackgroundImageError: (_, __) {
-                    debugPrint('Error loading image for ${patient.firstName}');
-                  },
+                  backgroundImage: patient.profileImageUrl.isNotEmpty
+                      ? NetworkImage(patient.profileImageUrl)
+                      : AssetImage('lib/assets/images/shared/placeholder.png') as ImageProvider,
                 ),
                 const SizedBox(width: 16.0),
                 Expanded(
@@ -125,6 +130,41 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
     );
   }
 
+  Widget _buildNoPatientState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Icon(
+            Icons.person_off_rounded,
+            color: AppColors.black,
+            size: 80,
+          ),
+          SizedBox(height: 20.0),
+          Text(
+            "No Patients Yet",
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 18,
+              fontWeight: FontWeight.normal,
+              color: AppColors.black,
+            ),
+          ),
+          SizedBox(height: 10.0),
+          Text(
+            "Add by patients by clicking the '+' button",
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 14,
+              fontWeight: FontWeight.normal,
+              color: AppColors.black,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -148,9 +188,7 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
               ),
               const SizedBox(height: 20.0),
               if (userRole == null)
-                const Center(
-                  child: CircularProgressIndicator(),
-                )
+                const Center(child: CircularProgressIndicator())
               else
                 Expanded(
                   child: StreamBuilder<List<PatientData>>(
@@ -161,24 +199,16 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
                       }
                       if (snapshot.hasError) {
                         return Center(
-                          child:
-                          Text("Error loading patients: ${snapshot.error}"),
+                          child: Text(
+                            "Error loading patients: ${snapshot.error}",
+                          ),
                         );
                       }
 
                       final patients = snapshot.data ?? [];
 
                       if (patients.isEmpty) {
-                        return Center(
-                          child: Text(
-                            'No patients available.',
-                            style: TextStyle(
-                              fontSize: 16.0,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.black,
-                            ),
-                          ),
-                        );
+                        return _buildNoPatientState();
                       }
 
                       return _buildPatientList(patients);
@@ -204,4 +234,3 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
     );
   }
 }
-

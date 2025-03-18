@@ -1,53 +1,72 @@
 // ignore_for_file: avoid_print, unused_import
 
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/services.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:solace/screens/authenticate/authenticate.dart';
+import 'firebase_options.dart';
 import 'package:solace/controllers/messaging_service.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/authenticate/get_started.dart';
 import 'package:solace/services/auth.dart';
-import 'package:firebase_app_check/firebase_app_check.dart';
-import 'package:permission_handler/permission_handler.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Firebase
-  try {
-    await Firebase.initializeApp();
-  } catch (e) {
-    print('Failed to initialize Firebase: $e');
+  await initializeFirebase();
+
+  // Lock screen orientation
+  await SystemChrome.setPreferredOrientations(
+      [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
+
+
+  // Check if the app is a new install
+  bool isNewInstall = await checkFirstInstall();
+
+  runApp(MyApp(
+    initialScreen: isNewInstall ? const GetStarted() : const Authenticate(),
+  ));
+}
+
+Future<void> initializeFirebase() async {
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(
+      name: 'solace',
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
   }
 
-  // Initialize Firebase Cloud Messaging
-  await MessagingService.initialize();
+  // Activate Firebase App Check
+  FirebaseAppCheck.instance
+      .activate(androidProvider: AndroidProvider.playIntegrity);
 
-  // Initialize Firebase App Check
-  FirebaseAppCheck.instance.activate(
-    androidProvider: AndroidProvider.playIntegrity,
-  );
-
-  // Set Firebase language
+  // Set Firebase Auth language
   FirebaseAuth.instance.setLanguageCode('en');
+}
 
-  // Sign out any existing user
-  await AuthService().signOut();
-
-  // Lock screen orientation to portrait
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
-
-  runApp(const MyApp());
+Future<bool> checkFirstInstall() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('isNewInstall') == null) {
+      await prefs.setBool('isNewInstall', false);
+      return true;
+    }
+  } catch (e) {
+    print('Error checking installation state: $e');
+  }
+  return false;
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final Widget initialScreen;
+
+  const MyApp({super.key, required this.initialScreen});
 
   @override
   Widget build(BuildContext context) {
@@ -62,7 +81,7 @@ class MyApp extends StatelessWidget {
           primarySwatch: Colors.blue,
           visualDensity: VisualDensity.adaptivePlatformDensity,
         ),
-        home: const GetStarted(),
+        home: initialScreen,
       ),
     );
   }

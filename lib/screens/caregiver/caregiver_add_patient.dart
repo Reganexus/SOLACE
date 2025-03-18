@@ -50,10 +50,12 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
   Future<File> getFileFromAsset(String assetPath) async {
     final byteData = await rootBundle.load(assetPath); // Load the asset
     final tempDir = await getTemporaryDirectory(); // Get temp directory
-    final tempFile =
-        File('${tempDir.path}/${assetPath.split('/').last}'); // Create file
-    return await tempFile
-        .writeAsBytes(byteData.buffer.asUint8List()); // Write byte data to file
+    final tempFile = File(
+      '${tempDir.path}/${assetPath.split('/').last}',
+    ); // Create file
+    return await tempFile.writeAsBytes(
+      byteData.buffer.asUint8List(),
+    ); // Write byte data to file
   }
 
   Future<String> uploadProfileImage({
@@ -71,7 +73,8 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
       final uploadTask = storageRef.putFile(
         file,
         SettableMetadata(
-            contentType: 'image/jpeg'), // Ensure correct content type
+          contentType: 'image/jpeg',
+        ), // Ensure correct content type
       );
 
       // Wait for upload to complete
@@ -92,10 +95,11 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
     final selectedImage = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SelectProfileImageScreen(
-          role: role,
-          currentImage: _profileImageUrl,
-        ),
+        builder:
+            (context) => SelectProfileImageScreen(
+              role: role,
+              currentImage: _profileImageUrl,
+            ),
       ),
     );
 
@@ -118,10 +122,12 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
   Future<void> _selectDate(BuildContext context) async {
     // Define the minimum and maximum date limits
     final DateTime today = DateTime.now();
-    final DateTime minDate =
-        DateTime(today.year - 120); // Set 120 years ago as the minimum
-    final DateTime maxDate =
-        DateTime(today.year - 1); // Ensure user is at least 1 year old
+    final DateTime minDate = DateTime(
+      today.year - 120,
+    ); // Set 120 years ago as the minimum
+    final DateTime maxDate = DateTime(
+      today.year - 1,
+    ); // Ensure user is at least 1 year old
 
     final DateTime initialDate =
         birthday ?? maxDate; // Default to maxDate if birthday is null
@@ -172,9 +178,12 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
   String capitalizeEachWord(String text) {
     return text
         .split(' ')
-        .map((word) => word.isNotEmpty
-            ? word[0].toUpperCase() + word.substring(1).toLowerCase()
-            : '')
+        .map(
+          (word) =>
+              word.isNotEmpty
+                  ? word[0].toUpperCase() + word.substring(1).toLowerCase()
+                  : '',
+        )
         .join(' ');
   }
 
@@ -191,7 +200,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
       'September',
       'October',
       'November',
-      'December'
+      'December',
     ];
     return monthNames[month - 1];
   }
@@ -227,6 +236,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
   final TextEditingController profileImageUrlController =
       TextEditingController();
   final TextEditingController birthdayController = TextEditingController();
+  final TextEditingController addressController = TextEditingController();
 
   String gender = '';
   String religion = '';
@@ -239,10 +249,13 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
       filled: true,
       fillColor: AppColors.gray,
       border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide.none,
+      ),
       focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: AppColors.neon, width: 2)),
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: AppColors.neon, width: 2),
+      ),
       labelStyle: TextStyle(
         fontSize: 16,
         fontFamily: 'Inter',
@@ -253,155 +266,125 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
   }
 
   Future<void> _submitForm() async {
-    if (_formKey.currentState?.validate() ?? false) {
-      final nameRegExp =
-      RegExp(r"^[\p{L}\s]+(?:\.\s?[\p{L}]+)*$", unicode: true);
+    if (!(_formKey.currentState?.validate() ?? false)) return;
 
-      String capitalize(String text) =>
-          text.trim().split(' ').map((str) {
-            if (str.isEmpty) return '';
-            return str[0].toUpperCase() + str.substring(1).toLowerCase();
-          }).join(' ');
+    try {
+      String capitalize(String text) => text
+          .trim()
+          .split(' ')
+          .map((str) => str.isNotEmpty
+          ? str[0].toUpperCase() + str.substring(1).toLowerCase()
+          : '')
+          .join(' ');
 
-      String sentenceCase(String text) {
-        if (text.isEmpty) return text;
-        return text[0].toUpperCase() + text.substring(1).toLowerCase();
-      }
+      String sentenceCase(String text) =>
+          text.isEmpty ? text : text[0].toUpperCase() + text.substring(1).toLowerCase();
 
-      // Validate name fields
+      final nameRegExp = RegExp(r"^[\p{L}\s]+(?:\.\s?[\p{L}]+)*$", unicode: true);
+
       final String firstName = capitalize(firstNameController.text);
-      final String middleName =
-      middleNameController.text.trim().isNotEmpty
-          ? capitalize(middleNameController.text)
-          : '';
+      final String middleName = capitalize(middleNameController.text.trim());
       final String lastName = capitalize(lastNameController.text);
 
-      if (firstName.isEmpty || !nameRegExp.hasMatch(firstName)) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Invalid first name.')));
+      // Validate names
+      if (!nameRegExp.hasMatch(firstName)) {
+        _showError('Invalid first name.');
         return;
       }
       if (middleName.isNotEmpty && !nameRegExp.hasMatch(middleName)) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Invalid middle name.')));
+        _showError('Invalid middle name.');
         return;
       }
-      if (lastName.isEmpty || !nameRegExp.hasMatch(lastName)) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Invalid last name.')));
+      if (!nameRegExp.hasMatch(lastName)) {
+        _showError('Invalid last name.');
         return;
       }
 
-      // Validate Birthday
+      // Validate birthday
       if (birthday == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Please select a birthday.')),
-        );
+        _showError('Please select a birthday.');
         return;
       }
 
-      // Get the profile image URL
+      // Upload profile image if needed
       String profileImageUrl = _profileImageUrl ?? '';
-      print("Add Patient Profile Image URL: $_profileImageUrl");
-
       if (_profileImage != null) {
-        try {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Uploading profile image...')),
-          );
-
-          profileImageUrl = await uploadProfileImage(
-            userId: newPatientId,
-            file: _profileImage!,
-          );
-
-          print("Image uploaded and URL received: $profileImageUrl");
-        } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to upload profile image.')),
-          );
-          return;
-        }
+        profileImageUrl = await _uploadImageOrNotify();
+        if (profileImageUrl.isEmpty) return; // Upload failed
       }
 
-      // Validate additional fields
+      // Validate other fields
       if (gender.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Please select your gender.')));
+        _showError('Please select your gender.');
         return;
       }
       if (religion.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Please select your religion.')));
+        _showError('Please select your religion.');
+        return;
+      }
+      if (addressController.text.trim().isEmpty) {
+        _showError('Address cannot be empty.');
         return;
       }
 
+      // Prepare additional data
       final String will = capitalize(willController.text);
       final String fixedWishes = capitalize(fixedWishesController.text);
       final String caseTitle = capitalize(caseTitleController.text);
       final String caseDescription = sentenceCase(caseDescriptionController.text);
+      final String address = sentenceCase(addressController.text);
 
-      if (will.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Will cannot be empty.')));
-        return;
-      }
-      if (fixedWishes.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Fixed Wishes cannot be empty.')));
-        return;
-      }
-      if (organDonation.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Please select organ donation preference.')));
-        return;
-      }
-      if (caseTitle.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Case Title cannot be empty.')));
-        return;
-      }
-      if (caseDescription.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Case Description cannot be empty.')));
+      if (will.isEmpty || fixedWishes.isEmpty || caseTitle.isEmpty || caseDescription.isEmpty) {
+        _showError('Some required fields are empty.');
         return;
       }
 
-      try {
-        String status = 'stable';
+      // Submit to database
+      await DatabaseService().addPatientData(
+        uid: newPatientId,
+        firstName: firstName,
+        lastName: lastName,
+        middleName: middleName,
+        age: _calculateAge(birthday),
+        gender: gender,
+        religion: religion,
+        will: will,
+        fixedWishes: fixedWishes,
+        organDonation: organDonation,
+        profileImageUrl: profileImageUrl,
+        birthday: birthday,
+        caseTitle: caseTitle,
+        caseDescription: caseDescription,
+        status: 'stable',
+        address: address,
+      );
 
-        await DatabaseService().addPatientData(
-          uid: newPatientId,
-          firstName: firstName,
-          lastName: lastName,
-          middleName: middleName,
-          age: _calculateAge(birthday),
-          gender: gender,
-          religion: religion,
-          will: will,
-          fixedWishes: fixedWishes,
-          organDonation: organDonation,
-          profileImageUrl: profileImageUrl,
-          birthday: birthday,
-          caseTitle: caseTitle,
-          caseDescription: caseDescription,
-          status: status,
-        );
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Patient data submitted successfully!')),
-        );
-        Navigator.of(context).pop();
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error submitting patient data: $e')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Patient data submitted successfully!')),
+      );
+      Navigator.of(context).pop();
+    } catch (e) {
+      _showError('Error submitting patient data: $e');
     }
   }
 
+  Future<String> _uploadImageOrNotify() async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Uploading profile image...')),
+      );
+      return await uploadProfileImage(userId: newPatientId, file: _profileImage!);
+    } catch (e) {
+      _showError('Failed to upload profile image.');
+      return '';
+    }
+  }
 
-// Method to build the patient info card
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  // Method to build the patient info card
   Widget _buildForm() {
     return SingleChildScrollView(
       child: Container(
@@ -418,13 +401,15 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
                   children: [
                     CircleAvatar(
                       radius: 75,
-                      backgroundImage: _profileImage != null
-                          ? FileImage(_profileImage!) // Picked image
-                          : (_profileImageUrl != null &&
-                                  _profileImageUrl!.isNotEmpty
-                              ? AssetImage(_profileImageUrl!) // Asset image
-                              : AssetImage(
-                                  'lib/assets/images/shared/placeholder.png')),
+                      backgroundImage:
+                          _profileImage != null
+                              ? FileImage(_profileImage!) // Picked image
+                              : (_profileImageUrl != null &&
+                                      _profileImageUrl!.isNotEmpty
+                                  ? AssetImage(_profileImageUrl!) // Asset image
+                                  : AssetImage(
+                                    'lib/assets/images/shared/placeholder.png',
+                                  )),
                       backgroundColor: Colors.transparent,
                     ),
                     Container(
@@ -435,7 +420,8 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
                       child: IconButton(
                         onPressed: () {
                           _pickProfileImage(
-                              'patient'); // Wrap in an anonymous function
+                            'patient',
+                          ); // Wrap in an anonymous function
                         },
                         icon: Icon(Icons.camera_alt, color: AppColors.white),
                         iconSize: 20,
@@ -472,8 +458,8 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
                   fontWeight: FontWeight.normal,
                   color: AppColors.black,
                 ),
-                validator: (val) =>
-                    val!.isEmpty ? 'Case Title cannot be empty' : null,
+                validator:
+                    (val) => val!.isEmpty ? 'Case Title cannot be empty' : null,
               ),
               const SizedBox(height: 20),
               TextFormField(
@@ -485,11 +471,16 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
                   fontWeight: FontWeight.normal,
                   color: AppColors.black,
                 ),
-                decoration:
-                    _buildInputDecoration('Case Description', _focusNodes[10]),
+                decoration: _buildInputDecoration(
+                  'Case Description',
+                  _focusNodes[10],
+                ),
                 maxLines: 1,
-                validator: (val) =>
-                    val!.isEmpty ? 'Case Description cannot be empty' : null,
+                validator:
+                    (val) =>
+                        val!.isEmpty
+                            ? 'Case Description cannot be empty'
+                            : null,
               ),
               const SizedBox(height: 20),
               const Divider(thickness: 1.0),
@@ -519,8 +510,8 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
                   fontWeight: FontWeight.normal,
                   color: AppColors.black,
                 ),
-                validator: (val) =>
-                    val!.isEmpty ? 'First Name cannot be empty' : null,
+                validator:
+                    (val) => val!.isEmpty ? 'First Name cannot be empty' : null,
               ),
               const SizedBox(height: 20),
               TextFormField(
@@ -532,8 +523,10 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
                   fontWeight: FontWeight.normal,
                   color: AppColors.black,
                 ),
-                decoration:
-                    _buildInputDecoration('Middle Name', _focusNodes[1]),
+                decoration: _buildInputDecoration(
+                  'Middle Name',
+                  _focusNodes[1],
+                ),
               ),
               const SizedBox(height: 20),
               TextFormField(
@@ -546,8 +539,8 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
                   color: AppColors.black,
                 ),
                 decoration: _buildInputDecoration('Last Name', _focusNodes[2]),
-                validator: (val) =>
-                    val!.isEmpty ? 'Last Name cannot be empty' : null,
+                validator:
+                    (val) => val!.isEmpty ? 'Last Name cannot be empty' : null,
               ),
               const SizedBox(height: 20),
               // Birthday Field
@@ -566,27 +559,31 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
                   fillColor: AppColors.gray,
                   suffixIcon: Icon(
                     Icons.calendar_today,
-                    color: _focusNodes[3].hasFocus
-                        ? AppColors.neon
-                        : AppColors.black,
+                    color:
+                        _focusNodes[3].hasFocus
+                            ? AppColors.neon
+                            : AppColors.black,
                   ),
                   border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none),
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none,
+                  ),
                   focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(color: AppColors.neon, width: 2)),
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: AppColors.neon, width: 2),
+                  ),
                   labelStyle: TextStyle(
                     fontSize: 16,
                     fontFamily: 'Inter',
                     fontWeight: FontWeight.normal,
-                    color: _focusNodes[3].hasFocus
-                        ? AppColors.neon
-                        : AppColors.black,
+                    color:
+                        _focusNodes[3].hasFocus
+                            ? AppColors.neon
+                            : AppColors.black,
                   ),
                 ),
-                validator: (val) =>
-                    val!.isEmpty ? 'Birthday cannot be empty' : null,
+                validator:
+                    (val) => val!.isEmpty ? 'Birthday cannot be empty' : null,
                 readOnly: true,
                 onTap: () => _selectDate(context),
               ),
@@ -601,13 +598,19 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
                   color: AppColors.black,
                 ),
                 decoration: _buildInputDecoration('Gender', _focusNodes[4]),
-                items: ['Male', 'Female', 'Other']
-                    .map((value) =>
-                        DropdownMenuItem(value: value, child: Text(value)))
-                    .toList(),
+                items:
+                    ['Male', 'Female', 'Other']
+                        .map(
+                          (value) => DropdownMenuItem(
+                            value: value,
+                            child: Text(value),
+                          ),
+                        )
+                        .toList(),
                 onChanged: (val) => setState(() => gender = val ?? ''),
-                validator: (val) =>
-                    val == null || val.isEmpty ? 'Select Gender' : null,
+                validator:
+                    (val) =>
+                        val == null || val.isEmpty ? 'Select Gender' : null,
                 dropdownColor: AppColors.white,
               ),
               const SizedBox(height: 20),
@@ -621,18 +624,24 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
                   color: AppColors.black,
                 ),
                 decoration: _buildInputDecoration('Religion', _focusNodes[5]),
-                items: religions
-                    .map((religionItem) => DropdownMenuItem(
-                        value: religionItem, child: Text(religionItem)))
-                    .toList(),
+                items:
+                    religions
+                        .map(
+                          (religionItem) => DropdownMenuItem(
+                            value: religionItem,
+                            child: Text(religionItem),
+                          ),
+                        )
+                        .toList(),
                 onChanged: (val) => setState(() => religion = val ?? ''),
-                validator: (val) =>
-                    val == null || val.isEmpty ? 'Select Religion' : null,
+                validator:
+                    (val) =>
+                        val == null || val.isEmpty ? 'Select Religion' : null,
                 dropdownColor: AppColors.white,
               ),
               const SizedBox(height: 20),
               TextFormField(
-                controller: willController,
+                controller: addressController,
                 focusNode: _focusNodes[6],
                 style: TextStyle(
                   fontSize: 16,
@@ -640,13 +649,20 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
                   fontWeight: FontWeight.normal,
                   color: AppColors.black,
                 ),
-                decoration: _buildInputDecoration('Will', _focusNodes[6]),
-                validator: (val) =>
-                    val!.isEmpty ? 'Will cannot be empty' : null,
+                decoration: _buildInputDecoration(
+                  'Address',
+                  _focusNodes[6],
+                ),
+                maxLines: 1,
+                validator:
+                    (val) =>
+                        val!.isEmpty
+                            ? 'Address cannot be empty'
+                            : null,
               ),
               const SizedBox(height: 20),
               TextFormField(
-                controller: fixedWishesController,
+                controller: willController,
                 focusNode: _focusNodes[7],
                 style: TextStyle(
                   fontSize: 16,
@@ -654,14 +670,13 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
                   fontWeight: FontWeight.normal,
                   color: AppColors.black,
                 ),
-                decoration:
-                    _buildInputDecoration('Fixed Wishes', _focusNodes[7]),
-                validator: (val) =>
-                    val!.isEmpty ? 'Fixed Wishes cannot be empty' : null,
+                decoration: _buildInputDecoration('Will', _focusNodes[7]),
+                validator:
+                    (val) => val!.isEmpty ? 'Will cannot be empty' : null,
               ),
               const SizedBox(height: 20),
-              DropdownButtonFormField<String>(
-                value: organDonation.isNotEmpty ? organDonation : null,
+              TextFormField(
+                controller: fixedWishesController,
                 focusNode: _focusNodes[8],
                 style: TextStyle(
                   fontSize: 16,
@@ -669,16 +684,44 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
                   fontWeight: FontWeight.normal,
                   color: AppColors.black,
                 ),
-                decoration:
-                    _buildInputDecoration('Organ Donation', _focusNodes[8]),
-                items: organs
-                    .map((organ) =>
-                        DropdownMenuItem(value: organ, child: Text(organ)))
-                    .toList(),
-                onChanged: (val) =>
-                    setState(() => organDonation = val ?? 'None'),
-                validator: (val) =>
-                    val == null || val.isEmpty ? 'Select Organ Donation' : null,
+                decoration: _buildInputDecoration(
+                  'Fixed Wishes',
+                  _focusNodes[8],
+                ),
+                validator:
+                    (val) =>
+                        val!.isEmpty ? 'Fixed Wishes cannot be empty' : null,
+              ),
+              const SizedBox(height: 20),
+              DropdownButtonFormField<String>(
+                value: organDonation.isNotEmpty ? organDonation : null,
+                focusNode: _focusNodes[9],
+                style: TextStyle(
+                  fontSize: 16,
+                  fontFamily: 'Inter',
+                  fontWeight: FontWeight.normal,
+                  color: AppColors.black,
+                ),
+                decoration: _buildInputDecoration(
+                  'Organ Donation',
+                  _focusNodes[9],
+                ),
+                items:
+                    organs
+                        .map(
+                          (organ) => DropdownMenuItem(
+                            value: organ,
+                            child: Text(organ),
+                          ),
+                        )
+                        .toList(),
+                onChanged:
+                    (val) => setState(() => organDonation = val ?? 'None'),
+                validator:
+                    (val) =>
+                        val == null || val.isEmpty
+                            ? 'Select Organ Donation'
+                            : null,
                 dropdownColor: AppColors.white,
               ),
 
@@ -706,19 +749,21 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
                       'Please check the input before submitting.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                          fontWeight: FontWeight.normal,
-                          fontSize: 18,
-                          fontFamily: 'Inter',
-                          color: AppColors.white),
+                        fontWeight: FontWeight.normal,
+                        fontSize: 18,
+                        fontFamily: 'Inter',
+                        color: AppColors.white,
+                      ),
                     ),
                     Text(
                       'All input must be true',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'Inter',
-                          color: AppColors.white),
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Inter',
+                        color: AppColors.white,
+                      ),
                     ),
                   ],
                 ),
@@ -732,7 +777,9 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
                   onPressed: _submitForm,
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 15),
+                      horizontal: 10,
+                      vertical: 15,
+                    ),
                     backgroundColor: AppColors.neon,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -778,20 +825,21 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
+        backgroundColor: AppColors.white,
+        appBar: AppBar(
           backgroundColor: AppColors.white,
-          appBar: AppBar(
-            backgroundColor: AppColors.white,
-            scrolledUnderElevation: 0.0,
-            title: const Text(
-              'Patient Info',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Inter',
-              ),
+          scrolledUnderElevation: 0.0,
+          title: const Text(
+            'Patient Info',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Inter',
             ),
           ),
-          body: _buildForm()),
+        ),
+        body: _buildForm(),
+      ),
     );
   }
 }

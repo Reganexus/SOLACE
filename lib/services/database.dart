@@ -6,7 +6,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:solace/models/my_patient.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/controllers/messaging_service.dart';
@@ -51,10 +50,11 @@ class DatabaseService {
       // Move the user document to the new collection if the role is changing
       if (currentCollection != newCollection) {
         // Get the user's current document
-        final currentDoc = await FirebaseFirestore.instance
-            .collection(currentCollection)
-            .doc(userId)
-            .get();
+        final currentDoc =
+            await FirebaseFirestore.instance
+                .collection(currentCollection)
+                .doc(userId)
+                .get();
 
         if (currentDoc.exists) {
           final userData = currentDoc.data();
@@ -64,9 +64,10 @@ class DatabaseService {
               .collection(newCollection)
               .doc(userId)
               .set({
-            ...userData!,
-            'userRole': newRole.toString().split('.').last, // Update the role
-          });
+                ...userData!,
+                'userRole':
+                    newRole.toString().split('.').last, // Update the role
+              });
 
           // Delete the document from the old collection
           await FirebaseFirestore.instance
@@ -79,9 +80,7 @@ class DatabaseService {
         await FirebaseFirestore.instance
             .collection(currentCollection)
             .doc(userId)
-            .update({
-          'userRole': newRole.toString().split('.').last,
-        });
+            .update({'userRole': newRole.toString().split('.').last});
       }
 
       print('Updated user role for $userId to ${newRole.toString()}');
@@ -94,10 +93,11 @@ class DatabaseService {
     // Check all user role collections for the user
     for (UserRole role in UserRole.values) {
       final collection = getCollectionForRole(role);
-      final userDoc = await FirebaseFirestore.instance
-          .collection(collection)
-          .doc(userId)
-          .get();
+      final userDoc =
+          await FirebaseFirestore.instance
+              .collection(collection)
+              .doc(userId)
+              .get();
       if (userDoc.exists) {
         return role;
       }
@@ -108,10 +108,11 @@ class DatabaseService {
   Future<UserRole?> getUserRole(String userId) async {
     for (UserRole role in UserRole.values) {
       final collection = getCollectionForRole(role);
-      final userDoc = await FirebaseFirestore.instance
-          .collection(collection)
-          .doc(userId)
-          .get();
+      final userDoc =
+          await FirebaseFirestore.instance
+              .collection(collection)
+              .doc(userId)
+              .get();
       if (userDoc.exists) {
         return role;
       }
@@ -119,7 +120,6 @@ class DatabaseService {
     return null; // User role not found
   }
 
-  // Update user data in Firestore
   Future<void> updateUserData({
     required UserRole userRole,
     String? email,
@@ -145,8 +145,9 @@ class DatabaseService {
       final collectionName = getCollectionForRole(userRole);
 
       // Get the Firestore reference
-      final collectionRef =
-          FirebaseFirestore.instance.collection(collectionName);
+      final collectionRef = FirebaseFirestore.instance.collection(
+        collectionName,
+      );
 
       // Prepare the updated data
       Map<String, dynamic> updatedData = {};
@@ -207,17 +208,19 @@ class DatabaseService {
   }
 
   Future<void> setUserVerificationStatus(
-      String uid, bool isVerified, String userRole) async {
+    String uid,
+    bool isVerified,
+    String userRole,
+  ) async {
     try {
       final String collectionName = userRole; // Generate the collection name
       await FirebaseFirestore.instance
           .collection(collectionName)
           .doc(uid)
-          .update({
-        'isVerified': isVerified,
-      });
+          .update({'isVerified': isVerified});
       debugPrint(
-          'User verification status updated to $isVerified for user $uid in $collectionName');
+        'User verification status updated to $isVerified for user $uid in $collectionName',
+      );
     } catch (e) {
       debugPrint("Error updating user verification status: ${e.toString()}");
     }
@@ -240,10 +243,11 @@ class DatabaseService {
         return null;
       }
 
-      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
-          .collection(userRole)
-          .where('email', isEqualTo: email)
-          .get();
+      QuerySnapshot querySnapshot =
+          await FirebaseFirestore.instance
+              .collection(userRole)
+              .where('email', isEqualTo: email)
+              .get();
 
       if (querySnapshot.docs.isNotEmpty) {
         return UserData.fromDocument(querySnapshot.docs.first);
@@ -258,10 +262,9 @@ class DatabaseService {
 
   // Fetch the users by role
   Stream<List<UserData>> getUsersByRole(String role) {
-    return FirebaseFirestore.instance
-        .collection(role)
-        .snapshots()
-        .map((snapshot) {
+    return FirebaseFirestore.instance.collection(role).snapshots().map((
+      snapshot,
+    ) {
       return snapshot.docs.map((doc) {
         return UserData.fromMap(doc.data(), doc.id);
       }).toList();
@@ -281,7 +284,8 @@ class DatabaseService {
             .doc(userId)
             .delete();
         print(
-            "User document deleted from Firestore collection: $collectionName.");
+          "User document deleted from Firestore collection: $collectionName.",
+        );
       } else {
         print("User document not found in any collection.");
         return;
@@ -289,10 +293,11 @@ class DatabaseService {
 
       // 2. Delete records in the 'tracking' collection related to the user
       final batch = FirebaseFirestore.instance.batch();
-      final trackingDocs = await FirebaseFirestore.instance
-          .collection('tracking')
-          .where('userId', isEqualTo: userId)
-          .get();
+      final trackingDocs =
+          await FirebaseFirestore.instance
+              .collection('tracking')
+              .where('userId', isEqualTo: userId)
+              .get();
 
       for (var doc in trackingDocs.docs) {
         batch.delete(doc.reference);
@@ -308,10 +313,11 @@ class DatabaseService {
     try {
       // Use the role-based collection based on the user's role
       String collection = userRole.toString().split('.').last;
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection(collection)
-          .doc(userId)
-          .get();
+      DocumentSnapshot userDoc =
+          await FirebaseFirestore.instance
+              .collection(collection)
+              .doc(userId)
+              .get();
 
       if (userDoc.exists) {
         // Return the profileImageUrl or an empty string if not found
@@ -331,15 +337,15 @@ class DatabaseService {
     required String caregiverId, // ID of the caregiver managing this patient
     required String patientId, // ID of the patient
     required String
-        vital, // Type of vital (e.g., "heart rate", "blood pressure")
+    vital, // Type of vital (e.g., "heart rate", "blood pressure")
     required double inputRecord, // Vital record value
   }) async {
     try {
       print('Adding vital record for patient: $patientId');
 
       // Get a reference to the patient collection
-      CollectionReference patientCollection =
-          FirebaseFirestore.instance.collection('patients');
+      CollectionReference patientCollection = FirebaseFirestore.instance
+          .collection('patient');
 
       // Check if the patient document exists
       DocumentSnapshot patientDoc =
@@ -356,8 +362,10 @@ class DatabaseService {
       }
 
       // Add the vital record under the patient's 'vitals' collection
-      DocumentReference vitalDocRef =
-          patientCollection.doc(patientId).collection('vitals').doc(vital);
+      DocumentReference vitalDocRef = patientCollection
+          .doc(patientId)
+          .collection('vitals')
+          .doc(vital);
 
       CollectionReference recordsRef = vitalDocRef.collection('records');
 
@@ -411,10 +419,11 @@ class DatabaseService {
       }
 
       // Fetch the user document from Firestore
-      final docSnapshot = await FirebaseFirestore.instance
-          .collection(collectionName)
-          .doc(userId)
-          .get();
+      final docSnapshot =
+          await FirebaseFirestore.instance
+              .collection(collectionName)
+              .doc(userId)
+              .get();
 
       // Check if the document exists and convert it into UserData
       if (docSnapshot.exists) {
@@ -505,20 +514,21 @@ class DatabaseService {
     try {
       // List of collections to check
       List<String> collections = [
+        'patient',
         'caregiver',
         'admin',
         'doctor',
         'nurse',
-        'patient',
-        'unregistered'
+        'unregistered',
       ];
 
       // Loop through each collection to find the user document
       for (String collection in collections) {
-        var userDoc = await FirebaseFirestore.instance
-            .collection(collection)
-            .doc(userId)
-            .get();
+        var userDoc =
+            await FirebaseFirestore.instance
+                .collection(collection)
+                .doc(userId)
+                .get();
 
         if (userDoc.exists) {
           // Safely retrieve data and userRole field
@@ -546,8 +556,10 @@ class DatabaseService {
 
     // Adjust the notification message if it is for a task
     if (type == 'task' && notificationMessage.contains("assigned by Dr.")) {
-      notificationMessage =
-          notificationMessage.replaceFirst('New task', 'Task Assigned');
+      notificationMessage = notificationMessage.replaceFirst(
+        'New task',
+        'Task Assigned',
+      );
     }
 
     try {
@@ -555,20 +567,19 @@ class DatabaseService {
       String? userRole = await getTargetUserRole(userId);
 
       // Add the notification to the appropriate user document in the collection
-      await FirebaseFirestore.instance
-          .collection(userRole!)
-          .doc(userId)
-          .update({
-        'notifications': FieldValue.arrayUnion([
-          {
-            'notificationId': notificationId,
-            'message': notificationMessage,
-            'timestamp': timestamp,
-            'type': type,
-            'read': false, // Default to unread
-          }
-        ]),
-      });
+      await FirebaseFirestore.instance.collection(userRole!).doc(userId).update(
+        {
+          'notifications': FieldValue.arrayUnion([
+            {
+              'notificationId': notificationId,
+              'message': notificationMessage,
+              'timestamp': timestamp,
+              'type': type,
+              'read': false, // Default to unread
+            },
+          ]),
+        },
+      );
       print('Notification added for userId: $userId in $userRole');
     } catch (e) {
       print('Error adding notification: $e');
@@ -583,35 +594,47 @@ class DatabaseService {
     String usage,
     String doctorId,
   ) async {
-    String? userRole = await getTargetUserRole(doctorId);
-    final doctorSnapshot = await FirebaseFirestore.instance
-        .collection(userRole!)
-        .doc(doctorId)
-        .get();
+    // Fetch doctor name
+    final String? doctorRole = await getTargetUserRole(doctorId);
+    final doctorSnapshot =
+        await FirebaseFirestore.instance
+            .collection(doctorRole!)
+            .doc(doctorId)
+            .get();
+
     String doctorName = '';
     if (doctorSnapshot.exists) {
-      final data = doctorSnapshot.data() as Map<String, dynamic>;
-      doctorName =
-          '${data['firstName']?.trim() ?? ''} ${data['lastName']?.trim() ?? ''}'
-              .trim();
+      final data = doctorSnapshot.data()!;
+      final firstName = data['firstName']?.trim() ?? '';
+      final lastName = data['lastName']?.trim() ?? '';
+      doctorName = '$firstName $lastName'.trim();
     }
 
+    final medicineData = {
+      "medicineId": medicineId,
+      "medicineName": medicineTitle,
+      "dosage": dosage,
+      "usage": usage,
+    };
+
     try {
-      // Add medicine to the patient's document
-      await FirebaseFirestore.instance
+      final patientMedicinesRef = FirebaseFirestore.instance
           .collection('patient')
           .doc(patientId)
-          .update({
-        'medicine': FieldValue.arrayUnion([
-          {
-            'id': medicineId,
-            'title': medicineTitle,
-            'dosage': dosage,
-            'usage': usage,
-            'isCompleted': false,
-          }
-        ]),
-      });
+          .collection('medicines')
+          .doc(doctorId);
+
+      final patientMedicinesDoc = await patientMedicinesRef.get();
+
+      if (patientMedicinesDoc.exists) {
+        await patientMedicinesRef.update({
+          'medicines': FieldValue.arrayUnion([medicineData]),
+        });
+      } else {
+        await patientMedicinesRef.set({
+          'medicines': [medicineData],
+        });
+      }
 
       // Send in-app notification
       await addNotification(
@@ -632,51 +655,68 @@ class DatabaseService {
     String usage,
     String patientId,
   ) async {
-    // Fetch patient's name
-    final patientSnapshot = await FirebaseFirestore.instance
-        .collection('patient')
-        .doc(patientId)
-        .get();
+    // Fetch patient name
+    final patientSnapshot =
+        await FirebaseFirestore.instance
+            .collection('patient')
+            .doc(patientId)
+            .get();
+
     String patientName = '';
     if (patientSnapshot.exists) {
-      final data = patientSnapshot.data() as Map<String, dynamic>;
-      patientName =
-          '${data['firstName']?.trim() ?? ''} ${data['lastName']?.trim() ?? ''}'
-              .trim();
+      final data = patientSnapshot.data()!;
+      final firstName = data['firstName']?.trim() ?? '';
+      final lastName = data['lastName']?.trim() ?? '';
+      patientName = '$firstName $lastName'.trim();
     }
 
+    final medicineData = {
+      "medicineId": medicineId,
+      "medicineName": medicineTitle,
+      "dosage": dosage,
+      "usage": usage,
+    };
+
     try {
-      String? userRole = await getTargetUserRole(doctorId);
-      await FirebaseFirestore.instance
-          .collection(userRole!)
+      final String? doctorRole = await getTargetUserRole(doctorId);
+      if (doctorRole == null) {
+        throw Exception('User role not found for doctor.');
+      }
+
+      final doctorMedicinesRef = FirebaseFirestore.instance
+          .collection(doctorRole)
           .doc(doctorId)
-          .update({
-        'assignedMedicine': FieldValue.arrayUnion([
-          {
-            'id': medicineId,
-            'title': medicineTitle,
-            'dosage': dosage,
-            'usage': usage,
-            'patientId': patientId,
-          }
-        ]),
-      });
+          .collection('medicines')
+          .doc(patientId);
+
+      final doctorMedicinesDoc = await doctorMedicinesRef.get();
+
+      if (doctorMedicinesDoc.exists) {
+        await doctorMedicinesRef.update({
+          'medicines': FieldValue.arrayUnion([medicineData]),
+        });
+      } else {
+        await doctorMedicinesRef.set({
+          'medicines': [medicineData],
+        });
+      }
 
       // Send in-app notification
       await addNotification(
         doctorId,
-        "You assigned a $medicineTitle to $patientName.",
+        "You assigned $medicineTitle to $patientName.",
         'medicine',
       );
 
       // Fetch doctor's FCM token
-      final doctorSnapshot = await FirebaseFirestore.instance
-          .collection(userRole)
-          .doc(doctorId)
-          .get();
+      final doctorSnapshot =
+          await FirebaseFirestore.instance
+              .collection(doctorRole)
+              .doc(doctorId)
+              .get();
 
       if (doctorSnapshot.exists) {
-        final doctorData = doctorSnapshot.data() as Map<String, dynamic>;
+        final doctorData = doctorSnapshot.data()!;
         final fcmToken = doctorData['fcmToken'];
 
         if (fcmToken != null) {
@@ -687,11 +727,72 @@ class DatabaseService {
             "You assigned $medicineTitle to $patientName.",
           );
         } else {
-          print("Doctor's FCM token not found.");
+          debugPrint("Doctor's FCM token not found.");
         }
       }
     } catch (e) {
       throw Exception('Error saving medicine for doctor: $e');
+    }
+  }
+
+  Future<void> removeMedicine(
+    String patientId,
+    String medicineId,
+    String caregiverId,
+  ) async {
+    try {
+      final patientMedicinesRef = FirebaseFirestore.instance
+          .collection('patient')
+          .doc(patientId)
+          .collection('medicines');
+
+      final patientMedicinesDoc = await patientMedicinesRef.get();
+      if (patientMedicinesDoc.docs.isEmpty) {
+        throw Exception('No tasks found for the patient');
+      }
+
+      for (var doc in patientMedicinesDoc.docs) {
+        final medicines = List.from(doc['medicines']);
+        final medicineIndex = medicines.indexWhere(
+          (task) => task['medicineId'] == medicineId,
+        );
+
+        if (medicineIndex != -1) {
+          medicines.removeAt(medicineIndex);
+          await patientMedicinesRef.doc(doc.id).update({
+            'medicines': medicines,
+          });
+          break;
+        }
+      }
+
+      final String? collection = await getTargetUserRole(caregiverId);
+      final caregiverMedicinesRef = FirebaseFirestore.instance
+          .collection(collection!)
+          .doc(caregiverId)
+          .collection('medicines');
+
+      final caregiverMedicinesDoc = await caregiverMedicinesRef.get();
+      if (caregiverMedicinesDoc.docs.isEmpty) {
+        throw Exception('No medicines found for the caregiver');
+      }
+
+      for (var doc in caregiverMedicinesDoc.docs) {
+        final medicines = List.from(doc['medicines']);
+        final medicineIndex = medicines.indexWhere(
+          (task) => task['medicineId'] == medicineId,
+        );
+
+        if (medicineIndex != -1) {
+          medicines.removeAt(medicineIndex);
+          await caregiverMedicinesRef.doc(doc.id).update({
+            'medicines': medicines,
+          });
+          break;
+        }
+      }
+    } catch (e) {
+      throw Exception('Failed to remove medicine: $e');
     }
   }
 
@@ -700,61 +801,59 @@ class DatabaseService {
     String taskId,
     String taskTitle,
     String taskDescription,
-    Timestamp startDate,
-    Timestamp endDate,
-    String doctorId,
+    DateTime startDate,
+    DateTime endDate,
+    String caregiverId,
   ) async {
-    debugPrint("Save Task for Patient caregiverId: $doctorId");
-    final timestamp = Timestamp.now();
+    final Timestamp startTimestamp = Timestamp.fromDate(startDate);
+    final Timestamp endTimestamp = Timestamp.fromDate(endDate);
 
-    // Fetch doctor's name
-    String? userRole = await getTargetUserRole(doctorId);
-    debugPrint("Save task for patient userRole: $userRole");
-    final doctorSnapshot = await FirebaseFirestore.instance
-        .collection(userRole!)
-        .doc(doctorId)
-        .get();
-    String doctorName = '';
-    if (doctorSnapshot.exists) {
-      final data = doctorSnapshot.data() as Map<String, dynamic>;
-      doctorName =
-          '${data['firstName']?.trim() ?? ''} ${data['lastName']?.trim() ?? ''}'
-              .trim();
+    // Fetch caregiver name
+    final String? userRole = await getTargetUserRole(caregiverId);
+    final caregiverSnapshot =
+        await FirebaseFirestore.instance
+            .collection(userRole!)
+            .doc(caregiverId)
+            .get();
+
+    String caregiverName = '';
+    if (caregiverSnapshot.exists) {
+      final data = caregiverSnapshot.data()!;
+      final firstName = data['firstName']?.trim() ?? '';
+      final lastName = data['lastName']?.trim() ?? '';
+      caregiverName = '$firstName $lastName'.trim();
     }
 
-    // Convert Timestamps to Date Strings
-    final String startDateString =
-        '${startDate.toDate().year}-${startDate.toDate().month.toString().padLeft(2, '0')}-${startDate.toDate().day.toString().padLeft(2, '0')}';
-    final String endDateString =
-        '${endDate.toDate().year}-${endDate.toDate().month.toString().padLeft(2, '0')}-${endDate.toDate().day.toString().padLeft(2, '0')}';
+    final taskData = {
+      "caregiverName": caregiverName,
+      "taskId": taskId,
+      "title": taskTitle,
+      "description": taskDescription,
+      "startDate": startTimestamp,
+      "endDate": endTimestamp,
+      "isCompleted": false,
+    };
 
     try {
-      // Add task to the patient's document
-      await FirebaseFirestore.instance
+      final patientTasksRef = FirebaseFirestore.instance
           .collection('patient')
           .doc(patientId)
-          .update({
-        'tasks': FieldValue.arrayUnion([
-          {
-            'id': taskId,
-            'title': taskTitle,
-            'description': taskDescription,
-            'timestamp': timestamp,
-            'startDate': startDate,
-            'endDate': endDate,
-            'isCompleted': false,
-          }
-        ]),
-      });
+          .collection('tasks')
+          .doc(caregiverId);
 
-      // Send in-app notification
-      await addNotification(
-        patientId,
-        "New task assigned by $doctorName: $taskTitle ($startDateString to $endDateString).",
-        'task',
-      );
+      final caregiverTasksDoc = await patientTasksRef.get();
+
+      if (caregiverTasksDoc.exists) {
+        await patientTasksRef.update({
+          'tasks': FieldValue.arrayUnion([taskData]),
+        });
+      } else {
+        await patientTasksRef.set({
+          'tasks': [taskData],
+        });
+      }
     } catch (e) {
-      throw Exception('Error saving task for patient: $e');
+      throw Exception('Failed to save task for patient: $e');
     }
   }
 
@@ -763,343 +862,401 @@ class DatabaseService {
     String taskId,
     String taskTitle,
     String taskDescription,
-    dynamic startDate,
-    dynamic endDate,
+    DateTime startDate,
+    DateTime endDate,
     String patientId,
   ) async {
-    final timestamp = Timestamp.now();
+    final Timestamp startTimestamp = Timestamp.fromDate(startDate);
+    final Timestamp endTimestamp = Timestamp.fromDate(endDate);
 
-    debugPrint("Save Task for Caregiver caregiverId: $caregiverId");
+    // Fetch patient name
+    final patientSnapshot =
+        await FirebaseFirestore.instance
+            .collection('patient')
+            .doc(patientId)
+            .get();
 
-    // Fetch patient's name
-    final patientSnapshot = await FirebaseFirestore.instance
-        .collection('patient')
-        .doc(patientId)
-        .get();
     String patientName = '';
     if (patientSnapshot.exists) {
-      final data = patientSnapshot.data() as Map<String, dynamic>;
-      patientName =
-          '${data['firstName']?.trim() ?? ''} ${data['lastName']?.trim() ?? ''}'
-              .trim();
+      final data = patientSnapshot.data()!;
+      final firstName = data['firstName']?.trim() ?? '';
+      final lastName = data['lastName']?.trim() ?? '';
+      patientName = '$firstName $lastName'.trim();
     }
 
-    Timestamp startTimestamp =
-        startDate is Timestamp ? startDate : Timestamp.fromDate(startDate);
-    Timestamp endTimestamp =
-        endDate is Timestamp ? endDate : Timestamp.fromDate(endDate);
-
-    final String startDateString =
-        '${startTimestamp.toDate().year}-${startTimestamp.toDate().month.toString().padLeft(2, '0')}-${startTimestamp.toDate().day.toString().padLeft(2, '0')}';
-    final String endDateString =
-        '${endTimestamp.toDate().year}-${endTimestamp.toDate().month.toString().padLeft(2, '0')}-${endTimestamp.toDate().day.toString().padLeft(2, '0')}';
+    final taskData = {
+      "patientName": patientName,
+      "taskId": taskId,
+      "title": taskTitle,
+      "description": taskDescription,
+      "startDate": startTimestamp,
+      "endDate": endTimestamp,
+      "isCompleted": false,
+    };
 
     try {
-      // Add task to the doctor's document
-      String? userRole = await getTargetUserRole(caregiverId);
-      debugPrint("Add task for doctor user role: $userRole");
-      await FirebaseFirestore.instance
-          .collection(userRole!)
-          .doc(caregiverId)
-          .update({
-        'assignedTasks': FieldValue.arrayUnion([
-          {
-            'id': taskId,
-            'title': taskTitle,
-            'description': taskDescription,
-            'timestamp': timestamp,
-            'startDate': startTimestamp,
-            'endDate': endTimestamp,
-            'patientId': patientId,
-            'startDateString': startDateString,
-            'endDateString': endDateString,
-          }
-        ]),
-      });
+      final String? userRole = await getTargetUserRole(caregiverId);
+      if (userRole == null) {
+        throw Exception('User role not found for caregiver.');
+      }
 
-      // Send in-app notification
+      final caregiverTasksRef = FirebaseFirestore.instance
+          .collection(userRole)
+          .doc(caregiverId)
+          .collection('tasks') // Optional if you want a subcollection
+          .doc(patientId);
+
+      final caregiverTasksDoc = await caregiverTasksRef.get();
+
+      if (caregiverTasksDoc.exists) {
+        await caregiverTasksRef.update({
+          'tasks': FieldValue.arrayUnion([taskData]),
+        });
+      } else {
+        await caregiverTasksRef.set({
+          'tasks': [taskData],
+        });
+      }
+
       await addNotification(
         caregiverId,
-        "You assigned a task to $patientName: $taskTitle ($startDateString to $endDateString).",
+        "You assigned a task to $patientName: $taskTitle (${startDate.toLocal()} to ${endDate.toLocal()}).",
         'task',
       );
     } catch (e) {
-      throw Exception('Error saving task for doctor: $e');
+      throw Exception('Failed to save task for caregiver: $e');
     }
   }
 
-// Remove task for the patient
-  Future<void> removeTaskForPatient(String patientId, String taskId) async {
+  Future<void> removeTask(
+    String patientId,
+    String taskId,
+    String caregiverId,
+  ) async {
     try {
-      final collection = FirebaseFirestore.instance.collection('patient');
-      final snapshot = await collection.doc(patientId).get();
-      if (snapshot.exists) {
-        final tasks =
-            List<Map<String, dynamic>>.from(snapshot.get('tasks') ?? []);
-        tasks.removeWhere((task) => task['id'] == taskId);
-        await collection.doc(patientId).update({'tasks': tasks});
+      // Reference to the patient's task collection
+      final patientTasksRef = FirebaseFirestore.instance
+          .collection('patient')
+          .doc(patientId)
+          .collection('medicines');
+
+      // Fetch patient tasks and remove the task
+      final patientTasksDoc = await patientTasksRef.get();
+      if (patientTasksDoc.docs.isEmpty) {
+        throw Exception('No medicines found for the patient');
       }
-    } catch (e) {
-      throw Exception('Error removing task: $e');
-    }
-  }
 
-  Future<void> removeTaskForDoctor(String doctorId, String taskId) async {
-    try {
-      String? userRole = await getTargetUserRole(doctorId);
-      final collection = FirebaseFirestore.instance.collection(userRole!);
-      final snapshot = await collection.doc(doctorId).get();
+      for (var doc in patientTasksDoc.docs) {
+        final tasks = List.from(doc['tasks']);
+        final taskIndex = tasks.indexWhere((task) => task['taskId'] == taskId);
 
-      if (snapshot.exists) {
-        // Get the current tasks and filter out the one with the matching taskId
-        final tasks = List<Map<String, dynamic>>.from(
-            snapshot.get('assignedTasks') ?? []);
-        tasks.removeWhere((task) => task['id'] == taskId);
-
-        // Update the tasks field with the filtered list
-        await collection.doc(doctorId).update({'assignedTasks': tasks});
+        if (taskIndex != -1) {
+          tasks.removeAt(taskIndex);
+          await patientTasksRef.doc(doc.id).update({'tasks': tasks});
+          break; // Task found and removed, break out of the loop
+        }
       }
-    } catch (e) {
-      throw Exception('Error removing task for doctor: $e');
-    }
-  }
 
-  // Fetch tasks for a user (both doctor and patient)
-  Future<List<Map<String, dynamic>>> getTasksForUser(
-      String userId, UserRole userRole) async {
-    String collectionName;
-    switch (userRole) {
-      case UserRole.caregiver:
-        collectionName = 'caregiver';
-        break;
-      case UserRole.nurse:
-        collectionName = 'nurse';
-        break;
-      case UserRole.doctor:
-        collectionName = 'doctor';
-        break;
-      case UserRole.admin:
-        collectionName = 'admin';
-        break;
-      case UserRole.patient:
-        collectionName = 'patient';
-        break;
-      default:
-        throw Exception('Unhandled UserRole: $userRole');
-    }
+      final String? collection = await getTargetUserRole(caregiverId);
+      // Reference to the caregiver's task collection (use caregiverId instead of patientId)
+      final caregiverTasksRef = FirebaseFirestore.instance
+          .collection(collection!) // Get the caregiver's collection
+          .doc(caregiverId) // Use caregiverId here
+          .collection('tasks');
 
-    try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection(collectionName)
-          .doc(userId)
-          .get();
-      if (snapshot.exists) {
-        return List<Map<String, dynamic>>.from(snapshot.get('tasks') ?? []);
+      // Fetch caregiver tasks and remove the task
+      final caregiverTasksDoc = await caregiverTasksRef.get();
+      if (caregiverTasksDoc.docs.isEmpty) {
+        throw Exception('No tasks found for the caregiver');
       }
-      return [];
-    } catch (e) {
-      print('Error fetching tasks: $e');
-      return [];
-    }
-  }
 
-  Future<void> saveScheduleForDoctor(
-      String doctorId, DateTime scheduledDateTime, String patientId) async {
-    final Timestamp timestamp = Timestamp.fromDate(scheduledDateTime);
+      for (var doc in caregiverTasksDoc.docs) {
+        final tasks = List.from(doc['tasks']);
+        final taskIndex = tasks.indexWhere((task) => task['taskId'] == taskId);
 
-    // Fetch patient name from the 'caregivers' collection
-    final patientSnapshot = await FirebaseFirestore.instance
-        .collection('patient')
-        .doc(patientId)
-        .get();
-
-    String patientName = '';
-    if (patientSnapshot.exists) {
-      patientName = patientSnapshot.data()?['firstName']?.trim() ?? '';
-      String lastName = patientSnapshot.data()?['lastName']?.trim() ?? '';
-      patientName = '$patientName $lastName'.trim();
-    }
-
-    // Format date and time
-    String formattedDateTime =
-        DateFormat('MMMM dd, yyyy h:mm a').format(scheduledDateTime);
-
-    try {
-      // Save schedule for the doctor in the 'doctors' collection
-      String? userRole = await getTargetUserRole(doctorId);
-      await FirebaseFirestore.instance
-          .collection(userRole!)
-          .doc(doctorId)
-          .update({
-        'schedule': FieldValue.arrayUnion([
-          {
-            'date': timestamp,
-            'time': DateFormat.jm().format(scheduledDateTime),
-            'patientId': patientId,
-            'patientName': patientName,
-          }
-        ]),
-      });
-
-      // Add schedule notification for the doctor
-      await addNotification(
-        doctorId,
-        "Scheduled visit for patient $patientName at $formattedDateTime.",
-        'schedule',
-      );
-
-      // Fetch doctor's FCM token
-      final doctorSnapshot = await FirebaseFirestore.instance
-          .collection(userRole)
-          .doc(doctorId)
-          .get();
-
-      if (doctorSnapshot.exists) {
-        final doctorData = doctorSnapshot.data() as Map<String, dynamic>;
-        final fcmToken = doctorData['fcmToken'];
-
-        if (fcmToken != null) {
-          // Send push notification
-          await MessagingService.sendFCMMessage(
-            fcmToken,
-            "New Schedule Created",
-            "Visit scheduled with patient $patientName on $formattedDateTime.",
-          );
-        } else {
-          print("Doctor's FCM token not found.");
+        if (taskIndex != -1) {
+          tasks.removeAt(taskIndex);
+          await caregiverTasksRef.doc(doc.id).update({'tasks': tasks});
+          break; // Task found and removed, break out of the loop
         }
       }
     } catch (e) {
-      throw Exception('Error saving schedule for doctor: $e');
+      throw Exception('Failed to remove task: $e');
+    }
+  }
+
+  Future<void> updateTask(
+    String taskId,
+    String caregiverId,
+    String patientId,
+  ) async {
+    try {
+      // Update task in the patient's task collection
+      final patientTasksRef = FirebaseFirestore.instance
+          .collection('patient')
+          .doc(patientId)
+          .collection('tasks');
+
+      final patientTasksSnapshot = await patientTasksRef.get();
+      if (patientTasksSnapshot.docs.isEmpty) {
+        throw Exception('No tasks found for the patient');
+      }
+
+      bool taskUpdated = false;
+
+      for (var doc in patientTasksSnapshot.docs) {
+        final tasks = List.from(doc['tasks']);
+        final taskIndex = tasks.indexWhere((task) => task['taskId'] == taskId);
+
+        if (taskIndex != -1) {
+          tasks[taskIndex]['isCompleted'] = true;
+          await patientTasksRef.doc(doc.id).update({'tasks': tasks});
+          taskUpdated = true;
+          break; // Task found and updated
+        }
+      }
+
+      if (!taskUpdated) {
+        throw Exception('Task not found in patient\'s collection');
+      }
+
+      // Update task in the caregiver's task collection
+      final String? caregiverRole = await getTargetUserRole(caregiverId);
+      if (caregiverRole == null) {
+        throw Exception('Caregiver role not found');
+      }
+
+      final caregiverTasksRef = FirebaseFirestore.instance
+          .collection(caregiverRole)
+          .doc(caregiverId)
+          .collection('tasks');
+
+      final caregiverTasksSnapshot = await caregiverTasksRef.get();
+      if (caregiverTasksSnapshot.docs.isEmpty) {
+        throw Exception('No tasks found for the caregiver');
+      }
+
+      taskUpdated = false;
+
+      for (var doc in caregiverTasksSnapshot.docs) {
+        final tasks = List.from(doc['tasks']);
+        final taskIndex = tasks.indexWhere((task) => task['taskId'] == taskId);
+
+        if (taskIndex != -1) {
+          tasks[taskIndex]['isCompleted'] = true;
+          await caregiverTasksRef.doc(doc.id).update({'tasks': tasks});
+          taskUpdated = true;
+          break; // Task found and updated
+        }
+      }
+
+      if (!taskUpdated) {
+        throw Exception('Task not found in caregiver\'s collection');
+      }
+    } catch (e) {
+      throw Exception('Failed to update task: $e');
+    }
+  }
+
+  Future<void> saveScheduleForCaregiver(
+    String caregiverId,
+    DateTime scheduledDateTime,
+    String patientId,
+    String scheduleId, // Add scheduleId parameter
+  ) async {
+    final Timestamp timestamp = Timestamp.fromDate(scheduledDateTime);
+
+    // Fetch patient name
+    final patientSnapshot =
+        await FirebaseFirestore.instance
+            .collection('patient')
+            .doc(patientId)
+            .get();
+
+    String patientName = '';
+    if (patientSnapshot.exists) {
+      final data = patientSnapshot.data()!;
+      final firstName = data['firstName']?.trim() ?? '';
+      final lastName = data['lastName']?.trim() ?? '';
+      patientName = '$firstName $lastName'.trim();
+    }
+
+    final scheduleData = {
+      'scheduleId': scheduleId, // Use the passed scheduleId
+      'date': timestamp,
+      'patientId': patientId,
+      'patientName': patientName,
+    };
+
+    try {
+      final String? collection = await getTargetUserRole(caregiverId);
+      if (collection == null) {
+        throw Exception('User role not found for caregiver.');
+      }
+
+      final caregiverSchedulesRef = FirebaseFirestore.instance
+          .collection(collection)
+          .doc(caregiverId)
+          .collection('schedules')
+          .doc(patientId);
+
+      final patientScheduleDoc = await caregiverSchedulesRef.get();
+
+      if (patientScheduleDoc.exists) {
+        await caregiverSchedulesRef.update({
+          'schedules': FieldValue.arrayUnion([scheduleData]),
+        });
+      } else {
+        await caregiverSchedulesRef.set({
+          'schedules': [scheduleData],
+        });
+      }
+    } catch (e) {
+      throw Exception('Failed to save schedule for caregiver: $e');
     }
   }
 
   Future<void> saveScheduleForPatient(
-      String patientId, DateTime scheduledDateTime, String caregiverId) async {
+    String patientId,
+    DateTime scheduledDateTime,
+    String caregiverId,
+    String scheduleId, // Add scheduleId parameter
+  ) async {
     final Timestamp timestamp = Timestamp.fromDate(scheduledDateTime);
 
-    // Fetch doctor name from the 'doctors' collection
-    String? userRole = await getTargetUserRole(caregiverId);
-    final doctorSnapshot = await FirebaseFirestore.instance
-        .collection(userRole!)
-        .doc(caregiverId)
-        .get();
+    // Fetch caregiver name
+    final String? userRole = await getTargetUserRole(caregiverId);
+    final caregiverSnapshot =
+        await FirebaseFirestore.instance
+            .collection(userRole!)
+            .doc(caregiverId)
+            .get();
 
-    String doctorName = '';
-    if (doctorSnapshot.exists) {
-      doctorName = doctorSnapshot.data()?['firstName']?.trim() ?? '';
-      String lastName = doctorSnapshot.data()?['lastName']?.trim() ?? '';
-      doctorName = '$doctorName $lastName'.trim();
+    String caregiverName = '';
+    if (caregiverSnapshot.exists) {
+      final data = caregiverSnapshot.data()!;
+      final firstName = data['firstName']?.trim() ?? '';
+      final lastName = data['lastName']?.trim() ?? '';
+      caregiverName = '$firstName $lastName'.trim();
     }
 
-    // Format date and time
-    String formattedDateTime =
-        DateFormat('MMMM dd, yyyy h:mm a').format(scheduledDateTime);
+    final scheduleData = {
+      'scheduleId': scheduleId, // Use the passed scheduleId
+      'date': timestamp,
+      'caregiverId': caregiverId,
+      'caregiverName': caregiverName,
+    };
 
     try {
-      // Save schedule for the patient in the 'caregivers' collection
-      await FirebaseFirestore.instance
+      final patientSchedulesRef = FirebaseFirestore.instance
           .collection('patient')
           .doc(patientId)
-          .update({
-        'schedule': FieldValue.arrayUnion([
-          {
-            'date': timestamp,
-            'time': DateFormat.jm().format(scheduledDateTime),
-            'doctorId': caregiverId,
-            'doctorName': doctorName,
-          }
-        ]),
-      });
+          .collection('schedules')
+          .doc(caregiverId);
 
-      // Add schedule notification for the patient
-      await addNotification(
-        patientId,
-        "Scheduled appointment with doctor $doctorName at $formattedDateTime.",
-        'schedule',
-      );
+      final caregiverScheduleDoc = await patientSchedulesRef.get();
+
+      if (caregiverScheduleDoc.exists) {
+        await patientSchedulesRef.update({
+          'schedules': FieldValue.arrayUnion([scheduleData]),
+        });
+      } else {
+        await patientSchedulesRef.set({
+          'schedules': [scheduleData],
+        });
+      }
     } catch (e) {
-      throw Exception('Error saving schedule for patient: $e');
+      throw Exception('Failed to save schedule for patient: $e');
     }
   }
 
-  Future<void> removePastSchedules(String userId, String userRole) async {
-    final currentDateOnly =
-        DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+  Future<void> removePastSchedules(String userId) async {
+    debugPrint("Removing past schedules for userId: $userId");
 
     try {
-      final collection = getCollectionForRole(userRole as UserRole);
+      // Get current UTC time
+      DateTime nowUtc = DateTime.now();
+      debugPrint('Current UTC time: $nowUtc');
 
-      // Get the user document
-      final userDoc = await FirebaseFirestore.instance
-          .collection(collection)
-          .doc(userId)
-          .get();
-
-      if (!userDoc.exists) {
-        debugPrint('User document does not exist.');
+      // Get user role and collection path
+      final String? collection = await getTargetUserRole(userId);
+      if (collection == null) {
+        debugPrint('User role not found for userId: $userId');
         return;
       }
 
-      // Get the schedule data
-      final schedulesData = userDoc.data()?['schedule'] ?? [];
-      debugPrint("SchedulesData: $schedulesData");
+      debugPrint("remove past schedules collection: $collection");
 
-      // Loop through each schedule and check if it's passed today
-      for (var schedule in schedulesData) {
-        if (schedule['date'] != null) {
-          final scheduleTimestamp = schedule['date'] as Timestamp;
-          final scheduleDate = scheduleTimestamp.toDate();
-          final scheduleDateOnly =
-              DateTime(scheduleDate.year, scheduleDate.month, scheduleDate.day);
+      // Fetch all caregiver documents in the user's schedules collection
+      final QuerySnapshot userSchedulesSnapshot =
+          await FirebaseFirestore.instance
+              .collection(collection)
+              .doc(userId)
+              .collection('schedules')
+              .get();
 
-          if (scheduleDateOnly.isBefore(currentDateOnly)) {
-            await _removeScheduleFromUser(userId, userRole, schedule);
-          } else {
-            debugPrint(
-                "Schedule is today or in the future, not removing: $scheduleDateOnly");
-          }
-        } else {
-          debugPrint('No date found for schedule: $schedule');
+      debugPrint(
+        "Schedules snapshot contains ${userSchedulesSnapshot.docs.length} documents.",
+      );
+
+      if (userSchedulesSnapshot.docs.isEmpty) {
+        debugPrint('No schedules found for userId: $userId');
+        return;
+      }
+
+      // Iterate through caregiver documents
+      for (QueryDocumentSnapshot caregiverDoc in userSchedulesSnapshot.docs) {
+        final String caregiverId = caregiverDoc.id;
+        debugPrint("Processing caregiver document ID: $caregiverId");
+
+        // Retrieve the schedules array from the document
+        final Map<String, dynamic>? caregiverData =
+            caregiverDoc.data() as Map<String, dynamic>?;
+        if (caregiverData == null || !caregiverData.containsKey('schedules')) {
+          debugPrint("No schedules array found for caregiver $caregiverId.");
+          continue;
         }
+
+        List<Map<String, dynamic>> schedules = List<Map<String, dynamic>>.from(
+          caregiverData['schedules'],
+        );
+        debugPrint('Original schedules for caregiver $caregiverId: $schedules');
+
+        List<Map<String, dynamic>> schedulesToKeep = [];
+        List<String> removedScheduleIds = [];
+
+        // Filter schedules: Keep future schedules, collect IDs of past schedules
+        for (var schedule in schedules) {
+          final Timestamp? scheduleTimestamp = schedule['date'] as Timestamp?;
+          if (scheduleTimestamp != null) {
+            final DateTime scheduleDateTime = scheduleTimestamp.toDate();
+            if (scheduleDateTime.isBefore(nowUtc)) {
+              debugPrint('Schedule is in the past: ${schedule['scheduleId']}');
+              removedScheduleIds.add(schedule['scheduleId']);
+            } else {
+              schedulesToKeep.add(schedule); // Keep future schedules
+            }
+          } else {
+            debugPrint('Schedule has a null date: $schedule');
+            schedulesToKeep.add(schedule); // Keep schedules with null dates
+          }
+        }
+
+        debugPrint(
+          'Schedules to keep for caregiver $caregiverId: $schedulesToKeep',
+        );
+        debugPrint(
+          'Removed schedule IDs for caregiver $caregiverId: $removedScheduleIds',
+        );
+
+        // Update the caregiver document with the filtered schedules
+        await caregiverDoc.reference.update({'schedules': schedulesToKeep});
+        debugPrint('Updated schedules for caregiver $caregiverId');
       }
+
+      debugPrint('Completed removing past schedules for userId: $userId');
     } catch (e) {
-      debugPrint('Error removing past schedules: $e');
-    }
-  }
-
-  Future<void> _removeScheduleFromUser(
-      String userId, String userRole, Map<String, dynamic> schedule) async {
-    try {
-      final collection = getCollectionForRole(userRole as UserRole);
-
-      if (schedule['date'] != null) {
-        final scheduleTimestamp = schedule['date'] as Timestamp;
-
-        debugPrint("schedule timestamp: $scheduleTimestamp");
-        debugPrint("schedule date: ${scheduleTimestamp.toDate()}");
-
-        final scheduleToRemove = {
-          'date': scheduleTimestamp,
-          'doctorId': schedule['doctorId'],
-          'time': schedule['time'],
-          'patientId':
-              schedule['patientId'], // Ensure all relevant fields are present
-        };
-
-        await FirebaseFirestore.instance
-            .collection(collection)
-            .doc(userId)
-            .update({
-          'schedule': FieldValue.arrayRemove([scheduleToRemove]),
-        });
-
-        debugPrint('Removed past schedule for user $userId');
-      } else {
-        debugPrint('No date found for schedule: $schedule');
-      }
-    } catch (e) {
-      debugPrint('Error removing schedule: $e');
+      debugPrint('Error while removing past schedules for userId $userId: $e');
     }
   }
 
@@ -1110,8 +1267,9 @@ class DatabaseService {
   ) async {
     debugPrint("Add Contact function userid: $userId");
 
-    final userDocRef =
-        FirebaseFirestore.instance.collection('patient').doc(userId);
+    final userDocRef = FirebaseFirestore.instance
+        .collection('patient')
+        .doc(userId);
 
     await FirebaseFirestore.instance.runTransaction((transaction) async {
       final snapshot = await transaction.get(userDocRef);
@@ -1121,11 +1279,7 @@ class DatabaseService {
 
       // Get the current contacts or initialize them if not present
       Map<String, dynamic> contacts = Map<String, dynamic>.from(
-        snapshot.data()?['contacts'] ??
-            {
-              'relative': [],
-              'nurse': [],
-            },
+        snapshot.data()?['contacts'] ?? {'relative': [], 'nurse': []},
       );
 
       // Ensure the category exists as a list
@@ -1148,10 +1302,12 @@ class DatabaseService {
     String oldPhoneNumber,
   ) async {
     debugPrint(
-        "Edit Contact: userId: $userId, previousCategory: $previousCategory, oldPhoneNumber: $oldPhoneNumber");
+      "Edit Contact: userId: $userId, previousCategory: $previousCategory, oldPhoneNumber: $oldPhoneNumber",
+    );
 
-    final userDocRef =
-        FirebaseFirestore.instance.collection('patient').doc(userId);
+    final userDocRef = FirebaseFirestore.instance
+        .collection('patient')
+        .doc(userId);
 
     await FirebaseFirestore.instance.runTransaction((transaction) async {
       final snapshot = await transaction.get(userDocRef);
@@ -1159,12 +1315,9 @@ class DatabaseService {
         throw Exception("User document does not exist.");
       }
 
-      Map<String, dynamic> contacts =
-          Map<String, dynamic>.from(snapshot.data()?['contacts'] ??
-              {
-                'relative': [],
-                'nurse': [],
-              });
+      Map<String, dynamic> contacts = Map<String, dynamic>.from(
+        snapshot.data()?['contacts'] ?? {'relative': [], 'nurse': []},
+      );
 
       // Ensure categories are initialized
       if (contacts[previousCategory] == null) {
@@ -1175,25 +1328,31 @@ class DatabaseService {
       }
 
       // Remove the contact from the previous category
-      final previousContactList =
-          List<Map<String, dynamic>>.from(contacts[previousCategory]);
-      final contactIndex = previousContactList.indexWhere((contact) =>
-          contact['number'] != null && contact['number'] == oldPhoneNumber);
+      final previousContactList = List<Map<String, dynamic>>.from(
+        contacts[previousCategory],
+      );
+      final contactIndex = previousContactList.indexWhere(
+        (contact) =>
+            contact['number'] != null && contact['number'] == oldPhoneNumber,
+      );
 
       if (contactIndex != -1) {
         debugPrint(
-            "Removing contact from previous category: $previousCategory");
+          "Removing contact from previous category: $previousCategory",
+        );
         previousContactList.removeAt(contactIndex);
         contacts[previousCategory] = previousContactList;
       } else {
         throw Exception(
-            "Contact not found in previous category: $previousCategory.");
+          "Contact not found in previous category: $previousCategory.",
+        );
       }
 
       // Add the updated contact to the new category
       final updatedCategory = updatedContact['category'];
-      final updatedContactList =
-          List<Map<String, dynamic>>.from(contacts[updatedCategory]);
+      final updatedContactList = List<Map<String, dynamic>>.from(
+        contacts[updatedCategory],
+      );
       debugPrint("Adding contact to new category: $updatedCategory");
       updatedContactList.add(updatedContact);
       contacts[updatedCategory] = updatedContactList;
@@ -1211,10 +1370,12 @@ class DatabaseService {
     String phoneNumberToDelete,
   ) async {
     debugPrint(
-        "Delete Contact: userId: $userId, category: $category, phoneNumberToDelete: $phoneNumberToDelete");
+      "Delete Contact: userId: $userId, category: $category, phoneNumberToDelete: $phoneNumberToDelete",
+    );
 
-    final userDocRef =
-        FirebaseFirestore.instance.collection('patient').doc(userId);
+    final userDocRef = FirebaseFirestore.instance
+        .collection('patient')
+        .doc(userId);
 
     await FirebaseFirestore.instance.runTransaction((transaction) async {
       final snapshot = await transaction.get(userDocRef);
@@ -1222,26 +1383,25 @@ class DatabaseService {
         throw Exception("User document does not exist.");
       }
 
-      Map<String, dynamic> contacts =
-          Map<String, dynamic>.from(snapshot.data()?['contacts'] ??
-              {
-                'relative': [],
-                'nurse': [],
-              });
+      Map<String, dynamic> contacts = Map<String, dynamic>.from(
+        snapshot.data()?['contacts'] ?? {'relative': [], 'nurse': []},
+      );
 
       if (contacts[category] == null) {
         contacts[category] = [];
       }
 
       final contactList = List<Map<String, dynamic>>.from(contacts[category]);
-      final updatedContactList = contactList.where((contact) {
-        return contact['number'] != null &&
-            contact['number'] != phoneNumberToDelete;
-      }).toList();
+      final updatedContactList =
+          contactList.where((contact) {
+            return contact['number'] != null &&
+                contact['number'] != phoneNumberToDelete;
+          }).toList();
 
       if (contactList.length == updatedContactList.length) {
         throw Exception(
-            "Contact with phone number $phoneNumberToDelete not found in category: $category.");
+          "Contact with phone number $phoneNumberToDelete not found in category: $category.",
+        );
       }
 
       contacts[category] = updatedContactList;
@@ -1252,7 +1412,7 @@ class DatabaseService {
     debugPrint("Contact successfully deleted.");
   }
 
-// Check if the user exists by UID
+  // Check if the user exists by UID
   Future<bool> checkUserExists(String userId) async {
     try {
       if (userId.isEmpty) {
@@ -1270,10 +1430,11 @@ class DatabaseService {
       debugPrint('Checking existence for userId: $userId in role: $userRole');
 
       // Fetch the user document
-      final userDoc = await FirebaseFirestore.instance
-          .collection(userRole)
-          .doc(userId)
-          .get();
+      final userDoc =
+          await FirebaseFirestore.instance
+              .collection(userRole)
+              .doc(userId)
+              .get();
 
       final exists = userDoc.exists;
       debugPrint('User existence for userId $userId in $userRole: $exists');
@@ -1285,7 +1446,7 @@ class DatabaseService {
     }
   }
 
-// Check if the user is already a friend
+  // Check if the user is already a friend
   Future<bool> isUserFriend(String currentUserId, String targetUserId) async {
     try {
       // Fetch current user's role
@@ -1299,10 +1460,11 @@ class DatabaseService {
       String currentUserCollection = currentUserRole;
 
       // Fetch user document
-      var userDoc = await FirebaseFirestore.instance
-          .collection(currentUserCollection)
-          .doc(currentUserId)
-          .get();
+      var userDoc =
+          await FirebaseFirestore.instance
+              .collection(currentUserCollection)
+              .doc(currentUserId)
+              .get();
 
       if (userDoc.exists) {
         var friends = userDoc.data()?['contacts']?['friends'];
@@ -1318,10 +1480,11 @@ class DatabaseService {
   Future<String> getUserName(String userId, UserRole userRole) async {
     try {
       final userCollection = getCollectionForRole(userRole);
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection(userCollection)
-          .doc(userId)
-          .get();
+      DocumentSnapshot userDoc =
+          await FirebaseFirestore.instance
+              .collection(userCollection)
+              .doc(userId)
+              .get();
 
       if (userDoc.exists) {
         // Concatenate firstName, middleName, and lastName
@@ -1370,10 +1533,11 @@ class DatabaseService {
       }
 
       // Query the user's role collection for the phone number
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection(userRole)
-          .where('phoneNumber', isEqualTo: phoneNumber)
-          .get();
+      final querySnapshot =
+          await FirebaseFirestore.instance
+              .collection(userRole)
+              .where('phoneNumber', isEqualTo: phoneNumber)
+              .get();
 
       if (querySnapshot.docs.isNotEmpty) {
         // Ensure the phone number doesn't belong to the current user
@@ -1396,10 +1560,11 @@ class DatabaseService {
 
   Future<List<String>> fetchSymptoms(String userId, UserRole userRole) async {
     try {
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection('patient')
-          .doc(userId)
-          .get();
+      DocumentSnapshot userDoc =
+          await FirebaseFirestore.instance
+              .collection('patient')
+              .doc(userId)
+              .get();
 
       if (userDoc.exists) {
         // Retrieve symptoms field from the document
@@ -1417,19 +1582,26 @@ class DatabaseService {
 
   Stream<List<UserData?>> fetchUsersByRole(UserRole role) {
     final collection = getCollectionForRole(role);
-    return FirebaseFirestore.instance.collection(collection).snapshots().map(
-        (snapshot) =>
-            snapshot.docs.map((doc) => UserData.fromDocument(doc)).toList());
+    return FirebaseFirestore.instance
+        .collection(collection)
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs.map((doc) => UserData.fromDocument(doc)).toList(),
+        );
   }
 
   Stream<List<UserData>> get patients {
     return FirebaseFirestore.instance
         .collection(
-            'patient') // Replace 'patients' with your actual collection name
+          'patient',
+        ) // Replace 'patients' with your actual collection name
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) => UserData.fromDocument(doc)).toList();
-    });
+          return snapshot.docs
+              .map((doc) => UserData.fromDocument(doc))
+              .toList();
+        });
   }
 
   Future<UserData?> getUserDataById(String uid) async {
@@ -1462,10 +1634,11 @@ class DatabaseService {
 
   Future<PatientData?> getPatientData(String patientId) async {
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('patient')
-          .doc(patientId)
-          .get();
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('patient')
+              .doc(patientId)
+              .get();
 
       if (doc.exists) {
         debugPrint('Document found for patientId: $patientId');
@@ -1488,6 +1661,7 @@ class DatabaseService {
     int? age,
     String? gender,
     String? religion,
+    String? address,
     String? will,
     String? fixedWishes,
     String? organDonation,
@@ -1502,12 +1676,17 @@ class DatabaseService {
       final collectionName = getCollectionForRole(UserRole.patient);
 
       // Get the Firestore reference
-      final collectionRef =
-          FirebaseFirestore.instance.collection(collectionName);
+      final collectionRef = FirebaseFirestore.instance.collection(
+        collectionName,
+      );
 
-      // Prepare the updated data
+      // Prepare the data map
       Map<String, dynamic> updatedData = {};
 
+      // Add userRole
+      updatedData['userRole'] = 'patient';
+
+      // Add patient details to the map
       if (firstName != null) updatedData['firstName'] = firstName;
       if (lastName != null) updatedData['lastName'] = lastName;
       if (middleName != null) updatedData['middleName'] = middleName;
@@ -1541,6 +1720,7 @@ class DatabaseService {
       if (profileImageUrl != null) {
         updatedData['profileImageUrl'] = profileImageUrl;
       }
+      if (address?.isNotEmpty ?? false) updatedData['address'] = address;
 
       // Add case-related data
       if (caseTitle?.isNotEmpty ?? false) updatedData['caseTitle'] = caseTitle;
@@ -1552,14 +1732,13 @@ class DatabaseService {
       // Perform the update only if there's data to update
       if (updatedData.isNotEmpty) {
         await collectionRef.doc(uid).set(updatedData, SetOptions(merge: true));
-        print(
-            "Patient data updated successfully in collection: $collectionName");
+        print("Patient data added successfully in collection: $collectionName");
       } else {
-        print("No updates provided for patient data.");
+        print("No data provided to add patient.");
       }
     } catch (e) {
-      print("Error updating patient data: $e");
-      throw Exception("Failed to update patient data");
+      print("Error adding patient data: $e");
+      throw Exception("Failed to add patient data");
     }
   }
 }

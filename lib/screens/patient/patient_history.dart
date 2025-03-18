@@ -132,7 +132,6 @@ class _PatientHistoryState extends State<PatientHistory> {
     return '${monthNames[date.month - 1]} ${date.day}, ${date.year}';
   }
 
-  // Fetching previous diagnoses from Firestore
   Future<List<Map<String, dynamic>>> _getDiagnoses() async {
     final diagnosisSnapshot = await FirebaseFirestore.instance
         .collection('patient')
@@ -147,9 +146,7 @@ class _PatientHistoryState extends State<PatientHistory> {
     }).toList();
   }
 
-  Future<void> _addDiagnosis(
-      String diagnosis, String description, DateTime date) async {
-    // Capitalize the input
+  Future<void> _addDiagnosis(String diagnosis, String description, DateTime date) async {
     String capitalize(String input) {
       if (input.isEmpty) return input;
       return toBeginningOfSentenceCase(input.toLowerCase()) ?? input;
@@ -166,7 +163,6 @@ class _PatientHistoryState extends State<PatientHistory> {
     });
   }
 
-  // Delete Diagnosis from Firestore
   Future<void> _deleteDiagnosis(String diagnosisId) async {
     await FirebaseFirestore.instance
         .collection('patient')
@@ -176,7 +172,6 @@ class _PatientHistoryState extends State<PatientHistory> {
         .delete();
   }
 
-// Show dialog to add diagnosis
   void _showAddDiagnosisDialog() {
     showDialog(
       context: context,
@@ -354,7 +349,6 @@ class _PatientHistoryState extends State<PatientHistory> {
     );
   }
 
-  // Show dialog with options to delete or cancel
   void _showDiagnosisOptionsDialog(String diagnosisId) {
     showDialog(
       context: context,
@@ -472,7 +466,6 @@ class _PatientHistoryState extends State<PatientHistory> {
       ),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {

@@ -2,6 +2,7 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:solace/screens/patient/patient_tracking.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/shared/globals.dart';
 import 'package:solace/themes/colors.dart';
@@ -163,8 +164,8 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   }
 
   void _submitAlgoInputs(String uid) async {
-    final userData = await DatabaseService(uid: uid).getUserData();
-    if (userData == null) {
+    final patientData = await DatabaseService(uid: uid).getPatientData(uid);
+    if (patientData == null) {
       debugPrint('Submit Algo Input No User Data');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -210,7 +211,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   Future<void> getPrediction(List<dynamic> algoInputs) async {
     // choose from these depending on testing device
     // final localHostAddress = '127.0.0.1'; // default
-    final virtualAddress = '10.0.2.2'; // if using virtual device
+    final virtualAddress = '10.0.2.3';
     // if using physical device, use computer’s IP address instead of 127.0.0.1 or localhost.
 
     final url = Uri.parse('http://$virtualAddress:5000/predict');
@@ -415,7 +416,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                         textAlign: TextAlign.center,
                         style: TextStyle(
                             fontWeight: FontWeight.normal,
-                            fontSize: 18,
+                            fontSize: 16,
                             fontFamily: 'Inter',
                             color: AppColors.white),
                       ),
@@ -423,7 +424,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                         'Once submitted, it cannot be reverted',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                            fontSize: 18,
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
                             fontFamily: 'Inter',
                             color: AppColors.white),
@@ -628,7 +629,13 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                           action: 'Submitted tracking information',
                         );
 
-                        Navigator.pop(context);
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PatientTracking(patientId: widget.uid),
+                          ),
+                              (Route<dynamic> route) => route.isFirst, // Retain only the first route (Dashboard)
+                        );
                       } catch (e) {
                         // Handle any unexpected errors here
                         debugPrint("Unexpected error: $e");

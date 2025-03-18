@@ -18,17 +18,7 @@ class HomeState extends State<Home> {
   @override
   void initState() {
     super.initState();
-    // Fetch and save the FCM token on widget initialization
-    _initializeFCM();
-  }
-
-  Future<void> _initializeFCM() async {
-    try {
-      await MessagingService.fetchAndSaveToken();
-      debugPrint('FCM token updated successfully.');
-    } catch (e) {
-      debugPrint('Error fetching and saving FCM token: $e');
-    }
+    MessagingService.initialize();
   }
 
   @override

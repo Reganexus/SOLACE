@@ -38,21 +38,23 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
   void initState() {
     super.initState();
     fetchPatientData();
+    debugPrint("Patient Dashboard Patient ID: ${widget.patientId}");
+    debugPrint("Patient Dashboard Caregiver ID: ${widget.caregiverId}");
   }
 
   final Map<String, Widget Function(String, String)> routes = {
     'Contacts': (caregiverId, patientId) => Contacts(patientId: patientId),
     'History': (caregiverId, patientId) => PatientHistory(patientId: patientId),
-    'Intervention': (caregiverId, patientId) =>
-        PatientIntervention(patientId: patientId),
-    'Medicine': (caregiverId, patientId) =>
-        PatientMedicine(patientId: patientId),
+    'Intervention':
+        (caregiverId, patientId) => PatientIntervention(patientId: patientId),
+    'Medicine':
+        (caregiverId, patientId) => PatientMedicine(patientId: patientId),
     'Notes': (caregiverId, patientId) => PatientNote(patientId: patientId),
-    'Schedule': (caregiverId, patientId) =>
-        PatientSchedule(patientId: patientId),
+    'Schedules':
+        (caregiverId, patientId) => PatientSchedule(patientId: patientId),
     'Tasks': (caregiverId, patientId) => PatientTasks(patientId: patientId),
-    'Tracking': (caregiverId, patientId) =>
-        PatientTracking(patientId: patientId),
+    'Tracking':
+        (caregiverId, patientId) => PatientTracking(patientId: patientId),
   };
 
   final List<Map<String, dynamic>> gridItems = [
@@ -61,17 +63,18 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     {'label': 'Intervention', 'icon': Icons.healing},
     {'label': 'Medicine', 'icon': Icons.medical_services_rounded},
     {'label': 'Notes', 'icon': Icons.create_rounded},
-    {'label': 'Schedule', 'icon': Icons.calendar_today},
+    {'label': 'Schedules', 'icon': Icons.calendar_today},
     {'label': 'Tasks', 'icon': Icons.task},
     {'label': 'Tracking', 'icon': Icons.monitor_heart_rounded},
   ];
 
   Future<void> fetchPatientData() async {
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('patient')
-          .doc(widget.patientId)
-          .get();
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('patient')
+              .doc(widget.patientId)
+              .get();
 
       if (snapshot.exists) {
         setState(() {
@@ -97,63 +100,70 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
   }
 
   List<Widget> _buildAlternatingItems(
-      BuildContext context, String caregiverId, String patientId) {
+    BuildContext context,
+    String caregiverId,
+    String patientId,
+  ) {
     final List<Widget> items = [];
     for (int i = 0; i < gridItems.length; i += 4) {
       final iconBatch = gridItems.skip(i).take(4).toList();
 
-      items.add(GridView.builder(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 4,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-        ),
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: iconBatch.length,
-        itemBuilder: (context, index) {
-          final item = iconBatch[index];
-          return GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      routes[item['label']]!(caregiverId, patientId),
-                ),
-              );
-            },
-            child: _buildIconContainer(item['icon']),
-          );
-        },
-      ));
-
-      items.add(const SizedBox(height: 5));
-
-      items.add(GridView.builder(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 4,
-          crossAxisSpacing: 10,
-          childAspectRatio: 4,
-        ),
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: iconBatch.length,
-        itemBuilder: (context, index) {
-          return Text(
-            iconBatch[index]['label'],
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 12,
-              fontFamily: 'Inter',
+      // Add a Row combining icons and their labels
+      items.add(
+        Padding(
+          padding: const EdgeInsets.only(
+            bottom: 20,
+          ), // Adjust spacing between batches
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: List.generate(
+              iconBatch.length * 2 - 1, // Include spaces between items
+              (index) {
+                if (index.isEven) {
+                  // Icon and label container
+                  final item = iconBatch[index ~/ 2];
+                  return Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (context) => routes[item['label']]!(
+                                      caregiverId,
+                                      patientId,
+                                    ),
+                              ),
+                            );
+                          },
+                          child: _buildIconContainer(item['icon']),
+                        ),
+                        const SizedBox(
+                          height: 5,
+                        ), // Adjust spacing between icon and label
+                        Text(
+                          item['label'],
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontFamily: 'Inter',
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                } else {
+                  // Spacer between items
+                  return const SizedBox(width: 10);
+                }
+              },
             ),
-          );
-        },
-      ));
-
-      if (i + 4 < gridItems.length / 2 * 4) {
-        items.add(const SizedBox(height: 20));
-      }
+          ),
+        ),
+      );
     }
     return items;
   }
@@ -165,12 +175,8 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
         borderRadius: BorderRadius.circular(10),
       ),
       alignment: Alignment.center,
-      padding: const EdgeInsets.all(8),
-      child: Icon(
-        icon,
-        size: 28,
-        color: AppColors.black,
-      ),
+      padding: const EdgeInsets.all(28),
+      child: Icon(icon, size: 28, color: AppColors.black),
     );
   }
 
@@ -195,7 +201,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
               style: TextStyle(
                 fontFamily: 'Inter',
                 fontWeight: FontWeight.bold,
-                fontSize: 16,
+                fontSize: 14,
                 color: AppColors.white,
               ),
             ),
@@ -208,8 +214,8 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>
-                      ViewPatientTask(patientId: widget.patientId),
+                  builder:
+                      (context) => ViewPatientTask(patientId: widget.patientId),
                 ),
               );
             },
@@ -225,7 +231,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
               style: TextStyle(
                 fontFamily: 'Inter',
                 fontWeight: FontWeight.bold,
-                fontSize: 16,
+                fontSize: 14,
                 color: AppColors.white,
               ),
             ),
@@ -239,14 +245,17 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) =>
-                        ViewPatientMedicine(patientId: widget.patientId),
+                    builder:
+                        (context) =>
+                            ViewPatientMedicine(patientId: widget.patientId),
                   ),
                 );
               },
               style: TextButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
                 backgroundColor: AppColors.darkblue,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -257,7 +266,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
                 style: TextStyle(
                   fontFamily: 'Inter',
                   fontWeight: FontWeight.bold,
-                  fontSize: 16,
+                  fontSize: 14,
                   color: AppColors.white,
                 ),
               ),
@@ -269,7 +278,9 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
   }
 
   Future<void> _scheduleAppointment(
-      String caregiverId, String patientId) async {
+    String caregiverId,
+    String patientId,
+  ) async {
     if (!mounted) return; // Ensure the widget is still mounted
     final DateTime today = DateTime.now();
 
@@ -288,10 +299,9 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
               onSurface: AppColors.black,
             ),
             textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.neon,
-              ),
-            ), dialogTheme: DialogThemeData(backgroundColor: AppColors.white),
+              style: TextButton.styleFrom(foregroundColor: AppColors.neon),
+            ),
+            dialogTheme: DialogThemeData(backgroundColor: AppColors.white),
           ),
           child: child!,
         );
@@ -333,19 +343,50 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
       selectedTime.minute,
     );
 
+    // Generate a single scheduleId to use for both caregiver and patient
+    final String scheduleId =
+        FirebaseFirestore.instance.collection('_').doc().id;
+
     try {
       debugPrint("Schedule caregiverId: $caregiverId");
       debugPrint("Schedule scheduledDateTime: $scheduledDateTime");
       debugPrint("Schedule patientId: $patientId");
+      debugPrint("Schedule scheduleId: $scheduleId");
 
       // Save schedule in Firestore for both caregiver and patient
-      await _databaseService.saveScheduleForDoctor(
-          caregiverId, scheduledDateTime, patientId);
+      await _databaseService.saveScheduleForCaregiver(
+        caregiverId,
+        scheduledDateTime,
+        patientId,
+        scheduleId,
+      );
       await _databaseService.saveScheduleForPatient(
-          patientId, scheduledDateTime, caregiverId);
+        patientId,
+        scheduledDateTime,
+        caregiverId,
+        scheduleId,
+      );
       debugPrint("Schedule saved for both caregiver and patient.");
+
+      // Show success Snackbar
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Appointment successfully scheduled!'),
+          backgroundColor: Colors.green,
+        ),
+      );
     } catch (e) {
       debugPrint("Failed to save schedule: $e");
+
+      // Show error Snackbar
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Failed to schedule appointment. Please try again.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -372,12 +413,15 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection(
-                        'patient') // Assuming you have a 'patient' collection
-                    .doc(widget
-                        .patientId) // Document ID for the current user (patient)
-                    .snapshots(),
+                stream:
+                    FirebaseFirestore.instance
+                        .collection(
+                          'patient',
+                        ) // Assuming you have a 'patient' collection
+                        .doc(
+                          widget.patientId,
+                        ) // Document ID for the current user (patient)
+                        .snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
@@ -390,19 +434,22 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
                   // Extract patient data and status directly
                   final patientData =
                       snapshot.data?.data() as Map<String, dynamic>?;
-                  final status = patientData?['status'] ??
+                  final status =
+                      patientData?['status'] ??
                       'stable'; // Default to 'stable' if null
                   final isUnstable = status == 'unstable';
                   final isUnavailable = patientData == null;
 
-                  final statusMessage = isUnavailable
-                      ? 'No status yet'
-                      : isUnstable
+                  final statusMessage =
+                      isUnavailable
+                          ? 'No status yet'
+                          : isUnstable
                           ? '⚠️ Symptoms detected. Please consult your doctor.'
                           : 'ⓘ No symptoms detected. Keep up the good work!';
-                  final backgroundColor = isUnavailable
-                      ? AppColors.blackTransparent
-                      : isUnstable
+                  final backgroundColor =
+                      isUnavailable
+                          ? AppColors.blackTransparent
+                          : isUnstable
                           ? AppColors.red
                           : AppColors.neon;
 
@@ -421,13 +468,15 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
                             Container(
                               width: double.infinity,
                               padding: const EdgeInsets.symmetric(
-                                  vertical: 20.0, horizontal: 15.0),
+                                vertical: 20.0,
+                                horizontal: 15.0,
+                              ),
                               child: Text(
                                 isUnavailable
                                     ? 'Unavailable'
                                     : isUnstable
-                                        ? 'Unstable'
-                                        : 'Stable',
+                                    ? 'Unstable'
+                                    : 'Stable',
                                 style: const TextStyle(
                                   fontSize: 50.0,
                                   fontFamily: 'Outfit',
