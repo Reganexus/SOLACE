@@ -23,7 +23,7 @@ class PatientTracking extends StatefulWidget {
 }
 
 class PatientTrackingState extends State<PatientTracking> {
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final GlobalKey<FormBuilderState> _formKey = GlobalKey<FormBuilderState>();
   final DatabaseService databaseService = DatabaseService();
 
   bool isCooldownActive = false; // Added this variable
@@ -51,14 +51,14 @@ class PatientTrackingState extends State<PatientTracking> {
   };
 
   final Map<String, dynamic> _algoInputs = {
-    "Fever": false,
-    "Cough": false,
-    "Fatigue": false,
-    "Difficulty Breathing": false,
-    "Age": null,
     "Gender": null,
-    "Blood Pressure": null,
-    "Cholesterol Level": null,
+    "Age": null,
+    "Temperature": null,
+    "Oxygen Saturation": null,
+    "Heart Rate": null,
+    "Respiration": null,
+    "Systolic": null,
+    "Diastolic": null,
   };
 
   final Map<String, FocusNode> _focusNodes = {
@@ -361,7 +361,7 @@ class PatientTrackingState extends State<PatientTracking> {
                   controller: controller,
                   focusNode: focusNode,
                   decoration: _inputDecoration(key, focusNode),
-                  keyboardType: TextInputType.number,
+                  // keyboardType: TextInputType.number,
                   validator: FormBuilderValidators.compose(validators),
                   inputFormatters: inputFormatters,
                   onChanged: (value) => _vitalInputs[key] = value,
@@ -538,24 +538,24 @@ class PatientTrackingState extends State<PatientTracking> {
   }
 
   void _submit(String uid) async {
+    if (!_formKey.currentState!.saveAndValidate()) {
+      // Validation failed, show error SnackBar
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Please correct the highlighted errors in the vitals form.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
     final patientData =
         await DatabaseService().getPatientData(widget.patientId);
     if (patientData == null) {
       debugPrint('Submit Algo Input No User Data');
       return;
     }
-
-    // Set algo inputs
-    _algoInputs['Fever'] =
-        (double.parse(_vitalInputs['Temperature']!) > maxTemperature)
-            ? true
-            : false;
-    _algoInputs['Cough'] = (_coughingValue > maxScale) ? true : false;
-    _algoInputs['Fatigue'] = (_fatigueValue > maxScale) ? true : false;
-    _algoInputs['Difficulty Breathing'] =
-        (_shortnessOfBreathValue > maxScale) ? true : false;
-    _algoInputs['Age'] = patientData.age;
-    _algoInputs['Gender'] = patientData.gender;
 
     // Blood Pressure Parsing and Classification
     final parts = _vitalInputs['Blood Pressure']!.split('/');
@@ -567,24 +567,15 @@ class PatientTrackingState extends State<PatientTracking> {
       return;
     }
 
-    if (systolic < lowBloodPressureSystolic &&
-        diastolic < lowBloodPressureDiastolic) {
-      _algoInputs['Blood Pressure'] = 'Low';
-    } else if (systolic < normalBloodPressureSystolic &&
-        diastolic < normalBloodPressureDiastolic) {
-      _algoInputs['Blood Pressure'] = 'Normal';
-    } else {
-      _algoInputs['Blood Pressure'] = 'High';
-    }
-
-    double cl = double.parse(_vitalInputs['Cholesterol Level']!);
-    if (cl < lowCholesterol) {
-      _algoInputs['Cholesterol Level'] = 'Low';
-    } else if (cl < normalCholesterol) {
-      _algoInputs['Cholesterol Level'] = 'Normal';
-    } else {
-      _algoInputs['Cholesterol Level'] = 'High';
-    }
+    // Set algo inputs
+    _algoInputs['Gender'] = patientData.gender;
+    _algoInputs['Age'] = patientData.age;
+    _algoInputs['Temperature'] = _vitalInputs['Temperature'];
+    _algoInputs['Oxygen Saturation'] = _vitalInputs['Oxygen Saturation'];
+    _algoInputs['Heart Rate'] = _vitalInputs['Heart Rate'];
+    _algoInputs['Respiration'] = _vitalInputs['Respiration'];
+    _algoInputs['Systolic'] = systolic;
+    _algoInputs['Diastolic'] = diastolic;
 
     _combinedInputs = {
       'Vitals': _vitalInputs,

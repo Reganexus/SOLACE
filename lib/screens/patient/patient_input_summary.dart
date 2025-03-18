@@ -1,6 +1,7 @@
 // ignore_for_file: avoid_print, use_build_context_synchronously, deprecated_member_use
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:solace/screens/patient/patient_tracking.dart';
 import 'package:solace/services/database.dart';
@@ -29,6 +30,7 @@ class ReceiptScreen extends StatefulWidget {
 class _ReceiptScreenState extends State<ReceiptScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final LogService _logService = LogService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   void _identifySymptoms() async {
     List<String> symptoms = [];
@@ -44,8 +46,9 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     }
 
     // Analyze vital inputs
-    Map<String, String> vitals =
-        Map<String, String>.from(widget.inputs['Vitals']);
+    Map<String, String> vitals = Map<String, String>.from(
+      widget.inputs['Vitals'],
+    );
     vitals.forEach((key, value) {
       if (value.isEmpty) return;
 
@@ -121,16 +124,16 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     });
 
     // Analyze symptom inputs
-    Map<String, int> symptomAssessment =
-        Map<String, int>.from(widget.inputs['Symptom Assessment']);
+    Map<String, int> symptomAssessment = Map<String, int>.from(
+      widget.inputs['Symptom Assessment'],
+    );
 
     // Remove symptoms with a value of 0
-    symptomAssessment
-        .removeWhere((key, value) => value == 0);
+    symptomAssessment.removeWhere((key, value) => value == 0);
     // Sort symptoms in descending order by value
-    List<MapEntry<String, int>> sortedSymptoms = symptomAssessment.entries
-        .toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
+    List<MapEntry<String, int>> sortedSymptoms =
+        symptomAssessment.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
 
     for (var entry in sortedSymptoms) {
       symptoms.add(entry.key);
@@ -169,10 +172,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       debugPrint('Submit Algo Input No User Data');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('No User Data'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('No User Data'), backgroundColor: Colors.red),
         );
       }
     } else {
@@ -209,78 +209,80 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   }
 
   Future<void> getPrediction(List<dynamic> algoInputs) async {
-    // choose from these depending on testing device
+    // Choose appropriate IP address
+    final virtualAddress =
+        '10.0.2.2'; // Use for virtual devices (e.g., Android emulator)
     // final localHostAddress = '127.0.0.1'; // default
-    final virtualAddress = '10.0.2.3';
-    // if using physical device, use computer’s IP address instead of 127.0.0.1 or localhost.
 
+    // if using physical device, use computer’s IP address instead of 127.0.0.1 or localhost.
     final url = Uri.parse('http://$virtualAddress:5000/predict');
     final headers = {"Content-Type": "application/json"};
 
-    // Define mappings for Blood Pressure and Cholesterol Level
-    const severityMapping = {
-      "Low": 0,
-      "Normal": 1,
-      "High": 2,
-    };
-
-    // Format algoInputs to match the input size expected by the model (8 features)
-    List<int>? formattedInputs;
+    // Ensure inputs are formatted correctly
+    List<dynamic> formattedInputs;
     try {
       formattedInputs = [
-        algoInputs[0] == true ? 1 : 0, // Fever
-        algoInputs[1] == true ? 1 : 0, // Cough
-        algoInputs[2] == true ? 1 : 0, // Fatigue
-        algoInputs[3] == true ? 1 : 0, // Difficulty Breathing
-        (algoInputs[4] ?? 0) as int, // Age
-        algoInputs[5] == 'Male' ? 1 : 0, // Gender
-        severityMapping[algoInputs[6]] ?? 0, // Blood Pressure
-        severityMapping[algoInputs[7]] ?? 0, // Cholesterol Level
+        algoInputs[0] == 'Male'
+            ? 1
+            : (algoInputs[0] == 'Female' ? 0 : -1), // Gender (int)
+        int.tryParse(algoInputs[1].toString()) ?? 0, // Age (int)
+        double.tryParse(algoInputs[2].toString()) ??
+            0.0, // Temperature (double)
+        int.tryParse(algoInputs[3].toString()) ?? 0, // Oxygen Saturation (int)
+        int.tryParse(algoInputs[4].toString()) ?? 0, // Heart Rate (int)
+        int.tryParse(algoInputs[5].toString()) ?? 0, // Respiration Rate (int)
+        int.tryParse(algoInputs[6].toString()) ?? 0, // Systolic BP (int)
+        int.tryParse(algoInputs[7].toString()) ?? 0, // Diastolic BP (int)
       ];
 
       debugPrint('Formatted Inputs: $formattedInputs');
     } catch (e, stackTrace) {
       debugPrint('Error formatting inputs: $e');
       debugPrint('StackTrace: $stackTrace');
+      return;
     }
 
     try {
-      // Wrap formattedInputs in a JSON object with the 'data' key
+      // Wrap formattedInputs inside 'data' key
       final body = json.encode({
-        'data': [formattedInputs]
+        "data": [formattedInputs],
       });
+      debugPrint("JSON Body: $body");
 
-      final response = await http.post(
-        url,
-        headers: headers,
-        body: body,
-      );
-
-      debugPrint("Json body: $body");
+      final response = await http.post(url, headers: headers, body: body);
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
-        debugPrint(
-            "Status: ${responseData['prediction']}  Type: ${(responseData['prediction']).runtimeType}");
-        // set status to either stable or unstable here
-        if (responseData['prediction'][0] == 0) {
+
+        // Extract prediction result
+        List<dynamic> predictions = responseData['predictions'];
+        int predictionResult = predictions[0]; // Get first result
+
+        debugPrint("Raw Response: ${response.body}");
+        debugPrint("Prediction Result: $predictionResult");
+
+        // Handle Prediction Output
+        if (predictionResult == 0) {
           debugPrint(
-              'Prediction: Negative (No complications detected based on algo)');
+            'Prediction: Stable (No complications detected based on algorithm)',
+          );
         } else {
           debugPrint(
-              'Prediction: Positive (Complications detected based on algo but not specified what)');
+            'Prediction: Unstable (Complications detected based on algorithm)',
+          );
         }
       } else {
-        debugPrint("Error: ${response.statusCode}");
+        debugPrint("API Error: ${response.statusCode}");
       }
     } catch (e) {
-      debugPrint("wowow Error: $e");
+      debugPrint("Network/Parsing Error: $e");
     }
   }
 
   Future<bool> _onWillPop() async {
     // Show confirmation dialog
-    bool shouldPop = await showDialog<bool>(
+    bool shouldPop =
+        await showDialog<bool>(
           context: context,
           barrierDismissible: false, // Prevent dismissing by tapping outside
           builder: (BuildContext context) {
@@ -311,8 +313,10 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                     Navigator.of(context).pop(true);
                   },
                   style: TextButton.styleFrom(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 15,
+                      vertical: 5,
+                    ),
                     backgroundColor: AppColors.red,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -334,8 +338,10 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                     Navigator.of(context).pop(false);
                   },
                   style: TextButton.styleFrom(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 15,
+                      vertical: 5,
+                    ),
                     backgroundColor: AppColors.neon,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -415,26 +421,26 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                         'Please check the input before submitting.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                            fontWeight: FontWeight.normal,
-                            fontSize: 16,
-                            fontFamily: 'Inter',
-                            color: AppColors.white),
+                          fontWeight: FontWeight.normal,
+                          fontSize: 16,
+                          fontFamily: 'Inter',
+                          color: AppColors.white,
+                        ),
                       ),
                       Text(
                         'Once submitted, it cannot be reverted',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Inter',
-                            color: AppColors.white),
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'Inter',
+                          color: AppColors.white,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(
-                  height: 20,
-                ),
+                const SizedBox(height: 20),
                 const Text(
                   'Your Assessment',
                   textAlign: TextAlign.left,
@@ -543,7 +549,8 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                                   const CircularProgressIndicator(
                                     strokeWidth: 3,
                                     valueColor: AlwaysStoppedAnimation<Color>(
-                                        Colors.white),
+                                      Colors.white,
+                                    ),
                                   ),
                                   const SizedBox(width: 10),
                                   const Text('Submitting data...'),
@@ -551,7 +558,8 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                               ),
                               backgroundColor: Colors.green,
                               duration: const Duration(
-                                  seconds: 3), // Keep it open for 10 seconds
+                                seconds: 3,
+                              ), // Keep it open for 10 seconds
                             ),
                           );
                         }
@@ -582,35 +590,44 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
                         if (docSnapshot.exists) {
                           // If the document exists, update the 'tracking' array
-                          await trackingRef.update({
-                            'tracking': FieldValue.arrayUnion([trackingData])
-                          }).catchError((e) {
-                            debugPrint("Error storing data: $e");
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Error storing data: $e'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          });
+                          await trackingRef
+                              .update({
+                                'tracking': FieldValue.arrayUnion([
+                                  trackingData,
+                                ]),
+                              })
+                              .catchError((e) {
+                                debugPrint("Error storing data: $e");
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Error storing data: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              });
                         } else {
                           // If the document doesn't exist, create the document with the tracking data
-                          await trackingRef.set({
-                            'tracking': [trackingData]
-                          }).catchError((e) {
-                            debugPrint("Error creating tracking document: $e");
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content:
-                                      Text('Error creating tracking data: $e'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          });
+                          await trackingRef
+                              .set({
+                                'tracking': [trackingData],
+                              })
+                              .catchError((e) {
+                                debugPrint(
+                                  "Error creating tracking document: $e",
+                                );
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Error creating tracking data: $e',
+                                      ),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              });
                         }
 
                         // Show success message after data submission
@@ -623,18 +640,33 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                           );
                         }
 
+                        DocumentSnapshot doc =
+                            await _firestore
+                                .collection('patient')
+                                .doc(widget.uid)
+                                .get();
+                        String fName = doc.get('firstName');
+                        String lName = doc.get('lastName');
+                        String patientName = '$fName $lName';
+
                         // Add log entry
                         await _logService.addLog(
-                          userId: widget.uid,
-                          action: 'Submitted tracking information',
+                          userId: _auth.currentUser!.uid,
+                          action:
+                              'Submitted $patientName\'s tracking information',
+                          relatedUsers: widget.uid,
                         );
 
                         Navigator.pushAndRemoveUntil(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => PatientTracking(patientId: widget.uid),
+                            builder:
+                                (context) =>
+                                    PatientTracking(patientId: widget.uid),
                           ),
-                              (Route<dynamic> route) => route.isFirst, // Retain only the first route (Dashboard)
+                          (Route<dynamic> route) =>
+                              route
+                                  .isFirst, // Retain only the first route (Dashboard)
                         );
                       } catch (e) {
                         // Handle any unexpected errors here
@@ -669,7 +701,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                       ),
                     ),
                   ),
-                )
+                ),
               ],
             ),
           ),

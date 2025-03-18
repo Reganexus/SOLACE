@@ -8,6 +8,7 @@ import 'package:solace/themes/colors.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/shared/accountflow/user_data_form.dart';
+import 'package:solace/services/log_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -22,11 +23,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<MyUser?>(context);
-
+    final LogService logService = LogService();
     if (user == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return FutureBuilder<UserData?>(
@@ -66,28 +65,32 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           child: Scaffold(
             backgroundColor: AppColors.white,
             appBar: AppBar(
-              title: const Text('Edit Profile', style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Inter',
-              ),),
+              title: const Text(
+                'Edit Profile',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Inter',
+                ),
+              ),
               backgroundColor: AppColors.white,
               scrolledUnderElevation: 0.0,
               automaticallyImplyLeading: showBackButton,
-              leading: showBackButton
-                  ? IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      onPressed: () async {
-                        if (_hasChanges) {
-                          final shouldProceed =
-                              await _showUnsavedChangesDialog(context);
-                          if (shouldProceed) Navigator.pop(context);
-                        } else {
-                          Navigator.pop(context);
-                        }
-                      },
-                    )
-                  : null,
+              leading:
+                  showBackButton
+                      ? IconButton(
+                        icon: const Icon(Icons.arrow_back),
+                        onPressed: () async {
+                          if (_hasChanges) {
+                            final shouldProceed =
+                                await _showUnsavedChangesDialog(context);
+                            if (shouldProceed) Navigator.pop(context);
+                          } else {
+                            Navigator.pop(context);
+                          }
+                        },
+                      )
+                      : null,
             ),
             body: GestureDetector(
               onTap: () => FocusScope.of(context).unfocus(),
@@ -137,12 +140,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           );
 
                           if (mounted) {
-                            ScaffoldMessenger.of(context)
-                                .removeCurrentSnackBar();
+                            // Add log entry
+                            await logService.addLog(
+                              userId: user.uid,
+                              action: 'Edited profile',
+                            );
+
+                            ScaffoldMessenger.of(
+                              context,
+                            ).removeCurrentSnackBar();
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                  content:
-                                      Text('Profile updated successfully')),
+                                content: Text('Profile updated successfully'),
+                              ),
                             );
                             setState(() {
                               _hasChanges = false;
@@ -151,7 +161,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             Navigator.pushAndRemoveUntil(
                               context,
                               MaterialPageRoute(
-                                  builder: (context) => const Wrapper()),
+                                builder: (context) => const Wrapper(),
+                              ),
                               (route) => false, // Remove all previous routes
                             );
                           }
@@ -175,7 +186,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         return AlertDialog(
           title: const Text('Unsaved Changes'),
           content: const Text(
-              'You have unsaved changes. Do you want to discard them and go back?'),
+            'You have unsaved changes. Do you want to discard them and go back?',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
@@ -195,13 +207,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (snapshot.connectionState == ConnectionState.waiting) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     } else if (snapshot.hasError) {
-      return Scaffold(
-        body: Center(child: Text("Error: ${snapshot.error}")),
-      );
+      return Scaffold(body: Center(child: Text("Error: ${snapshot.error}")));
     } else if (!snapshot.hasData || snapshot.data == null) {
-      return const Scaffold(
-        body: Center(child: Text("No user data found.")),
-      );
+      return const Scaffold(body: Center(child: Text("No user data found.")));
     }
     return null;
   }

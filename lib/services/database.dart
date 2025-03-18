@@ -9,9 +9,11 @@ import 'package:flutter/material.dart';
 import 'package:solace/models/my_patient.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/controllers/messaging_service.dart';
+import 'package:solace/services/log_service.dart';
 
 class DatabaseService {
   final String? uid;
+  final LogService _logService = LogService();
 
   DatabaseService({this.uid});
 
@@ -304,6 +306,13 @@ class DatabaseService {
       }
       await batch.commit();
       print("Related tracking records deleted.");
+
+      // Add log entry
+      await _logService.addLog(
+        userId: uid??'',
+        action: 'Deleted user $userId',
+        relatedUsers: userId,
+      );
     } catch (e) {
       print("Error deleting user: $e");
     }

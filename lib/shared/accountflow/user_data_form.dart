@@ -480,6 +480,7 @@ class UserDataFormState extends State<UserDataForm> {
               TextFormField(
                 controller: firstNameController,
                 focusNode: _focusNodes[0],
+                maxLength: 100,
                 decoration: _buildInputDecoration('First Name', _focusNodes[0]),
                 style: TextStyle(
                   fontSize: 16,
@@ -494,6 +495,7 @@ class UserDataFormState extends State<UserDataForm> {
               TextFormField(
                 controller: middleNameController,
                 focusNode: _focusNodes[1],
+                maxLength: 100,
                 style: TextStyle(
                   fontSize: 16,
                   fontFamily: 'Inter',
@@ -507,6 +509,7 @@ class UserDataFormState extends State<UserDataForm> {
               TextFormField(
                 controller: lastNameController,
                 focusNode: _focusNodes[2],
+                maxLength: 100,
                 style: TextStyle(
                   fontSize: 16,
                   fontFamily: 'Inter',
@@ -650,6 +653,7 @@ class UserDataFormState extends State<UserDataForm> {
               TextFormField(
                 controller: addressController,
                 focusNode: _focusNodes[7],
+                maxLength: 200,
                 style: TextStyle(
                   fontSize: 16,
                   fontFamily: 'Inter',
