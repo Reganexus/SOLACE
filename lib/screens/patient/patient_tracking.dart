@@ -36,7 +36,6 @@ class PatientTrackingState extends State<PatientTracking> {
     'Oxygen Saturation': '',
     'Respiration': '',
     'Temperature': '',
-    'Cholesterol Level': '',
     'Pain': '',
   };
 
@@ -46,7 +45,6 @@ class PatientTrackingState extends State<PatientTracking> {
     'Oxygen Saturation': TextEditingController(),
     'Respiration': TextEditingController(),
     'Temperature': TextEditingController(),
-    'Cholesterol Level': TextEditingController(),
     'Pain': TextEditingController(),
   };
 
@@ -67,7 +65,6 @@ class PatientTrackingState extends State<PatientTracking> {
     'Oxygen Saturation': FocusNode(),
     'Respiration': FocusNode(),
     'Temperature': FocusNode(),
-    'Cholesterol Level': FocusNode(),
     'Pain': FocusNode(),
   };
 
@@ -144,11 +141,11 @@ class PatientTrackingState extends State<PatientTracking> {
         final currentTime = DateTime.now().millisecondsSinceEpoch;
         final timeDifference = currentTime - lastSubmitted;
 
-        if (timeDifference < 30 * 1000) {
+        if (timeDifference < 300 * 1000) {
           // 30 seconds in milliseconds
           isCooldownActive = true;
           remainingCooldownTime =
-              (30) - (timeDifference / 1000).round(); // 30 seconds
+              (300) - (timeDifference / 1000).round(); // 30 seconds
           debugPrint("Remaining Cooldown: $remainingCooldownTime");
           _startCountdown();
         } else {
@@ -275,8 +272,7 @@ class PatientTrackingState extends State<PatientTracking> {
         unitLabel = '°C';
         validators.addAll([
           FormBuilderValidators.numeric(),
-          FormBuilderValidators.min(28.0),
-          FormBuilderValidators.max(43.0),
+          FormBuilderValidators.between(28.0, 43.0),
         ]);
         inputFormatters
             .add(FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,1}$')));
@@ -285,26 +281,40 @@ class PatientTrackingState extends State<PatientTracking> {
         unitLabel = 'bpm';
         validators.addAll([
           FormBuilderValidators.integer(),
-          FormBuilderValidators.min(30),
-          FormBuilderValidators.max(220),
+          FormBuilderValidators.between(30, 220),
         ]);
         inputFormatters.add(FilteringTextInputFormatter.digitsOnly);
         break;
       case 'Blood Pressure':
         unitLabel = 'mmHg';
-        validators.add(FormBuilderValidators.match(
-          RegExp(r'^\d{2,3}/\d{2,3}$'),
-          errorText: 'Format: 120/80',
-        ));
+        validators.add((value) {
+          final bpPattern = RegExp(r'^(\d{2,3})/(\d{2,3})$');
+          final match = bpPattern.firstMatch(value!);
+
+          if (match == null) {
+            return 'Format: <Systolic>/<Diastolic> (e.g. 120/80)';
+          }
+
+          final systolic = int.parse(match.group(1)!);
+          final diastolic = int.parse(match.group(2)!);
+
+          if (systolic < 60 || systolic > 300) {
+            return 'Systolic must be between 60-300 mmHg';
+          }
+          if (diastolic < 20 || diastolic > 200) {
+            return 'Diastolic must be between 20-200 mmHg';
+          }
+          return null;
+        });
+
         inputFormatters.add(
             FilteringTextInputFormatter.allow(RegExp(r'^\d{0,3}/?\d{0,3}$')));
         break;
       case 'Oxygen Saturation':
         unitLabel = '%';
         validators.addAll([
-          FormBuilderValidators.numeric(),
-          FormBuilderValidators.min(50.0),
-          FormBuilderValidators.max(100.0),
+          FormBuilderValidators.integer(),
+          FormBuilderValidators.between(50, 100),
         ]);
         inputFormatters.add(FilteringTextInputFormatter.digitsOnly);
         break;
@@ -312,17 +322,7 @@ class PatientTrackingState extends State<PatientTracking> {
         unitLabel = 'b/min';
         validators.addAll([
           FormBuilderValidators.integer(),
-          FormBuilderValidators.min(4),
-          FormBuilderValidators.max(80),
-        ]);
-        inputFormatters.add(FilteringTextInputFormatter.digitsOnly);
-        break;
-      case 'Cholesterol Level':
-        unitLabel = 'mg/dL';
-        validators.addAll([
-          FormBuilderValidators.numeric(),
-          FormBuilderValidators.min(80),
-          FormBuilderValidators.max(500),
+          FormBuilderValidators.between(4, 80),
         ]);
         inputFormatters.add(FilteringTextInputFormatter.digitsOnly);
         break;

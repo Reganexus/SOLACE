@@ -126,9 +126,12 @@ class BottomNavBar extends StatelessWidget {
           BottomNavigationBarItem(
             icon: FutureBuilder<String?>(
               future: () async {
-                final userId = FirebaseAuth.instance.currentUser!.uid;
+                final user = FirebaseAuth.instance.currentUser;
+                if (user == null) return null; // Return null if logged out
+
+                final userId = user.uid;
                 DatabaseService db = DatabaseService();
-                return await db.getTargetUserRole(userId); // Fetch user role
+                return await db.getTargetUserRole(userId);
               }(),
               builder: (context, userRoleSnapshot) {
                 if (!userRoleSnapshot.hasData || userRoleSnapshot.data == null) {
@@ -143,12 +146,22 @@ class BottomNavBar extends StatelessWidget {
                 }
 
                 final userRole = userRoleSnapshot.data!;
+                final user = FirebaseAuth.instance.currentUser;
+                if (user == null) {
+                  return Image.asset(
+                    currentIndex == 1
+                        ? 'lib/assets/images/caregiver/inbox_selected.png'
+                        : 'lib/assets/images/caregiver/inbox.png',
+                    width: 30,
+                    height: 30,
+                  );
+                }
 
                 // StreamBuilder for notifications
                 return StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
                       .collection(userRole)
-                      .doc(FirebaseAuth.instance.currentUser!.uid)
+                      .doc(user.uid)
                       .collection('notifications') // Access the subcollection
                       .snapshots(),
                   builder: (context, snapshot) {

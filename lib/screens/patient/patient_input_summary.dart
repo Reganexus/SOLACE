@@ -106,12 +106,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           }
           break;
 
-        case 'Cholesterol Level':
-          if (vitalValue > highCholesterol) {
-            symptoms.add('High Cholesterol Level');
-          }
-          break;
-
         case 'Pain':
           if (vitalValue > maxScale) {
             symptoms.add('Pain');
@@ -386,7 +380,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     'Oxygen Saturation': '%',
     'Respiration': 'b/min',
     'Temperature': '°C',
-    'Cholesterol Level': 'mg/dL',
     'Paint': '',
   };
 

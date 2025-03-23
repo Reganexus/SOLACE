@@ -25,8 +25,3 @@ int minRespirationRate = 12;
 // celsius
 double maxTemperature = 38.0;
 double minTemperature = 36.0;
-
-// mg/dL
-double lowCholesterol = 125;
-double normalCholesterol = 200;
-double highCholesterol = 240;

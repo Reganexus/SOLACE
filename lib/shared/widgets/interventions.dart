@@ -73,7 +73,6 @@ class InterventionsViewState extends State<InterventionsView> {
     'High Respiration Rate': 'highRespirationRate',
     'Low Temperature': 'lowTemperature',
     'High Temperature': 'highTemperature',
-    'High Cholesterol Level': 'highTemperature',
     'Pain': 'pain',
   };
 
@@ -134,6 +133,21 @@ class InterventionsViewState extends State<InterventionsView> {
 
   @override
   Widget build(BuildContext context) {
+    // Filter sections to only include those with interventions
+    List<Widget> sections = [];
+
+    if (vitalsMapping.keys.any((symptom) => symptomInterventions.containsKey(symptom))) {
+      sections.add(buildSymptomSection('Vitals', vitalsMapping.keys.toList(), symptomInterventions));
+    }
+
+    if (physicalMapping.keys.any((symptom) => symptomInterventions.containsKey(symptom))) {
+      sections.add(buildSymptomSection('Physical Symptoms', physicalMapping.keys.toList(), symptomInterventions));
+    }
+
+    if (emotionalMapping.keys.any((symptom) => symptomInterventions.containsKey(symptom))) {
+      sections.add(buildSymptomSection('Emotional Symptoms', emotionalMapping.keys.toList(), symptomInterventions));
+    }
+
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: AppBar(
@@ -151,25 +165,29 @@ class InterventionsViewState extends State<InterventionsView> {
                   padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      buildSymptomSection(
-                        'Vitals',
-                        vitalsMapping.keys.toList(),
-                        symptomInterventions,
-                      ),
-                      const SizedBox(height: 20),
-                      buildSymptomSection(
-                        'Physical Symptoms',
-                        physicalMapping.keys.toList(),
-                        symptomInterventions,
-                      ),
-                      const SizedBox(height: 20),
-                      buildSymptomSection(
-                        'Emotional Symptoms',
-                        emotionalMapping.keys.toList(),
-                        symptomInterventions,
-                      ),
-                    ],
+                    children: sections.isNotEmpty
+                        ? sections // Display only sections that have interventions
+                        : [
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(20.0),
+                              margin: const EdgeInsets.only(bottom: 10.0),
+                              decoration: BoxDecoration(
+                                color: AppColors.gray,
+                                borderRadius: BorderRadius.circular(10.0),
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  'Great Job! No Intervention Needed',
+                                  style: TextStyle(
+                                    fontSize: 18.0,
+                                    fontFamily: 'Inter',
+                                    fontWeight: FontWeight.normal,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ], // If all are empty, display a single message
                   ),
                 ),
               ),
@@ -182,6 +200,9 @@ class InterventionsViewState extends State<InterventionsView> {
     List<String> symptoms,
     Map<String, List<String>> interventions,
   ) {
+    List<String> filteredSymptoms =
+      symptoms.where((symptom) => interventions.containsKey(symptom)).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -194,31 +215,7 @@ class InterventionsViewState extends State<InterventionsView> {
           ),
         ),
         const SizedBox(height: 10),
-        if (symptoms
-            .where((symptom) => interventions.containsKey(symptom))
-            .isEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20.0),
-            margin: const EdgeInsets.only(bottom: 10.0),
-            decoration: BoxDecoration(
-              color: AppColors.gray,
-              borderRadius: BorderRadius.circular(10.0),
-            ),
-            child: const Center(
-              child: Text(
-                'Great Job! No Intervention Needed',
-                style: TextStyle(
-                  fontSize: 18.0,
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.normal,
-                ),
-              ),
-            ),
-          ),
-        ...symptoms
-            .where((symptom) => interventions.containsKey(symptom))
-            .map((symptom) {
+        ...filteredSymptoms.map((symptom) {
           List<String> symptomInterventions = interventions[symptom]!;
           List<bool> checkedStates = persistentCheckedStates[symptom] ??
               List<bool>.filled(symptomInterventions.length, false);
