@@ -1,8 +1,9 @@
 {
   "terms": {
     "title": "Terms and Conditions of Use",
-    "lastUpdated": "[Insert Date]",
-    "welcomeMessage": "Welcome to SOLACE: SMART SYMPTOM MONITORING AND AI PREDICTIVE INTERVENTION IN PALLIATIVE AND HOSPICE CARE.\n\nBy using our application, you agree to comply with and be bound by the following terms and conditions. Please read them carefully.",
+    "lastUpdated": "March 22, 2025",
+    "welcomeMessage": "Welcome to SOLACE: SMART SYMPTOM MONITORING AND AI PREDICTIVE INTERVENTION IN PALLIATIVE AND HOSPICE CARE.",
+    "subMessage": "Please read these Terms and Conditions carefully before using SOLACE. By accessing or using the app, you agree to be bound by these Terms and our Privacy Policy. If you do not agree to these terms, you must not use our app.",
     "sections": {
       "acceptanceOfTerms": {
         "numberHeader": "1. Acceptance of Terms",
@@ -34,7 +35,7 @@
       },
       "limitationOfLiability": {
         "numberHeader": "8. Limitation of Liability",
-        "content": "To the fullest extent permitted by applicable law, [Your Company Name] shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of the app or any content therein."
+        "content": "To the fullest extent permitted by applicable law, Ruth Foundation shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of the app or any content therein."
       },
       "governingLaw": {
         "numberHeader": "9. Governing Law",
@@ -42,7 +43,7 @@
       },
       "contactUs": {
         "numberHeader": "10. Contact Us",
-        "content": "If you have any questions about these Terms, please contact us at solace@gmail.com."
+        "content": "If you have any questions about these Terms, please contact us at teamres.solace@gmail.com."
       }
     }
   }

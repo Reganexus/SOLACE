@@ -3,13 +3,16 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:solace/screens/patient/patient_tracking.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/shared/globals.dart';
+import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:solace/services/log_service.dart';
+import 'package:solace/themes/textstyle.dart';
 
 class ReceiptScreen extends StatefulWidget {
   final String uid;
@@ -31,6 +34,17 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final LogService _logService = LogService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  void showToast(String message) {
+    Fluttertoast.showToast(
+      msg: message,
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+      backgroundColor: AppColors.neon,
+      textColor: AppColors.white,
+      fontSize: 16.0,
+    );
+  }
 
   void _identifySymptoms() async {
     List<String> symptoms = [];
@@ -165,9 +179,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     if (patientData == null) {
       debugPrint('Submit Algo Input No User Data');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No User Data'), backgroundColor: Colors.red),
-        );
+        showToast('No User Data');
       }
     } else {
       try {
@@ -180,23 +192,13 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
         // Show success message
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Data submitted successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          showToast('Data submitted successfully!');
         }
       } catch (e) {
         // Handle any unexpected errors
         debugPrint("Unexpected error: $e");
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('An unexpected error occurred: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          showToast('An unexpected error occurred: $e');
         }
       }
     }
@@ -260,10 +262,12 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         // Handle Prediction Output
         if (predictionResult == 0) {
           status = 'stable';
-          predictionString = 'Prediction: Stable (No complications detected based on algorithm)';
+          predictionString =
+              'Prediction: Stable (No complications detected based on algorithm)';
         } else {
           status = 'unstable';
-          predictionString = 'Prediction: Unstable (Complications detected based on algorithm)';
+          predictionString =
+              'Prediction: Unstable (Complications detected based on algorithm)';
         }
         await _firestore.collection('patient').doc(widget.uid).update({
           'status': status,
@@ -296,23 +300,10 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           builder: (BuildContext context) {
             return AlertDialog(
               backgroundColor: AppColors.white,
-              title: const Text(
-                'Unsaved Changes',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontFamily: 'Outfit',
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.black,
-                ),
-              ),
-              content: const Text(
+              title: Text('Unsaved Changes', style: Textstyle.subheader),
+              content: Text(
                 'If you go back, your inputs will not be saved. Do you want to continue?',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.normal,
-                  color: AppColors.black,
-                ),
+                style: Textstyle.body,
               ),
               actions: <Widget>[
                 TextButton(
@@ -320,50 +311,16 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                     // If "Continue" is pressed, allow navigation
                     Navigator.of(context).pop(true);
                   },
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 15,
-                      vertical: 5,
-                    ),
-                    backgroundColor: AppColors.red,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: const Text(
-                    'Continue',
-                    style: TextStyle(
-                      fontSize: 16.0,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Inter',
-                      color: Colors.white,
-                    ),
-                  ),
+                  style: Buttonstyle.buttonRed,
+                  child: Text('Continue', style: Textstyle.smallButton),
                 ),
                 TextButton(
                   onPressed: () {
                     // If "Cancel" is pressed, stay on the page
                     Navigator.of(context).pop(false);
                   },
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 15,
-                      vertical: 5,
-                    ),
-                    backgroundColor: AppColors.neon,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(
-                      fontSize: 16.0,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Inter',
-                      color: Colors.white,
-                    ),
-                  ),
+                  style: Buttonstyle.buttonNeon,
+                  child: Text('Cancel', style: Textstyle.smallButton),
                 ),
               ],
             );
@@ -390,21 +347,14 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       child: Scaffold(
         backgroundColor: AppColors.white,
         appBar: AppBar(
-          title: const Text(
-            'Summary',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Inter',
-            ),
-          ),
+          title: Text('Summary', style: Textstyle.subheader),
           backgroundColor: AppColors.white,
           scrolledUnderElevation: 0.0,
         ),
         body: SingleChildScrollView(
           child: Container(
             color: AppColors.white,
-            padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
+            padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -427,20 +377,12 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                       Text(
                         'Please check the input before submitting.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontWeight: FontWeight.normal,
-                          fontSize: 16,
-                          fontFamily: 'Inter',
-                          color: AppColors.white,
-                        ),
+                        style: Textstyle.body.copyWith(color: AppColors.white),
                       ),
                       Text(
                         'Once submitted, it cannot be reverted',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'Inter',
+                        style: Textstyle.subheader.copyWith(
                           color: AppColors.white,
                         ),
                       ),
@@ -448,26 +390,13 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                const Text(
+                Text(
                   'Your Assessment',
                   textAlign: TextAlign.left,
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontFamily: 'Outfit',
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.black,
-                  ),
+                  style: Textstyle.subheader,
                 ),
                 const SizedBox(height: 20.0),
-                Text(
-                  'Vitals:',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.black,
-                  ),
-                ),
+                Text('Vitals:', style: Textstyle.subheader),
                 if (widget.inputs['Vitals'] is Map)
                   ...widget.inputs['Vitals'].entries.map((entry) {
                     // Get the unit for the current vital
@@ -477,38 +406,17 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            '${entry.key}:',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontFamily: 'Inter',
-                              fontWeight: FontWeight.normal,
-                              color: AppColors.black,
-                            ),
-                          ),
+                          Text('${entry.key}:', style: Textstyle.body),
                           Text(
                             '${entry.value}$unit', // Append the unit
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontFamily: 'Inter',
-                              fontWeight: FontWeight.normal,
-                              color: AppColors.black,
-                            ),
+                            style: Textstyle.body,
                           ),
                         ],
                       ),
                     );
                   }).toList(),
                 const SizedBox(height: 20.0),
-                Text(
-                  'Symptom Assessment:',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.black,
-                  ),
-                ),
+                Text('Symptom Assessment:', style: Textstyle.subheader),
                 const SizedBox(height: 10.0),
                 if (widget.inputs['Symptom Assessment'] is Map)
                   ...widget.inputs['Symptom Assessment'].entries.map((entry) {
@@ -517,37 +425,19 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            '${entry.key}:',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontFamily: 'Inter',
-                              fontWeight: FontWeight.normal,
-                              color: AppColors.black,
-                            ),
-                          ),
-                          Text(
-                            '${entry.value}',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontFamily: 'Inter',
-                              fontWeight: FontWeight.normal,
-                              color: AppColors.black,
-                            ),
-                          ),
+                          Text('${entry.key}:', style: Textstyle.body),
+                          Text('${entry.value}', style: Textstyle.body),
                         ],
                       ),
                     );
                   }).toList(),
-                const SizedBox(height: 20),
-                const Divider(thickness: 1.0),
-                const SizedBox(height: 20),
+                Divider(),
+                SizedBox(height: 10),
                 SizedBox(
                   width: double.infinity,
                   child: TextButton(
                     onPressed: () async {
                       try {
-                        // Show "Submitting" snackbar with a small CircularProgressIndicator
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -571,10 +461,8 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                           );
                         }
 
-                        // Identify current symptoms based on inputs and save them in Firestore
                         _identifySymptoms();
 
-                        // Get the current timestamp
                         final timestamp = Timestamp.now();
 
                         debugPrint("Timestamp now at tracking: $timestamp");
@@ -606,12 +494,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                               .catchError((e) {
                                 debugPrint("Error storing data: $e");
                                 if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Error storing data: $e'),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
+                                  showToast('Error storing data: $e');
                                 }
                               });
                         } else {
@@ -625,14 +508,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                                   "Error creating tracking document: $e",
                                 );
                                 if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Error creating tracking data: $e',
-                                      ),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
+                                  showToast('Error creating tracking data: $e');
                                 }
                               });
                         }
@@ -669,34 +545,12 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                         // Handle any unexpected errors here
                         debugPrint("Unexpected error: $e");
                         if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('An unexpected error occurred: $e'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
+                          showToast('An unexpected error occurred: $e');
                         }
                       }
                     },
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 50,
-                        vertical: 10,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      backgroundColor: AppColors.neon,
-                    ),
-                    child: const Text(
-                      'Submit Final',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: AppColors.white,
-                      ),
-                    ),
+                    style: Buttonstyle.neon,
+                    child: Text('Submit Final', style: Textstyle.largeButton),
                   ),
                 ),
               ],

@@ -2,9 +2,13 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
 import 'package:solace/services/database.dart';
+import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
+import 'package:solace/themes/loader.dart';
+import 'package:solace/themes/textstyle.dart';
 
 class NotificationList extends StatelessWidget {
   final String userId;
@@ -37,12 +41,24 @@ class NotificationsList extends StatefulWidget {
 class NotificationsListState extends State<NotificationsList> {
   String? _errorMessage;
   List<Map<String, dynamic>> notifications = [];
-  bool _isLoading = true; // To track loading state
+  bool _isLoading = true;
+  bool _isDialogOpen = false;
 
   @override
   void initState() {
     super.initState();
     fetchNotifications();
+  }
+
+  void showToast(String message) {
+    Fluttertoast.showToast(
+      msg: message,
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+      backgroundColor: AppColors.neon,
+      textColor: AppColors.white,
+      fontSize: 16.0,
+    );
   }
 
   Future<void> deleteAllNotifications() async {
@@ -52,13 +68,12 @@ class NotificationsListState extends State<NotificationsList> {
       DatabaseService db = DatabaseService();
 
       // Fetch the user's role
-      String? userRole = await db.getTargetUserRole(widget.userId);
+      String? userRole = await db.fetchAndCacheUserRole(widget.userId);
       if (userRole == null) {
         debugPrint(
-            'User role could not be determined for userId: ${widget.userId}');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to determine user role.')),
+          'User role could not be determined for userId: ${widget.userId}',
         );
+        showToast('Failed to determine user role.');
         return;
       }
 
@@ -76,31 +91,29 @@ class NotificationsListState extends State<NotificationsList> {
       }
       await batch.commit();
 
+      showToast('All notifications deleted successfully.');
       // Update local state
       setState(() {
         notifications.clear();
       });
 
       debugPrint('All notifications cleared for userId: ${widget.userId}');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('All notifications deleted successfully.')),
-      );
     } catch (e) {
       debugPrint(
-          'Error deleting all notifications for userId: ${widget.userId}: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Failed to delete notifications. Please try again.')),
+        'Error deleting all notifications for userId: ${widget.userId}: $e',
       );
+      showToast('Failed to delete notifications. Please try again.');
     }
   }
 
-  Future<void> deleteNotification(BuildContext context, String notificationId) async {
+  Future<void> deleteNotification(
+    BuildContext context,
+    String notificationId,
+  ) async {
     try {
       // Fetch user role
       DatabaseService db = DatabaseService();
-      String? userRole = await db.getTargetUserRole(widget.userId);
+      String? userRole = await db.fetchAndCacheUserRole(widget.userId);
 
       if (userRole == null) {
         debugPrint('User role could not be determined.');
@@ -117,15 +130,18 @@ class NotificationsListState extends State<NotificationsList> {
       // Delete the notification document
       await notificationDocRef.delete();
 
+      showToast('Notification successfully deleted.');
       // Update local state
       setState(() {
         notifications.removeWhere(
-                (notification) => notification['notificationId'] == notificationId);
+          (notification) => notification['notificationId'] == notificationId,
+        );
       });
 
       debugPrint('Notification successfully deleted.');
     } catch (e) {
       debugPrint('Error deleting notification: $e');
+      showToast('Error deleting notification. Please try again.');
     }
   }
 
@@ -137,7 +153,7 @@ class NotificationsListState extends State<NotificationsList> {
     try {
       // Initialize DatabaseService and fetch user role
       DatabaseService db = DatabaseService();
-      String? userRole = await db.getTargetUserRole(widget.userId);
+      String? userRole = await db.fetchAndCacheUserRole(widget.userId);
 
       if (userRole == null) {
         throw Exception('Failed to determine user role.');
@@ -161,16 +177,17 @@ class NotificationsListState extends State<NotificationsList> {
       }
 
       // Process notifications
-      final loadedNotifications = snapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        return {
-          'message': data['message'] ?? 'No message available',
-          'notificationId': data['notificationId'] ?? '',
-          'timestamp': (data['timestamp'] as Timestamp?)?.toDate(),
-          'type': data['type'] ?? 'unknown',
-          'read': data['read'] ?? false,
-        };
-      }).toList();
+      final loadedNotifications =
+          snapshot.docs.map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            return {
+              'message': data['message'] ?? 'No message available',
+              'notificationId': data['notificationId'] ?? '',
+              'timestamp': (data['timestamp'] as Timestamp?)?.toDate(),
+              'type': data['type'] ?? 'unknown',
+              'read': data['read'] ?? false,
+            };
+          }).toList();
 
       // Sort notifications by timestamp (newest first)
       loadedNotifications.sort((a, b) {
@@ -197,7 +214,11 @@ class NotificationsListState extends State<NotificationsList> {
     }
   }
 
-  Future<void> markNotificationAsRead(String userId, Map<String, dynamic> notification, String role) async {
+  Future<void> markNotificationAsRead(
+    String userId,
+    Map<String, dynamic> notification,
+    String role,
+  ) async {
     final notificationId = notification['notificationId'];
 
     try {
@@ -213,8 +234,9 @@ class NotificationsListState extends State<NotificationsList> {
 
       // Update the local state to reflect the change
       setState(() {
-        final index = notifications
-            .indexWhere((n) => n['notificationId'] == notificationId);
+        final index = notifications.indexWhere(
+          (n) => n['notificationId'] == notificationId,
+        );
         if (index != -1) {
           notifications[index]['read'] = true;
         }
@@ -263,7 +285,15 @@ class NotificationsListState extends State<NotificationsList> {
     return DateFormat('MMMM dd, yyyy h:mm a').format(timestamp);
   }
 
-  void _showNotificationDetails(BuildContext context, Map<String, dynamic> notification) async {
+  void _showNotificationDetails(
+    BuildContext context,
+    Map<String, dynamic> notification,
+  ) async {
+    if (_isDialogOpen) return; // Prevent multiple dialogs
+    setState(() {
+      _isDialogOpen = true;
+    });
+
     String title;
 
     switch (notification['type']) {
@@ -276,114 +306,75 @@ class NotificationsListState extends State<NotificationsList> {
       case 'medicine':
         title = 'Medicine Details';
         break;
+      case 'update':
+        title = 'Account Update';
+        break;
       default:
         title = 'Notification Details';
         break;
     }
 
-    showDialog(
+    await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.white,
-        title: Text(
-          title,
-          style: TextStyle(
-            fontSize: 24,
-            fontFamily: 'Outfit',
-            fontWeight: FontWeight.bold,
-            color: AppColors.black,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              notification['message'] ?? 'No message available.',
-              style: TextStyle(
-                fontSize: 18,
-                fontFamily: 'Outfit',
-                color: AppColors.black,
-              ),
-            ),
-            if (notification['timestamp'] != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Text(
-                  'Date: ${_formatTimestamp(notification['timestamp'])}',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontFamily: 'Outfit',
-                    color: AppColors.gray,
-                  ),
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: AppColors.white,
+            title: Text(title, style: Textstyle.heading),
+            content: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  notification['message'] ?? 'No message available.',
+                  style: Textstyle.body,
                 ),
-              ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-              backgroundColor: AppColors.neon,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
+                if (notification['timestamp'] != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      'Date: ${_formatTimestamp(notification['timestamp'])}',
+                      style: Textstyle.subtitle,
+                    ),
+                  ),
+              ],
             ),
-            onPressed: () {
-              Navigator.of(context).pop(); // Close dialog
-            },
-            child: const Text(
-              'Close',
-              style: TextStyle(
-                fontSize: 16.0,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Inter',
-                color: Colors.white,
+            actions: [
+              TextButton(
+                style: Buttonstyle.buttonNeon,
+                onPressed: () {
+                  Navigator.of(context).pop(); // Close dialog
+                },
+                child: Text('Close', style: Textstyle.smallButton),
               ),
-            ),
+              TextButton(
+                style: Buttonstyle.buttonRed,
+                onPressed: () {
+                  deleteNotification(context, notification['notificationId']);
+                  Navigator.of(context).pop(); // Close dialog
+                },
+                child: Text('Delete', style: Textstyle.smallButton),
+              ),
+            ],
           ),
-          TextButton(
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-              backgroundColor: AppColors.red,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            onPressed: () {
-              deleteNotification(context, notification['notificationId']);
-              Navigator.of(context).pop(); // Close dialog
-            },
-            child: const Text(
-              'Delete',
-              style: TextStyle(
-                fontSize: 16.0,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Inter',
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
-  }
 
+    setState(() {
+      _isDialogOpen = false; // Reset the flag
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(AppColors.neon),
-        ),
-      );
+      return Center(child: Loader.loaderNeon);
     }
 
     if (_errorMessage != null) {
       return Center(
         child: Text(
           _errorMessage!,
-          style: TextStyle(fontSize: 18, color: AppColors.black),
+          style: Textstyle.body,
           textAlign: TextAlign.center,
         ),
       );
@@ -391,113 +382,119 @@ class NotificationsListState extends State<NotificationsList> {
 
     return notifications.isEmpty
         ? Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.mark_email_read,
-              color: AppColors.black,
-              size: 80,
-            ),
-            const SizedBox(height: 20.0),
-            Text(
-              'No notifications yet',
-              style: TextStyle(
-                fontSize: 18,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.mark_email_read,
                 color: AppColors.black,
-                fontFamily: 'Inter',
+                size: 80,
               ),
-            ),
-          ],
-        ))
+              const SizedBox(height: 20.0),
+              Text('No notifications yet', style: Textstyle.body),
+            ],
+          ),
+        )
         : SingleChildScrollView(
-      child: Container(
-        color: AppColors.white,
-        padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: notifications.map((notification) {
-            final timestampRaw = notification['timestamp'];
-            final DateTime? timestamp = timestampRaw is Timestamp
-                ? timestampRaw.toDate()
-                : timestampRaw as DateTime?;
+          child: Container(
+            color: AppColors.white,
+            padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children:
+                  notifications.map((notification) {
+                    final timestampRaw = notification['timestamp'];
+                    final DateTime? timestamp =
+                        timestampRaw is Timestamp
+                            ? timestampRaw.toDate()
+                            : timestampRaw as DateTime?;
 
-            final formattedTimestamp = _formatTimestamp(timestamp);
-            final notificationIcon =
-            _getNotificationIcon(notification['type']);
-            final notificationBadge =
-            _buildNotificationBadge(notification);
+                    final formattedTimestamp = _formatTimestamp(timestamp);
+                    final notificationIcon = _getNotificationIcon(
+                      notification['type'],
+                    );
+                    final notificationBadge = _buildNotificationBadge(
+                      notification,
+                    );
 
-            String notificationTitle = notification['type'] == 'task'
-                ? notification['message']?.contains('You assigned') ??
-                false
-                ? 'Task Assigned'
-                : 'Task Available'
-                : notification['type'] == 'schedule'
-                ? 'Schedule Confirmation'
-                : notification['type'] == 'friend_request'
-                ? 'Friend Request'
-                : 'Notification';
+                    String notificationTitle =
+                        notification['type'] == 'task'
+                            ? notification['message']?.contains(
+                                      'You assigned',
+                                    ) ??
+                                    false
+                                ? 'Task Assigned'
+                                : 'Task Available'
+                            : notification['type'] == 'schedule'
+                            ? 'Schedule Confirmation'
+                            : notification['type'] == 'update'
+                            ? 'Account Update'
+                            : 'Notification';
 
-            return GestureDetector(
-              onTap: () async {
-                DatabaseService db = DatabaseService();
-                String? userRole =
-                await db.getTargetUserRole(widget.userId);
-                await markNotificationAsRead(
-                    widget.userId, notification, userRole!);
+                    return GestureDetector(
+                      onTap: () async {
+                        DatabaseService db = DatabaseService();
+                        String? userRole = await db.fetchAndCacheUserRole(
+                          widget.userId,
+                        );
+                        if (userRole == null) {
+                          debugPrint('User role could not be determined.');
+                          return;
+                        }
+                        await markNotificationAsRead(
+                          widget.userId,
+                          notification,
+                          userRole,
+                        );
 
-                _showNotificationDetails(context, notification);
-              },
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                    vertical: 15, horizontal: 20),
-                margin: const EdgeInsets.only(bottom: 10),
-                decoration: BoxDecoration(
-                  color: AppColors.gray,
-                  borderRadius: BorderRadius.circular(10.0),
-                ),
-                child: Stack(
-                  children: [
-                    Row(
-                      children: [
-                        notificationIcon,
-                        const SizedBox(width: 20),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                notificationTitle,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontFamily: 'Outfit',
-                                  fontSize: 18,
-                                  color: AppColors.black,
-                                ),
-                              ),
-                              const SizedBox(height: 5),
-                              if (formattedTimestamp.isNotEmpty)
-                                Text(
-                                  'Received on $formattedTimestamp',
-                                  style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.black54),
-                                ),
-                            ],
-                          ),
+                        _showNotificationDetails(context, notification);
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 15,
+                          horizontal: 20,
                         ),
-                      ],
-                    ),
-                    notificationBadge,
-                  ],
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ),
-    );
+                        margin: const EdgeInsets.only(bottom: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.gray,
+                          borderRadius: BorderRadius.circular(10.0),
+                        ),
+                        child: Stack(
+                          children: [
+                            Row(
+                              children: [
+                                notificationIcon,
+                                const SizedBox(width: 20),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        notificationTitle,
+                                        style: Textstyle.body.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      if (formattedTimestamp.isNotEmpty)
+                                        Text(
+                                          'Received on $formattedTimestamp',
+                                          style: Textstyle.bodySuperSmall,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            notificationBadge,
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+            ),
+          ),
+        );
   }
 }

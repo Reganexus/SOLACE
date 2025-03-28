@@ -2,7 +2,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:solace/screens/wrapper.dart';
+import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
+import 'package:solace/themes/textstyle.dart';
 
 class GetStarted extends StatefulWidget {
   const GetStarted({super.key});
@@ -25,25 +27,18 @@ class _GetStartedState extends State<GetStarted> {
       backgroundColor: AppColors.white,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(30.0),
+          padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header with logo and title
               Row(
                 children: [
-                  Image.asset(
-                    'lib/assets/images/auth/solace.png',
-                    width: 60,
-                  ),
+                  Image.asset('lib/assets/images/auth/solace.png', width: 60),
                   const SizedBox(width: 10.0),
-                  const Text(
+                  Text(
                     'SOLACE',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontFamily: 'Outfit',
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: Textstyle.heading.copyWith(fontFamily: 'Outfit'),
                   ),
                 ],
               ),
@@ -58,24 +53,15 @@ class _GetStartedState extends State<GetStarted> {
                       fit: BoxFit.contain,
                     ),
                     const SizedBox(height: 10),
-                    const Text(
-                      'Welcome to SOLACE!',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Inter',
-                        fontSize: 30,
-                      ),
-                    ),
+                    Text('Welcome to SOLACE!', style: Textstyle.title),
                     const SizedBox(height: 5),
-                    const SizedBox(
+                    SizedBox(
                       width: double.infinity,
                       child: Text(
                         'Bridging the gap in palliative and hospice care',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: Textstyle.subheader.copyWith(
                           fontWeight: FontWeight.normal,
-                          fontFamily: 'Inter',
-                          fontSize: 22,
                         ),
                       ),
                     ),
@@ -88,23 +74,8 @@ class _GetStartedState extends State<GetStarted> {
                 width: double.infinity,
                 child: TextButton(
                   onPressed: navigateToWrapper,
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 15),
-                    backgroundColor: AppColors.neon,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: const Text(
-                    'Get Started',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: Colors.white,
-                    ),
-                  ),
+                  style: Buttonstyle.neon,
+                  child: Text('Get Started', style: Textstyle.largeButton),
                 ),
               ),
             ],

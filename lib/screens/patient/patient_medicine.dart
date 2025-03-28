@@ -1,8 +1,9 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:solace/themes/loader.dart';
+import 'package:solace/themes/textstyle.dart';
 
 class PatientMedicine extends StatefulWidget {
   const PatientMedicine({super.key, required this.patientId});
@@ -32,25 +33,21 @@ class PatientMedicineState extends State<PatientMedicine> {
       });
     }
 
-    final User? user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = 'User not logged in.';
-        });
-      }
-      return;
-    }
-
     try {
-      final caregiverMedicinesSnapshot = await FirebaseFirestore.instance
-          .collection('patient')
-          .doc(widget.patientId)
-          .collection('medicines')
-          .get();
+      // Fetch all medicine documents under the patient's medicines subcollection
+      final medicinesSnapshot =
+          await FirebaseFirestore.instance
+              .collection('patient')
+              .doc(widget.patientId)
+              .collection('medicines')
+              .get();
 
-      if (caregiverMedicinesSnapshot.docs.isEmpty) {
+      debugPrint(
+        "Fetched ${medicinesSnapshot.docs.length} medicine documents.",
+      );
+
+      if (medicinesSnapshot.docs.isEmpty) {
+        debugPrint("No medicines found under patient ${widget.patientId}.");
         if (mounted) {
           setState(() {
             patientMedicines = [];
@@ -60,40 +57,19 @@ class PatientMedicineState extends State<PatientMedicine> {
         return;
       }
 
-      final List<Map<String, dynamic>> medicines = [];
-      for (var caregiverDoc in caregiverMedicinesSnapshot.docs) {
-        final caregiverData = caregiverDoc.data();
-        final caregiverId = caregiverDoc.id;
-        final caregiverMedicines = List<Map<String, dynamic>>.from(
-          caregiverData['medicines'] ?? [],
-        );
+      // Process medicine documents
+      final List<Map<String, dynamic>> medicines =
+          medicinesSnapshot.docs.map((doc) {
+            final data = doc.data();
+            return {
+              'medicineName': data['medicineName'] ?? 'Unknown',
+              'dosage': data['dosage'] ?? 'Unknown',
+              'usage': data['usage'] ?? 'Unknown',
+              'medicineId': doc.id, // Use document ID as medicineId
+            };
+          }).toList();
 
-        // Fetch caregiver details
-        final caregiverRole = await db.getTargetUserRole(caregiverId);
-        if (caregiverRole == null) continue;
-
-        final caregiverSnapshot = await FirebaseFirestore.instance
-            .collection(caregiverRole)
-            .doc(caregiverId)
-            .get();
-        if (caregiverSnapshot.exists) {
-          for (var medicine in caregiverMedicines) {
-            final medicineName = medicine['medicineName'] as String?;
-            final dosage = medicine['dosage'] as String?;
-            final usage = medicine['usage'] as String?;
-            final medicineId = medicine['medicineId'] as String?;
-            if (medicineName == null || dosage == null || usage == null || medicineId == null) continue;
-
-            medicines.add({
-              'medicineName': medicineName,
-              'dosage': dosage,
-              'usage': usage,
-              'medicineId': medicineId,
-            });
-          }
-        }
-      }
-
+      // Sort medicines alphabetically by medicineName
       medicines.sort((a, b) => a['medicineName'].compareTo(b['medicineName']));
 
       if (mounted) {
@@ -103,15 +79,15 @@ class PatientMedicineState extends State<PatientMedicine> {
         });
       }
     } catch (e) {
+      debugPrint("Error fetching medicines: $e");
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = 'Failed to fetch medicines: $e';
+          _errorMessage = 'Failed to fetch medicines. Please try again.';
         });
       }
     }
   }
-
 
   void _showMedicineDetailsDialog(Map<String, dynamic> medicine) {
     final String medicineName = medicine['medicineName'] ?? 'Untitled Medicine';
@@ -192,34 +168,22 @@ class PatientMedicineState extends State<PatientMedicine> {
       },
     );
   }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.white,
-      appBar: AppBar(
-        title: const Text(
-          'Medicines',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Inter',
-          ),
-        ),
-        backgroundColor: AppColors.white,
-        scrolledUnderElevation: 0.0,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-        child:
-            _isLoading
-
-                ? _buildLoadingState()
-                : _errorMessage.isNotEmpty
-                ? _buildErrorState()
-                : patientMedicines.isEmpty
-                ? _buildNoMedicineState()
-                : _buildMedicineList(),
-      ),
+    return Container(
+      color: AppColors.black.withValues(alpha: 0.8),
+      width: double.infinity,
+      height: 700,
+      padding: EdgeInsets.all(16),
+      child:
+          _isLoading
+              ? _buildLoadingState()
+              : _errorMessage.isNotEmpty
+              ? _buildErrorState()
+              : patientMedicines.isEmpty
+              ? _buildNoMedicineState()
+              : _buildMedicineList(),
     );
   }
 
@@ -244,75 +208,50 @@ class PatientMedicineState extends State<PatientMedicine> {
     return GestureDetector(
       onTap: () => _showMedicineDetailsDialog(medicine),
       child: Container(
-        padding: const EdgeInsets.all(16.0),
+        width: double.infinity,
         decoration: BoxDecoration(
-          color: AppColors.gray,
+          color: AppColors.white.withValues(alpha: 0.9),
           borderRadius: BorderRadius.circular(10.0),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Image.asset(
-                  'lib/assets/images/shared/vitals/medicine_black.png',
-                  height: 25,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    medicineName,
-                    style: const TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      overflow: TextOverflow.ellipsis,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      medicineName,
+                      style: Textstyle.body.copyWith(
+                        fontWeight: FontWeight.bold,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 10),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.green,
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Text(
+                      dosage,
+                      style: Textstyle.bodySmall.copyWith(
+                        color: AppColors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 5),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 5),
+            Divider(color: AppColors.blackTransparent),
 
             // Description
-            const Text(
-              "Dosage",
-              style: TextStyle(
-                fontSize: 18,
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.bold,
-                color: AppColors.black,
-              ),
-            ),
-            Text(
-              dosage,
-              style: const TextStyle(
-                fontSize: 16,
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.normal,
-                color: AppColors.black,
-              ),
-            ),
-            const SizedBox(height: 10.0),
-            const Text(
-              "Usage",
-              style: TextStyle(
-                fontSize: 18,
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.bold,
-                color: AppColors.black,
-              ),
-            ),
-            Text(
-              usage,
-              style: const TextStyle(
-                fontSize: 16,
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.normal,
-                color: AppColors.black,
-              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 16.0),
+              child: Text(usage, style: Textstyle.body),
             ),
           ],
         ),
@@ -324,18 +263,7 @@ class PatientMedicineState extends State<PatientMedicine> {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          CircularProgressIndicator(),
-          SizedBox(height: 20.0),
-          Text(
-            "Loading... Please Wait",
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 18,
-              fontWeight: FontWeight.normal,
-            ),
-          ),
-        ],
+        children: [Loader.loaderPurple],
       ),
     );
   }
@@ -386,17 +314,19 @@ class PatientMedicineState extends State<PatientMedicine> {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          Icon(Icons.error_outline_rounded, color: AppColors.black, size: 80),
-          SizedBox(height: 20.0),
+        children: [
+          Icon(
+            Icons.error_outline_rounded,
+            color: AppColors.whiteTransparent,
+            size: 70,
+          ),
+          SizedBox(height: 10.0),
           Text(
             "No Medicines Yet",
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 18,
-              fontWeight: FontWeight.normal,
-              color: AppColors.black,
+            style: Textstyle.bodyWhite.copyWith(
+              color: AppColors.whiteTransparent,
             ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),

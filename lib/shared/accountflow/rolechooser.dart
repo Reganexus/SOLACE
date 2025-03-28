@@ -1,11 +1,14 @@
 // ignore_for_file: unused_element
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:solace/services/alert_handler.dart';
+import 'package:solace/services/database.dart';
+import 'package:solace/services/error_handler.dart';
 import 'package:solace/shared/accountflow/user_editprofile.dart';
 import 'package:solace/themes/colors.dart';
-import 'package:solace/models/my_user.dart';
+import 'package:solace/themes/textstyle.dart';
 
 class RoleChooser extends StatefulWidget {
   final Function(String) onRoleSelected;
@@ -17,6 +20,7 @@ class RoleChooser extends StatefulWidget {
 }
 
 class _RoleChooserState extends State<RoleChooser> {
+  final DatabaseService db = DatabaseService();
   final _formKey = GlobalKey<FormState>();
   String? _selectedRole;
   late FocusNode _roleFocusNode;
@@ -28,164 +32,101 @@ class _RoleChooserState extends State<RoleChooser> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final userData =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    if (userData == null) {
+      debugPrint("Error: No userData received in RoleChooser.");
+    } else {
+      debugPrint("Received userData: $userData");
+    }
+  }
+
+  @override
   void dispose() {
     _roleFocusNode.dispose();
     super.dispose();
   }
 
+  void _showError(List<String> errorMessages) {
+    if (errorMessages.isEmpty) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => ErrorDialog(title: 'Error', messages: errorMessages),
+    );
+  }
+
+  void _showAlert(List<String> messages) {
+    if (messages.isEmpty) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) =>
+              AlertHandler(title: 'Action Required', messages: messages),
+    );
+  }
+
   void _continue() async {
     if (_formKey.currentState!.validate() && _selectedRole != null) {
-      final user = Provider.of<MyUser?>(context, listen: false);
+      final user = FirebaseAuth.instance.currentUser;
 
       if (user == null) {
-        _showErrorDialog("Error", "User not logged in. Please try again.");
+        _showError(["User not logged in. Please try again."]);
+        return;
+      }
+
+      final userData =
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+
+      if (userData == null || userData.isEmpty) {
+        _showError([
+          "Incomplete or invalid user data. Please restart the verification process.",
+        ]);
         return;
       }
 
       try {
         final firestore = FirebaseFirestore.instance;
-        final unregisteredRef =
-            firestore.collection('unregistered').doc(user.uid);
-        final unregisteredDoc = await unregisteredRef.get();
-
-        if (!unregisteredDoc.exists) {
-          debugPrint(
-              "User document not found in 'unregistered' collection for UID: ${user.uid}");
-          _showErrorDialog(
-              "Error", "User document not found in 'unregistered' collection.");
-          return;
-        }
-
-        final userData = unregisteredDoc.data();
-        if (userData == null) {
-          _showErrorDialog(
-              "Error", "User data is empty in 'unregistered' document.");
-          return;
-        }
-
         final targetCollection = _selectedRole!;
         final targetRef = firestore.collection(targetCollection).doc(user.uid);
 
-        await targetRef.set({
-          ...userData,
-          'userRole': _selectedRole,
+        // Perform a transaction to ensure atomicity
+        await firestore.runTransaction((transaction) async {
+          transaction.set(targetRef, {...userData, 'userRole': _selectedRole});
+          transaction.delete(
+            firestore.collection('unregistered').doc(user.uid),
+          );
         });
 
-        await unregisteredRef.delete();
+        // Cache the user role
+        await db.cacheUserRole(user.uid, _selectedRole!);
 
         debugPrint(
-            "User document transferred to '$targetCollection' collection.");
+          "User document transferred to '$targetCollection' collection and role cached as '$_selectedRole'.",
+        );
+
+        // Update userData locally with the new userRole
+        userData['userRole'] = _selectedRole;
+
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+          MaterialPageRoute(
+            builder: (context) => EditProfileScreen(userData: userData),
+          ),
         );
       } catch (e) {
         debugPrint("Error transferring user document: $e");
-        _showErrorDialog(
-            "Error", "Failed to transfer user data. Please try again.");
+        _showError(["Failed to transfer user data. Please try again."]);
       }
     } else {
-      _showAlertDialog(context);
+      _showAlert(["Choose your role within the app."]);
     }
-  }
-
-  Future<void> _showAlertDialog(BuildContext context) async {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: AppColors.white,
-          title: const Text(
-            'Action Required',
-            style: TextStyle(
-              fontSize: 24,
-              fontFamily: 'Outfit',
-              fontWeight: FontWeight.bold,
-              color: AppColors.black,
-            ),
-          ),
-          content: const Text(
-            'Please select a role to continue.',
-            style: TextStyle(
-              fontSize: 18,
-              fontFamily: 'Inter',
-              fontWeight: FontWeight.normal,
-              color: AppColors.black,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              style: TextButton.styleFrom(
-                backgroundColor: AppColors.neon,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: const Text(
-                'OK',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _showErrorDialog(String title, String message) async {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: AppColors.white,
-          title: Text(
-            title,
-            style: const TextStyle(
-              fontSize: 24,
-              fontFamily: 'Outfit',
-              fontWeight: FontWeight.bold,
-              color: AppColors.black,
-            ),
-          ),
-          content: Text(
-            message,
-            style: const TextStyle(
-                fontSize: 18,
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.normal,
-                color: AppColors.black),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              style: TextButton.styleFrom(
-                backgroundColor: AppColors.neon,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: const Text(
-                'OK',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   @override
@@ -205,16 +146,12 @@ class _RoleChooserState extends State<RoleChooser> {
                     children: [
                       Image.asset('lib/assets/images/auth/role.png'),
                       const SizedBox(height: 20),
-                      const Text(
-                        'What is your role?',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 30),
-                      ),
+                      Text('What is your role?', style: Textstyle.title),
                       const SizedBox(height: 10),
-                      const Text(
+                      Text(
                         'Every role matters in SOLACE',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 22),
+                        style: Textstyle.subheader,
                       ),
                       const SizedBox(height: 20),
                       Form(
@@ -224,12 +161,8 @@ class _RoleChooserState extends State<RoleChooser> {
                           focusNode: _roleFocusNode,
                           decoration: InputDecoration(
                             labelText: "Select your role",
-                            labelStyle: const TextStyle(
-                              color: AppColors.black, // Default label color
-                            ),
-                            floatingLabelStyle: const TextStyle(
-                              color: AppColors.neon, // Label color when focused
-                            ),
+                            labelStyle: Textstyle.body,
+                            floatingLabelStyle: Textstyle.bodyNeon,
                             filled: true,
                             fillColor: AppColors.gray,
                             enabledBorder: OutlineInputBorder(
@@ -245,21 +178,33 @@ class _RoleChooserState extends State<RoleChooser> {
                               ),
                             ),
                           ),
-                          items: const [
+                          items: [
                             DropdownMenuItem(
-                                value: 'admin', child: Text('Admin')),
+                              value: 'admin',
+                              child: Text('Admin', style: Textstyle.body),
+                            ),
                             DropdownMenuItem(
-                                value: 'caregiver', child: Text('Caregiver')),
+                              value: 'caregiver',
+                              child: Text(
+                                'Caregiver (Bedside caregiver)',
+                                style: Textstyle.body,
+                              ),
+                            ),
                             DropdownMenuItem(
-                                value: 'doctor', child: Text('Doctor')),
+                              value: 'doctor',
+                              child: Text('Doctor', style: Textstyle.body),
+                            ),
                             DropdownMenuItem(
-                                value: 'nurse', child: Text('Nurse')),
+                              value: 'nurse',
+                              child: Text('Nurse', style: Textstyle.body),
+                            ),
                           ],
                           value: _selectedRole,
-                          onChanged: (value) =>
-                              setState(() => _selectedRole = value),
-                          validator: (value) =>
-                              value == null ? 'Please select a role' : null,
+                          onChanged:
+                              (value) => setState(() => _selectedRole = value),
+                          validator:
+                              (value) =>
+                                  value == null ? 'Please select a role' : null,
                         ),
                       ),
                     ],
@@ -268,21 +213,19 @@ class _RoleChooserState extends State<RoleChooser> {
                 SizedBox(
                   width: double.infinity,
                   child: TextButton(
-                    onPressed: _continue,
+                    onPressed: _selectedRole == null ? null : _continue,
                     style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                      backgroundColor: AppColors.neon,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 15,
+                      ),
+                      backgroundColor:
+                          _selectedRole == null ? Colors.grey : AppColors.neon,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    child: const Text(
-                      'Continue',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: Colors.white),
-                    ),
+                    child: Text('Continue', style: Textstyle.largeButton),
                   ),
                 ),
               ],

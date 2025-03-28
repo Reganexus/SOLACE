@@ -2,8 +2,12 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
+import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
+import 'package:solace/themes/inputdecoration.dart';
+import 'package:solace/themes/textstyle.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 class PatientNote extends StatefulWidget {
@@ -27,13 +31,25 @@ class PatientNoteState extends State<PatientNote> {
     fetchUserCreationDate();
   }
 
+  void showToast(String message) {
+    Fluttertoast.showToast(
+      msg: message,
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+      backgroundColor: AppColors.neon,
+      textColor: AppColors.white,
+      fontSize: 16.0,
+    );
+  }
+
   Future<void> fetchUserCreationDate() async {
     try {
       // Use the user's role to fetch data from the appropriate collection
-      final snapshot = await FirebaseFirestore.instance
-          .collection('patient')
-          .doc(widget.patientId)
-          .get();
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('patient')
+              .doc(widget.patientId)
+              .get();
 
       if (snapshot.exists && snapshot.data() != null) {
         final userData = snapshot.data()!;
@@ -57,24 +73,26 @@ class PatientNoteState extends State<PatientNote> {
     });
 
     try {
-      final notesSnapshot = await FirebaseFirestore.instance
-          .collection('patient')
-          .doc(widget.patientId)
-          .collection('notes')
-          .where('date', isEqualTo: DateFormat('yyyy-MM-dd').format(day))
-          .get();
+      final notesSnapshot =
+          await FirebaseFirestore.instance
+              .collection('patient')
+              .doc(widget.patientId)
+              .collection('notes')
+              .where('date', isEqualTo: DateFormat('yyyy-MM-dd').format(day))
+              .get();
 
       if (notesSnapshot.docs.isNotEmpty) {
         setState(() {
-          notes = notesSnapshot.docs.map((doc) {
-            final data = doc.data();
-            return {
-              'noteId': doc.id,
-              'timestamp': (data['timestamp'] as Timestamp).toDate(),
-              'note': data['note'],
-              'title': data['title'],
-            };
-          }).toList();
+          notes =
+              notesSnapshot.docs.map((doc) {
+                final data = doc.data();
+                return {
+                  'noteId': doc.id,
+                  'timestamp': (data['timestamp'] as Timestamp).toDate(),
+                  'note': data['note'],
+                  'title': data['title'],
+                };
+              }).toList();
         });
       }
     } catch (e) {
@@ -107,9 +125,9 @@ class PatientNoteState extends State<PatientNote> {
       await noteRef.set(newNote);
 
       fetchNotesForDay(selectedDay);
-      print('Note added successfully!');
+      showToast('Note added successfully!');
     } catch (e) {
-      print('Error adding note: $e');
+      showToast('Error adding note: $e');
     }
   }
 
@@ -124,9 +142,9 @@ class PatientNoteState extends State<PatientNote> {
       await noteRef.delete();
 
       fetchNotesForDay(selectedDay);
-      print('Note deleted successfully!');
+      showToast('Note deleted successfully!');
     } catch (e) {
-      print('Error deleting note: $e');
+      showToast('Error deleting note: $e');
     }
   }
 
@@ -134,128 +152,68 @@ class PatientNoteState extends State<PatientNote> {
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          backgroundColor: AppColors.white,
-          title: Text(
-            'Note Details',
-            style: const TextStyle(
-              fontSize: 24,
-              fontFamily: 'Outfit',
-              fontWeight: FontWeight.bold,
-              color: AppColors.black,
-            ),
-          ),
-          content: ConstrainedBox(
-            constraints: BoxConstraints(
-              minWidth: 280.0, // Minimum width
-              maxWidth: 400.0, // Maximum width
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Time Added",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.black,
-                    ),
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            return AlertDialog(
+              backgroundColor: AppColors.white,
+              title: Text('Note Details', style: Textstyle.subheader),
+              content: SizedBox(
+                width:
+                    constraints.maxWidth * 0.9, // Applied 90% width constraint
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Time Added",
+                        style: Textstyle.body.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(formattedTime, style: Textstyle.body),
+                      const SizedBox(height: 20),
+                      Text(
+                        "Notes",
+                        style: Textstyle.body.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(note['note'], style: Textstyle.body),
+                    ],
                   ),
-                  const SizedBox(height: 5),
-                  Text(
-                    formattedTime,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.normal,
-                      color: AppColors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    "Notes",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    note['note'], // Display the note content as text
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.normal,
-                      color: AppColors.black,
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
-          actions: [
-            Row(
-              children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 15, vertical: 10),
-                      backgroundColor: AppColors.neon,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+              actions: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        style: Buttonstyle.buttonNeon,
+                        child: Text('Close', style: Textstyle.smallButton),
                       ),
                     ),
-                    child: const Text(
-                      'Close',
-                      style: TextStyle(
-                        fontSize: 16.0,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Inter',
-                        color: Colors.white,
+                    const SizedBox(width: 10.0),
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () async {
+                          await _deleteNote(note);
+                          Navigator.of(context).pop();
+                        },
+                        style: Buttonstyle.buttonRed,
+                        child: Text('Delete', style: Textstyle.smallButton),
                       ),
                     ),
-                  ),
+                  ],
                 ),
-                SizedBox(
-                  width: 10.0,
-                ),
-                Expanded(
-                  child: TextButton(
-                    onPressed: () async {
-                      await _deleteNote(note);
-                      Navigator.of(context).pop();
-                    },
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 15, vertical: 10),
-                      backgroundColor: AppColors.red,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    child: const Text(
-                      'Delete',
-                      style: TextStyle(
-                        fontSize: 16.0,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Inter',
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                )
               ],
-            ),
-          ],
+            );
+          },
         );
       },
     );
@@ -270,129 +228,115 @@ class PatientNoteState extends State<PatientNote> {
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          backgroundColor: AppColors.white,
-          title: const Text(
-            'Add Note for Today',
-            style: TextStyle(
-              fontSize: 24,
-              fontFamily: 'Outfit',
-              fontWeight: FontWeight.bold,
-              color: AppColors.black,
-            ),
-          ),
-          content: ConstrainedBox(
-            constraints: BoxConstraints(
-              minWidth: 280.0, // Minimum width
-              maxWidth: 400.0, // Maximum width
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: titleController,
-                    focusNode: titleFocusNode,
-                    decoration: _buildInputDecoration('Title', titleFocusNode),
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            return AlertDialog(
+              backgroundColor: AppColors.white,
+              title: Text('Add Note for Today', style: Textstyle.subheader),
+              content: SizedBox(
+                width:
+                    constraints.maxWidth * 0.9, // Applied 90% width constraint
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: titleController,
+                        focusNode: titleFocusNode,
+                        decoration: InputDecorationStyles.build(
+                          'Title',
+                          titleFocusNode,
+                        ),
+                      ),
+                      const SizedBox(height: 10.0),
+                      TextField(
+                        controller: noteController,
+                        focusNode: noteFocusNode,
+                        maxLines: 1,
+                        decoration: InputDecorationStyles.build(
+                          'Note',
+                          noteFocusNode,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 10.0),
-                  TextField(
-                    controller: noteController,
-                    focusNode: noteFocusNode,
-                    maxLines: 1,
-                    decoration: _buildInputDecoration('Note', noteFocusNode),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
-          actions: [
-            Row(
-              children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 15, vertical: 10),
-                      backgroundColor: AppColors.red,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+              actions: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        style: Buttonstyle.buttonRed,
+                        child: Text('Cancel', style: Textstyle.smallButton),
                       ),
                     ),
-                    child: const Text(
-                      'Cancel',
-                      style: TextStyle(
-                        fontSize: 16.0,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Inter',
-                        color: Colors.white,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () async {
+                          final noteText = noteController.text.trim();
+                          final titleText = titleController.text.trim();
+                          if (noteText.isNotEmpty && titleText.isNotEmpty) {
+                            await addNoteForToday(titleText, noteText);
+                            Navigator.of(context).pop();
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Both fields are required!'),
+                              ),
+                            );
+                          }
+                        },
+                        style: Buttonstyle.buttonNeon,
+                        child: Text('Save', style: Textstyle.smallButton),
                       ),
                     ),
-                  ),
-                ),
-                SizedBox(
-                  width: 10,
-                ),
-                Expanded(
-                  child: TextButton(
-                    onPressed: () async {
-                      final noteText = noteController.text.trim();
-                      final titleText = titleController.text.trim();
-                      if (noteText.isNotEmpty && titleText.isNotEmpty) {
-                        await addNoteForToday(titleText, noteText);
-                        Navigator.of(context).pop();
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Both fields are required!')),
-                        );
-                      }
-                    },
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 15, vertical: 10),
-                      backgroundColor: AppColors.neon,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    child: const Text(
-                      'Save',
-                      style: TextStyle(
-                        fontSize: 16.0,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Inter',
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
+                  ],
                 ),
               ],
-            ),
-          ],
+            );
+          },
         );
       },
     );
   }
 
-  InputDecoration _buildInputDecoration(String label, FocusNode focusNode) {
-    return InputDecoration(
-      labelText: label,
-      filled: true,
-      fillColor: AppColors.gray,
-      border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-      focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: AppColors.neon, width: 2)),
-      labelStyle: TextStyle(
-        fontSize: 16,
-        fontFamily: 'Inter',
-        fontWeight: FontWeight.normal,
-        color: focusNode.hasFocus ? AppColors.neon : AppColors.black,
+  Widget _buildLegendItem(Color color, String label) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(width: 20, height: 20, color: color),
+        const SizedBox(width: 10),
+        Text(
+          label,
+          style: Textstyle.bodySmall.copyWith(color: AppColors.white),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNoNotes() {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(vertical: 18),
+      decoration: BoxDecoration(
+        color: AppColors.gray,
+        borderRadius: BorderRadius.circular(10.0),
+      ),
+      child: Text(
+        "No available notes",
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 18,
+          fontFamily: 'Inter',
+          fontWeight: FontWeight.normal,
+          color: AppColors.black,
+        ),
       ),
     );
   }
@@ -408,35 +352,32 @@ class PatientNoteState extends State<PatientNote> {
         child: const Icon(Icons.add),
       ),
       appBar: AppBar(
-        title: const Text(
-          'Notes',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Inter',
-          ),
-        ),
+        title: Text('Notes', style: Textstyle.subheader),
         backgroundColor: AppColors.white,
         scrolledUnderElevation: 0.0,
       ),
       body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-          child: Column(
-            children: [
-              TableCalendar(
+        child: Column(
+          children: [
+            Container(
+              height: 400,
+              color: AppColors.black.withValues(alpha: 0.8),
+              child: TableCalendar(
                 focusedDay: selectedDay,
-                firstDay: userCreatedDate ??
+                firstDay:
+                    userCreatedDate ??
                     DateTime.now().subtract(
-                        const Duration(days: 30)), // Default to 30 days ago
+                      const Duration(days: 30),
+                    ), // Default to 30 days ago
                 lastDay: DateTime.now(),
                 selectedDayPredicate: (day) => isSameDay(day, selectedDay),
                 enabledDayPredicate: (day) {
                   if (userCreatedDate == null) {
-                    return true; // Temporarily enable all dates for testing
+                    return true;
                   }
                   return day.isAfter(
-                          userCreatedDate!.subtract(const Duration(days: 1))) &&
+                        userCreatedDate!.subtract(const Duration(days: 1)),
+                      ) &&
                       day.isBefore(DateTime.now().add(const Duration(days: 1)));
                 },
                 onDaySelected: (selectedDay, focusedDay) {
@@ -446,139 +387,146 @@ class PatientNoteState extends State<PatientNote> {
                   fetchNotesForDay(selectedDay);
                 },
                 calendarStyle: CalendarStyle(
-                  selectedDecoration: const BoxDecoration(
-                    color: AppColors.neon,
+                  selectedDecoration: BoxDecoration(
+                    color: AppColors.neon.withValues(alpha: 0.5),
                     shape: BoxShape.circle,
+                  ),
+                  selectedTextStyle: Textstyle.body.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.white,
                   ),
                   todayDecoration: BoxDecoration(
-                    color: AppColors.purple,
+                    color: AppColors.purple.withValues(alpha: 0.5),
                     shape: BoxShape.circle,
                   ),
-                  outsideDaysVisible: false,
+                  defaultTextStyle: Textstyle.body.copyWith(
+                    color: AppColors.white,
+                  ),
+                  disabledTextStyle: Textstyle.body.copyWith(
+                    color: AppColors.gray,
+                  ),
+                  weekendTextStyle: Textstyle.body.copyWith(
+                    color: AppColors.white,
+                  ),
+                  todayTextStyle: Textstyle.body.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.white,
+                  ),
+                  outsideTextStyle: Textstyle.body.copyWith(
+                    color: AppColors.blackTransparent,
+                  ), // Dimmed color for outside days
                 ),
-                headerStyle: const HeaderStyle(
+                headerStyle: HeaderStyle(
                   formatButtonVisible: false,
                   titleCentered: true,
-                  leftChevronIcon: Icon(Icons.chevron_left_rounded),
-                  rightChevronIcon: Icon(Icons.chevron_right_rounded),
+                  leftChevronIcon: const Icon(
+                    Icons.chevron_left_rounded,
+                    color: AppColors.white,
+                  ), // Light color for chevrons
+                  rightChevronIcon: const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.white,
+                  ), // Light color for chevrons
+                  titleTextStyle: Textstyle.subheader.copyWith(
+                    color: AppColors.white,
+                  ), // Light color for title
                 ),
-              ),
-              const SizedBox(height: 20.0),
-              SizedBox(
-                width: double.infinity,
-                child: Text(
-                  'Notes for ${DateFormat('MMM d, y (EEEE)').format(selectedDay)}',
-                  style: const TextStyle(
-                    fontSize: 20,
+                daysOfWeekStyle: DaysOfWeekStyle(
+                  weekdayStyle: Textstyle.bodySmall.copyWith(
+                    color: AppColors.white,
                     fontWeight: FontWeight.bold,
-                    fontFamily: 'Outfit',
-                  ),
-                  textAlign: TextAlign.left,
+                  ), // Light color for weekdays
+                  weekendStyle: Textstyle.bodySmall.copyWith(
+                    color: AppColors.white,
+                    fontWeight: FontWeight.bold,
+                  ), // Light color for weekends
                 ),
               ),
-              const SizedBox(height: 20.0),
-              isLoading
-                  ? Container(
-                      width: double.infinity,
-                      padding: EdgeInsets.symmetric(vertical: 18),
-                      decoration: BoxDecoration(
-                        color: AppColors.gray,
-                        borderRadius: BorderRadius.circular(10.0),
-                      ),
-                      child: Text(
-                        "No available notes",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.normal,
-                          color: AppColors.black,
-                        ),
-                      ),
-                    )
-                  : notes.isNotEmpty
+            ),
+            Container(
+              padding: const EdgeInsets.all(16.0),
+              color: AppColors.black.withValues(alpha: 0.9),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  _buildLegendItem(AppColors.neon, "Selected Day"),
+                  _buildLegendItem(AppColors.purple, "Today"),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                children: [
+                  const SizedBox(height: 20.0),
+                  SizedBox(
+                    width: double.infinity,
+                    child: Text(
+                      'Notes for ${DateFormat('MMM d, y (EEEE)').format(selectedDay)}',
+                      style: Textstyle.subheader,
+                      textAlign: TextAlign.left,
+                    ),
+                  ),
+                  const SizedBox(height: 20.0),
+                  isLoading
+                      ? _buildNoNotes()
+                      : notes.isNotEmpty
                       ? ListView.builder(
-                          physics: const NeverScrollableScrollPhysics(),
-                          shrinkWrap: true,
-                          itemCount: notes.length,
-                          itemBuilder: (context, index) {
-                            final note = notes[index];
-                            final timestamp = note['timestamp'];
-                            final formattedTime = DateFormat('h:mm a')
-                                .format(timestamp); // Time only format
+                        physics: const NeverScrollableScrollPhysics(),
+                        shrinkWrap: true,
+                        itemCount: notes.length,
+                        itemBuilder: (context, index) {
+                          final note = notes[index];
+                          final timestamp = note['timestamp'];
+                          final formattedTime = DateFormat(
+                            'h:mm a',
+                          ).format(timestamp); // Time only format
 
-                            return GestureDetector(
-                              onTap: () =>
-                                  _showNoteDetailsDialog(note, formattedTime),
-                              child: Container(
-                                margin: const EdgeInsets.only(bottom: 10.0),
-                                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
-                                decoration: BoxDecoration(
-                                  color: AppColors.gray,
-                                  borderRadius: BorderRadius.circular(10.0),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            note['title'] ??
-                                                'No Title', // Default value for null
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontFamily: 'Inter',
-                                              fontWeight: FontWeight.bold,
-                                              color: AppColors.black,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 5.0),
-                                          // Check if 'note' exists and provide a default value if it's null
-                                          Text(
-                                            note['note'] ??
-                                                'No content available',
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontFamily: 'Inter',
-                                              fontWeight: FontWeight.normal,
-                                              color: AppColors.black,
-                                            ),
-                                          ), // Default value for null
-                                        ],
-                                      ),
-                                    ),
-                                    Icon(
-                                      Icons.more_vert,
-                                      size: 30,
-                                    )
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        )
-                      : Container(
-                          width: double.infinity,
-                          padding: EdgeInsets.symmetric(vertical: 18),
-                          decoration: BoxDecoration(
-                            color: AppColors.gray,
-                            borderRadius: BorderRadius.circular(10.0),
-                          ),
-                          child: Text(
-                            "No available notes",
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontFamily: 'Inter',
-                              fontWeight: FontWeight.normal,
-                              color: AppColors.black,
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 10.0),
+                            padding: const EdgeInsets.all(10.0),
+                            decoration: BoxDecoration(
+                              color: AppColors.gray,
+                              borderRadius: BorderRadius.circular(10.0),
                             ),
-                          ),
-                        ),
-            ],
-          ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        note['title'] ?? 'No Title',
+                                        style: Textstyle.body.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 5.0),
+                                      Text(
+                                        note['note'] ?? 'No content available',
+                                        style: Textstyle.body,
+                                      ), // Default value for null
+                                    ],
+                                  ),
+                                ),
+                                GestureDetector(
+                                  onTap: () {
+                                    _showNoteDetailsDialog(note, formattedTime);
+                                  },
+                                  child: Icon(Icons.more_vert, size: 24),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      )
+                      : _buildNoNotes(),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

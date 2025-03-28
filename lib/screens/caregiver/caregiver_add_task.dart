@@ -3,9 +3,16 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
 import 'package:solace/services/database.dart';
+import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
+import 'package:solace/themes/inputdecoration.dart';
+import 'package:solace/themes/loader.dart';
+import 'package:solace/themes/textformfield.dart';
+import 'package:solace/themes/textstyle.dart';
+import 'package:solace/utility/task_utility.dart';
 
 class ViewPatientTask extends StatefulWidget {
   final String patientId;
@@ -18,10 +25,13 @@ class ViewPatientTask extends StatefulWidget {
 
 class _ViewPatientTaskState extends State<ViewPatientTask> {
   late DatabaseService databaseService;
+  final TaskUtility taskUtility = TaskUtility();
   List<Map<String, dynamic>> tasks = [];
   List<FocusNode> _focusNodes = [];
   bool isLoading = true;
 
+  TextEditingController _titleController = TextEditingController();
+  TextEditingController _descriptionController = TextEditingController();
   TextEditingController _startDateController = TextEditingController();
   TextEditingController _endDateController = TextEditingController();
 
@@ -33,6 +43,8 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
     super.initState();
     _focusNodes = List.generate(5, (index) => FocusNode());
     databaseService = DatabaseService(); // Initialize the DatabaseService
+    _titleController.text = '';
+    _descriptionController.text = '';
     _startDateController.text = 'Select Start Date';
     _endDateController.text = 'Select End Date';
 
@@ -46,6 +58,8 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
     for (var node in _focusNodes) {
       node.dispose();
     }
+    _titleController.dispose();
+    _descriptionController.dispose();
     _startDateController.dispose();
     _endDateController.dispose();
     super.dispose();
@@ -54,103 +68,81 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
   Future<void> _fetchPatientTasks() async {
     print("Fetching tasks for patient: ${widget.patientId}");
 
+    if (!mounted) return;
+
+    setState(() {
+      isLoading = true;
+    });
+
     try {
-      if (mounted) {
-        setState(() {
-          isLoading = true; // Show loading indicator
-        });
-      }
+      final tasksRef = FirebaseFirestore.instance
+          .collection('patient')
+          .doc(widget.patientId)
+          .collection('tasks');
 
-      // Fetch the caregiver documents under the patient's tasks subcollection
-      final caregiverTasksSnapshot =
-          await FirebaseFirestore.instance
-              .collection('patient') // Top-level patient collection
-              .doc(widget.patientId) // Target patient document
-              .collection('tasks') // Tasks subcollection
-              .get();
+      final taskSnapshots = await tasksRef.get();
 
-      if (caregiverTasksSnapshot.docs.isEmpty) {
-        if (mounted) {
-          setState(() {
-            tasks = []; // No tasks found
-            isLoading = false;
-          });
-        }
-        return;
-      }
-
-      // Accumulate all tasks from different caregiver documents
-      final List<Map<String, dynamic>> loadedTasks = [];
-      for (var caregiverDoc in caregiverTasksSnapshot.docs) {
-        final caregiverData = caregiverDoc.data();
-        final caregiverId = caregiverDoc.id;
-        final caregiverTasks = List<Map<String, dynamic>>.from(
-          caregiverData['tasks'] ?? [],
-        );
-
-        // Fetch caregiver details
-        final caregiverRole = await databaseService.getTargetUserRole(
-          caregiverId,
-        );
-        if (caregiverRole == null) continue;
-
-        final caregiverSnapshot =
-            await FirebaseFirestore.instance
-                .collection(caregiverRole)
-                .doc(caregiverId)
-                .get();
-
-        if (caregiverSnapshot.exists) {
-          final caregiverName =
-              '${caregiverSnapshot['firstName']} ${caregiverSnapshot['lastName']}';
-
-          for (var task in caregiverTasks) {
-            final startDate = (task['startDate'] as Timestamp?)?.toDate();
-            final endDate = (task['endDate'] as Timestamp?)?.toDate();
-            final taskId =
-                task['taskId'] ?? 'defaultTaskId'; // Ensure taskId is non-null
-
-            if (startDate == null || endDate == null || taskId.isEmpty) {
-              continue;
-            }
-
-            loadedTasks.add({
-              'caregiverName': caregiverName,
-              'title': task['title'],
-              'description': task['description'],
-              'startDate': startDate,
-              'endDate': endDate,
-              'isCompleted': task['isCompleted'],
-              'taskId': taskId, // Ensure taskId is included
-            });
-          }
-        }
-      }
-
-      // Sort tasks by start date
-      loadedTasks.sort((a, b) => a['startDate'].compareTo(b['startDate']));
-      if (mounted) {
-        setState(() {
-          tasks = loadedTasks;
-          isLoading = false;
-        });
-      }
-    } catch (e) {
-      print("Error loading tasks: $e");
-      if (mounted) {
+      if (taskSnapshots.docs.isEmpty) {
         setState(() {
           tasks = [];
           isLoading = false;
         });
+        return;
       }
+
+      final List<Map<String, dynamic>> loadedTasks =
+          taskSnapshots.docs
+              .map((doc) {
+                final data = doc.data();
+                final startDate = (data['startDate'] as Timestamp?)?.toDate();
+                final endDate = (data['endDate'] as Timestamp?)?.toDate();
+                final isCompleted = data['isCompleted'] ?? false;
+
+                return {
+                  'taskId': doc.id,
+                  'title': data['title'],
+                  'description': data['description'],
+                  'startDate': startDate,
+                  'endDate': endDate,
+                  'isCompleted': isCompleted,
+                };
+              })
+              .where((task) => task['startDate'] != null)
+              .toList();
+
+      loadedTasks.sort((a, b) => a['startDate']!.compareTo(b['startDate']!));
+
+      setState(() {
+        tasks = loadedTasks;
+        isLoading = false;
+      });
+    } catch (e) {
+      print("Error loading tasks: $e");
+      setState(() {
+        tasks = [];
+        isLoading = false;
+      });
     }
   }
 
   void _resetDateControllers() {
+    _titleController.text = '';
+    _descriptionController.text = '';
     _startDateController.text = 'Select Start Date';
     _endDateController.text = 'Select End Date';
     taskStartDate = null;
     taskEndDate = null;
+  }
+
+  void showToast(String message) {
+    Fluttertoast.showToast(
+      msg: message,
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+      backgroundColor: AppColors.neon,
+      textColor: AppColors.white,
+      fontSize: 16.0,
+    );
   }
 
   Future<void> _removeTask(
@@ -159,31 +151,42 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
     String caregiverId,
   ) async {
     try {
-      DatabaseService db = DatabaseService();
-      await db.removeTask(patientId, taskId, caregiverId); // Remove the task
-
-      // Show snackbar indicating the task was deleted
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Task deleted successfully'),
-          backgroundColor:
-              Colors.green, // Optional, set the color of the snackbar
-        ),
+      // Fetch the roles for both caregiver and patient
+      final caregiverRole = await databaseService.fetchAndCacheUserRole(
+        caregiverId,
+      );
+      final patientRole = await databaseService.fetchAndCacheUserRole(
+        patientId,
       );
 
-      // Fetch the updated list of tasks after the removal
+      // Check if the roles were successfully fetched
+      if (caregiverRole == null || patientRole == null) {
+        debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
+        showToast("Failed to remove task. Roles not found.");
+        return;
+      }
+
+      // Remove the task for the patient
+      await taskUtility.removeTask(
+        userId: patientId,
+        taskId: taskId,
+        collectionName: patientRole,
+        subCollectionName: 'tasks',
+      );
+
+      // Remove the task for the caregiver
+      await taskUtility.removeTask(
+        userId: caregiverId,
+        taskId: taskId,
+        collectionName: caregiverRole,
+        subCollectionName: 'tasks',
+      );
+
+      showToast('Task deleted successfully');
       _fetchPatientTasks();
     } catch (e) {
-      print("Error removing task: $e");
-
-      // Show snackbar indicating there was an error
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to delete task'),
-          backgroundColor:
-              Colors.red, // Optional, set the color of the snackbar
-        ),
-      );
+      debugPrint("Error removing task: $e");
+      showToast('Failed to delete task: $e');
     }
   }
 
@@ -194,25 +197,25 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
     DateTime endDate,
   ) async {
     try {
+      // Get the caregiver ID (logged-in user)
       String caregiverId = FirebaseAuth.instance.currentUser?.uid ?? '';
       debugPrint("Add task caregiver id: $caregiverId");
 
       if (caregiverId.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("No caregiver logged in.")));
+        showToast("No caregiver logged in.");
         return;
       }
 
-      // Capitalize title and description
+      // Capitalize the title and description
       String capitalizeWords(String input) {
         return input
             .split(' ')
-            .map((word) {
-              return word.isNotEmpty
-                  ? word[0].toUpperCase() + word.substring(1).toLowerCase()
-                  : word;
-            })
+            .map(
+              (word) =>
+                  word.isNotEmpty
+                      ? word[0].toUpperCase() + word.substring(1).toLowerCase()
+                      : word,
+            )
             .join(' ');
       }
 
@@ -222,40 +225,58 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
       // Generate a unique task ID
       String taskId = FirebaseFirestore.instance.collection('_').doc().id;
 
-      // Save the task for the patient
-      await databaseService.saveTaskForPatient(
-        widget.patientId,
-        taskId, // Pass the generated task ID
-        title,
-        description,
-        startDate, // Pass DateTime directly
-        endDate, // Pass DateTime directly
+      // Fetch the roles for both caregiver and patient
+      final caregiverRole = await databaseService.fetchAndCacheUserRole(
         caregiverId,
+      );
+      final patientRole = await databaseService.fetchAndCacheUserRole(
+        widget.patientId,
+      );
+
+      if (caregiverRole == null || patientRole == null) {
+        debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
+        showToast("Failed to add task. Roles not found.");
+        return;
+      }
+
+      // Save the task for the patient
+      await taskUtility.saveTask(
+        userId: widget.patientId,
+        taskId: taskId,
+        collectionName: patientRole,
+        subCollectionName: 'tasks',
+        taskTitle: title,
+        taskDescription: description,
+        startDate: startDate,
+        endDate: endDate,
       );
 
       // Save the task for the caregiver
-      await databaseService.saveTaskForCaregiver(
-        caregiverId,
-        taskId, // Pass the same task ID
-        title,
-        description,
-        startDate, // Pass DateTime directly
-        endDate, // Pass DateTime directly
-        widget.patientId,
+      await taskUtility.saveTask(
+        userId: caregiverId,
+        taskId: taskId,
+        collectionName: caregiverRole,
+        subCollectionName: 'tasks',
+        taskTitle: title,
+        taskDescription: description,
+        startDate: startDate,
+        endDate: endDate,
       );
 
       // Reload tasks after saving the new one
       _fetchPatientTasks();
       _resetDateControllers();
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Task added successfully")));
+      showToast("Task added successfully");
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Failed to add task: $e")));
+      debugPrint("Error adding task: $e");
+
+      showToast("Failed to add task: $e");
     }
+  }
+
+  DateTime normalizeDate(DateTime date) {
+    return DateTime(date.year, date.month, date.day);
   }
 
   void _showAddTaskDialog() {
@@ -279,7 +300,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                   isStartDate ? taskStartDate : taskEndDate;
 
               // Date Picker
-              final DateTime? picked = await showDatePicker(
+              final DateTime? pickedDate = await showDatePicker(
                 context: context,
                 initialDate: initialDate,
                 firstDate: DateTime.now(),
@@ -298,7 +319,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                 },
               );
 
-              if (picked != null) {
+              if (pickedDate != null) {
                 // Time Picker
                 final TimeOfDay? pickedTime = await showTimePicker(
                   context: context,
@@ -317,27 +338,27 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                   },
                 );
 
-                if (pickedTime != null) {
-                  final DateTime selectedDateTime = DateTime(
-                    picked.year,
-                    picked.month,
-                    picked.day,
-                    pickedTime.hour,
-                    pickedTime.minute,
-                  );
+                // Combine date and time
+                final DateTime selectedDateTime = DateTime(
+                  pickedDate.year,
+                  pickedDate.month,
+                  pickedDate.day,
+                  pickedTime?.hour ??
+                      0, // Default to 00:00:00 if no time is picked
+                  pickedTime?.minute ?? 0,
+                );
 
-                  setModalState(() {
-                    if (isStartDate) {
-                      taskStartDate = selectedDateTime;
-                      _startDateController.text =
-                          '${DateFormat('MMMM dd, yyyy').format(taskStartDate)} at ${DateFormat('h:mm a').format(taskStartDate)}';
-                    } else {
-                      taskEndDate = selectedDateTime;
-                      _endDateController.text =
-                          '${DateFormat('MMMM dd, yyyy').format(taskEndDate)} at ${DateFormat('h:mm a').format(taskEndDate)}';
-                    }
-                  });
-                }
+                setModalState(() {
+                  if (isStartDate) {
+                    taskStartDate = selectedDateTime;
+                    _startDateController.text =
+                        '${DateFormat('MMMM dd, yyyy').format(taskStartDate)} at ${DateFormat('h:mm a').format(taskStartDate)}';
+                  } else {
+                    taskEndDate = selectedDateTime;
+                    _endDateController.text =
+                        '${DateFormat('MMMM dd, yyyy').format(taskEndDate)} at ${DateFormat('h:mm a').format(taskEndDate)}';
+                  }
+                });
               }
             }
 
@@ -352,179 +373,65 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      "Add Task",
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontFamily: 'Outfit',
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.black,
-                      ),
+                    Text("Add Task", style: Textstyle.subheader),
+                    const SizedBox(height: 20),
+
+                    // Task Title Field
+                    CustomTextField(
+                      controller: _titleController,
+                      focusNode: _focusNodes[0],
+                      labelText: "Task Title",
+                      enabled: true,
                     ),
                     const SizedBox(height: 20),
-                    TextFormField(
-                      onChanged: (value) => taskTitle = value,
-                      focusNode: _focusNodes[0], // Focus for Task Title
-                      decoration: InputDecoration(
-                        labelText: "Task Title",
-                        filled: true,
-                        fillColor: AppColors.gray,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide(
-                            color: AppColors.neon,
-                            width: 2,
-                          ),
-                        ),
-                        labelStyle: TextStyle(
-                          fontSize: 16,
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.normal,
-                          color:
-                              _focusNodes[0].hasFocus
-                                  ? AppColors.neon
-                                  : AppColors.black,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
 
                     // Task Description Field
-                    TextFormField(
-                      onChanged: (value) => taskDescription = value,
-                      focusNode: _focusNodes[1], // Focus for Task Description
-                      decoration: InputDecoration(
-                        labelText: "Task Description",
-                        filled: true,
-                        fillColor: AppColors.gray,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide(
-                            color: AppColors.neon,
-                            width: 2,
-                          ),
-                        ),
-                        labelStyle: TextStyle(
-                          fontSize: 16,
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.normal,
-                          color:
-                              _focusNodes[1].hasFocus
-                                  ? AppColors.neon
-                                  : AppColors.black,
-                        ),
-                      ),
+                    CustomTextField(
+                      controller: _descriptionController,
+                      focusNode: _focusNodes[1],
+                      labelText: "Task Description",
+                      enabled: true,
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 20),
 
                     // Start Date Field
                     TextFormField(
                       controller: _startDateController,
-                      focusNode: _focusNodes[2], // Focus for Start Date
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.normal,
-                        color: AppColors.black,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'Start Date',
-                        filled: true,
-                        fillColor: AppColors.gray,
-                        suffixIcon: Icon(
-                          Icons.calendar_today,
-                          color:
-                              _focusNodes[2].hasFocus
-                                  ? AppColors.neon
-                                  : AppColors.black,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide(
-                            color: AppColors.neon,
-                            width: 2,
-                          ),
-                        ),
-                        labelStyle: TextStyle(
-                          fontSize: 16,
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.normal,
-                          color:
-                              _focusNodes[3].hasFocus
-                                  ? AppColors.neon
-                                  : AppColors.black,
-                        ),
-                      ),
-                      validator:
-                          (val) =>
-                              val!.isEmpty || val == 'Select Start Date'
-                                  ? 'Start date cannot be empty'
-                                  : null,
+                      focusNode: _focusNodes[2],
                       readOnly: true,
+                      decoration: InputDecorationStyles.build(
+                        "Start Date",
+                        _focusNodes[2],
+                      ).copyWith(
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            Icons.calendar_today,
+                            color: AppColors.black,
+                          ),
+                          onPressed: () => _selectDateTime(context, true),
+                        ),
+                      ),
                       onTap: () => _selectDateTime(context, true),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 20),
 
                     // End Date Field
                     TextFormField(
                       controller: _endDateController,
-                      focusNode: _focusNodes[3], // Focus for End Date
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.normal,
-                        color: AppColors.black,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'End Date',
-                        filled: true,
-                        fillColor: AppColors.gray,
-                        suffixIcon: Icon(
-                          Icons.calendar_today,
-                          color:
-                              _focusNodes[3].hasFocus
-                                  ? AppColors.neon
-                                  : AppColors.black,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide(
-                            color: AppColors.neon,
-                            width: 2,
-                          ),
-                        ),
-                        labelStyle: TextStyle(
-                          fontSize: 16,
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.normal,
-                          color:
-                              _focusNodes[3].hasFocus
-                                  ? AppColors.neon
-                                  : AppColors.black,
-                        ),
-                      ),
-                      validator:
-                          (val) =>
-                              val!.isEmpty || val == 'Select End Date'
-                                  ? 'End date cannot be empty'
-                                  : null,
+                      focusNode: _focusNodes[3],
                       readOnly: true,
+                      decoration: InputDecorationStyles.build(
+                        "End Date",
+                        _focusNodes[3],
+                      ).copyWith(
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            Icons.calendar_today,
+                            color: AppColors.black,
+                          ),
+                          onPressed: () => _selectDateTime(context, false),
+                        ),
+                      ),
                       onTap: () => _selectDateTime(context, false),
                     ),
 
@@ -535,31 +442,24 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                         Expanded(
                           child: TextButton(
                             onPressed: () => Navigator.pop(context),
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 15,
-                                vertical: 5,
-                              ),
-                              backgroundColor: AppColors.red,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                            child: Text(
-                              "Cancel",
-                              style: TextStyle(
-                                fontSize: 16.0,
-                                fontWeight: FontWeight.bold,
-                                fontFamily: 'Inter',
-                                color: Colors.white,
-                              ),
-                            ),
+                            style: Buttonstyle.buttonRed,
+                            child: Text("Cancel", style: Textstyle.smallButton),
                           ),
                         ),
-                        SizedBox(width: 10.0),
+                        const SizedBox(width: 10.0),
                         Expanded(
                           child: TextButton(
                             onPressed: () {
+                              // Fetch the updated task title and description
+                              taskTitle = _titleController.text.trim();
+                              taskDescription =
+                                  _descriptionController.text.trim();
+
+                              debugPrint("Task Title: $taskTitle");
+                              debugPrint("Task Description: $taskDescription");
+                              debugPrint("Start Date: $taskStartDate");
+                              debugPrint("End Date: $taskEndDate");
+
                               if (taskTitle.isNotEmpty &&
                                   taskDescription.isNotEmpty &&
                                   taskStartDate != null &&
@@ -575,29 +475,13 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                                 _fetchPatientTasks();
                                 _resetDateControllers();
                               } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text("Invalid inputs!")),
-                                );
+                                showToast("Invalid inputs!");
                               }
                             },
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 15,
-                                vertical: 5,
-                              ),
-                              backgroundColor: AppColors.neon,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
+                            style: Buttonstyle.buttonNeon,
                             child: Text(
                               "Add Task",
-                              style: TextStyle(
-                                fontSize: 16.0,
-                                fontWeight: FontWeight.bold,
-                                fontFamily: 'Inter',
-                                color: Colors.white,
-                              ),
+                              style: Textstyle.smallButton,
                             ),
                           ),
                         ),
@@ -617,18 +501,10 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          Icon(Icons.event_busy, color: AppColors.black, size: 80),
-          SizedBox(height: 20.0),
-          Text(
-            "No task yet",
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 18,
-              fontWeight: FontWeight.normal,
-              color: AppColors.black,
-            ),
-          ),
+        children: [
+          Icon(Icons.event_busy, color: AppColors.black, size: 70),
+          SizedBox(height: 10.0),
+          Text("No task yet", style: Textstyle.body),
         ],
       ),
     );
@@ -639,20 +515,13 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: AppBar(
-        title: const Text(
-          "View Tasks",
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Inter',
-          ),
-        ),
+        title: Text("View Tasks", style: Textstyle.subheader),
         backgroundColor: AppColors.white,
         scrolledUnderElevation: 0.0,
       ),
       body:
           isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? Center(child: Loader.loaderPurple)
               : tasks.isEmpty
               ? _buildNoTaskState()
               : _buildTaskList(),
@@ -666,7 +535,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
 
   Widget _buildTaskList() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: ListView.builder(
         padding: const EdgeInsets.only(bottom: 10.0),
         itemCount: tasks.length,
@@ -686,12 +555,15 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
     final String description = task['description'] ?? 'No description';
     final DateTime startDate = task['startDate'];
     final DateTime endDate = task['endDate'];
-    final String taskIcon = 'lib/assets/images/shared/vitals/task_black.png';
+    final bool isCompleted = task['isCompleted'];
+    final formattedStartDate = DateFormat(
+      'MMMM dd, yyyy h:mm a',
+    ).format(startDate);
+    final formattedEndDate = DateFormat('MMMM dd, yyyy h:mm a').format(endDate);
 
     return GestureDetector(
       onTap: () => _showTaskDetailsDialog(task),
       child: Container(
-        padding: const EdgeInsets.all(16.0),
         decoration: BoxDecoration(
           color: AppColors.gray,
           borderRadius: BorderRadius.circular(10.0),
@@ -699,80 +571,63 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Image.asset(taskIcon, height: 25),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      overflow: TextOverflow.ellipsis,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: Textstyle.body.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 5),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 5),
-            const Text(
-              "Description",
-              style: TextStyle(
-                fontSize: 16,
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.bold,
-                color: AppColors.black,
+                  const SizedBox(width: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isCompleted ? Colors.green : AppColors.red,
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Text(
+                      isCompleted ? 'Complete' : 'Incomplete',
+                      style: Textstyle.bodySmall.copyWith(
+                        color: AppColors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            Text(
-              description,
-              style: const TextStyle(
-                fontSize: 16,
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.normal,
-                color: AppColors.black,
-              ),
-            ),
-            const SizedBox(height: 5),
-            const Text(
-              "Start Date",
-              style: TextStyle(
-                fontSize: 16,
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.bold,
-                color: AppColors.black,
-              ),
-            ),
-            Text(
-              DateFormat('yyyy-MM-dd HH:mm').format(startDate),
-              style: const TextStyle(
-                fontSize: 16,
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.normal,
-                color: AppColors.black,
-              ),
-            ),
-            const SizedBox(height: 5),
-            const Text(
-              "End Date",
-              style: TextStyle(
-                fontSize: 16,
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.bold,
-                color: AppColors.black,
-              ),
-            ),
-            Text(
-              DateFormat('yyyy-MM-dd HH:mm').format(endDate),
-              style: const TextStyle(
-                fontSize: 16,
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.normal,
-                color: AppColors.black,
+            Divider(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Description",
+                    style: Textstyle.body.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  Text(description, style: Textstyle.body),
+                  const SizedBox(height: 5),
+                  Text(
+                    "Start Date",
+                    style: Textstyle.body.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  Text(formattedStartDate, style: Textstyle.body),
+                  const SizedBox(height: 5),
+                  Text(
+                    "End Date",
+                    style: Textstyle.body.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  Text(formattedEndDate, style: Textstyle.body),
+                ],
               ),
             ),
           ],
@@ -801,25 +656,9 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.black,
-                  ),
-                ),
+                Text(title, style: Textstyle.subheader),
                 const SizedBox(height: 10.0),
-                Text(
-                  "Do you want to delete this task?",
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.normal,
-                    color: AppColors.black,
-                  ),
-                ),
+                Text("Do you want to delete this task?", style: Textstyle.body),
                 SizedBox(height: 20),
                 Row(
                   children: [
@@ -837,25 +676,10 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                             Navigator.of(context).pop(); // Close dialog
                           }
                         },
-
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 15,
-                            vertical: 5,
-                          ),
-                          backgroundColor: AppColors.red,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: const Text(
+                        style: Buttonstyle.buttonRed,
+                        child: Text(
                           'Remove Task',
-                          style: TextStyle(
-                            fontSize: 16.0,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Inter',
-                            color: Colors.white,
-                          ),
+                          style: Textstyle.smallButton,
                         ),
                       ),
                     ),
@@ -867,25 +691,8 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                             context,
                           ).pop(); // Close dialog without doing anything
                         },
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 15,
-                            vertical: 5,
-                          ),
-                          backgroundColor: AppColors.neon,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: const Text(
-                          'Close',
-                          style: TextStyle(
-                            fontSize: 16.0,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Inter',
-                            color: Colors.white,
-                          ),
-                        ),
+                        style: Buttonstyle.buttonNeon,
+                        child: Text('Close', style: Textstyle.smallButton),
                       ),
                     ),
                   ],

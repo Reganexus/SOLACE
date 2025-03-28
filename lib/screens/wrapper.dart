@@ -7,6 +7,8 @@ import 'package:solace/screens/authenticate/authenticate.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/themes/colors.dart';
+import 'package:solace/themes/loader.dart';
+import 'package:solace/themes/textstyle.dart';
 
 class Wrapper extends StatelessWidget {
   const Wrapper({super.key});
@@ -24,7 +26,11 @@ class Wrapper extends StatelessWidget {
       future: _fetchUserDataWithRetries(user.uid),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return _loadingIndicator("Fetching user data...");
+          return Container(
+            color: AppColors.neon,
+            alignment: Alignment.center,
+            child: Loader.loaderWhite,
+          );
         }
 
         if (snapshot.hasError) {
@@ -36,7 +42,8 @@ class Wrapper extends StatelessWidget {
         if (userData != null) {
           debugPrint("User data fetched: $userData");
           final isVerified = userData['isVerified'] ?? false;
-          final newUser = userData['newUser'] ?? true; // Default to true for safety.
+          final newUser =
+              userData['newUser'] ?? true; // Default to true for safety.
           final role = userData['userRole'];
 
           if (newUser) {
@@ -47,11 +54,15 @@ class Wrapper extends StatelessWidget {
             return Home(uid: user.uid, role: role);
           } else {
             debugPrint("Wrapper: Verification failed for UID: ${user.uid}");
-            return _errorScreen("User verification failed. Please contact support.");
+            return _errorScreen(
+              "User verification failed. Please contact support.",
+            );
           }
         } else {
           debugPrint("No user data found after retries.");
-          return _errorScreen("User account not found. Please contact support.");
+          return _errorScreen(
+            "User account not found. Please contact support.",
+          );
         }
       },
     );
@@ -65,24 +76,16 @@ class Wrapper extends StatelessWidget {
       try {
         debugPrint("Fetching user data (attempt ${attempt + 1}) for UID: $uid");
 
-        final role = await DatabaseService().getUserRole(uid);
+        // Use fetchAndCacheUserRole instead of getTargetUserRole
+        final String? role = await DatabaseService().fetchAndCacheUserRole(uid);
         if (role == null) {
           debugPrint("Role not found. Retrying...");
           await Future.delayed(retryDelay);
           continue;
         }
 
-        final userCollection = DatabaseService().getCollectionForRole(role);
-        if (userCollection == null) {
-          debugPrint("User collection not found for role: $role. Retrying...");
-          await Future.delayed(retryDelay);
-          continue;
-        }
-
-        final docSnapshot = await FirebaseFirestore.instance
-            .collection(userCollection)
-            .doc(uid)
-            .get();
+        final docSnapshot =
+            await FirebaseFirestore.instance.collection(role).doc(uid).get();
 
         if (docSnapshot.exists) {
           debugPrint("User document found for UID: $uid");
@@ -101,27 +104,6 @@ class Wrapper extends StatelessWidget {
     return null;
   }
 
-  Widget _loadingIndicator(String message) {
-    return Scaffold(
-      backgroundColor: AppColors.neon,
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              message,
-              style: const TextStyle(color: AppColors.white, fontSize: 16),
-            ),
-            const SizedBox(height: 16),
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation(AppColors.white),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _errorScreen(String message) {
     return Scaffold(
       backgroundColor: AppColors.neon,
@@ -129,14 +111,11 @@ class Wrapper extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              message,
-              style: const TextStyle(color: AppColors.white, fontSize: 16),
-            ),
+            Text(message, style: Textstyle.error),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () {
-                // Retry logic can be added here
+                Authenticate();
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.white,

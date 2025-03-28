@@ -1,15 +1,22 @@
 // ignore_for_file: avoid_print
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:solace/models/my_user.dart';
+import 'package:solace/screens/authenticate/authenticate.dart';
 import 'package:solace/screens/caregiver/caregiver_dashboard.dart';
 import 'package:solace/screens/caregiver/caregiver_schedule.dart';
+import 'package:solace/services/auth.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/shared/widgets/bottom_navbar.dart';
+import 'package:solace/shared/widgets/help_page.dart';
 import 'package:solace/shared/widgets/notifications.dart';
 import 'package:solace/shared/widgets/profile.dart';
+import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
+import 'package:solace/themes/textstyle.dart';
 
 class CaregiverHome extends StatefulWidget {
   const CaregiverHome({super.key});
@@ -19,13 +26,17 @@ class CaregiverHome extends StatefulWidget {
 }
 
 class CaregiverHomeState extends State<CaregiverHome> {
+  DatabaseService db = DatabaseService();
   int _currentIndex = 0;
   late final List<Widget> _screens;
-  final GlobalKey<NotificationsListState> notificationsListKey = GlobalKey<NotificationsListState>();
+  late final String currentUserId;
+  final GlobalKey<NotificationsListState> notificationsListKey =
+      GlobalKey<NotificationsListState>();
 
   @override
   void initState() {
     super.initState();
+    currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
     _screens = [
       CaregiverDashboard(),
       NotificationList(
@@ -69,22 +80,15 @@ class CaregiverHomeState extends State<CaregiverHome> {
 
         final userData = _cachedUserData;
         if (userData == null) {
-          return const Row(
+          return Row(
             children: [
-              CircleAvatar(
+              const CircleAvatar(
                 radius: 20.0,
                 backgroundColor: Colors.grey,
                 child: Icon(Icons.person, color: Colors.white),
               ),
-              SizedBox(width: 10.0),
-              Text(
-                'Hello, User',
-                style: TextStyle(
-                  fontSize: 18.0,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Inter',
-                ),
-              ),
+              const SizedBox(width: 10.0),
+              Text('Hello, User', style: Textstyle.body),
             ],
           );
         }
@@ -95,20 +99,19 @@ class CaregiverHomeState extends State<CaregiverHome> {
         return Row(
           children: [
             CircleAvatar(
-              radius: 20.0,
-              backgroundImage: profileImageUrl.isNotEmpty
-                  ? NetworkImage(profileImageUrl)
-                  : const AssetImage('lib/assets/images/shared/placeholder.png')
-              as ImageProvider,
+              radius: 16.0,
+              backgroundImage:
+                  profileImageUrl.isNotEmpty
+                      ? NetworkImage(profileImageUrl)
+                      : const AssetImage(
+                            'lib/assets/images/shared/placeholder.png',
+                          )
+                          as ImageProvider,
             ),
             const SizedBox(width: 10.0),
             Text(
               'Hello, $firstName',
-              style: const TextStyle(
-                fontSize: 18.0,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Inter',
-              ),
+              style: Textstyle.body.copyWith(fontWeight: FontWeight.bold),
             ),
           ],
         );
@@ -116,166 +119,203 @@ class CaregiverHomeState extends State<CaregiverHome> {
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
+  AppBar buildAppBar() {
     final user = Provider.of<MyUser?>(context);
 
-    return PreferredSize(
-      preferredSize: const Size.fromHeight(60.0),
-      child: StreamBuilder<UserData?>(
+    return AppBar(
+      backgroundColor: AppColors.white,
+      scrolledUnderElevation: 0.0,
+      automaticallyImplyLeading: false,
+      elevation: 0.0,
+      title: StreamBuilder<UserData?>(
         stream: DatabaseService(uid: user?.uid).userData,
         builder: (context, snapshot) {
-          return AppBar(
-            backgroundColor: AppColors.white,
-            scrolledUnderElevation: 0.0,
-            automaticallyImplyLeading: false,
-            elevation: 0.0,
-            title: Padding(
-              padding: const EdgeInsets.fromLTRB(15.0, 20.0, 15.0, 10.0),
-              child: _currentIndex == 0
-                  ? Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildLeftAppBar(context),
-                ],
-              )
-                  : _currentIndex == 3
-                  ? Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Profile',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Inter',
-                    ),
-                  ),
-                ],
-              )
-                  : _currentIndex == 1
-                  ? Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Notifications',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Inter',
-                      ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      // Show confirmation dialog before deleting all notifications
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          backgroundColor: AppColors.white,
-                          title: const Text(
-                            'Delete all Notifications?',
-                            style: TextStyle(
-                              fontFamily: 'Outfit',
-                              fontWeight: FontWeight.bold,
-                              fontSize: 24,
-                              color: AppColors.black,
-                            ),
-                          ),
-                          content: const Text(
-                            'This will permanently delete all notifications. Are you sure?',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontWeight: FontWeight.normal,
-                              fontSize: 18,
-                              color: AppColors.black,
-                            ),
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () =>
-                                  Navigator.of(context).pop(),
-                              style: TextButton.styleFrom(
-                                padding:
-                                const EdgeInsets.symmetric(
-                                    horizontal: 15,
-                                    vertical: 5),
-                                backgroundColor: AppColors.neon,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius:
-                                  BorderRadius.circular(10),
-                                ),
-                              ),
-                              child: const Text(
-                                'Cancel',
-                                style: TextStyle(
-                                  color: AppColors.white,
-                                  fontFamily: 'Inter',
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                // Use the key to access the method in NotificationsListState
-                                notificationsListKey.currentState
-                                    ?.deleteAllNotifications();
-                                Navigator.of(context)
-                                    .pop(); // Close the dialog
-                              },
-                              style: TextButton.styleFrom(
-                                padding:
-                                const EdgeInsets.symmetric(
-                                    horizontal: 15,
-                                    vertical: 5),
-                                backgroundColor: AppColors.red,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius:
-                                  BorderRadius.circular(10),
-                                ),
-                              ),
-                              child: const Text(
-                                'Delete All',
-                                style: TextStyle(
-                                  color: AppColors.white,
-                                  fontFamily: 'Inter',
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                    child: const Icon(
-                      Icons.delete,
-                      size: 30.0,
-                    ),
-                  ),
-                ],
-              )
-                  : Text(
-                'Schedule',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Inter',
+          if (_currentIndex == 0) {
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [_buildLeftAppBar(context)],
+            );
+          } else if (_currentIndex == 3) {
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(child: Text('Profile', style: Textstyle.subheader)),
+                Row(
+                  children: [
+                    buildHelp(),
+                    const SizedBox(width: 8),
+                    buildLogOut(),
+                  ],
                 ),
-              ),
-            ),
-          );
+              ],
+            );
+          } else if (_currentIndex == 1) {
+            return Row(
+              children: [
+                Expanded(
+                  child: Text('Notifications', style: Textstyle.subheader),
+                ),
+                buildDeleteNotifications(),
+              ],
+            );
+          } else {
+            return Text('Schedule', style: Textstyle.subheader);
+          }
         },
       ),
     );
   }
 
+  Widget buildDeleteNotifications() {
+    return FutureBuilder<String?>(
+      future: db.fetchAndCacheUserRole(currentUserId), // Fetch userRole
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Icon(Icons.delete, size: 24.0);
+        }
+
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          print('Error fetching userRole: ${snapshot.error}');
+          return const Icon(Icons.delete, size: 24.0);
+        }
+
+        final userRole = snapshot.data!;
+
+        return StreamBuilder<QuerySnapshot>(
+          stream:
+              FirebaseFirestore.instance
+                  .collection(userRole)
+                  .doc(currentUserId)
+                  .collection('notifications')
+                  .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Icon(Icons.delete, size: 24.0);
+            }
+
+            if (snapshot.hasError) {
+              print('Error fetching notifications: ${snapshot.error}');
+              return const Icon(Icons.error, size: 24.0);
+            }
+
+            final notificationCount = snapshot.data?.docs.length ?? 0;
+
+            return GestureDetector(
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder:
+                      (context) => AlertDialog(
+                        backgroundColor: AppColors.white,
+                        title: Text(
+                          notificationCount > 0
+                              ? 'Delete all $notificationCount Notifications?'
+                              : 'No Notifications to Delete',
+                          style: Textstyle.subheader,
+                        ),
+                        content: Text(
+                          notificationCount > 0
+                              ? 'This will permanently delete all $notificationCount notifications. Are you sure?'
+                              : 'There are no notifications to delete.',
+                          style: Textstyle.body,
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            style: Buttonstyle.buttonNeon,
+                            child: Text(
+                              notificationCount > 0 ? 'Cancel' : 'Close',
+                              style: Textstyle.smallButton,
+                            ),
+                          ),
+                          if (notificationCount > 0)
+                            TextButton(
+                              onPressed: () {
+                                notificationsListKey.currentState
+                                    ?.deleteAllNotifications();
+                                Navigator.of(context).pop();
+                              },
+                              style: Buttonstyle.buttonRed,
+                              child: Text(
+                                'Delete All',
+                                style: Textstyle.smallButton,
+                              ),
+                            ),
+                        ],
+                      ),
+                );
+              },
+              child: const Icon(Icons.delete, size: 24.0),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget buildHelp() {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const HelpPage()),
+        );
+      },
+      child: const Icon(Icons.info_outline_rounded, size: 24.0),
+    );
+  }
+
+  Widget buildLogOut() {
+    return GestureDetector(
+      onTap: () async {
+        final shouldLogout = await showDialog<bool>(
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                title: Text('Log Out', style: Textstyle.heading),
+                backgroundColor: AppColors.white,
+                contentPadding: const EdgeInsets.all(20),
+                content: Text(
+                  'Are you sure you want to log out?',
+                  style: Textstyle.body,
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    style: Buttonstyle.buttonNeon,
+                    child: Text('Cancel', style: Textstyle.smallButton),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    style: Buttonstyle.buttonRed,
+                    child: Text('Log Out', style: Textstyle.smallButton),
+                  ),
+                ],
+              ),
+        );
+
+        if (shouldLogout ?? false) {
+          await AuthService().signOut();
+
+          // Check if the widget is still mounted before navigating
+          if (mounted) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const Authenticate()),
+              (route) => false, // Remove all previous routes
+            );
+          }
+        }
+      },
+      child: const Icon(Icons.logout_rounded, size: 24.0, color: AppColors.red),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.white,
-      appBar: _buildAppBar(),
+      appBar: buildAppBar(),
       body: _screens[_currentIndex],
       bottomNavigationBar: BottomNavBar(
         currentIndex: _currentIndex,

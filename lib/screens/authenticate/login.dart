@@ -1,7 +1,10 @@
 // ignore_for_file: use_build_context_synchronously, unused_field
 
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/authenticate/forgot.dart';
 import 'package:solace/screens/authenticate/verify.dart';
@@ -9,7 +12,13 @@ import 'package:solace/screens/home/home.dart';
 import 'package:solace/services/auth.dart';
 import 'package:flutter/material.dart';
 import 'package:solace/services/database.dart';
+import 'package:solace/services/error_handler.dart';
+import 'package:solace/services/validator.dart';
+import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
+import 'package:solace/themes/inputdecoration.dart';
+import 'package:solace/themes/loader.dart';
+import 'package:solace/themes/textstyle.dart';
 
 class LogIn extends StatefulWidget {
   final VoidCallback toggleView; // Updated to VoidCallback
@@ -22,9 +31,11 @@ class LogIn extends StatefulWidget {
 
 class _LogInState extends State<LogIn> {
   MyUser? currentUser;
-
   final AuthService _auth = AuthService();
-  final _formKey = GlobalKey<FormState>();
+  final DatabaseService _db = DatabaseService();
+  late final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  bool _isLoginButtonEnabled = true;
+  bool _isGoogleSignInButtonEnabled = true;
 
   String _email = '';
   String _password = '';
@@ -41,20 +52,8 @@ class _LogInState extends State<LogIn> {
   @override
   void initState() {
     super.initState();
-
-    // Listener for email focus
-    _emailFocusNode.addListener(() {
-      if (mounted) {
-        setState(() {});
-      }
-    });
-
-    // Listener for password focus
-    _passwordFocusNode.addListener(() {
-      if (mounted) {
-        setState(() {});
-      }
-    });
+    _addFocusListener(_emailFocusNode);
+    _addFocusListener(_passwordFocusNode);
   }
 
   @override
@@ -66,129 +65,183 @@ class _LogInState extends State<LogIn> {
     super.dispose();
   }
 
-  String? _emailValidator(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Email is required';
-    } else if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-      return 'Enter a valid email';
-    }
-    return null;
+  void _addFocusListener(FocusNode focusNode) {
+    focusNode.addListener(() {
+      if (mounted) {
+        setState(() {});
+      }
+    });
   }
 
-  String? _passwordValidator(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Password is required';
-    } else if (value.length < 6) {
-      return 'Password must be at least 6 characters long';
-    }
-    return null;
+  void handleFirebaseAuthError(FirebaseAuthException e) {
+    final errorMessages = {
+      'user-not-found': 'No user found for that email.',
+      'wrong-password': 'Wrong password provided.',
+      'invalid-email': 'The email address is invalid.',
+    };
+
+    String errorMessage =
+        errorMessages[e.code] ?? e.message ?? 'An unexpected error occurred.';
+    _showError([errorMessage]);
+  }
+
+  void _showError(List<String> errorMessages) {
+    if (errorMessages.isEmpty || !mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => ErrorDialog(title: 'Error', messages: errorMessages),
+    );
+  }
+
+  void togglePasswordVisibility() {
+    setState(() {
+      _isPasswordVisible = !_isPasswordVisible;
+    });
   }
 
   Future<void> _handleSignUpWithGoogle() async {
+    if (!_isGoogleSignInButtonEnabled) return;
+
     if (mounted) {
-      setState(() {
-        _isLoading = true;
-      });
+      setState(() => _isGoogleSignInButtonEnabled = false);
     }
 
     try {
-      // Sign in with Google
-      MyUser? myUser = await _auth.signInWithGoogle();
+      await _runWithLoadingState(() async {
+        MyUser? myUser = await _auth.signInWithGoogle();
 
-      if (mounted && myUser != null) {
-        DatabaseService db = DatabaseService(uid: myUser.uid);
+        if (myUser != null) {
+          String? userRole = await _db.fetchAndCacheUserRole(myUser.uid);
 
-        // Get the user role directly using DatabaseService
-        String? userRole = await db.getTargetUserRole(myUser.uid);
-
-        if (userRole != null) {
-          // Fetch the user document from the corresponding collection
-          final userDoc = await FirebaseFirestore.instance
-              .collection(userRole)
-              .doc(myUser.uid)
-              .get();
-
-          if (userDoc.exists) {
-            final userData = userDoc.data();
-
-            if (userData != null && userData['isVerified'] == true) {
-              // Verified user: Redirect to Home
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => Home(uid: myUser.uid, role: userRole),
-                ),
-              );
-            } else {
-              // Not verified: Redirect to Verify
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const Verify()),
-              );
-            }
+          if (userRole != null) {
+            await _navigateBasedOnVerification(myUser.uid, userRole);
           } else {
-            _showError(["Email not associated with a verified account."]);
+            _showError(["User role not found. Please contact support."]);
           }
-        } else {
-          _showError(["User role not found. Please contact support."]);
         }
-      }
+      });
     } catch (e) {
-      if (e.toString().contains("google_sign_in_aborted")) {
-        return; // User cancelled sign-in, no action needed
-      }
-
-      if (mounted) {
-        _showError(
-          ["An error occurred during Google sign-in. Please try again later."],
-        );
+      if (e is FirebaseAuthException) {
+        handleFirebaseAuthError(e);
+      } else if (e is TimeoutException) {
+        _showError(["The request timed out. Please try again later."]);
+      } else if (e.toString().contains("google_sign_in_aborted")) {
+        // Silently handle user cancellation
+      } else {
+        _showError([
+          "An error occurred during Google sign-in. Please try again later.",
+        ]);
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isGoogleSignInButtonEnabled = true);
       }
     }
   }
 
   Future<void> _handleLogin() async {
-    FocusScope.of(context).unfocus();
+    if (!_isLoginButtonEnabled) return;
 
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
+    if (mounted) {
+      setState(() => _isLoginButtonEnabled = false);
+    }
 
-      final email = _emailController.text.trim();
-      final password = _passwordController.text.trim();
+    if (!_formKey.currentState!.validate()) {
+      if (mounted) {
+        setState(() => _isLoginButtonEnabled = true);
+      }
+      return;
+    }
 
-      try {
-        MyUser? result = await _auth.logInWithEmailAndPassword(email, password);
-        if (result != null) {
-          await _processLogin(result);
-        } else {
-          _showError(['Invalid email or password.']);
-        }
-      } catch (e) {
-        String errorMessage;
-        if (e is FirebaseAuthException) {
-          switch (e.code) {
-            case 'user-not-found':
-              errorMessage = 'No user found for that email.';
-              break;
-            case 'wrong-password':
-              errorMessage = 'Wrong password provided.';
-              break;
-            case 'invalid-email':
-              errorMessage = 'The email address is invalid.';
-              break;
-            default:
-              errorMessage = 'An error occurred. Please try again.';
-          }
-        } else {
-          errorMessage = 'Login failed: $e';
-        }
-        _showError([errorMessage]);
-      } finally {
+    try {
+      await _runWithLoadingState(_performLogin);
+    } catch (e) {
+      _handleLoginError(e);
+    } finally {
+      if (mounted) {
+        setState(() => _isLoginButtonEnabled = true);
+      }
+    }
+  }
+
+  Future<void> _performLogin() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    MyUser? result = await _auth
+        .logInWithEmailAndPassword(email, password)
+        .timeout(
+          const Duration(seconds: 10),
+          onTimeout:
+              () => throw TimeoutException('The login request timed out.'),
+        );
+
+    if (result != null) {
+      await _processLogin(result);
+    } else {
+      _showError(['Invalid email or password.']);
+    }
+  }
+
+  void _handleLoginError(Object e) {
+    if (e is FirebaseAuthException) {
+      handleFirebaseAuthError(e);
+    } else if (e is TimeoutException) {
+      _showError(['Login timed out. Please try again later.']);
+    } else {
+      _showError(['Login failed: $e']);
+    }
+  }
+
+  void showToast(String message) {
+    Fluttertoast.showToast(
+      msg: message,
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+      backgroundColor: AppColors.neon,
+      textColor: AppColors.white,
+      fontSize: 16.0,
+    );
+  }
+
+  Future<void> _navigateBasedOnVerification(String uid, String userRole) async {
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection(userRole)
+          .doc(uid)
+          .get()
+          .timeout(const Duration(seconds: 5));
+
+      if (userDoc.exists && userDoc.data()?['isVerified'] == true) {
+        showToast('Login successful. Redirecting to home...');
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => Home(uid: uid, role: userRole),
+          ),
+        );
+      } else {
+        showToast('Account not verified. Redirecting to verification page...');
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const Verify()),
+        );
+      }
+    } catch (e) {
+      _showError(["Failed to verify user. Please try again later."]);
+    }
+  }
+
+  Future<void> _runWithLoadingState(Future<void> Function() task) async {
+    setState(() => _isLoading = true);
+    try {
+      await task();
+    } finally {
+      if (mounted) {
         setState(() => _isLoading = false);
       }
     }
@@ -196,8 +249,7 @@ class _LogInState extends State<LogIn> {
 
   Future<void> _processLogin(MyUser result) async {
     final uid = result.uid;
-    final db = DatabaseService(uid: uid);
-    final role = await db.getTargetUserRole(uid);
+    final role = await _db.fetchAndCacheUserRole(uid);
 
     if (role != null) {
       final docExists = await _checkDocumentExists(role, uid);
@@ -219,123 +271,22 @@ class _LogInState extends State<LogIn> {
           .collection(role)
           .doc(uid)
           .get()
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 5));
       return doc.exists;
     } catch (e) {
-      debugPrint('Error fetching document: $e');
+      debugPrint('Failed to fetch document: $e');
       return false;
     }
   }
 
-  void _showError(List<String> errorMessages) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: AppColors.white,
-          title: const Text(
-            'Error',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min, // Prevent unnecessary space
-            crossAxisAlignment:
-                CrossAxisAlignment.start, // Aligns children to the left
-            children: [
-              Text(
-                errorMessages.join('\n'), // Join messages with a newline
-                textAlign: TextAlign.left, // Left-align the text
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity, // Full-width button
-                child: TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop(); // Close the dialog
-                  },
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 10),
-                    backgroundColor: AppColors.neon,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: const Text(
-                    'OK',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: AppColors.white,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void togglePasswordVisibility() {
-    setState(() {
-      _isPasswordVisible = !_isPasswordVisible;
-    });
-  }
-
-  TextStyle get focusedLabelStyle => const TextStyle(
-        color: AppColors.neon,
-        fontSize: 16,
-      );
-
-  InputDecoration _inputDecoration(String label, FocusNode focusNode) {
-    return InputDecoration(
-      labelText: label,
-      filled: true,
-      fillColor: AppColors.gray,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(
-          color: AppColors.neon,
-          width: 2,
-        ),
-      ),
-      labelStyle: TextStyle(
-        color: focusNode.hasFocus ? AppColors.neon : AppColors.black,
-      ),
-    );
-  }
+  TextStyle get focusedLabelStyle => Textstyle.bodyNeon;
 
   Widget _buildLoginHeader() {
     return Column(
       children: [
-        Image.asset(
-          'lib/assets/images/auth/solace.png',
-          width: 100,
-        ),
+        Image.asset('lib/assets/images/auth/solace.png', width: 100),
         const SizedBox(height: 40),
-        const Text(
-          'Login',
-          style: TextStyle(
-            fontFamily: 'Outfit',
-            fontWeight: FontWeight.bold,
-            fontSize: 30,
-            color: AppColors.black,
-          ),
-        ),
+        Text('Login', style: Textstyle.title),
         const SizedBox(height: 20),
       ],
     );
@@ -349,16 +300,75 @@ class _LogInState extends State<LogIn> {
     Widget? suffixIcon,
     required String? Function(String?) validator,
     required Function(String) onChanged,
+    Function(String)? onFieldSubmitted, // New parameter
   }) {
     return TextFormField(
       controller: controller,
       focusNode: focusNode,
       obscureText: obscureText,
-      decoration: _inputDecoration(labelText, focusNode).copyWith(
-        suffixIcon: suffixIcon,
-      ),
+      enabled: !_isLoading,
+      decoration: InputDecorationStyles.build(
+        labelText,
+        focusNode,
+      ).copyWith(suffixIcon: suffixIcon),
       validator: validator,
       onChanged: onChanged,
+      onFieldSubmitted: onFieldSubmitted,
+    );
+  }
+
+  Widget _emailField() => buildTextFormField(
+    controller: _emailController,
+    focusNode: _emailFocusNode,
+    labelText: 'Email',
+    validator: Validator.email,
+    onChanged: (val) => setState(() => _email = val),
+    onFieldSubmitted: (_) => FocusScope.of(context).nextFocus(),
+  );
+
+  Widget _passwordField() => buildTextFormField(
+    controller: _passwordController,
+    focusNode: _passwordFocusNode,
+    labelText: 'Password',
+    obscureText: !_isPasswordVisible,
+    suffixIcon: IconButton(
+      icon: Icon(
+        _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+        color: AppColors.darkgray,
+      ),
+      onPressed: togglePasswordVisibility,
+    ),
+    validator: Validator.password,
+    onChanged: (val) => setState(() => _password = val),
+    onFieldSubmitted: (_) => FocusScope.of(context).unfocus(),
+  );
+
+  Widget _buildForgotPassword() {
+    return SizedBox(
+      height: 40,
+      child: Center(
+        child: GestureDetector(
+          onTap:
+              _isLoading
+                  ? null
+                  : () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (context) =>
+                                const Forgot(), // Navigate to Forgot screen
+                      ),
+                    );
+                  },
+          child: Text(
+            'Forgot Password?',
+            style: Textstyle.body.copyWith(
+              decoration: TextDecoration.underline,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -386,92 +396,31 @@ class _LogInState extends State<LogIn> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: <Widget>[
                           _buildLoginHeader(), // Header widget
-                          buildTextFormField(
-                            controller: _emailController,
-                            focusNode: _emailFocusNode,
-                            labelText: 'Email',
-                            validator: _emailValidator,
-                            onChanged: (val) => setState(() => _email = val),
-                          ),
+                          _emailField(),
                           const SizedBox(height: 20),
-                          buildTextFormField(
-                            controller: _passwordController,
-                            focusNode: _passwordFocusNode,
-                            labelText: 'Password',
-                            obscureText: !_isPasswordVisible,
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _isPasswordVisible
-                                    ? Icons.visibility
-                                    : Icons.visibility_off,
-                                color: AppColors.darkgray,
-                              ),
-                              onPressed: togglePasswordVisibility,
-                            ),
-                            validator: _passwordValidator,
-                            onChanged: (val) => setState(() => _password = val),
-                          ),
+                          _passwordField(),
                           const SizedBox(height: 20),
-                          SizedBox(
-                            height: 40,
-                            child: Center(
-                              // Center the text
-                              child: GestureDetector(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => const Forgot(),
-                                    ),
-                                  );
-                                },
-                                child: const Text(
-                                  'Forgot Password?',
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 16.0,
-                                    fontWeight: FontWeight.bold,
-                                    decoration: TextDecoration.underline,
-                                    color: AppColors.black,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-
+                          _buildForgotPassword(),
                           const SizedBox(height: 20),
                           SizedBox(
                             width: double.infinity,
                             child: TextButton(
-                              onPressed: _isLoading ? null : _handleLogin,
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 50,
-                                  vertical: 15,
-                                ),
-                                backgroundColor: AppColors.neon,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                              child: _isLoading
-                                  ? const SizedBox(
-                                      width: 26,
-                                      height: 26,
-                                      child: CircularProgressIndicator(
-                                        color: AppColors.white,
-                                        strokeWidth: 4.0,
+                              onPressed:
+                                  (!_isLoading && _isLoginButtonEnabled)
+                                      ? _handleLogin
+                                      : null,
+                              style: Buttonstyle.neon,
+                              child:
+                                  _isLoading
+                                      ? SizedBox(
+                                        width: 26,
+                                        height: 26,
+                                        child: Loader.loaderWhite,
+                                      )
+                                      : Text(
+                                        'Login',
+                                        style: Textstyle.largeButton,
                                       ),
-                                    )
-                                  : const Text(
-                                      'Login',
-                                      style: TextStyle(
-                                        fontFamily: 'Inter',
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 18,
-                                        color: AppColors.white,
-                                      ),
-                                    ),
                             ),
                           ),
                           const SizedBox(height: 20),
@@ -489,20 +438,11 @@ class _LogInState extends State<LogIn> {
                           SizedBox(
                             width: double.infinity,
                             child: TextButton(
-                              onPressed: _handleSignUpWithGoogle,
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 50,
-                                  vertical: 15,
-                                ),
-                                backgroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  side: const BorderSide(
-                                    color: AppColors.darkgray,
-                                  ),
-                                ),
-                              ),
+                              onPressed:
+                                  (!_isLoading && _isGoogleSignInButtonEnabled)
+                                      ? _handleSignUpWithGoogle
+                                      : null,
+                              style: Buttonstyle.white,
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -511,14 +451,9 @@ class _LogInState extends State<LogIn> {
                                     height: 24,
                                   ),
                                   const SizedBox(width: 10),
-                                  const Text(
-                                    'Sign up with Google',
-                                    style: TextStyle(
-                                      fontFamily: 'Inter',
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                      color: Colors.black,
-                                    ),
+                                  Text(
+                                    'Sign in with Google',
+                                    style: Textstyle.body,
                                   ),
                                 ],
                               ),
@@ -528,27 +463,21 @@ class _LogInState extends State<LogIn> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: <Widget>[
-                              const Text(
+                              Text(
                                 'Don\'t have an account?',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 16,
-                                  color: AppColors.black,
-                                ),
+                                style: Textstyle.body,
                               ),
                               const SizedBox(width: 5),
                               GestureDetector(
-                                onTap: () => widget.toggleView(),
-                                child: const Text(
+                                onTap:
+                                    _isLoading
+                                        ? null
+                                        : () => widget.toggleView(),
+                                child: Text(
                                   'Sign Up',
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                    color: AppColors.neon,
-                                  ),
+                                  style: Textstyle.bodyNeon,
                                 ),
-                              )
+                              ),
                             ],
                           ),
                         ],

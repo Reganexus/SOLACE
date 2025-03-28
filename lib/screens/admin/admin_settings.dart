@@ -39,7 +39,8 @@ class _AdminSettingsState extends State<AdminSettings> {
           }
 
           // Fallback user data in case of null snapshot data
-          UserData userData = snapshot.data ??
+          UserData userData =
+              snapshot.data ??
               UserData(
                 uid: user?.uid ?? '',
                 firstName: 'Set First Name',
@@ -68,7 +69,9 @@ class _AdminSettingsState extends State<AdminSettings> {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const EditProfileScreen(),
+                  builder:
+                      (context) =>
+                          EditProfileScreen(userData: userData.toMap()),
                 ),
               );
             });
@@ -87,12 +90,14 @@ class _AdminSettingsState extends State<AdminSettings> {
                   Center(
                     child: CircleAvatar(
                       radius: 75,
-                      backgroundImage: _profileImage != null
-                          ? FileImage(_profileImage!)
-                          : (userData.profileImageUrl.isNotEmpty
-                              ? NetworkImage(userData.profileImageUrl)
-                              : const AssetImage(
-                                  'lib/assets/images/shared/placeholder.png')),
+                      backgroundImage:
+                          _profileImage != null
+                              ? FileImage(_profileImage!)
+                              : (userData.profileImageUrl.isNotEmpty
+                                  ? NetworkImage(userData.profileImageUrl)
+                                  : const AssetImage(
+                                    'lib/assets/images/shared/placeholder.png',
+                                  )),
                     ),
                   ),
 
@@ -126,13 +131,18 @@ class _AdminSettingsState extends State<AdminSettings> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const EditProfileScreen(),
+                              builder:
+                                  (context) => EditProfileScreen(
+                                    userData: userData.toMap(),
+                                  ),
                             ),
                           );
                         },
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 15, vertical: 5),
+                            horizontal: 15,
+                            vertical: 5,
+                          ),
                           backgroundColor: AppColors.neon,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
@@ -187,15 +197,20 @@ class _AdminSettingsState extends State<AdminSettings> {
                     children: [
                       _buildProfileInfoSection('Email Address', userData.email),
                       _buildProfileInfoSection(
-                          'Phone Number', userData.phoneNumber),
+                        'Phone Number',
+                        userData.phoneNumber,
+                      ),
                       _buildProfileInfoSection(
-                          'House Address', userData.address),
+                        'House Address',
+                        userData.address,
+                      ),
                       _buildProfileInfoSection('Gender', userData.gender),
                       _buildProfileInfoSection(
-                          'Birthdate',
-                          userData.birthday != null
-                              ? '${userData.birthday!.month}/${userData.birthday!.day}/${userData.birthday!.year}'
-                              : ''),
+                        'Birthdate',
+                        userData.birthday != null
+                            ? '${userData.birthday!.month}/${userData.birthday!.day}/${userData.birthday!.year}'
+                            : '',
+                      ),
                     ],
                   ),
 
@@ -221,10 +236,11 @@ class _AdminSettingsState extends State<AdminSettings> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => ExportDataScreen(
-                                filterValue: 'admin',
-                                title: 'Export Admin Data',
-                              ),
+                              builder:
+                                  (context) => ExportDataScreen(
+                                    filterValue: 'admin',
+                                    title: 'Export Admin Data',
+                                  ),
                             ),
                           );
                         },
@@ -245,10 +261,11 @@ class _AdminSettingsState extends State<AdminSettings> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => ExportDataScreen(
-                                filterValue: 'patient',
-                                title: 'Export Patient Data',
-                              ),
+                              builder:
+                                  (context) => ExportDataScreen(
+                                    filterValue: 'patient',
+                                    title: 'Export Patient Data',
+                                  ),
                             ),
                           );
                         },
@@ -270,10 +287,11 @@ class _AdminSettingsState extends State<AdminSettings> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => ExportDataScreen(
-                                filterValue: 'caregiver',
-                                title: 'Export Caregiver Data',
-                              ),
+                              builder:
+                                  (context) => ExportDataScreen(
+                                    filterValue: 'caregiver',
+                                    title: 'Export Caregiver Data',
+                                  ),
                             ),
                           );
                         },
@@ -295,10 +313,11 @@ class _AdminSettingsState extends State<AdminSettings> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => ExportDataScreen(
-                                filterValue: 'doctor',
-                                title: 'Export Doctor Data',
-                              ),
+                              builder:
+                                  (context) => ExportDataScreen(
+                                    filterValue: 'doctor',
+                                    title: 'Export Doctor Data',
+                                  ),
                             ),
                           );
                         },
@@ -319,10 +338,11 @@ class _AdminSettingsState extends State<AdminSettings> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => ExportDataScreen(
-                                filterValue: 'stable',
-                                title: 'Export Stable Patients Data',
-                              ),
+                              builder:
+                                  (context) => ExportDataScreen(
+                                    filterValue: 'stable',
+                                    title: 'Export Stable Patients Data',
+                                  ),
                             ),
                           );
                         },
@@ -344,10 +364,11 @@ class _AdminSettingsState extends State<AdminSettings> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => ExportDataScreen(
-                                filterValue: 'unstable',
-                                title: 'Export Unstable Patients Data',
-                              ),
+                              builder:
+                                  (context) => ExportDataScreen(
+                                    filterValue: 'unstable',
+                                    title: 'Export Unstable Patients Data',
+                                  ),
                             ),
                           );
                         },
@@ -383,7 +404,8 @@ class _AdminSettingsState extends State<AdminSettings> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (context) => const HelpPage()),
+                          builder: (context) => const HelpPage(),
+                        ),
                       );
                     },
                     child: const Text(

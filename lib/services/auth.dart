@@ -10,21 +10,23 @@ import 'package:solace/controllers/messaging_service.dart';
 import 'package:solace/services/log_service.dart';
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth;
+  final FirebaseFirestore _firestore;
+  final GoogleSignIn _googleSignIn;
+  final LogService _logService;
 
-  // Initialize GoogleSignIn instance
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
-  final LogService _logService = LogService();
+  AuthService({
+    FirebaseAuth? firebaseAuth,
+    FirebaseFirestore? firestoreInstance,
+    GoogleSignIn? googleSignInInstance,
+    LogService? logServiceInstance,
+  }) : _auth = firebaseAuth ?? FirebaseAuth.instance,
+       _firestore = firestoreInstance ?? FirebaseFirestore.instance,
+       _googleSignIn = googleSignInInstance ?? GoogleSignIn(),
+       _logService = logServiceInstance ?? LogService();
 
-  // Cache to store user data
   MyUser? _cachedUser;
-
-  // Check if a user exists with the given email
-  Future<bool> userExists(String email) async {
-    final userData = await DatabaseService(uid: '').getUserDataByEmail(email);
-    return userData != null;
-  }
+  String? get currentUserId => _auth.currentUser?.uid;
 
   void displayValues() {
     debugPrint('Current User: ${_auth.currentUser}');
@@ -36,6 +38,11 @@ class AuthService {
     debugPrint('Provider data: ${_auth.currentUser?.providerData}');
   }
 
+  Future<bool> userExists(String email) async {
+    final userData = await DatabaseService(uid: '').getUserDataByEmail(email);
+    return userData != null;
+  }
+
   Future<MyUser?> _userFromFirebaseUser(User? user) async {
     if (user == null) return null;
 
@@ -44,7 +51,9 @@ class AuthService {
         return _cachedUser; // Return cached data if available
       }
 
-      UserData? userData = await DatabaseService(uid: user.uid).getUserData();
+      final userData = await DatabaseService(
+        uid: user.uid,
+      ).fetchUserData(user.uid);
       if (userData != null) {
         _cachedUser = MyUser(
           uid: user.uid,
@@ -57,7 +66,7 @@ class AuthService {
         debugPrint("No user data found for UID: ${user.uid}");
       }
     } catch (e) {
-      debugPrint("Error fetching user data from Firestore: ${e.toString()}");
+      debugPrint("Error fetching user data from Firestore: $e");
     }
 
     return null;
@@ -93,78 +102,57 @@ class AuthService {
     }
   }
 
-  String? get currentUserId => _auth.currentUser?.uid;
-
   Future<bool> emailExists(String email, String userRole) async {
-    final String collectionName =
-        userRole; // Dynamically create collection name
-    final QuerySnapshot result = await _firestore
-        .collection(collectionName)
-        .where('email', isEqualTo: email)
-        .get();
+    final String collectionName = userRole;
+    final QuerySnapshot result =
+        await _firestore
+            .collection(collectionName)
+            .where('email', isEqualTo: email)
+            .get();
     return result.docs.isNotEmpty;
   }
 
   Future<bool> emailExistsAcrossCollections(String email) async {
     try {
-      // List of role-based collections
-      List<String> collections = [
-        'admin',
-        'doctor',
-        'caregiver',
-        'patient',
-        'nurse'
-            'unregistered'
-      ];
-
-      for (String collection in collections) {
-        final QuerySnapshot result = await _firestore
-            .collection(collection)
-            .where('email', isEqualTo: email)
-            .get();
-
-        if (result.docs.isNotEmpty) {
-          return true; // Email found in one of the collections
-        }
-      }
-
-      return false; // Email not found in any collection
+      final results = await Future.wait(
+        UserRole.values.map((role) async {
+          final collectionName = role.name;
+          final query =
+              await _firestore
+                  .collection(collectionName)
+                  .where('email', isEqualTo: email)
+                  .limit(1)
+                  .get();
+          return query.docs.isNotEmpty;
+        }),
+      );
+      return results.contains(true);
     } catch (e) {
-      debugPrint('Error checking email across collections: $e');
-      return false; // Return false if there's an error
+      debugPrint("Error checking email existence: $e");
+      return false;
     }
   }
 
   Future<MyUser?> logInWithEmailAndPassword(
-      String email, String password) async {
+    String email,
+    String password,
+  ) async {
     try {
       UserCredential result = await _auth.signInWithEmailAndPassword(
-          email: email, password: password);
+        email: email,
+        password: password,
+      );
       User? user = result.user;
 
       await _logService.addLog(
-          userId: user!.uid, action: 'Logged in with email and password');
+        userId: user!.uid,
+        action: 'Logged in with email and password',
+      );
 
       return user != null ? await _userFromFirebaseUser(user) : null;
     } catch (e) {
       debugPrint("Log in error: ${e.toString()}");
       return null;
-    }
-  }
-
-  Future<void> _fetchAndSaveFCMToken({int retryCount = 0}) async {
-    try {
-      await MessagingService.fetchAndSaveToken();
-      debugPrint("FCM token saved successfully.");
-    } catch (e) {
-      if (retryCount < 3) {
-        final delay =
-            Duration(seconds: 2 * (retryCount + 1)); // Exponential backoff
-        await Future.delayed(delay);
-        await _fetchAndSaveFCMToken(retryCount: retryCount + 1);
-      } else {
-        debugPrint("Error fetching and saving FCM token after retries: $e");
-      }
     }
   }
 
@@ -176,52 +164,33 @@ class AuthService {
     required UserRole userRole,
     String? profileImageUrl,
   }) async {
+    final userDocRef = _firestore.collection('unregistered').doc(uid);
+
     try {
-      debugPrint("Starting initializeUserDocument for UID: $uid");
-      final unregisteredRef = _firestore.collection('unregistered').doc(uid);
+      debugPrint("Initializing user document for UID: $uid");
+      // Check existence and create in one atomic Firestore operation
+      await userDocRef.set({
+        'email': email,
+        'isVerified': isVerified,
+        'newUser': newUser,
+        'profileImageUrl': profileImageUrl ?? '',
+        'userRole': userRole.name,
+        'dateCreated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      debugPrint("User document successfully created for UID: $uid");
 
-      // Check if the document exists
-      final userDoc = await unregisteredRef.get();
-      debugPrint("Checking if user document exists for UID: $uid");
-
-      // If the document doesn't exist, initialize it
-      if (!userDoc.exists) {
-        debugPrint(
-            "User document does not exist. Creating new document for UID: $uid");
-        try {
-          await unregisteredRef.set({
-            'email': email,
-            'isVerified': isVerified,
-            'newUser': newUser,
-            'profileImageUrl': profileImageUrl ?? '',
-            'userRole': UserRole.unregistered.name,
-            'dateCreated': DateTime.now(),
-            'notifications': [],
-          }, SetOptions(merge: true));
-
-          debugPrint("Document successfully created for UID: $uid");
-        } catch (e) {
-          debugPrint("Error creating document for UID: $uid: $e");
-        }
-
-        debugPrint(
-            "User document successfully created in 'unregistered' for UID: $uid");
-      } else {
-        debugPrint(
-            "User document already exists in 'unregistered' for UID: $uid");
-      }
-
-      // Fetch and save the FCM token
-      debugPrint("Fetching and saving FCM token for UID: $uid");
-      await _fetchAndSaveFCMToken();
-      debugPrint("FCM token fetched and saved for UID: $uid");
+      await MessagingService.fetchAndSaveToken();
     } catch (e) {
-      debugPrint("Error initializing user document for UID: $uid. Error: $e");
+      debugPrint("Error initializing user document for UID $uid: $e");
+      throw Exception("Failed to initialize user document for UID: $uid");
     }
   }
 
-  Future<bool> signUpWithEmailAndPassword(String email, String password,
-      {String? profileImageUrl}) async {
+  Future<bool> signUpWithEmailAndPassword(
+    String email,
+    String password, {
+    String? profileImageUrl,
+  }) async {
     try {
       debugPrint("Starting signUpWithEmailAndPassword for email: $email");
       UserCredential result = await _auth.createUserWithEmailAndPassword(
@@ -250,10 +219,14 @@ class AuthService {
         profileImageUrl: profileImageUrl,
       );
 
-      debugPrint("User document initialized for UID: ${user.uid}");
+      debugPrint(
+        "User document initialized and custom claim set for UID: ${user.uid}",
+      );
 
       await _logService.addLog(
-          userId: user.uid, action: 'Created account with email and password');
+        userId: user.uid,
+        action: 'Created account with email and password',
+      );
 
       // Set cached user data
       _cachedUser = MyUser(
@@ -273,100 +246,99 @@ class AuthService {
 
   Future<MyUser?> signInWithGoogle() async {
     try {
-      debugPrint("Starting signInWithGoogle");
+      debugPrint("Starting Google sign-in");
 
-      // Sign out the current user to force account selection
+      // Sign out the current user to ensure fresh login
       await _googleSignIn.signOut();
 
       // Initiate Google Sign-In
-      GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      final googleUser = await retryOperation(() => _googleSignIn.signIn());
 
       if (googleUser == null) {
-        debugPrint("Google sign-in aborted by user.");
+        debugPrint("Google sign-in canceled by user.");
         return null;
       }
 
-      debugPrint("Google sign-in successful. Fetching credentials.");
-      final GoogleSignInAuthentication googleAuth =
-      await googleUser.authentication;
+      // Authenticate and fetch credentials
+      final googleAuth = await googleUser.authentication;
+      if (googleAuth.accessToken == null || googleAuth.idToken == null) {
+        debugPrint("Google authentication failed: Missing tokens.");
+        return null;
+      }
 
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      UserCredential result = await _auth.signInWithCredential(credential);
-      User? user = result.user;
+      final result = await _auth.signInWithCredential(credential);
+      final user = result.user;
 
       if (user == null) {
-        debugPrint("Google sign-in failed: user is null.");
+        debugPrint("Google sign-in failed: User is null.");
         return null;
       }
 
       debugPrint("Google sign-in successful for UID: ${user.uid}");
 
-      // Clear the cache when a new user logs in
-      _cachedUser = null;
-
-      final email = user.email; // Access email directly from the User object
+      // Check or initialize user data
+      final email = user.email;
       if (email != null) {
-        debugPrint("Checking if email exists across collections: $email");
-        // Check if email exists across all role-based collections
-        bool userExists = await emailExistsAcrossCollections(email);
+        final emailExists = await emailExistsAcrossCollections(email);
 
-        if (!userExists) {
-          debugPrint(
-              "User email not found in collections. Initializing new user document for UID: ${user.uid}");
-          String? profileImageUrl = googleUser.photoUrl ?? '';
+        if (!emailExists) {
           await initializeUserDocument(
             uid: user.uid,
             email: email,
             isVerified: true,
             newUser: true,
             userRole: UserRole.unregistered,
-            profileImageUrl: profileImageUrl,
+            profileImageUrl: googleUser.photoUrl ?? '',
           );
-
-          await _logService.addLog(
-              userId: user.uid, action: 'Created account with Google');
-        } else {
-          debugPrint("User email already exists in collections: $email");
         }
 
-        // Fetch user data after checking or initializing
-        debugPrint("Fetching user data for UID: ${user.uid}");
-        UserData? userData = await DatabaseService(uid: user.uid).getUserData();
-
-        if (userData == null) {
-          debugPrint("No user data found for UID: ${user.uid}");
-          return null;
-        }
-
-        debugPrint("User data fetched successfully for UID: ${user.uid}");
-
-        await _logService.addLog(
-            userId: user.uid, action: 'Logged in with Google');
-
-        // Cache user data
-        _cachedUser = MyUser(
+        // Fetch and cache user data
+        final userData = await DatabaseService(
           uid: user.uid,
-          isVerified: userData.isVerified,
-          newUser: userData.newUser,
-          profileImageUrl: userData.profileImageUrl,
-        );
-
-        debugPrint("Cached user data set for UID: ${user.uid}");
-        return _cachedUser; // Return cached user data
+        ).fetchUserData(user.uid);
+        if (userData != null) {
+          _cachedUser = MyUser(
+            uid: user.uid,
+            isVerified: userData.isVerified,
+            newUser: userData.newUser,
+            profileImageUrl: userData.profileImageUrl,
+          );
+          return _cachedUser;
+        }
       }
     } catch (e) {
-      debugPrint("Google sign-in error: ${e.toString()}");
+      debugPrint("Google sign-in error: $e");
     }
     return null;
   }
 
+  Future<T?> retryOperation<T>(
+    Future<T?> Function() operation, {
+    int retries = 3,
+    Duration delay = const Duration(seconds: 2),
+  }) async {
+    for (int i = 0; i < retries; i++) {
+      try {
+        return await operation();
+      } catch (e) {
+        debugPrint("Retrying operation due to error: $e");
+        if (i == retries - 1) rethrow; // Rethrow if retries exhausted
+        await Future.delayed(delay);
+      }
+    }
+    return null;
+  }
 
   Future<void> setUserVerificationStatus(
-      String uid, bool isVerified, String userRole) async {
+    String uid,
+    bool isVerified,
+    String userRole,
+  ) async {
     final String collectionName =
         userRole; // Dynamically create collection name
     try {
@@ -381,32 +353,13 @@ class AuthService {
 
   Future<void> signOut() async {
     try {
-      // Get the current authenticated user
-      User? user = FirebaseAuth.instance.currentUser;
-
-      if (user != null) {
-        await _logService.addLog(
-          userId: user.uid,
-          action: 'Logged out',
-        );
-      }
-      // Wait for Firestore operations to complete
-      await FirebaseFirestore.instance.collection('caregiver').get();
-
-      // Clear Firestore persistence safely
-      await FirebaseFirestore.instance.terminate();
-      await FirebaseFirestore.instance.clearPersistence();
-
-      // Sign out from Firebase
-      await FirebaseAuth.instance.signOut();
-
-      // Sign out from Google
+      await _logService.addLog(userId: currentUserId!, action: 'Logged out');
+      await _auth.signOut();
       await _googleSignIn.signOut();
-
-      // Clear cached user data
       _cachedUser = null;
-
-      debugPrint("User signed out and cache cleared.");
+      if (currentUserId != null) {
+        await _logService.addLog(userId: currentUserId!, action: 'Logged out');
+      }
     } catch (e) {
       debugPrint("Error signing out: $e");
     }

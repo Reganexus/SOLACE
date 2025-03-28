@@ -4,11 +4,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:solace/services/error_handler.dart';
+import 'package:solace/services/validator.dart';
 import 'package:solace/shared/widgets/select_profile_image.dart';
+import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/services/database.dart';
+import 'package:solace/themes/dropdownfield.dart';
+import 'package:solace/themes/textformfield.dart';
+import 'package:solace/themes/textstyle.dart';
 
 class CaregiverAddPatient extends StatefulWidget {
   const CaregiverAddPatient({super.key});
@@ -18,20 +24,51 @@ class CaregiverAddPatient extends StatefulWidget {
 }
 
 class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  late Map<String, dynamic> patientData = {};
   File? _profileImage;
   String? _profileImageUrl;
   DateTime? birthday;
-
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  late Map<String, dynamic> patientData = {}; // Initialize as an empty map
-
-  bool isLoading = true;
+  String gender = '';
+  String religion = '';
+  String organDonation = 'None';
+  bool _isLoading = false;
   bool hasError = false;
 
-  // Focus nodes for form fields
   final List<FocusNode> _focusNodes = List.generate(13, (_) => FocusNode());
+  final TextEditingController firstNameController = TextEditingController();
+  final TextEditingController lastNameController = TextEditingController();
+  final TextEditingController middleNameController = TextEditingController();
+  final TextEditingController ageController = TextEditingController();
+  final TextEditingController genderController = TextEditingController();
+  final TextEditingController religionController = TextEditingController();
+  final TextEditingController willController = TextEditingController();
+  final TextEditingController fixedWishesController = TextEditingController();
+  final TextEditingController organDonationController = TextEditingController();
+  final TextEditingController caseTitleController = TextEditingController();
+  final TextEditingController caseDescriptionController =
+      TextEditingController();
+  final TextEditingController profileImageUrlController =
+      TextEditingController();
+  final TextEditingController birthdayController = TextEditingController();
+  final TextEditingController addressController = TextEditingController();
 
   late String newPatientId;
+
+  static const List<String> religions = [
+    'Roman Catholic',
+    'Islam',
+    'Iglesia ni Cristo',
+    'Other',
+  ];
+
+  static const List<String> organs = [
+    'Heart',
+    'Liver',
+    'Kidney',
+    'Lung',
+    'None',
+  ];
 
   @override
   void initState() {
@@ -45,6 +82,17 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
       focusNode.dispose();
     }
     super.dispose();
+  }
+
+  void showToast(String message) {
+    Fluttertoast.showToast(
+      msg: message,
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+      backgroundColor: AppColors.neon,
+      textColor: AppColors.white,
+      fontSize: 16.0,
+    );
   }
 
   Future<File> getFileFromAsset(String assetPath) async {
@@ -92,45 +140,49 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
   }
 
   Future<void> _pickProfileImage(String role) async {
-    final selectedImage = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder:
-            (context) => SelectProfileImageScreen(
-              role: role,
-              currentImage: _profileImageUrl,
-            ),
-      ),
-    );
+    try {
+      final selectedImage = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (context) => SelectProfileImageScreen(
+                role: role,
+                currentImage: _profileImageUrl,
+              ),
+        ),
+      );
 
-    if (selectedImage != null) {
-      if (selectedImage.startsWith('lib/')) {
-        // Convert asset to file
-        _profileImage = await getFileFromAsset(selectedImage);
+      if (selectedImage != null) {
+        if (selectedImage.startsWith('lib/')) {
+          // Convert asset to file
+          _profileImage = await getFileFromAsset(selectedImage);
+        } else {
+          // Regular file path
+          _profileImage = File(selectedImage);
+        }
+
+        setState(() {
+          _profileImageUrl = null; // Clear old URLs
+        });
+
+        debugPrint("Selected image file path: ${_profileImage!.path}");
       } else {
-        // Regular file path
-        _profileImage = File(selectedImage);
+        debugPrint('No image selected.');
       }
-      setState(() {
-        _profileImageUrl = null; // Clear old URLs
-      });
-
-      print("Selected image file path: ${_profileImage!.path}");
+    } catch (e) {
+      debugPrint('Error picking profile image: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to pick a profile image.')),
+      );
     }
   }
 
   Future<void> _selectDate(BuildContext context) async {
-    // Define the minimum and maximum date limits
     final DateTime today = DateTime.now();
-    final DateTime minDate = DateTime(
-      today.year - 120,
-    ); // Set 120 years ago as the minimum
-    final DateTime maxDate = DateTime(
-      today.year - 1,
-    ); // Ensure user is at least 1 year old
+    final DateTime minDate = DateTime(today.year - 120);
+    final DateTime maxDate = DateTime(today.year - 1);
 
-    final DateTime initialDate =
-        birthday ?? maxDate; // Default to maxDate if birthday is null
+    final DateTime initialDate = birthday ?? maxDate;
 
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -153,31 +205,472 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
 
     if (picked != null) {
       setState(() {
-        birthday = picked; // Store the DateTime object
+        birthday = picked;
         birthdayController.text =
-            '${_getMonthName(picked.month)} ${picked.day}, ${picked.year}'; // Display formatted string
+            birthday != null ? birthday!.getMonthName() : '';
       });
     }
   }
 
-  int _calculateAge(DateTime? birthDate) {
-    if (birthDate == null) return 0;
-
-    final currentDate = DateTime.now();
-    int age = currentDate.year - birthDate.year;
-
-    // Check if the birthday has not yet occurred this year
-    if (currentDate.month < birthDate.month ||
-        (currentDate.month == birthDate.month &&
-            currentDate.day < birthDate.day)) {
+  int _calculateAge(DateTime birthDate) {
+    final now = DateTime.now();
+    int age = now.year - birthDate.year;
+    if (now.isBefore(DateTime(now.year, birthDate.month, birthDate.day))) {
       age--;
     }
     return age;
   }
 
-  String capitalizeEachWord(String text) {
-    return text
-        .split(' ')
+  bool _areAllFieldsFilled() {
+    return firstNameController.text.trim().isNotEmpty &&
+        lastNameController.text.trim().isNotEmpty &&
+        caseTitleController.text.trim().isNotEmpty &&
+        caseDescriptionController.text.trim().isNotEmpty &&
+        addressController.text.trim().isNotEmpty &&
+        willController.text.trim().isNotEmpty &&
+        fixedWishesController.text.trim().isNotEmpty &&
+        birthday != null &&
+        gender.isNotEmpty &&
+        religion.isNotEmpty &&
+        organDonation.isNotEmpty;
+  }
+
+  Future<void> _submitForm() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      _isLoading = true; // Start loading
+    });
+
+    try {
+      final userId = newPatientId;
+      if (userId == null) return;
+
+      showToast("Submitting data. Please wait.");
+      // Validate names
+      if (Validator.name(firstNameController.text.trim()) != null) {
+        throw Exception("Invalid first name.");
+      }
+      if (Validator.name(middleNameController.text.trim()) != null) {
+        throw Exception("Invalid middle name.");
+      }
+      if (Validator.name(lastNameController.text.trim()) != null) {
+        throw Exception("Invalid last name.");
+      }
+
+      // Validate birthday
+      if (birthday == null) {
+        throw Exception('Please select a birthday.');
+      }
+
+      // Upload profile image if needed
+      String? profileImageUrl = _profileImageUrl;
+
+      if (_profileImage != null) {
+        showToast("Uploading profile image");
+        try {
+          profileImageUrl = await DatabaseService.uploadProfileImage(
+            userId: userId,
+            file: _profileImage!,
+          );
+        } catch (e) {
+          throw Exception("Failed to upload profile image");
+        }
+      }
+
+      final age = _calculateAge(birthday!);
+
+      // Validate other fields
+      if (gender.isEmpty) {
+        throw Exception('Please select your gender.');
+      }
+      if (religion.isEmpty) {
+        throw Exception('Please select your religion.');
+      }
+      if (addressController.text.trim().isEmpty) {
+        throw Exception('Address cannot be empty.');
+      }
+
+      if (willController.text.trim().isEmpty) {
+        throw Exception('Please select your gender.');
+      }
+      if (fixedWishesController.text.trim().isEmpty) {
+        throw Exception('Please select your religion.');
+      }
+      if (caseTitleController.text.trim().isEmpty) {
+        throw Exception('Address cannot be empty.');
+      }
+      if (caseDescriptionController.text.trim().isEmpty) {
+        throw Exception('Address cannot be empty.');
+      }
+
+      // Submit to database
+      await DatabaseService().addPatientData(
+        uid: newPatientId,
+        firstName: firstNameController.text.trim().capitalizeEachWord(),
+        lastName: lastNameController.text.trim().capitalizeEachWord(),
+        middleName: middleNameController.text.trim().capitalizeEachWord(),
+        age: age,
+        gender: gender,
+        religion: religion,
+        will: willController.text.trim().capitalizeEachWord(),
+        fixedWishes: fixedWishesController.text.trim().capitalizeEachWord(),
+        organDonation: organDonation,
+        profileImageUrl: profileImageUrl,
+        birthday: birthday,
+        caseTitle: caseTitleController.text.trim().capitalizeEachWord(),
+        caseDescription:
+            caseDescriptionController.text.trim().capitalizeEachWord(),
+        status: 'stable',
+        address: addressController.text.trim().capitalizeEachWord(),
+      );
+
+      showToast('Patient data submitted successfully!');
+      Navigator.of(context).pop();
+    } catch (e) {
+      _showError(['Error submitting patient data: $e']);
+    }
+  }
+
+  void _showError(List<String> errorMessages) {
+    if (errorMessages.isEmpty) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false, // Prevent accidental dismissal
+      builder:
+          (context) => ErrorDialog(title: 'Error', messages: errorMessages),
+    );
+  }
+
+  Widget divider() {
+    return Column(
+      children: [
+        const SizedBox(height: 10),
+        const Divider(thickness: 1.0),
+        const SizedBox(height: 10),
+      ],
+    );
+  }
+
+  Widget deter() {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(20),
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: AppColors.red,
+            borderRadius: BorderRadius.circular(10.0),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.max,
+            children: [
+              Column(
+                children: [
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    size: 40,
+                    color: AppColors.white,
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Please check the input before submitting.',
+                    textAlign: TextAlign.center,
+                    style: Textstyle.bodyWhite,
+                  ),
+                  Text(
+                    'All input must be true',
+                    textAlign: TextAlign.center,
+                    style: Textstyle.bodyWhite.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
+        backgroundColor: AppColors.white,
+        appBar: AppBar(
+          backgroundColor: AppColors.white,
+          scrolledUnderElevation: 0.0,
+          title: Text('Patient Info', style: Textstyle.subheader),
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                // Profile Image Section
+                Center(
+                  child: Stack(
+                    alignment: Alignment.bottomRight,
+                    children: [
+                      CircleAvatar(
+                        radius: 60,
+                        backgroundImage:
+                            _profileImage != null
+                                ? FileImage(_profileImage!) // Picked image
+                                : (_profileImageUrl != null &&
+                                            _profileImageUrl!.isNotEmpty
+                                        ? AssetImage(_profileImageUrl!)
+                                        : AssetImage(
+                                          'lib/assets/images/shared/placeholder.png',
+                                        ))
+                                    as ImageProvider,
+                        backgroundColor: Colors.transparent,
+                      ),
+                      Container(
+                        height: 40,
+                        width: 40,
+                        decoration: BoxDecoration(
+                          color: AppColors.blackTransparent,
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          onPressed:
+                              _isLoading
+                                  ? null // Disable during loading
+                                  : () {
+                                    _pickProfileImage('patient');
+                                  },
+                          icon: Icon(Icons.camera_alt, color: AppColors.white),
+                          iconSize: 18,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                  ),
+                ),
+                divider(),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [Text('Current Case', style: Textstyle.subheader)],
+                ),
+                const SizedBox(height: 20),
+
+                CustomTextField(
+                  controller: caseTitleController,
+                  focusNode: _focusNodes[9],
+                  labelText: 'Case Title',
+                  enabled: !_isLoading,
+                  validator:
+                      (val) =>
+                          val!.isEmpty ? 'Case Title cannot be empty' : null,
+                ),
+                const SizedBox(height: 20),
+
+                CustomTextField(
+                  controller: caseDescriptionController,
+                  focusNode: _focusNodes[10],
+                  labelText: 'Case Description',
+                  enabled: !_isLoading,
+                  validator:
+                      (val) =>
+                          val!.isEmpty
+                              ? 'Case Description cannot be empty'
+                              : null,
+                ),
+                divider(),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Personal Information', style: Textstyle.subheader),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                CustomTextField(
+                  controller: firstNameController,
+                  focusNode: _focusNodes[0],
+                  labelText: 'First Name',
+                  enabled: !_isLoading,
+                  validator:
+                      (val) =>
+                          val!.isEmpty ? 'First Name cannot be empty' : null,
+                ),
+                const SizedBox(height: 20),
+
+                CustomTextField(
+                  controller: middleNameController,
+                  focusNode: _focusNodes[1],
+                  labelText: 'Middle Name',
+                  enabled: !_isLoading,
+                ),
+                const SizedBox(height: 20),
+
+                CustomTextField(
+                  controller: lastNameController,
+                  focusNode: _focusNodes[2],
+                  labelText: 'Last Name',
+                  enabled: !_isLoading,
+                  validator:
+                      (val) =>
+                          val!.isEmpty ? 'Last Name cannot be empty' : null,
+                ),
+                const SizedBox(height: 20),
+
+                TextFormField(
+                  controller: birthdayController,
+                  enabled: !_isLoading,
+                  focusNode: _focusNodes[3],
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.normal,
+                    color: AppColors.black,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Birthday',
+                    filled: true,
+                    fillColor: AppColors.gray,
+                    suffixIcon: Icon(
+                      Icons.calendar_today,
+                      color:
+                          _focusNodes[3].hasFocus
+                              ? AppColors.neon
+                              : AppColors.black,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: AppColors.neon, width: 2),
+                    ),
+                    labelStyle: TextStyle(
+                      fontSize: 16,
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.normal,
+                      color:
+                          _focusNodes[3].hasFocus
+                              ? AppColors.neon
+                              : AppColors.black,
+                    ),
+                  ),
+                  validator:
+                      (val) => val!.isEmpty ? 'Birthday cannot be empty' : null,
+                  readOnly: true,
+                  onTap: () => _selectDate(context),
+                ),
+
+                const SizedBox(height: 20),
+
+                CustomDropdownField<String>(
+                  value: gender.isNotEmpty ? gender : null,
+                  focusNode: _focusNodes[4],
+                  labelText: 'Gender',
+                  items: ['Male', 'Female', 'Other'],
+                  onChanged: (val) => setState(() => gender = val ?? ''),
+                  validator:
+                      (val) =>
+                          val == null || val.isEmpty ? 'Select Gender' : null,
+                  displayItem: (value) => value,
+                  enabled: !_isLoading,
+                ),
+                const SizedBox(height: 20),
+
+                CustomDropdownField<String>(
+                  value: religion.isNotEmpty ? religion : null,
+                  focusNode: _focusNodes[5],
+                  labelText: 'Religion',
+                  items: religions,
+                  onChanged: (val) => setState(() => religion = val ?? ''),
+                  validator:
+                      (val) =>
+                          val == null || val.isEmpty ? 'Select Religion' : null,
+                  displayItem: (value) => value,
+                  enabled: !_isLoading,
+                ),
+                const SizedBox(height: 20),
+
+                CustomTextField(
+                  controller: addressController,
+                  focusNode: _focusNodes[6],
+                  labelText: 'Address',
+                  enabled: !_isLoading,
+                  validator:
+                      (val) => val!.isEmpty ? 'Address cannot be empty' : null,
+                ),
+                const SizedBox(height: 20),
+
+                CustomTextField(
+                  controller: willController,
+                  focusNode: _focusNodes[7],
+                  labelText: 'Will',
+                  enabled: !_isLoading,
+                  validator:
+                      (val) => val!.isEmpty ? 'Will cannot be empty' : null,
+                ),
+                const SizedBox(height: 20),
+
+                CustomTextField(
+                  controller: fixedWishesController,
+                  focusNode: _focusNodes[8],
+                  labelText: 'Fixed Wishes',
+                  enabled: !_isLoading,
+                  validator:
+                      (val) =>
+                          val!.isEmpty ? 'Fixed Wishes cannot be empty' : null,
+                ),
+                const SizedBox(height: 20),
+
+                CustomDropdownField<String>(
+                  value: organDonation.isNotEmpty ? organDonation : null,
+                  focusNode: _focusNodes[9],
+                  labelText: 'Organ Donation',
+                  items: organs,
+                  onChanged:
+                      (val) => setState(() => organDonation = val ?? 'None'),
+                  validator:
+                      (val) =>
+                          val == null || val.isEmpty
+                              ? 'Select Organ Donation'
+                              : null,
+                  displayItem: (value) => value,
+                  enabled: !_isLoading,
+                ),
+
+                divider(),
+
+                _areAllFieldsFilled() ? deter() : const SizedBox.shrink(),
+
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: _submitForm,
+                    style: _isLoading ? Buttonstyle.gray : Buttonstyle.neon,
+                    child: Text('Add Patient', style: Textstyle.largeButton),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+extension StringExtensions on String {
+  String capitalizeEachWord() {
+    return split(' ')
         .map(
           (word) =>
               word.isNotEmpty
@@ -187,7 +680,18 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
         .join(' ');
   }
 
-  String _getMonthName(int month) {
+  String sentenceCase() {
+    if (isEmpty) return this;
+    return this[0].toUpperCase() +
+        substring(1).toLowerCase().replaceAllMapped(
+          RegExp(r'(?<=[.!?]\s)(\w)'),
+          (match) => match.group(1)!.toUpperCase(),
+        );
+  }
+}
+
+extension DateTimeExtensions on DateTime {
+  String getMonthName() {
     const monthNames = [
       'January',
       'February',
@@ -203,643 +707,5 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
       'December',
     ];
     return monthNames[month - 1];
-  }
-
-  static const List<String> religions = [
-    'Roman Catholic',
-    'Islam',
-    'Iglesia ni Cristo',
-    'Other',
-  ];
-
-  static const List<String> organs = [
-    'Heart',
-    'Liver',
-    'Kidney',
-    'Lung',
-    'None',
-  ];
-
-  // Form field controllers
-  final TextEditingController firstNameController = TextEditingController();
-  final TextEditingController lastNameController = TextEditingController();
-  final TextEditingController middleNameController = TextEditingController();
-  final TextEditingController ageController = TextEditingController();
-  final TextEditingController genderController = TextEditingController();
-  final TextEditingController religionController = TextEditingController();
-  final TextEditingController willController = TextEditingController();
-  final TextEditingController fixedWishesController = TextEditingController();
-  final TextEditingController organDonationController = TextEditingController();
-  final TextEditingController caseTitleController = TextEditingController();
-  final TextEditingController caseDescriptionController =
-      TextEditingController();
-  final TextEditingController profileImageUrlController =
-      TextEditingController();
-  final TextEditingController birthdayController = TextEditingController();
-  final TextEditingController addressController = TextEditingController();
-
-  String gender = '';
-  String religion = '';
-  String organDonation = 'None';
-
-  // Method to build input decorations
-  InputDecoration _buildInputDecoration(String label, FocusNode focusNode) {
-    return InputDecoration(
-      labelText: label,
-      filled: true,
-      fillColor: AppColors.gray,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: AppColors.neon, width: 2),
-      ),
-      labelStyle: TextStyle(
-        fontSize: 16,
-        fontFamily: 'Inter',
-        fontWeight: FontWeight.normal,
-        color: focusNode.hasFocus ? AppColors.neon : AppColors.black,
-      ),
-    );
-  }
-
-  Future<void> _submitForm() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-
-    try {
-      String capitalize(String text) => text
-          .trim()
-          .split(' ')
-          .map((str) => str.isNotEmpty
-          ? str[0].toUpperCase() + str.substring(1).toLowerCase()
-          : '')
-          .join(' ');
-
-      String sentenceCase(String text) =>
-          text.isEmpty ? text : text[0].toUpperCase() + text.substring(1).toLowerCase();
-
-      final nameRegExp = RegExp(r"^[\p{L}\s]+(?:\.\s?[\p{L}]+)*$", unicode: true);
-
-      final String firstName = capitalize(firstNameController.text);
-      final String middleName = capitalize(middleNameController.text.trim());
-      final String lastName = capitalize(lastNameController.text);
-
-      // Validate names
-      if (!nameRegExp.hasMatch(firstName)) {
-        _showError('Invalid first name.');
-        return;
-      }
-      if (middleName.isNotEmpty && !nameRegExp.hasMatch(middleName)) {
-        _showError('Invalid middle name.');
-        return;
-      }
-      if (!nameRegExp.hasMatch(lastName)) {
-        _showError('Invalid last name.');
-        return;
-      }
-
-      // Validate birthday
-      if (birthday == null) {
-        _showError('Please select a birthday.');
-        return;
-      }
-
-      // Upload profile image if needed
-      String profileImageUrl = _profileImageUrl ?? '';
-      if (_profileImage != null) {
-        profileImageUrl = await _uploadImageOrNotify();
-        if (profileImageUrl.isEmpty) return; // Upload failed
-      }
-
-      // Validate other fields
-      if (gender.isEmpty) {
-        _showError('Please select your gender.');
-        return;
-      }
-      if (religion.isEmpty) {
-        _showError('Please select your religion.');
-        return;
-      }
-      if (addressController.text.trim().isEmpty) {
-        _showError('Address cannot be empty.');
-        return;
-      }
-
-      // Prepare additional data
-      final String will = capitalize(willController.text);
-      final String fixedWishes = capitalize(fixedWishesController.text);
-      final String caseTitle = capitalize(caseTitleController.text);
-      final String caseDescription = sentenceCase(caseDescriptionController.text);
-      final String address = sentenceCase(addressController.text);
-
-      if (will.isEmpty || fixedWishes.isEmpty || caseTitle.isEmpty || caseDescription.isEmpty) {
-        _showError('Some required fields are empty.');
-        return;
-      }
-
-      // Submit to database
-      await DatabaseService().addPatientData(
-        uid: newPatientId,
-        firstName: firstName,
-        lastName: lastName,
-        middleName: middleName,
-        age: _calculateAge(birthday),
-        gender: gender,
-        religion: religion,
-        will: will,
-        fixedWishes: fixedWishes,
-        organDonation: organDonation,
-        profileImageUrl: profileImageUrl,
-        birthday: birthday,
-        caseTitle: caseTitle,
-        caseDescription: caseDescription,
-        status: 'stable',
-        address: address,
-      );
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Patient data submitted successfully!')),
-      );
-      Navigator.of(context).pop();
-    } catch (e) {
-      _showError('Error submitting patient data: $e');
-    }
-  }
-
-  Future<String> _uploadImageOrNotify() async {
-    try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Uploading profile image...')),
-      );
-      return await uploadProfileImage(userId: newPatientId, file: _profileImage!);
-    } catch (e) {
-      _showError('Failed to upload profile image.');
-      return '';
-    }
-  }
-
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  // Method to build the patient info card
-  Widget _buildForm() {
-    return SingleChildScrollView(
-      child: Container(
-        color: AppColors.white,
-        padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              // Profile Image Section
-              Center(
-                child: Stack(
-                  alignment: Alignment.bottomRight,
-                  children: [
-                    CircleAvatar(
-                      radius: 75,
-                      backgroundImage:
-                          _profileImage != null
-                              ? FileImage(_profileImage!) // Picked image
-                              : (_profileImageUrl != null &&
-                                      _profileImageUrl!.isNotEmpty
-                                  ? AssetImage(_profileImageUrl!) // Asset image
-                                  : AssetImage(
-                                    'lib/assets/images/shared/placeholder.png',
-                                  )),
-                      backgroundColor: Colors.transparent,
-                    ),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.blackTransparent,
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        onPressed: () {
-                          _pickProfileImage(
-                            'patient',
-                          ); // Wrap in an anonymous function
-                        },
-                        icon: Icon(Icons.camera_alt, color: AppColors.white),
-                        iconSize: 20,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Divider(thickness: 1.0),
-              const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Current Case',
-                    style: TextStyle(
-                      fontSize: 18.0,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Inter',
-                      color: Colors.black,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: caseTitleController,
-                focusNode: _focusNodes[9],
-                decoration: _buildInputDecoration('Case Title', _focusNodes[9]),
-                style: TextStyle(
-                  fontSize: 16,
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.normal,
-                  color: AppColors.black,
-                ),
-                validator:
-                    (val) => val!.isEmpty ? 'Case Title cannot be empty' : null,
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: caseDescriptionController,
-                focusNode: _focusNodes[10],
-                style: TextStyle(
-                  fontSize: 16,
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.normal,
-                  color: AppColors.black,
-                ),
-                decoration: _buildInputDecoration(
-                  'Case Description',
-                  _focusNodes[10],
-                ),
-                maxLines: 1,
-                validator:
-                    (val) =>
-                        val!.isEmpty
-                            ? 'Case Description cannot be empty'
-                            : null,
-              ),
-              const SizedBox(height: 20),
-              const Divider(thickness: 1.0),
-              const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Personal Information',
-                    style: TextStyle(
-                      fontSize: 18.0,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Inter',
-                      color: Colors.black,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: firstNameController,
-                focusNode: _focusNodes[0],
-                decoration: _buildInputDecoration('First Name', _focusNodes[0]),
-                style: TextStyle(
-                  fontSize: 16,
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.normal,
-                  color: AppColors.black,
-                ),
-                validator:
-                    (val) => val!.isEmpty ? 'First Name cannot be empty' : null,
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: middleNameController,
-                focusNode: _focusNodes[1],
-                style: TextStyle(
-                  fontSize: 16,
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.normal,
-                  color: AppColors.black,
-                ),
-                decoration: _buildInputDecoration(
-                  'Middle Name',
-                  _focusNodes[1],
-                ),
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: lastNameController,
-                focusNode: _focusNodes[2],
-                style: TextStyle(
-                  fontSize: 16,
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.normal,
-                  color: AppColors.black,
-                ),
-                decoration: _buildInputDecoration('Last Name', _focusNodes[2]),
-                validator:
-                    (val) => val!.isEmpty ? 'Last Name cannot be empty' : null,
-              ),
-              const SizedBox(height: 20),
-              // Birthday Field
-              TextFormField(
-                controller: birthdayController,
-                focusNode: _focusNodes[3],
-                style: TextStyle(
-                  fontSize: 16,
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.normal,
-                  color: AppColors.black,
-                ),
-                decoration: InputDecoration(
-                  labelText: 'Birthday',
-                  filled: true,
-                  fillColor: AppColors.gray,
-                  suffixIcon: Icon(
-                    Icons.calendar_today,
-                    color:
-                        _focusNodes[3].hasFocus
-                            ? AppColors.neon
-                            : AppColors.black,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: AppColors.neon, width: 2),
-                  ),
-                  labelStyle: TextStyle(
-                    fontSize: 16,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.normal,
-                    color:
-                        _focusNodes[3].hasFocus
-                            ? AppColors.neon
-                            : AppColors.black,
-                  ),
-                ),
-                validator:
-                    (val) => val!.isEmpty ? 'Birthday cannot be empty' : null,
-                readOnly: true,
-                onTap: () => _selectDate(context),
-              ),
-              const SizedBox(height: 20),
-              DropdownButtonFormField<String>(
-                value: gender.isNotEmpty ? gender : null,
-                focusNode: _focusNodes[4],
-                style: TextStyle(
-                  fontSize: 16,
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.normal,
-                  color: AppColors.black,
-                ),
-                decoration: _buildInputDecoration('Gender', _focusNodes[4]),
-                items:
-                    ['Male', 'Female', 'Other']
-                        .map(
-                          (value) => DropdownMenuItem(
-                            value: value,
-                            child: Text(value),
-                          ),
-                        )
-                        .toList(),
-                onChanged: (val) => setState(() => gender = val ?? ''),
-                validator:
-                    (val) =>
-                        val == null || val.isEmpty ? 'Select Gender' : null,
-                dropdownColor: AppColors.white,
-              ),
-              const SizedBox(height: 20),
-              DropdownButtonFormField<String>(
-                value: religion.isNotEmpty ? religion : null,
-                focusNode: _focusNodes[5],
-                style: TextStyle(
-                  fontSize: 16,
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.normal,
-                  color: AppColors.black,
-                ),
-                decoration: _buildInputDecoration('Religion', _focusNodes[5]),
-                items:
-                    religions
-                        .map(
-                          (religionItem) => DropdownMenuItem(
-                            value: religionItem,
-                            child: Text(religionItem),
-                          ),
-                        )
-                        .toList(),
-                onChanged: (val) => setState(() => religion = val ?? ''),
-                validator:
-                    (val) =>
-                        val == null || val.isEmpty ? 'Select Religion' : null,
-                dropdownColor: AppColors.white,
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: addressController,
-                focusNode: _focusNodes[6],
-                style: TextStyle(
-                  fontSize: 16,
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.normal,
-                  color: AppColors.black,
-                ),
-                decoration: _buildInputDecoration(
-                  'Address',
-                  _focusNodes[6],
-                ),
-                maxLines: 1,
-                validator:
-                    (val) =>
-                        val!.isEmpty
-                            ? 'Address cannot be empty'
-                            : null,
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: willController,
-                focusNode: _focusNodes[7],
-                style: TextStyle(
-                  fontSize: 16,
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.normal,
-                  color: AppColors.black,
-                ),
-                decoration: _buildInputDecoration('Will', _focusNodes[7]),
-                validator:
-                    (val) => val!.isEmpty ? 'Will cannot be empty' : null,
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: fixedWishesController,
-                focusNode: _focusNodes[8],
-                style: TextStyle(
-                  fontSize: 16,
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.normal,
-                  color: AppColors.black,
-                ),
-                decoration: _buildInputDecoration(
-                  'Fixed Wishes',
-                  _focusNodes[8],
-                ),
-                validator:
-                    (val) =>
-                        val!.isEmpty ? 'Fixed Wishes cannot be empty' : null,
-              ),
-              const SizedBox(height: 20),
-              DropdownButtonFormField<String>(
-                value: organDonation.isNotEmpty ? organDonation : null,
-                focusNode: _focusNodes[9],
-                style: TextStyle(
-                  fontSize: 16,
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.normal,
-                  color: AppColors.black,
-                ),
-                decoration: _buildInputDecoration(
-                  'Organ Donation',
-                  _focusNodes[9],
-                ),
-                items:
-                    organs
-                        .map(
-                          (organ) => DropdownMenuItem(
-                            value: organ,
-                            child: Text(organ),
-                          ),
-                        )
-                        .toList(),
-                onChanged:
-                    (val) => setState(() => organDonation = val ?? 'None'),
-                validator:
-                    (val) =>
-                        val == null || val.isEmpty
-                            ? 'Select Organ Donation'
-                            : null,
-                dropdownColor: AppColors.white,
-              ),
-
-              const SizedBox(height: 10),
-              const Divider(thickness: 1.0),
-              const SizedBox(height: 10),
-
-              Container(
-                padding: EdgeInsets.all(20),
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: AppColors.red,
-                  borderRadius: BorderRadius.circular(10.0),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.max,
-                  children: [
-                    Icon(
-                      Icons.info_outline_rounded,
-                      size: 40,
-                      color: AppColors.white,
-                    ),
-                    SizedBox(height: 10),
-                    Text(
-                      'Please check the input before submitting.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontWeight: FontWeight.normal,
-                        fontSize: 18,
-                        fontFamily: 'Inter',
-                        color: AppColors.white,
-                      ),
-                    ),
-                    Text(
-                      'All input must be true',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Inter',
-                        color: AppColors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              SizedBox(
-                width: double.infinity,
-                child: TextButton(
-                  onPressed: _submitForm,
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 15,
-                    ),
-                    backgroundColor: AppColors.neon,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: const Text(
-                    'Add Patient',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  String formatDate(dynamic birthday) {
-    if (birthday is Timestamp) {
-      // If it's a Timestamp, convert to DateTime and format
-      return DateFormat('MMMM d, yyyy').format(birthday.toDate());
-    } else if (birthday is String) {
-      // If it's a String, parse it to DateTime and format
-      try {
-        DateTime date = DateTime.parse(birthday);
-        return DateFormat('MMMM d, yyyy').format(date);
-      } catch (e) {
-        // Handle invalid date format if necessary
-        return 'Invalid Date';
-      }
-    }
-    return 'No Birthday'; // In case of null or unsupported type
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => FocusScope.of(context).unfocus(),
-      child: Scaffold(
-        backgroundColor: AppColors.white,
-        appBar: AppBar(
-          backgroundColor: AppColors.white,
-          scrolledUnderElevation: 0.0,
-          title: const Text(
-            'Patient Info',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Inter',
-            ),
-          ),
-        ),
-        body: _buildForm(),
-      ),
-    );
   }
 }

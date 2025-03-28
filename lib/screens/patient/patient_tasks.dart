@@ -2,10 +2,15 @@
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
 import 'package:solace/services/database.dart';
+import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:solace/themes/loader.dart';
+import 'package:solace/themes/textstyle.dart';
+import 'package:solace/utility/task_utility.dart';
 
 class PatientTasks extends StatefulWidget {
   const PatientTasks({super.key, required this.patientId});
@@ -16,10 +21,12 @@ class PatientTasks extends StatefulWidget {
 }
 
 class PatientTasksState extends State<PatientTasks> {
+  DatabaseService databaseService = DatabaseService();
+  TaskUtility taskUtility = TaskUtility();
   List<Map<String, dynamic>> completedTasks = [];
   List<Map<String, dynamic>> notCompletedTasks = [];
   bool isLoading = false;
-  bool showCompleted = true;
+  bool showCompleted = false;
 
   @override
   void initState() {
@@ -35,82 +42,61 @@ class PatientTasksState extends State<PatientTasks> {
   Future<void> fetchPatientTasks() async {
     print("Fetching tasks for patient: ${widget.patientId}");
 
-    try {
-      if (mounted) {
-        setState(() {
-          isLoading = true; // Show loading indicator
-        });
-      }
+    if (!mounted) {
+      return; // Prevent unnecessary operations if widget is not mounted
+    }
 
-      // Fetch the caregiver documents under the patient's tasks subcollection
-      final caregiverTasksSnapshot =
+    setState(() {
+      isLoading = true; // Show loading indicator
+    });
+
+    try {
+      // Fetch all task documents under the patient's tasks subcollection
+      final patientTasksSnapshot =
           await FirebaseFirestore.instance
-              .collection('patient') // Top-level patient collection
-              .doc(widget.patientId) // Target patient document
-              .collection('tasks') // Tasks subcollection
+              .collection('patient')
+              .doc(widget.patientId)
+              .collection('tasks')
               .get();
 
-      if (caregiverTasksSnapshot.docs.isEmpty) {
-        if (mounted) {
-          setState(() {
-            completedTasks = []; // No tasks found
-            notCompletedTasks = [];
-            isLoading = false;
-          });
-        }
+      print("Fetched ${patientTasksSnapshot.docs.length} task documents.");
+
+      if (patientTasksSnapshot.docs.isEmpty) {
+        print("No tasks found under patient ${widget.patientId}.");
+        _updateTasks([], []);
         return;
       }
 
-      // Accumulate all tasks from different caregiver documents
-      final List<Map<String, dynamic>> loadedCompletedTasks = [];
-      final List<Map<String, dynamic>> loadedNotCompletedTasks = [];
-      for (var caregiverDoc in caregiverTasksSnapshot.docs) {
-        final caregiverData = caregiverDoc.data();
-        final caregiverId = caregiverDoc.id;
-        final caregiverTasks = List<Map<String, dynamic>>.from(
-          caregiverData['tasks'] ?? [],
-        );
+      final loadedCompletedTasks = <Map<String, dynamic>>[];
+      final loadedNotCompletedTasks = <Map<String, dynamic>>[];
 
-        DatabaseService db = DatabaseService();
-        final String? caregiverRole = await db.getTargetUserRole(caregiverId);
-        if (caregiverRole == null) continue;
+      for (final taskDoc in patientTasksSnapshot.docs) {
+        final taskData = taskDoc.data();
+        final startDate = (taskData['startDate'] as Timestamp?)?.toDate();
+        final endDate = (taskData['endDate'] as Timestamp?)?.toDate();
 
-        final caregiverSnapshot =
-            await FirebaseFirestore.instance
-                .collection(caregiverRole)
-                .doc(caregiverId)
-                .get();
+        debugPrint("taskData: $taskData");
+        debugPrint("startDate: $startDate");
+        debugPrint("endDate: $endDate");
 
-        if (caregiverSnapshot.exists) {
-          final caregiverName =
-              '${caregiverSnapshot['firstName']} ${caregiverSnapshot['lastName']}';
+        if (startDate == null || endDate == null) {
+          print("Skipping invalid task: ${taskDoc.id}");
+          continue;
+        }
 
-          for (var task in caregiverTasks) {
-            final startDate = (task['startDate'] as Timestamp?)?.toDate();
-            final endDate = (task['endDate'] as Timestamp?)?.toDate();
-            final taskId =
-                task['taskId'] ?? 'defaultTaskId'; // Ensure taskId is non-null
+        final task = {
+          'title': taskData['title'] ?? 'No Title',
+          'description': taskData['description'] ?? '',
+          'startDate': startDate,
+          'endDate': endDate,
+          'isCompleted': taskData['isCompleted'] ?? false,
+          'taskId': taskDoc.id,
+        };
 
-            if (startDate == null || endDate == null || taskId.isEmpty) {
-              continue;
-            }
-
-            final taskData = {
-              'caregiverName': caregiverName,
-              'title': task['title'],
-              'description': task['description'],
-              'startDate': startDate,
-              'endDate': endDate,
-              'isCompleted': task['isCompleted'],
-              'taskId': taskId, // Ensure taskId is included
-            };
-
-            if (task['isCompleted'] == true) {
-              loadedCompletedTasks.add(taskData);
-            } else {
-              loadedNotCompletedTasks.add(taskData);
-            }
-          }
+        if (task['isCompleted'] == true) {
+          loadedCompletedTasks.add(task);
+        } else {
+          loadedNotCompletedTasks.add(task);
         }
       }
 
@@ -122,47 +108,61 @@ class PatientTasksState extends State<PatientTasks> {
         (a, b) => a['startDate'].compareTo(b['startDate']),
       );
 
-      if (mounted) {
-        setState(() {
-          completedTasks = loadedCompletedTasks;
-          notCompletedTasks = loadedNotCompletedTasks;
-          isLoading = false;
-        });
-      }
+      _updateTasks(loadedCompletedTasks, loadedNotCompletedTasks);
     } catch (e) {
       print("Error loading tasks: $e");
-      if (mounted) {
-        setState(() {
-          completedTasks = [];
-          notCompletedTasks = [];
-          isLoading = false;
-        });
-      }
+      _updateTasks([], []);
     }
   }
 
-  Widget _buildNoTaskState() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center, // Center vertically
-      crossAxisAlignment: CrossAxisAlignment.center, // Center horizontally
-      children: const [
-        Icon(Icons.event_busy, color: AppColors.black, size: 80),
-        SizedBox(height: 20.0),
-        Text(
-          "Great Work! No Tasks",
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 18,
-            fontWeight: FontWeight.normal,
-            color: AppColors.black,
-          ),
-          textAlign: TextAlign.center,
-        )
-      ],
+  void _updateTasks(
+    List<Map<String, dynamic>> completed,
+    List<Map<String, dynamic>> notCompleted,
+  ) {
+    if (mounted) {
+      setState(() {
+        completedTasks = completed;
+        notCompletedTasks = notCompleted;
+        isLoading = false;
+      });
+    }
+  }
+
+  void showToast(String message) {
+    Fluttertoast.showToast(
+      msg: message,
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+      backgroundColor: AppColors.neon,
+      textColor: AppColors.white,
+      fontSize: 16.0,
     );
   }
 
-  // Function to update isCompleted field in Firestore
+  Widget _buildNoTaskState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.event_busy,
+            color: AppColors.whiteTransparent,
+            size: 70,
+          ),
+          const SizedBox(height: 10.0),
+          Text(
+            "Great Work! No Tasks",
+            style: Textstyle.bodyWhite.copyWith(
+              color: AppColors.whiteTransparent,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> updateTaskCompletion(
     String taskId,
     String caregiverId,
@@ -170,141 +170,125 @@ class PatientTasksState extends State<PatientTasks> {
   ) async {
     try {
       debugPrint("Task Id: $taskId");
-      debugPrint("Task caregiverId: $caregiverId");
-      debugPrint("Task patientId: $patientId");
+      debugPrint("Caregiver Id: $caregiverId");
+      debugPrint("Patient Id: $patientId");
 
-      DatabaseService db = DatabaseService();
-      await db.updateTask(taskId, caregiverId, patientId);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Task marked as complete successfully.'),
-          backgroundColor: Colors.green,
-        ),
+      // Fetch the roles for both caregiver and patient
+      final caregiverRole = await databaseService.fetchAndCacheUserRole(
+        caregiverId,
+      );
+      final patientRole = await databaseService.fetchAndCacheUserRole(
+        patientId,
       );
 
-      fetchPatientTasks(); // Refresh task list
+      if (caregiverRole == null || patientRole == null) {
+        debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
+        showToast("Failed to mark task as complete. Roles not found.");
+        return;
+      }
+
+      // Mark the task as completed for the patient
+      await taskUtility.updateTask(
+        taskId: taskId,
+        userId: patientId,
+        collectionName: patientRole,
+        subCollectionName: 'tasks',
+        updates: {'isCompleted': true},
+      );
+
+      await taskUtility.updateTask(
+        taskId: taskId,
+        userId: caregiverId,
+        collectionName: caregiverRole,
+        subCollectionName: 'tasks',
+        updates: {'isCompleted': true},
+      );
+
+      showToast('Task marked as complete successfully.');
+
+      fetchPatientTasks(); // Refresh the task list
     } catch (e) {
       debugPrint("Error updating task: $e");
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to mark task as complete.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showToast('Failed to mark task as complete.');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.white,
-      appBar: AppBar(
-        title: const Text(
-          "View Tasks",
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Inter',
-          ),
-        ),
-        backgroundColor: AppColors.white,
-        scrolledUnderElevation: 0.0,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: Row(
-              mainAxisSize: MainAxisSize.min, // Important for proper alignment
-              children: [
-                if (showCompleted)
-                  IconButton(
-                    icon: const Icon(
-                      Icons.library_add_check_rounded,
-                      size: 28,
-                      color: AppColors.black,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        showCompleted = false;
-                      });
-                    },
-                  ),
-                if (!showCompleted)
-                  IconButton(
-                    icon: const Icon(
-                      Icons.library_add_check_outlined,
-                      size: 28,
-                      color: AppColors.black,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        showCompleted = true;
-                      });
-                    },
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-        child: LayoutBuilder(
-          // Use LayoutBuilder
-          builder: (context, constraints) {
-            return isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : Column(
+    return Container(
+      height: 700,
+      color: AppColors.black.withValues(alpha: 0.8),
+      width: double.infinity,
+      padding: EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              TextButton(
+                style:
+                    showCompleted
+                        ? Buttonstyle.buttonNeon
+                        : Buttonstyle.buttonPurple,
+                onPressed: () {
+                  setState(() {
+                    showCompleted = !showCompleted;
+                  });
+                },
+                child: Row(
                   children: [
-                    if (showCompleted && completedTasks.isNotEmpty) ...[
-                      _buildTaskList(completedTasks, 'Completed Tasks'),
-                    ],
-                    if (!showCompleted && notCompletedTasks.isNotEmpty) ...[
-                      _buildTaskList(notCompletedTasks, 'Not Completed Tasks'),
-                    ],
-                    if ((showCompleted && completedTasks.isEmpty) ||
-                        (!showCompleted && notCompletedTasks.isEmpty))
-                      SizedBox(
-                        height: constraints.maxHeight,
-                        width: constraints.maxWidth,
-                        child: _buildNoTaskState(),
+                    Text(
+                      showCompleted ? 'Show Incomplete' : 'Show Completed',
+                      style: Textstyle.bodySmall.copyWith(
+                        color: AppColors.white,
+                        fontWeight: FontWeight.bold,
                       ),
+                    ),
+                    SizedBox(width: 10),
+                    Icon(
+                      showCompleted
+                          ? Icons.library_add_check_rounded
+                          : Icons.library_add_check_outlined,
+                      size: 20,
+                      color: AppColors.white,
+                    ),
                   ],
-                );
-          },
-        ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 10),
+          isLoading
+              ? _buildLoadingState()
+              : showCompleted && completedTasks.isNotEmpty
+              ? _buildTaskList(completedTasks)
+              : !showCompleted && notCompletedTasks.isNotEmpty
+              ? _buildTaskList(notCompletedTasks)
+              : _buildNoTaskState(),
+        ],
       ),
     );
   }
 
-  Widget _buildTaskList(List<Map<String, dynamic>> tasks, String title) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 24,
-            fontFamily: 'Inter',
-            fontWeight: FontWeight.bold,
-            color: AppColors.black,
-          ),
-        ),
-        const SizedBox(height: 10),
-        ListView.builder(
-          padding: const EdgeInsets.only(bottom: 10.0),
-          shrinkWrap: true, // Make ListView scrollable within the column
-          itemCount: tasks.length,
-          itemBuilder: (context, index) {
-            final task = tasks[index];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 10.0),
-              child: _buildTaskCard(task),
-            );
-          },
-        ),
-      ],
+  Widget _buildLoadingState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [Loader.loaderPurple],
+      ),
+    );
+  }
+
+  Widget _buildTaskList(List<Map<String, dynamic>> tasks) {
+    return Expanded(
+      child: ListView.builder(
+        itemCount: tasks.length,
+        itemBuilder: (context, index) {
+          final task = tasks[index];
+          return _buildTaskCard(task);
+        },
+      ),
     );
   }
 
@@ -313,111 +297,74 @@ class PatientTasksState extends State<PatientTasks> {
     final String description = task['description'] ?? 'No description';
     final DateTime startDate = task['startDate'];
     final DateTime endDate = task['endDate'];
-    final String taskIcon = 'lib/assets/images/shared/vitals/task_black.png';
     final bool isCompleted = task['isCompleted'];
+    final formattedStartDate = DateFormat(
+      'MMMM dd, yyyy h:mm a',
+    ).format(startDate);
+    final formattedEndDate = DateFormat('MMMM dd, yyyy h:mm a').format(endDate);
 
     return GestureDetector(
       onTap: () => _showTaskDetailsDialog(task),
       child: Container(
-        padding: const EdgeInsets.all(16.0),
+        margin: EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
-          color: AppColors.gray,
+          color: AppColors.white.withValues(alpha: 0.9),
           borderRadius: BorderRadius.circular(10.0),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Image.asset(taskIcon, height: 25),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      overflow: TextOverflow.ellipsis,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: Textstyle.body.copyWith(
+                        fontWeight: FontWeight.bold,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: isCompleted ? Colors.green : AppColors.red,
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: Text(
-                    isCompleted ? 'Complete' : 'Incomplete',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Inter',
-                      fontSize: 14,
-                      color: AppColors.white,
+                  const SizedBox(width: 10),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: isCompleted ? Colors.green : AppColors.red,
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Text(
+                      isCompleted ? 'Complete' : 'Incomplete',
+                      style: Textstyle.bodySmall.copyWith(
+                        color: AppColors.white,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 5),
-            const Divider(thickness: 1.0),
-            const SizedBox(height: 5),
-            const Text(
-              "Description",
-              style: TextStyle(
-                fontSize: 16,
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.bold,
-                color: AppColors.black,
+                ],
               ),
             ),
-            Text(
-              description,
-              style: const TextStyle(
-                fontSize: 16,
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.normal,
-                color: AppColors.black,
-              ),
-            ),
-            const SizedBox(height: 5),
-            const Text(
-              "Start Date",
-              style: TextStyle(
-                fontSize: 16,
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.bold,
-                color: AppColors.black,
-              ),
-            ),
-            Text(
-              DateFormat('yyyy-MM-dd HH:mm').format(startDate),
-              style: const TextStyle(
-                fontSize: 16,
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.normal,
-                color: AppColors.black,
-              ),
-            ),
-            const SizedBox(height: 5),
-            const Text(
-              "End Date",
-              style: TextStyle(
-                fontSize: 16,
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.bold,
-                color: AppColors.black,
-              ),
-            ),
-            Text(
-              DateFormat('yyyy-MM-dd HH:mm').format(endDate),
-              style: const TextStyle(
-                fontSize: 16,
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.normal,
-                color: AppColors.black,
+            Divider(color: AppColors.blackTransparent),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(description, style: Textstyle.body),
+                  const SizedBox(height: 10),
+                  Text(
+                    "Start Date",
+                    style: Textstyle.body.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  Text(formattedStartDate, style: Textstyle.body),
+                  const SizedBox(height: 5),
+                  Text(
+                    "End Date",
+                    style: Textstyle.body.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  Text(formattedEndDate, style: Textstyle.body),
+                ],
               ),
             ),
           ],

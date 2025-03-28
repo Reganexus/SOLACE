@@ -4,6 +4,19 @@ import 'package:flutter/material.dart';
 
 enum UserRole { admin, nurse, caregiver, doctor, patient, unregistered }
 
+extension UserRoleExtension on UserRole {
+  static List<String> get allRoles =>
+      UserRole.values.map((e) => e.name).toList();
+
+  static UserRole? fromString(String role) {
+    try {
+      return UserRole.values.firstWhere((e) => e.name == role);
+    } catch (e) {
+      return null;
+    }
+  }
+}
+
 class MyUser with ChangeNotifier {
   String uid;
   bool isVerified;
@@ -20,8 +33,13 @@ class MyUser with ChangeNotifier {
   });
 
   // Method to update user data
-  void setUser(String newUid, bool newIsVerified, bool isNewUser,
-      String newProfileImageUrl, String? newEmail) {
+  void setUser(
+    String newUid,
+    bool newIsVerified,
+    bool isNewUser,
+    String newProfileImageUrl,
+    String? newEmail,
+  ) {
     uid = newUid;
     isVerified = newIsVerified;
     newUser = isNewUser;
@@ -68,34 +86,41 @@ class UserData {
     required this.religion,
   });
 
-  int? get age {
-    if (birthday == null) return null; // No age if birthday is not set
-    final now = DateTime.now();
-    int years = now.year - birthday!.year;
-    if (now.month < birthday!.month ||
-        (now.month == birthday!.month && now.day < birthday!.day)) {
-      years--;
-    }
-    return years;
-  }
+  int? get age =>
+      birthday == null
+          ? null
+          : DateTime.now().year -
+              birthday!.year -
+              (DateTime.now().isBefore(
+                    DateTime(
+                      birthday!.year,
+                      DateTime.now().month,
+                      DateTime.now().day,
+                    ),
+                  )
+                  ? 1
+                  : 0);
 
   factory UserData.fromMap(Map<String, dynamic> map, String id) {
     return UserData(
       uid: id,
-      userRole: UserData.getUserRoleFromString(map['userRole']?.toString() ?? 'caregiver'),
+      userRole: UserData.getUserRoleFromString(
+        map['userRole']?.toString() ?? 'caregiver',
+      ),
       firstName: map['firstName'] ?? '',
       middleName: map['middleName'] ?? '',
       lastName: map['lastName'] ?? '',
       email: map['email'] ?? '',
       phoneNumber: map['phoneNumber'] ?? '',
       profileImageUrl: map['profileImageUrl'] ?? '',
-      birthday: map['birthday'] != null
-          ? (map['birthday'] as Timestamp).toDate()
-          : null,
+      birthday:
+          map['birthday'] != null
+              ? (map['birthday'] as Timestamp).toDate()
+              : null,
       gender: map['gender'] ?? '',
       address: map['address'] ?? '',
       isVerified: map['isVerified'] ?? '',
-      newUser: map['newUser'] ?? '',
+      newUser: map['newUser'] ?? true,
       dateCreated: map['dateCreated'] ?? '',
       status: map['status'] ?? '',
       religion: map['religion'] ?? '',
@@ -103,24 +128,29 @@ class UserData {
   }
 
   factory UserData.fromDocument(DocumentSnapshot doc) {
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    final data = doc.data() as Map<String, dynamic>? ?? {};
     return UserData(
       uid: doc.id,
       userRole: UserData.getUserRoleFromString(
-          data['userRole']?.toString() ?? 'patient'),
+        data['userRole']?.toString() ?? 'patient',
+      ),
       firstName: data['firstName'] ?? '',
       middleName: data['middleName'] ?? '',
       lastName: data['lastName'] ?? '',
       email: data['email'] ?? '',
       phoneNumber: data['phoneNumber'] ?? '',
-      birthday: data['birthday'] != null
-          ? (data['birthday'] as Timestamp).toDate()
-          : null,
+      birthday:
+          data['birthday'] is Timestamp
+              ? (data['birthday'] as Timestamp).toDate()
+              : null,
       gender: data['gender'] ?? '',
       address: data['address'] ?? '',
       isVerified: data['isVerified'] ?? false,
       newUser: data['newUser'] ?? true,
-      dateCreated: (data['dateCreated'] as Timestamp).toDate(),
+      dateCreated:
+          data['dateCreated'] is Timestamp
+              ? (data['dateCreated'] as Timestamp).toDate()
+              : DateTime.now(),
       profileImageUrl: data['profileImageUrl'] ?? '',
       status: data['status'] ?? 'stable',
       religion: data['religion'] ?? 'Not specified',

@@ -1,8 +1,16 @@
-import 'dart:async'; // Import for Timer
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:solace/screens/authenticate/authenticate.dart';
+import 'package:solace/services/database.dart';
+import 'package:solace/services/error_handler.dart';
+import 'package:solace/services/validator.dart';
+import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
+import 'package:solace/themes/inputdecoration.dart';
+import 'package:solace/themes/loader.dart';
+import 'package:solace/themes/textstyle.dart';
 
 class Forgot extends StatefulWidget {
   const Forgot({super.key});
@@ -12,175 +20,202 @@ class Forgot extends StatefulWidget {
 }
 
 class _ForgotState extends State<Forgot> {
-  TextEditingController email = TextEditingController();
-  String error = '';
-  bool isResendDisabled = false; // Controls cooldown state
-  bool emailSent = false; // Tracks if the email was successfully sent
-  int resendCooldown = 60; // Cooldown period in seconds
-  Timer? cooldownTimer; // Timer instance for cooldown
+  final DatabaseService _databaseService = DatabaseService();
+  final FocusNode _emailFocusNode = FocusNode();
+  final TextEditingController _emailController = TextEditingController();
+
+  bool isResendDisabled = false;
+  bool emailSent = false;
+  int resendCooldown = 60;
+  static const int _resendCooldownDuration = 60;
+  Timer? cooldownTimer;
+  bool isLoading = false;
 
   @override
   void dispose() {
-    cooldownTimer?.cancel(); // Cancel the timer if the widget is disposed
-    email.dispose();
+    cooldownTimer?.cancel();
+    _emailFocusNode.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
   void resetPassword() async {
-    try {
-      await FirebaseAuth.instance.sendPasswordResetEmail(email: email.text);
-      setState(() {
-        emailSent = true;
-      });
-      startCooldown();
-    } catch (e) {
-      setState(() => error = 'Error: ${e.toString()}');
+    final validationError = Validator.email(_emailController.text);
+    if (validationError != null) {
+      _showError([validationError]);
+      return;
     }
+
+    setState(() => isLoading = true);
+
+    try {
+      final userData = await _databaseService.getUserDataByEmail(
+        _emailController.text,
+      );
+      if (userData == null) {
+        _showError(['No user found with this email.']);
+        return;
+      }
+
+      await FirebaseAuth.instance.sendPasswordResetEmail(
+        email: _emailController.text,
+      );
+
+      if (context.mounted) {
+        // Show a SnackBar after the email is sent
+        showToast('Password reset email sent successfully.');
+
+        // Navigate to Authenticate screen after the SnackBar
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const Authenticate()),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      _showError([Validator.firebaseError(e.code)]);
+    } catch (e) {
+      _showError(['An unexpected error occurred. Please try again later.']);
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
+  void showToast(String message) {
+    Fluttertoast.showToast(
+      msg: message,
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+      backgroundColor: AppColors.neon,
+      textColor: AppColors.white,
+      fontSize: 16.0,
+    );
   }
 
   void startCooldown() {
     setState(() {
       isResendDisabled = true;
+      resendCooldown = _resendCooldownDuration;
     });
     cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (resendCooldown > 0) {
-        setState(() {
-          resendCooldown--;
-        });
+        setState(() => resendCooldown--);
       } else {
         timer.cancel();
-        setState(() {
-          isResendDisabled = false;
-          resendCooldown = 60; // Reset cooldown
-        });
+        setState(() => isResendDisabled = false);
       }
     });
+  }
+
+  void _showError(List<String> errorMessages) {
+    if (errorMessages.isEmpty || !mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false, // Prevent accidental dismissal
+      builder:
+          (context) => ErrorDialog(title: 'Error', messages: errorMessages),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Back'),
         backgroundColor: AppColors.neon,
-        scrolledUnderElevation: 0.0,
         foregroundColor: AppColors.white,
+        scrolledUnderElevation: 0.0,
       ),
       backgroundColor: AppColors.neon,
       body: GestureDetector(
-        onTap: () {
-          FocusScope.of(context).unfocus(); // Dismiss the keyboard
-        },
+        onTap: () => FocusScope.of(context).unfocus(),
         child: Container(
-          color: AppColors.neon,
-          padding: const EdgeInsets.all(30),
+          padding: const EdgeInsets.all(16.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Text(
+              Text(
                 'Forgot Password',
-                style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Outfit',
-                  color: AppColors.white,
-                ),
+                style: Textstyle.title.copyWith(color: AppColors.white),
               ),
               const SizedBox(height: 20),
-              TextField(
-                controller: email,
-                decoration: InputDecoration(
-                  hintText: 'Enter your Email',
-                  filled: true,
-                  fillColor: AppColors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(
-                      color: AppColors.blackTransparent,
-                      width: 2,
-                    ),
-                  ),
-                ),
-                maxLines: 1,
-                style: const TextStyle(
-                    fontSize: 18,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.normal),
+              Text(
+                'Enter your email address below to receive a password reset link.',
+                style: Textstyle.body.copyWith(color: AppColors.white),
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
-              TextButton(
-                onPressed: isResendDisabled ? null : resetPassword,
-                style: TextButton.styleFrom(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  backgroundColor: AppColors.blackTransparent,
-                  foregroundColor: isResendDisabled
-                      ? AppColors.whiteTransparent
-                      : AppColors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                child: isResendDisabled
-                    ? Text(
-                  'Email Sent, $resendCooldown seconds',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                )
-                    : const Text(
-                  'Send Link',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              if (emailSent) ...[
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'Changed your password? ',
-                      style: TextStyle(
-                        color: AppColors.white,
-                        fontSize: 16,
-                        fontFamily: 'Inter',
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (context) => const Authenticate()),
-                        );
-                      },
-                      child: const Text(
-                        'Back',
-                        style: TextStyle(
-                          color: AppColors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'Inter',
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _emailController,
+                      focusNode: _emailFocusNode,
+                      enabled:
+                          !isLoading &&
+                          !isResendDisabled, // Disable during loading or resend cooldown
+                      decoration: InputDecorationStyles.build(
+                        !isResendDisabled || isLoading
+                            ? 'Enter your Email'
+                            : "",
+                        _emailFocusNode,
+                      ).copyWith(
+                        labelStyle: TextStyle(color: AppColors.black),
+                        fillColor: AppColors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(10),
+                            bottomLeft: Radius.circular(10),
+                          ),
+                          borderSide: const BorderSide(
+                            color: AppColors.blackTransparent,
+                            width: 2,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(10),
+                            bottomLeft: Radius.circular(10),
+                          ),
+                          borderSide: const BorderSide(
+                            color: AppColors.blackTransparent,
+                            width: 2,
+                          ),
                         ),
                       ),
+                      maxLines: 1,
+                      style: Textstyle.body.copyWith(color: AppColors.black),
                     ),
-                  ],
-                ),
-                if (error.isNotEmpty) ...[
-                  const SizedBox(height: 20),
-                  Text(
-                    error,
-                    style: const TextStyle(color: Colors.red, fontSize: 14),
+                  ),
+                  SizedBox(
+                    width: 80,
+                    height: 56,
+                    child: TextButton(
+                      onPressed:
+                          (isResendDisabled || isLoading)
+                              ? null
+                              : resetPassword,
+                      style: Buttonstyle.darkgray.copyWith(
+                        shape: WidgetStateProperty.all(
+                          const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.only(
+                              topRight: Radius.circular(10),
+                              bottomRight: Radius.circular(10),
+                            ),
+                          ),
+                        ),
+                      ),
+                      child:
+                          isLoading
+                              ? Loader.loaderWhite
+                              : Text(
+                                isResendDisabled ? '$resendCooldown s' : 'Send',
+                                style: Textstyle.smallButton,
+                              ),
+                    ),
                   ),
                 ],
-              ],
+              ),
             ],
           ),
         ),

@@ -2,8 +2,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
+import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
+import 'package:solace/themes/textformfield.dart';
+import 'package:solace/themes/textstyle.dart';
 
 class PatientHistory extends StatefulWidget {
   final String patientId;
@@ -59,34 +63,12 @@ class _PatientHistoryState extends State<PatientHistory> {
     });
   }
 
-  InputDecoration _buildInputDecoration(String label, FocusNode focusNode) {
-    return InputDecoration(
-      labelText: label,
-      filled: true,
-      fillColor: AppColors.gray,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: AppColors.neon, width: 2),
-      ),
-      labelStyle: TextStyle(
-        fontSize: 16,
-        fontFamily: 'Inter',
-        fontWeight: FontWeight.normal,
-        color: focusNode.hasFocus ? AppColors.neon : AppColors.black,
-      ),
-    );
-  }
-
   Future<void> _selectDate(BuildContext context) async {
     final DateTime now = DateTime.now();
     final DateTime? pickedDate = await showDatePicker(
       context: context,
       initialDate: _selectedDate ?? now,
-      firstDate: DateTime(1900),
+      firstDate: DateTime(1950),
       lastDate: now, // Restrict the selection to today or earlier
       builder: (BuildContext context, Widget? child) {
         return Theme(
@@ -145,6 +127,17 @@ class _PatientHistoryState extends State<PatientHistory> {
     }).toList();
   }
 
+  void showToast(String message) {
+    Fluttertoast.showToast(
+      msg: message,
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+      backgroundColor: AppColors.neon,
+      textColor: AppColors.white,
+      fontSize: 16.0,
+    );
+  }
+
   Future<void> _addDiagnosis(
     String diagnosis,
     String description,
@@ -183,59 +176,41 @@ class _PatientHistoryState extends State<PatientHistory> {
           builder: (context, constraints) {
             return AlertDialog(
               backgroundColor: AppColors.white,
-              title: const Text(
-                'Add Previous Diagnosis',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Inter',
-                ),
-              ),
+              title: Text('Add Previous Diagnosis', style: Textstyle.subheader),
               content: SizedBox(
-                width: constraints.maxWidth * 0.9,
+                width: constraints.maxWidth * 1,
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      TextFormField(
+                      CustomTextField(
                         controller: diagnosisController,
                         focusNode: diagnosisFocusNode,
-                        decoration: _buildInputDecoration(
-                          'Previous Diagnosis',
-                          diagnosisFocusNode,
-                        ),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.normal,
-                          color: AppColors.black,
-                        ),
+                        labelText: 'Previous Diagnosis',
+                        enabled: true,
+                        validator:
+                            (val) =>
+                                val == null || val.isEmpty
+                                    ? 'Diagnosis is required'
+                                    : null,
                       ),
                       const SizedBox(height: 10),
-                      TextFormField(
+                      CustomTextField(
                         controller: descriptionController,
                         focusNode: descriptionFocusNode,
-                        decoration: _buildInputDecoration(
-                          'Description',
-                          descriptionFocusNode,
-                        ),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.normal,
-                          color: AppColors.black,
-                        ),
+                        labelText: 'Description',
+                        enabled: true,
+                        validator:
+                            (val) =>
+                                val == null || val.isEmpty
+                                    ? 'Description is required'
+                                    : null,
                       ),
                       const SizedBox(height: 10),
                       TextFormField(
                         controller: dateController,
                         focusNode: dateFocusNode,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.normal,
-                          color: AppColors.black,
-                        ),
+                        style: Textstyle.body,
                         decoration: InputDecoration(
                           labelText: 'Date',
                           filled: true,
@@ -289,25 +264,8 @@ class _PatientHistoryState extends State<PatientHistory> {
                           _resetDateControllers();
                           Navigator.of(context).pop();
                         },
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 10,
-                          ),
-                          backgroundColor: AppColors.red,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: const Text(
-                          'Cancel',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                            color: AppColors.white,
-                          ),
-                        ),
+                        style: Buttonstyle.buttonRed,
+                        child: Text('Cancel', style: Textstyle.smallButton),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -320,7 +278,6 @@ class _PatientHistoryState extends State<PatientHistory> {
                           if (diagnosis.isNotEmpty &&
                               description.isNotEmpty &&
                               _selectedDate != null) {
-                            // Save _selectedDate to the database
                             await _addDiagnosis(
                               diagnosis,
                               description,
@@ -331,34 +288,11 @@ class _PatientHistoryState extends State<PatientHistory> {
                             Navigator.of(context).pop();
                             setState(() {});
                           } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Please fill all fields correctly.',
-                                ),
-                              ),
-                            );
+                            showToast('Please fill all fields correctly.');
                           }
                         },
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 10,
-                          ),
-                          backgroundColor: AppColors.neon,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: const Text(
-                          'Save',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                            color: AppColors.white,
-                          ),
-                        ),
+                        style: Buttonstyle.buttonNeon,
+                        child: Text('Save', style: Textstyle.smallButton),
                       ),
                     ),
                   ],
@@ -379,24 +313,12 @@ class _PatientHistoryState extends State<PatientHistory> {
           builder: (context, constraints) {
             return AlertDialog(
               backgroundColor: AppColors.white,
-              title: const Text(
-                'Options',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Inter',
-                ),
-              ),
+              title: Text('Options', style: Textstyle.subheader),
               content: SizedBox(
                 width: constraints.maxWidth * 0.9,
                 child: Text(
                   "Do you want to delete this record?",
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.normal,
-                    color: AppColors.black,
-                  ),
+                  style: Textstyle.body,
                 ),
               ),
               actions: [
@@ -408,25 +330,8 @@ class _PatientHistoryState extends State<PatientHistory> {
                           _resetDateControllers();
                           Navigator.of(context).pop();
                         },
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 10,
-                          ),
-                          backgroundColor: AppColors.neon,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: const Text(
-                          'Cancel',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                            color: AppColors.white,
-                          ),
-                        ),
+                        style: Buttonstyle.buttonNeon,
+                        child: Text('Cancel', style: Textstyle.smallButton),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -437,25 +342,8 @@ class _PatientHistoryState extends State<PatientHistory> {
                           Navigator.of(context).pop();
                           setState(() {}); // Refresh the diagnoses list
                         },
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 10,
-                          ),
-                          backgroundColor: AppColors.red,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: const Text(
-                          'Delete',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                            color: AppColors.white,
-                          ),
-                        ),
+                        style: Buttonstyle.buttonRed,
+                        child: Text('Delete', style: Textstyle.smallButton),
                       ),
                     ),
                   ],
@@ -472,18 +360,10 @@ class _PatientHistoryState extends State<PatientHistory> {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          Icon(Icons.event_busy, color: AppColors.black, size: 80),
+        children: [
+          Icon(Icons.event_busy, color: AppColors.black, size: 70),
           SizedBox(height: 20.0),
-          Text(
-            "No Previous Diagnosis",
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 18,
-              fontWeight: FontWeight.normal,
-              color: AppColors.black,
-            ),
-          ),
+          Text("No Previous Diagnosis", style: Textstyle.body),
         ],
       ),
     );
@@ -494,21 +374,14 @@ class _PatientHistoryState extends State<PatientHistory> {
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: AppBar(
-        title: const Text(
-          "Patient History",
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Inter',
-          ),
-        ),
+        title: Text("Patient History", style: Textstyle.subheader),
         backgroundColor: AppColors.white,
         scrolledUnderElevation: 0.0,
         automaticallyImplyLeading: true,
         elevation: 0.0,
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 25.0),
+            padding: const EdgeInsets.only(right: 16.0),
             child: GestureDetector(
               onTap: _toggleSortingOrder,
               child: Image.asset(
@@ -561,7 +434,7 @@ class _PatientHistoryState extends State<PatientHistory> {
                 child: SingleChildScrollView(
                   child: Container(
                     color: AppColors.white,
-                    padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     child: Column(
                       children: List.generate(diagnoses.length, (index) {
                         final diagnosis = diagnoses[index];
@@ -584,10 +457,6 @@ class _PatientHistoryState extends State<PatientHistory> {
                           child: Container(
                             width: double.infinity,
                             margin: const EdgeInsets.only(bottom: 10.0),
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 15,
-                              horizontal: 20,
-                            ),
                             decoration: BoxDecoration(
                               color: AppColors.gray,
                               borderRadius: BorderRadius.circular(10),
@@ -595,61 +464,51 @@ class _PatientHistoryState extends State<PatientHistory> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(
-                                  children: [
-                                    Icon(Icons.file_copy_rounded, size: 25),
-                                    SizedBox(width: 10),
-                                    Expanded(
-                                      child: Text(
-                                        diagnosisDate,
-                                        style: const TextStyle(
-                                          fontFamily: 'Inter',
-                                          fontSize: 18,
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    16,
+                                    16,
+                                    16,
+                                    0,
+                                  ),
+                                  child: Text(
+                                    diagnosisDate,
+                                    style: Textstyle.body.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                Divider(),
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    16,
+                                    0,
+                                    16,
+                                    16,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        "Date",
+                                        style: Textstyle.body.copyWith(
                                           fontWeight: FontWeight.bold,
-                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 5),
-                                const Divider(thickness: 1.0),
-                                const SizedBox(height: 5),
-                                const Text(
-                                  "Date",
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.black,
-                                  ),
-                                ),
-                                Text(
-                                  diagnosisText,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.normal,
-                                    color: AppColors.black,
-                                  ),
-                                ),
-                                SizedBox(height: 10),
-                                const Text(
-                                  "Description",
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.black,
-                                  ),
-                                ),
-                                Text(
-                                  description,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.normal,
-                                    color: AppColors.black,
+                                      Text(
+                                        diagnosisText,
+                                        style: Textstyle.body,
+                                      ),
+                                      SizedBox(height: 10),
+                                      Text(
+                                        "Description",
+                                        style: Textstyle.body.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      Text(description, style: Textstyle.body),
+                                    ],
                                   ),
                                 ),
                               ],

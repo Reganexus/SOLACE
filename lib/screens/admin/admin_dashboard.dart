@@ -39,8 +39,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
             .where('userRole', isEqualTo: 'doctor')
             .get(),
         firestore
-            .collection('admin')
-            .where('userRole', isEqualTo: 'admin')
+            .collection('patient')
+            .where('userRole', isEqualTo: 'patient')
             .get(),
         firestore
             .collection('nurse') // Fetch nurse count

@@ -29,11 +29,11 @@ class BottomNavBar extends StatelessWidget {
       onTap: onTap,
       type: BottomNavigationBarType.fixed,
       items: _buildNavBarItems(context),
-      selectedItemColor: AppColors.neon, // Color for selected icon and text
-      unselectedItemColor:
-          AppColors.black, // Color for unselected icon and text
-      backgroundColor:
-          AppColors.white, // Background color of the navigation bar
+      selectedItemColor: AppColors.neon,
+      unselectedItemColor: AppColors.black,
+      selectedFontSize: 14,
+      unselectedFontSize: 14,
+      backgroundColor: AppColors.white,
     );
   }
 
@@ -49,7 +49,7 @@ class BottomNavBar extends StatelessWidget {
       final db = DatabaseService();
 
       // Fetch user role
-      final userRole = await db.getTargetUserRole(userId);
+      final userRole = await db.fetchAndCacheUserRole(userId);
 
       if (userRole == null || userRole.isEmpty) {
         throw Exception("User role not found for user ID: $userId");
@@ -85,8 +85,8 @@ class BottomNavBar extends StatelessWidget {
               currentIndex == 0
                   ? 'lib/assets/images/admin/home_selected.png'
                   : 'lib/assets/images/admin/home.png',
-              width: 30,
-              height: 30,
+              width: 26,
+              height: 26,
             ),
             label: 'Home',
           ),
@@ -95,8 +95,8 @@ class BottomNavBar extends StatelessWidget {
               currentIndex == 1
                   ? 'lib/assets/images/admin/profile_selected.png'
                   : 'lib/assets/images/admin/profile.png',
-              width: 30,
-              height: 30,
+              width: 26,
+              height: 26,
             ),
             label: 'Users',
           ),
@@ -105,8 +105,8 @@ class BottomNavBar extends StatelessWidget {
               currentIndex == 2
                   ? 'lib/assets/images/admin/export_selected.png'
                   : 'lib/assets/images/admin/export.png',
-              width: 30,
-              height: 30,
+              width: 26,
+              height: 26,
             ),
             label: 'Export',
           ),
@@ -118,8 +118,8 @@ class BottomNavBar extends StatelessWidget {
               currentIndex == 0
                   ? 'lib/assets/images/caregiver/home_selected.png'
                   : 'lib/assets/images/caregiver/home.png',
-              width: 30,
-              height: 30,
+              width: 26,
+              height: 26,
             ),
             label: 'Home',
           ),
@@ -127,21 +127,26 @@ class BottomNavBar extends StatelessWidget {
             icon: FutureBuilder<String?>(
               future: () async {
                 final user = FirebaseAuth.instance.currentUser;
-                if (user == null) return null; // Return null if logged out
-
+                if (user == null) {
+                  return null; // Return null if the user is not logged in
+                }
                 final userId = user.uid;
+
                 DatabaseService db = DatabaseService();
-                return await db.getTargetUserRole(userId);
+                return await db.fetchAndCacheUserRole(
+                  userId,
+                ); // Fetch user role
               }(),
               builder: (context, userRoleSnapshot) {
-                if (!userRoleSnapshot.hasData || userRoleSnapshot.data == null) {
+                if (!userRoleSnapshot.hasData ||
+                    userRoleSnapshot.data == null) {
                   // Show default icon while loading or if userRole is null
                   return Image.asset(
                     currentIndex == 1
                         ? 'lib/assets/images/caregiver/inbox_selected.png'
                         : 'lib/assets/images/caregiver/inbox.png',
-                    width: 30,
-                    height: 30,
+                    width: 26,
+                    height: 26,
                   );
                 }
 
@@ -152,18 +157,21 @@ class BottomNavBar extends StatelessWidget {
                     currentIndex == 1
                         ? 'lib/assets/images/caregiver/inbox_selected.png'
                         : 'lib/assets/images/caregiver/inbox.png',
-                    width: 30,
-                    height: 30,
+                    width: 26,
+                    height: 26,
                   );
                 }
 
                 // StreamBuilder for notifications
                 return StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection(userRole)
-                      .doc(user.uid)
-                      .collection('notifications') // Access the subcollection
-                      .snapshots(),
+                  stream:
+                      FirebaseFirestore.instance
+                          .collection(userRole)
+                          .doc(FirebaseAuth.instance.currentUser!.uid)
+                          .collection(
+                            'notifications',
+                          ) // Access the subcollection
+                          .snapshots(),
                   builder: (context, snapshot) {
                     if (!snapshot.hasData) {
                       // Show default icon while loading notifications
@@ -171,15 +179,17 @@ class BottomNavBar extends StatelessWidget {
                         currentIndex == 1
                             ? 'lib/assets/images/caregiver/inbox_selected.png'
                             : 'lib/assets/images/caregiver/inbox.png',
-                        width: 30,
-                        height: 30,
+                        width: 26,
+                        height: 26,
                       );
                     }
 
                     // Count unread notifications in the subcollection
                     final notifications = snapshot.data!.docs;
                     final int unreadCount =
-                        notifications.where((doc) => (doc['read'] ?? false) == false).length;
+                        notifications
+                            .where((doc) => (doc['read'] ?? false) == false)
+                            .length;
 
                     return Stack(
                       children: [
@@ -187,8 +197,8 @@ class BottomNavBar extends StatelessWidget {
                           currentIndex == 1
                               ? 'lib/assets/images/caregiver/inbox_selected.png'
                               : 'lib/assets/images/caregiver/inbox.png',
-                          width: 30,
-                          height: 30,
+                          width: 26,
+                          height: 26,
                         ),
                         if (unreadCount > 0)
                           Positioned(
@@ -224,14 +234,13 @@ class BottomNavBar extends StatelessWidget {
             label: 'Inbox',
           ),
 
-
           BottomNavigationBarItem(
             icon: Image.asset(
               currentIndex == 2
                   ? 'lib/assets/images/caregiver/schedule_selected.png'
                   : 'lib/assets/images/caregiver/schedule.png',
-              width: 30,
-              height: 30,
+              width: 26,
+              height: 26,
             ),
             label: 'Schedule',
           ),
@@ -240,8 +249,8 @@ class BottomNavBar extends StatelessWidget {
               currentIndex == 3
                   ? 'lib/assets/images/caregiver/profile_selected.png'
                   : 'lib/assets/images/caregiver/profile.png',
-              width: 30,
-              height: 30,
+              width: 26,
+              height: 26,
             ),
             label: 'Profile',
           ),

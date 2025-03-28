@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:solace/screens/patient/patient_doctor_list.dart';
+import 'package:solace/screens/patient/patient_contact_list.dart';
 import 'package:solace/themes/colors.dart';
 
 class InterventionsView extends StatefulWidget {
@@ -36,7 +36,10 @@ class InterventionsViewState extends State<InterventionsView> {
   Future<void> _loadCheckedStates() async {
     try {
       DocumentSnapshot doc =
-          await _firestore.collection('checkedStates').doc(widget.patientId).get();
+          await _firestore
+              .collection('checkedStates')
+              .doc(widget.patientId)
+              .get();
       if (doc.exists) {
         Map<String, dynamic> rawData = doc.data() as Map<String, dynamic>;
         persistentCheckedStates = rawData.map((key, value) {
@@ -61,7 +64,6 @@ class InterventionsViewState extends State<InterventionsView> {
     }
   }
 
-  // Map to match user symptoms with Firestore document names
   // Vitals Mapping
   final Map<String, String> vitalsMapping = {
     'Low Heart Rate': 'lowHeartRate',
@@ -76,7 +78,7 @@ class InterventionsViewState extends State<InterventionsView> {
     'Pain': 'pain',
   };
 
-// Physical Symptoms Mapping
+  // Physical Symptoms Mapping
   final Map<String, String> physicalMapping = {
     'Diarrhea': 'diarrhea',
     'Bowel Obstruction': 'bowelObstruction',
@@ -90,7 +92,7 @@ class InterventionsViewState extends State<InterventionsView> {
     'Drowsiness': 'drowsiness',
   };
 
-// Emotional Symptoms Mapping
+  // Emotional Symptoms Mapping
   final Map<String, String> emotionalMapping = {
     'Depression': 'depression',
     'Anxiety': 'anxietyOrAgitation',
@@ -107,18 +109,20 @@ class InterventionsViewState extends State<InterventionsView> {
         final allMappings = {
           ...vitalsMapping,
           ...physicalMapping,
-          ...emotionalMapping
+          ...emotionalMapping,
         };
         for (String symptom in symptoms) {
           String? mappedName = allMappings[symptom];
           if (mappedName != null) {
-            DocumentSnapshot interventionDoc = await _firestore
-                .collection('interventions')
-                .doc(mappedName)
-                .get();
+            DocumentSnapshot interventionDoc =
+                await _firestore
+                    .collection('interventions')
+                    .doc(mappedName)
+                    .get();
             if (interventionDoc.exists) {
-              interventions[symptom] =
-                  List<String>.from(interventionDoc['interventions'] ?? []);
+              interventions[symptom] = List<String>.from(
+                interventionDoc['interventions'] ?? [],
+              );
             } else {
               interventions[symptom] = ['No interventions found'];
             }
@@ -136,62 +140,90 @@ class InterventionsViewState extends State<InterventionsView> {
     // Filter sections to only include those with interventions
     List<Widget> sections = [];
 
-    if (vitalsMapping.keys.any((symptom) => symptomInterventions.containsKey(symptom))) {
-      sections.add(buildSymptomSection('Vitals', vitalsMapping.keys.toList(), symptomInterventions));
+    if (vitalsMapping.keys.any(
+      (symptom) => symptomInterventions.containsKey(symptom),
+    )) {
+      sections.add(
+        buildSymptomSection(
+          'Vitals',
+          vitalsMapping.keys.toList(),
+          symptomInterventions,
+        ),
+      );
     }
 
-    if (physicalMapping.keys.any((symptom) => symptomInterventions.containsKey(symptom))) {
-      sections.add(buildSymptomSection('Physical Symptoms', physicalMapping.keys.toList(), symptomInterventions));
+    if (physicalMapping.keys.any(
+      (symptom) => symptomInterventions.containsKey(symptom),
+    )) {
+      sections.add(
+        buildSymptomSection(
+          'Physical Symptoms',
+          physicalMapping.keys.toList(),
+          symptomInterventions,
+        ),
+      );
     }
 
-    if (emotionalMapping.keys.any((symptom) => symptomInterventions.containsKey(symptom))) {
-      sections.add(buildSymptomSection('Emotional Symptoms', emotionalMapping.keys.toList(), symptomInterventions));
+    if (emotionalMapping.keys.any(
+      (symptom) => symptomInterventions.containsKey(symptom),
+    )) {
+      sections.add(
+        buildSymptomSection(
+          'Emotional Symptoms',
+          emotionalMapping.keys.toList(),
+          symptomInterventions,
+        ),
+      );
     }
 
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: AppBar(
-        title: const Text('Intervention',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Intervention',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
         backgroundColor: AppColors.white,
         scrolledUnderElevation: 0.0,
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : GestureDetector(
-              onTap: () => FocusScope.of(context).unfocus(),
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: sections.isNotEmpty
-                        ? sections // Display only sections that have interventions
-                        : [
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(20.0),
-                              margin: const EdgeInsets.only(bottom: 10.0),
-                              decoration: BoxDecoration(
-                                color: AppColors.gray,
-                                borderRadius: BorderRadius.circular(10.0),
-                              ),
-                              child: const Center(
-                                child: Text(
-                                  'Great Job! No Intervention Needed',
-                                  style: TextStyle(
-                                    fontSize: 18.0,
-                                    fontFamily: 'Inter',
-                                    fontWeight: FontWeight.normal,
+      body:
+          isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : GestureDetector(
+                onTap: () => FocusScope.of(context).unfocus(),
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children:
+                          sections.isNotEmpty
+                              ? sections // Display only sections that have interventions
+                              : [
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(20.0),
+                                  margin: const EdgeInsets.only(bottom: 10.0),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.gray,
+                                    borderRadius: BorderRadius.circular(10.0),
+                                  ),
+                                  child: const Center(
+                                    child: Text(
+                                      'Great Job! No Intervention Needed',
+                                      style: TextStyle(
+                                        fontSize: 18.0,
+                                        fontFamily: 'Inter',
+                                        fontWeight: FontWeight.normal,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ),
-                          ], // If all are empty, display a single message
+                              ], // If all are empty, display a single message
+                    ),
                   ),
                 ),
               ),
-            ),
     );
   }
 
@@ -201,7 +233,9 @@ class InterventionsViewState extends State<InterventionsView> {
     Map<String, List<String>> interventions,
   ) {
     List<String> filteredSymptoms =
-      symptoms.where((symptom) => interventions.containsKey(symptom)).toList();
+        symptoms
+            .where((symptom) => interventions.containsKey(symptom))
+            .toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -217,7 +251,8 @@ class InterventionsViewState extends State<InterventionsView> {
         const SizedBox(height: 10),
         ...filteredSymptoms.map((symptom) {
           List<String> symptomInterventions = interventions[symptom]!;
-          List<bool> checkedStates = persistentCheckedStates[symptom] ??
+          List<bool> checkedStates =
+              persistentCheckedStates[symptom] ??
               List<bool>.filled(symptomInterventions.length, false);
 
           return StatefulBuilder(
@@ -231,13 +266,15 @@ class InterventionsViewState extends State<InterventionsView> {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(10.0),
                   child: Theme(
-                    data: Theme.of(context).copyWith(
-                      dividerColor: AppColors.gray,
-                    ),
+                    data: Theme.of(
+                      context,
+                    ).copyWith(dividerColor: AppColors.gray),
                     child: ExpansionTile(
                       iconColor: AppColors.black,
                       tilePadding: const EdgeInsets.symmetric(
-                          horizontal: 16.0, vertical: 8.0),
+                        horizontal: 16.0,
+                        vertical: 8.0,
+                      ),
                       backgroundColor: AppColors.gray,
                       title: Row(
                         children: [
@@ -262,34 +299,34 @@ class InterventionsViewState extends State<InterventionsView> {
                       ),
                       children: [
                         ...symptomInterventions.asMap().entries.map(
-                              (entry) => CheckboxListTile(
-                                activeColor: AppColors.neon,
-                                title: Text(
-                                  entry.value,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.normal,
-                                    fontSize: 16,
-                                    fontFamily: 'Inter',
-                                  ),
-                                ),
-                                value: checkedStates[entry.key],
-                                onChanged: (bool? value) async {
-                                  setState(() {
-                                    checkedStates[entry.key] = value ?? false;
-                                  });
-                                  persistentCheckedStates[symptom] =
-                                      checkedStates;
-                                  await _saveCheckedStates();
-                                },
-                                controlAffinity:
-                                    ListTileControlAffinity.leading,
+                          (entry) => CheckboxListTile(
+                            activeColor: AppColors.neon,
+                            title: Text(
+                              entry.value,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.normal,
+                                fontSize: 16,
+                                fontFamily: 'Inter',
                               ),
                             ),
+                            value: checkedStates[entry.key],
+                            onChanged: (bool? value) async {
+                              setState(() {
+                                checkedStates[entry.key] = value ?? false;
+                              });
+                              persistentCheckedStates[symptom] = checkedStates;
+                              await _saveCheckedStates();
+                            },
+                            controlAffinity: ListTileControlAffinity.leading,
+                          ),
+                        ),
                         const SizedBox(height: 10),
                         if (checkedStates.every((state) => state))
                           Padding(
                             padding: const EdgeInsets.symmetric(
-                                vertical: 10.0, horizontal: 20.0),
+                              vertical: 10.0,
+                              horizontal: 20.0,
+                            ),
                             child: Column(
                               children: [
                                 SizedBox(
@@ -297,7 +334,9 @@ class InterventionsViewState extends State<InterventionsView> {
                                   child: TextButton(
                                     style: TextButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 15, vertical: 10),
+                                        horizontal: 15,
+                                        vertical: 10,
+                                      ),
                                       backgroundColor: AppColors.neon,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(10),
@@ -307,34 +346,37 @@ class InterventionsViewState extends State<InterventionsView> {
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
-                                          builder: (context) => ContactList(
-                                            title: 'Relatives',
-                                            fetchContacts: () async {
-                                              // Fetch relatives from the current user's contacts field
-                                              DocumentSnapshot userSnapshot =
-                                                  await FirebaseFirestore
-                                                      .instance
-                                                      .collection('patient')
-                                                      .doc(widget.patientId)
-                                                      .get();
-                                              List<dynamic> relatives =
-                                                  userSnapshot['contacts']
-                                                          ['relative'] ??
+                                          builder:
+                                              (context) => ContactList(
+                                                title: 'Relatives',
+                                                fetchContacts: () async {
+                                                  // Fetch relatives from the current user's contacts field
+                                                  DocumentSnapshot
+                                                  userSnapshot =
+                                                      await FirebaseFirestore
+                                                          .instance
+                                                          .collection('patient')
+                                                          .doc(widget.patientId)
+                                                          .get();
+                                                  List<dynamic> relatives =
+                                                      userSnapshot['contacts']['relative'] ??
                                                       [];
-                                              return relatives
-                                                  .map((relative) => {
-                                                        'name':
-                                                            '${relative['firstName']} ${relative['lastName']}'
-                                                                .trim(),
-                                                        'phone':
-                                                            relative['phone'],
-                                                        'profileImageUrl': relative[
-                                                                'profileImageUrl'] ??
-                                                            '',
-                                                      })
-                                                  .toList();
-                                            },
-                                          ),
+                                                  return relatives
+                                                      .map(
+                                                        (relative) => {
+                                                          'name':
+                                                              '${relative['firstName']} ${relative['lastName']}'
+                                                                  .trim(),
+                                                          'phone':
+                                                              relative['phone'],
+                                                          'profileImageUrl':
+                                                              relative['profileImageUrl'] ??
+                                                              '',
+                                                        },
+                                                      )
+                                                      .toList();
+                                                },
+                                              ),
                                         ),
                                       );
                                     },
@@ -356,7 +398,9 @@ class InterventionsViewState extends State<InterventionsView> {
                                   child: TextButton(
                                     style: TextButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 15, vertical: 10),
+                                        horizontal: 15,
+                                        vertical: 10,
+                                      ),
                                       backgroundColor: AppColors.purple,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(10),
@@ -366,33 +410,37 @@ class InterventionsViewState extends State<InterventionsView> {
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
-                                          builder: (context) => ContactList(
-                                            title: 'Nurses',
-                                            fetchContacts: () async {
-                                              // Fetch nurses from the current user's contacts field
-                                              DocumentSnapshot userSnapshot =
-                                                  await FirebaseFirestore
-                                                      .instance
-                                                      .collection('patient')
-                                                      .doc(widget.patientId)
-                                                      .get();
-                                              List<dynamic> nurses =
-                                                  userSnapshot['contacts']
-                                                          ['nurse'] ??
+                                          builder:
+                                              (context) => ContactList(
+                                                title: 'Nurses',
+                                                fetchContacts: () async {
+                                                  // Fetch nurses from the current user's contacts field
+                                                  DocumentSnapshot
+                                                  userSnapshot =
+                                                      await FirebaseFirestore
+                                                          .instance
+                                                          .collection('patient')
+                                                          .doc(widget.patientId)
+                                                          .get();
+                                                  List<dynamic> nurses =
+                                                      userSnapshot['contacts']['nurse'] ??
                                                       [];
-                                              return nurses
-                                                  .map((nurse) => {
-                                                        'name':
-                                                            '${nurse['firstName']} ${nurse['lastName']}'
-                                                                .trim(),
-                                                        'phone': nurse['phone'],
-                                                        'profileImageUrl': nurse[
-                                                                'profileImageUrl'] ??
-                                                            '',
-                                                      })
-                                                  .toList();
-                                            },
-                                          ),
+                                                  return nurses
+                                                      .map(
+                                                        (nurse) => {
+                                                          'name':
+                                                              '${nurse['firstName']} ${nurse['lastName']}'
+                                                                  .trim(),
+                                                          'phone':
+                                                              nurse['phone'],
+                                                          'profileImageUrl':
+                                                              nurse['profileImageUrl'] ??
+                                                              '',
+                                                        },
+                                                      )
+                                                      .toList();
+                                                },
+                                              ),
                                         ),
                                       );
                                     },
@@ -414,7 +462,9 @@ class InterventionsViewState extends State<InterventionsView> {
                                   child: TextButton(
                                     style: TextButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 15, vertical: 10),
+                                        horizontal: 15,
+                                        vertical: 10,
+                                      ),
                                       backgroundColor: AppColors.red,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(10),
@@ -424,29 +474,32 @@ class InterventionsViewState extends State<InterventionsView> {
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
-                                          builder: (context) => ContactList(
-                                            title: 'Doctors',
-                                            fetchContacts: () async {
-                                              // Fetch doctors from Firestore
-                                              QuerySnapshot doctorSnapshot =
-                                                  await FirebaseFirestore
-                                                      .instance
-                                                      .collection('doctor')
-                                                      .get();
-                                              return doctorSnapshot.docs
-                                                  .map((doc) => {
-                                                        'name':
-                                                            '${doc['firstName']} ${doc['lastName']}'
-                                                                .trim(),
-                                                        'phone':
-                                                            doc['phoneNumber'],
-                                                        'profileImageUrl':
-                                                            doc['profileImageUrl'] ??
-                                                                '',
-                                                      })
-                                                  .toList();
-                                            },
-                                          ),
+                                          builder:
+                                              (context) => ContactList(
+                                                title: 'Doctors',
+                                                fetchContacts: () async {
+                                                  // Fetch doctors from Firestore
+                                                  QuerySnapshot doctorSnapshot =
+                                                      await FirebaseFirestore
+                                                          .instance
+                                                          .collection('doctor')
+                                                          .get();
+                                                  return doctorSnapshot.docs
+                                                      .map(
+                                                        (doc) => {
+                                                          'name':
+                                                              '${doc['firstName']} ${doc['lastName']}'
+                                                                  .trim(),
+                                                          'phone':
+                                                              doc['phoneNumber'],
+                                                          'profileImageUrl':
+                                                              doc['profileImageUrl'] ??
+                                                              '',
+                                                        },
+                                                      )
+                                                      .toList();
+                                                },
+                                              ),
                                         ),
                                       );
                                     },

@@ -2,8 +2,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/services/database.dart';
+import 'package:solace/themes/loader.dart';
+import 'package:solace/themes/textstyle.dart';
+import 'package:solace/utility/schedule_utility.dart';
 
 class PatientSchedule extends StatefulWidget {
   const PatientSchedule({super.key, required this.patientId});
@@ -15,7 +19,8 @@ class PatientSchedule extends StatefulWidget {
 
 class PatientScheduleState extends State<PatientSchedule> {
   List<Map<String, dynamic>> upcomingSchedules = [];
-  final DatabaseService db = DatabaseService();
+  DatabaseService databaseService = DatabaseService();
+  ScheduleUtility scheduleUtility = ScheduleUtility();
   bool _isLoading = false; // Track loading state
   String _errorMessage = ''; // Store error message
 
@@ -52,7 +57,7 @@ class PatientScheduleState extends State<PatientSchedule> {
 
   Future<void> removePastSchedules() async {
     debugPrint("Removing Past Schedules");
-    await db.removePastSchedules(widget.patientId);
+    await scheduleUtility.removePastSchedules(widget.patientId);
   }
 
   Future<void> fetchPatientSchedules() async {
@@ -65,81 +70,108 @@ class PatientScheduleState extends State<PatientSchedule> {
 
     final User? user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = 'User not logged in.';
-        });
-      }
+      _setErrorState('User not logged in.');
       return;
     }
 
     try {
       // Fetch the caregiver documents under the patient's schedules subcollection
-      final caregiverSchedulesSnapshot =
-          await FirebaseFirestore.instance
-              .collection('patient') // Top-level patient collection
-              .doc(widget.patientId) // Target patient document
-              .collection('schedules') // Schedules subcollection
-              .get();
+      final caregiverSchedulesSnapshot = await _fetchCaregiverSchedules();
 
       if (caregiverSchedulesSnapshot.docs.isEmpty) {
-        if (mounted) {
-          setState(() {
-            upcomingSchedules = []; // No schedules found
-            _isLoading = false;
-          });
-        }
+        _setSchedulesState([]);
         return;
       }
 
-      // Accumulate all schedules from different caregiver documents
-      final List<Map<String, dynamic>> schedules = [];
-      for (var caregiverDoc in caregiverSchedulesSnapshot.docs) {
-        final caregiverData = caregiverDoc.data();
-        final caregiverId = caregiverDoc.id;
-        final caregiverSchedules = List<Map<String, dynamic>>.from(
-          caregiverData['schedules'] ?? [],
-        );
-
-        // Fetch caregiver details
-        final caregiverRole = await db.getTargetUserRole(caregiverId);
-        if (caregiverRole == null) continue;
-
-        final caregiverSnapshot =
-            await FirebaseFirestore.instance
-                .collection(caregiverRole)
-                .doc(caregiverId)
-                .get();
-
-        if (caregiverSnapshot.exists) {
-          final caregiverName =
-              '${caregiverSnapshot['firstName']} ${caregiverSnapshot['lastName']}';
-
-          for (var schedule in caregiverSchedules) {
-            final date = (schedule['date'] as Timestamp?)?.toDate();
-            if (date == null) continue;
-
-            schedules.add({'date': date, 'caregiverName': caregiverName});
-          }
-        }
-      }
-
-      // Sort schedules by date
-      schedules.sort((a, b) => a['date'].compareTo(b['date']));
-      if (mounted) {
-        setState(() {
-          upcomingSchedules = schedules;
-          _isLoading = false;
-        });
-      }
+      final schedules = await _processCaregiverSchedules(
+        caregiverSchedulesSnapshot,
+      );
+      _setSchedulesState(schedules);
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = 'Failed to fetch schedules: $e';
-        });
+      _setErrorState('Failed to fetch schedules: $e');
+    }
+  }
+
+  Future<QuerySnapshot> _fetchCaregiverSchedules() async {
+    return FirebaseFirestore.instance
+        .collection('patient')
+        .doc(widget.patientId)
+        .collection('schedules')
+        .get();
+  }
+
+  Future<List<Map<String, dynamic>>> _processCaregiverSchedules(
+    QuerySnapshot caregiverSchedulesSnapshot,
+  ) async {
+    final List<Map<String, dynamic>> schedules = [];
+
+    for (var caregiverDoc in caregiverSchedulesSnapshot.docs) {
+      final caregiverData =
+          caregiverDoc.data()
+              as Map<String, dynamic>?; // Safe cast to Map<String, dynamic>
+      if (caregiverData == null) continue;
+
+      final caregiverId = caregiverData['caregiverId'];
+
+      final date =
+          (caregiverData['date'] as Timestamp?)?.toDate(); // Safe null check
+
+      if (date == null) continue;
+
+      // Fetch caregiver name using caregiverId
+      final caregiverName = await _getCaregiverName(caregiverId);
+
+      // Add schedule data to list
+      schedules.add({'date': date, 'caregiverName': caregiverName});
+    }
+
+    // Sort schedules by date
+    schedules.sort((a, b) => a['date'].compareTo(b['date']));
+    return schedules;
+  }
+
+  Future<String> _getCaregiverName(String caregiverId) async {
+    final caregiverRole = await databaseService.fetchAndCacheUserRole(
+      caregiverId,
+    );
+    debugPrint("Schedule CaregiverId: $caregiverId");
+    debugPrint("Schedule CaregiverRole: $caregiverRole");
+    if (caregiverRole == null) return 'Unknown';
+
+    final caregiverSnapshot =
+        await FirebaseFirestore.instance
+            .collection(caregiverRole)
+            .doc(caregiverId)
+            .get();
+
+    if (caregiverSnapshot.exists) {
+      final firstName = caregiverSnapshot['firstName'] as String?;
+      final lastName = caregiverSnapshot['lastName'] as String?;
+      debugPrint("Schedule firstName: $firstName");
+      debugPrint("Schedule lastName: $lastName");
+
+      if (firstName != null && lastName != null) {
+        return '$firstName $lastName';
       }
+    }
+    return 'Unknown';
+  }
+
+  void _setSchedulesState(List<Map<String, dynamic>> schedules) {
+    if (mounted) {
+      setState(() {
+        upcomingSchedules = schedules;
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _setErrorState(String message) {
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = message;
+      });
     }
   }
 
@@ -178,30 +210,21 @@ class PatientScheduleState extends State<PatientSchedule> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.white,
-      appBar: AppBar(
-        title: const Text(
-          'Schedule',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Inter',
-          ),
-        ),
-        backgroundColor: AppColors.white,
-        scrolledUnderElevation: 0.0,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-        child:
-            _isLoading
-                ? _buildLoadingState()
-                : _errorMessage.isNotEmpty
-                ? _buildErrorState()
-                : upcomingSchedules.isEmpty
-                ? _buildNoScheduleState()
-                : _buildScheduleList(),
+    return Container(
+      color: AppColors.black.withValues(alpha: 0.8),
+      width: double.infinity,
+      height: 700,
+      padding: EdgeInsets.all(16),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return _isLoading
+              ? _buildLoadingState()
+              : _errorMessage.isNotEmpty
+              ? _buildErrorState()
+              : upcomingSchedules.isEmpty
+              ? _buildNoScheduleState()
+              : _buildScheduleList();
+        },
       ),
     );
   }
@@ -212,7 +235,7 @@ class PatientScheduleState extends State<PatientSchedule> {
         children: [
           for (var i = 0; i < upcomingSchedules.length; i++) ...[
             _buildScheduleCard(upcomingSchedules[i]),
-            if (i < upcomingSchedules.length - 1) const SizedBox(height: 20),
+            if (i < upcomingSchedules.length - 1) const SizedBox(height: 10),
           ],
         ],
       ),
@@ -228,64 +251,48 @@ class PatientScheduleState extends State<PatientSchedule> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
-        color: AppColors.gray,
-        borderRadius: BorderRadius.circular(10),
+        color: AppColors.white.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(10.0),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Icon(Icons.calendar_today, size: 25),
-              const SizedBox(width: 10.0),
-              Text(
-                formattedDate,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.black,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.calendar_today, size: 20),
+                    const SizedBox(width: 10.0),
+                    Text(formattedDate, style: Textstyle.body),
+                  ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 5),
-          Row(
-            children: [
-              const Icon(Icons.access_time, size: 25),
-              const SizedBox(width: 10.0),
-              Text(
-                formattedTime,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.normal,
-                  color: AppColors.black,
+                Row(
+                  children: [
+                    const Icon(Icons.access_time, size: 20),
+                    const SizedBox(width: 10.0),
+                    Text(formattedTime, style: Textstyle.body),
+                  ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 5),
-          const Divider(thickness: 1.0),
-          const SizedBox(height: 5),
-          const Text(
-            "Healthcare Professional",
-            style: TextStyle(
-              fontSize: 16,
-              fontFamily: 'Inter',
-              fontWeight: FontWeight.bold,
-              color: AppColors.black,
+              ],
             ),
           ),
-          Text(
-            caregiverName,
-            style: const TextStyle(
-              fontSize: 16,
-              fontFamily: 'Inter',
-              fontWeight: FontWeight.normal,
-              color: AppColors.black,
+
+          Divider(color: AppColors.blackTransparent),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Healthcare Professional",
+                  style: Textstyle.body.copyWith(fontWeight: FontWeight.bold),
+                ),
+                Text(caregiverName, style: Textstyle.body),
+              ],
             ),
           ),
         ],
@@ -293,56 +300,43 @@ class PatientScheduleState extends State<PatientSchedule> {
     );
   }
 
-  // Widget for loading state
   Widget _buildLoadingState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [CircularProgressIndicator()],
+        children: [Loader.loaderPurple],
       ),
     );
   }
 
   // Widget for error state
   Widget _buildErrorState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, color: AppColors.black, size: 80),
-          const SizedBox(height: 20.0),
-          Text(
-            _errorMessage,
-            style: const TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 18,
-              fontWeight: FontWeight.normal,
-              color: AppColors.black,
-            ),
-            textAlign: TextAlign.center,
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(
+          Icons.error_outline,
+          color: AppColors.whiteTransparent,
+          size: 70,
+        ),
+        const SizedBox(height: 20.0),
+        Text(
+          _errorMessage,
+          style: Textstyle.bodyWhite.copyWith(
+            color: AppColors.whiteTransparent,
           ),
-          const SizedBox(height: 20.0),
-          TextButton(
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 20.0),
+        SizedBox(
+          width: 100,
+          child: TextButton(
             onPressed: fetchPatientSchedules,
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-              backgroundColor: AppColors.neon,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            child: const Text(
-              'Retry',
-              style: TextStyle(
-                fontSize: 16.0,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Inter',
-                color: Colors.white,
-              ),
-            ),
+            style: Buttonstyle.buttonPurple,
+            child: Text('Retry', style: Textstyle.smallButton),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -351,17 +345,15 @@ class PatientScheduleState extends State<PatientSchedule> {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          Icon(Icons.event_busy, color: AppColors.black, size: 80),
-          SizedBox(height: 20.0),
+        children: [
+          Icon(Icons.event_busy, color: AppColors.whiteTransparent, size: 70),
+          const SizedBox(height: 10.0),
           Text(
             "No schedule yet",
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 18,
-              fontWeight: FontWeight.normal,
-              color: AppColors.black,
+            style: Textstyle.bodyWhite.copyWith(
+              color: AppColors.whiteTransparent,
             ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),

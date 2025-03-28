@@ -13,6 +13,8 @@ import 'package:solace/themes/colors.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:solace/controllers/messaging_service.dart';
+import 'package:solace/themes/inputdecoration.dart';
+import 'package:solace/themes/textstyle.dart';
 
 class PatientTracking extends StatefulWidget {
   final String patientId;
@@ -170,10 +172,11 @@ class PatientTrackingState extends State<PatientTracking> {
 
   Future<int> getLastSubmittedTime(String userId) async {
     try {
-      final userDoc = await FirebaseFirestore.instance
-          .collection('tracking')
-          .doc(userId)
-          .get();
+      final userDoc =
+          await FirebaseFirestore.instance
+              .collection('tracking')
+              .doc(userId)
+              .get();
 
       debugPrint("Last Submitted uid: $userId");
 
@@ -208,40 +211,26 @@ class PatientTrackingState extends State<PatientTracking> {
 
       if (targetToken == null) {
         print(
-            'Error: FCM token is null. Ensure Firebase is initialized properly.');
+          'Error: FCM token is null. Ensure Firebase is initialized properly.',
+        );
         return;
       }
 
-      const title = 'Cooldown Lifted';
-      const body = 'Your cooldown period has ended. You can submit again!';
+      // Define custom data for the notification
+      final Map<String, String> data = {
+        "type": "cooldown_lifted",
+        "title": "Cooldown Lifted",
+        "body": "Your cooldown period has ended. You can submit again!",
+      };
 
-      // Send FCM notification
-      await MessagingService.sendFCMMessage(targetToken, title, body);
-    } catch (e) {
+      // Send data message using MessagingService
+      await MessagingService.sendDataMessage(targetToken, data);
+
+      debugPrint("Cooldown lifted notification sent successfully.");
+    } catch (e, stackTrace) {
       print('Failed to send notification: $e');
+      debugPrint('Stack trace: $stackTrace');
     }
-  }
-
-  InputDecoration _inputDecoration(String label, FocusNode focusNode) {
-    return InputDecoration(
-      labelText: label,
-      filled: true,
-      fillColor: AppColors.gray,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(10), bottomLeft: Radius.circular(10)),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(10), bottomLeft: Radius.circular(10)),
-        borderSide: const BorderSide(
-          color: AppColors.neon,
-          width: 2,
-        ),
-      ),
-      labelStyle: const TextStyle(color: AppColors.black),
-    );
   }
 
   Widget _buildVitalsInputs() {
@@ -262,7 +251,7 @@ class PatientTrackingState extends State<PatientTracking> {
 
     String unitLabel = '';
     List<String? Function(String?)> validators = [
-      FormBuilderValidators.required()
+      FormBuilderValidators.required(),
     ];
 
     List<TextInputFormatter> inputFormatters = [];
@@ -274,8 +263,9 @@ class PatientTrackingState extends State<PatientTracking> {
           FormBuilderValidators.numeric(),
           FormBuilderValidators.between(28.0, 43.0),
         ]);
-        inputFormatters
-            .add(FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,1}$')));
+        inputFormatters.add(
+          FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,1}$')),
+        );
         break;
       case 'Heart Rate':
         unitLabel = 'bpm';
@@ -308,7 +298,8 @@ class PatientTrackingState extends State<PatientTracking> {
         });
 
         inputFormatters.add(
-            FilteringTextInputFormatter.allow(RegExp(r'^\d{0,3}/?\d{0,3}$')));
+          FilteringTextInputFormatter.allow(RegExp(r'^\d{0,3}/?\d{0,3}$')),
+        );
         break;
       case 'Oxygen Saturation':
         unitLabel = '%';
@@ -330,7 +321,7 @@ class PatientTrackingState extends State<PatientTracking> {
         int painValue = int.tryParse(_vitalInputs[key] ?? '0') ?? 0;
         return Column(
           children: [
-            SizedBox(height: 10.0,),
+            SizedBox(height: 10.0),
             _buildSlider('Pain', painValue, (newValue) {
               setState(() {
                 _vitalInputs[key] = newValue.toString();
@@ -360,7 +351,7 @@ class PatientTrackingState extends State<PatientTracking> {
                 child: TextFormField(
                   controller: controller,
                   focusNode: focusNode,
-                  decoration: _inputDecoration(key, focusNode),
+                  decoration: InputDecorationStyles.build(key, focusNode),
                   // keyboardType: TextInputType.number,
                   validator: FormBuilderValidators.compose(validators),
                   inputFormatters: inputFormatters,
@@ -427,18 +418,21 @@ class PatientTrackingState extends State<PatientTracking> {
                 data: SliderTheme.of(context).copyWith(
                   thumbColor: sliderColor, // Thumb color
                   activeTrackColor: sliderColor, // Active track color
-                  inactiveTrackColor:
-                      sliderColor.withValues(alpha: 0.3), // Inactive track
+                  inactiveTrackColor: sliderColor.withValues(
+                    alpha: 0.3,
+                  ), // Inactive track
                   valueIndicatorColor: sliderColor, // Indicator color
                   valueIndicatorTextStyle: const TextStyle(
                     color: Colors.white, // Text color inside the indicator
                     fontWeight: FontWeight.bold,
                   ),
                   trackHeight: 5,
-                  overlayShape:
-                      const RoundSliderOverlayShape(overlayRadius: 20),
-                  thumbShape:
-                      const RoundSliderThumbShape(enabledThumbRadius: 10),
+                  overlayShape: const RoundSliderOverlayShape(
+                    overlayRadius: 20,
+                  ),
+                  thumbShape: const RoundSliderThumbShape(
+                    enabledThumbRadius: 10,
+                  ),
                   valueIndicatorShape: const PaddleSliderValueIndicatorShape(),
                 ),
                 child: Slider(
@@ -455,12 +449,13 @@ class PatientTrackingState extends State<PatientTracking> {
             DropdownButton<int>(
               dropdownColor: AppColors.white,
               value: value,
-              items: List.generate(11, (index) => index).map((val) {
-                return DropdownMenuItem<int>(
-                  value: val,
-                  child: Text(val.toString()),
-                );
-              }).toList(),
+              items:
+                  List.generate(11, (index) => index).map((val) {
+                    return DropdownMenuItem<int>(
+                      value: val,
+                      child: Text(val.toString()),
+                    );
+                  }).toList(),
               onChanged: (val) => onChanged(val!),
             ),
           ],
@@ -550,8 +545,9 @@ class PatientTrackingState extends State<PatientTracking> {
       );
       return;
     }
-    final patientData =
-        await DatabaseService().getPatientData(widget.patientId);
+    final patientData = await DatabaseService().getPatientData(
+      widget.patientId,
+    );
     if (patientData == null) {
       debugPrint('Submit Algo Input No User Data');
       return;
@@ -602,11 +598,12 @@ class PatientTrackingState extends State<PatientTracking> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => ReceiptScreen(
-            uid: uid,
-            inputs: _combinedInputs,
-            algoInputs: _algoInputs,
-          ),
+          builder:
+              (context) => ReceiptScreen(
+                uid: uid,
+                inputs: _combinedInputs,
+                algoInputs: _algoInputs,
+              ),
         ),
       );
       checkAndResetOptions();
@@ -624,30 +621,22 @@ class PatientTrackingState extends State<PatientTracking> {
       child: Scaffold(
         backgroundColor: AppColors.white,
         appBar: AppBar(
-          title: const Text(
-            'Tracking',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Inter',
-            ),
-          ),
+          title: Text('Tracking', style: Textstyle.subheader),
           backgroundColor: AppColors.white,
           scrolledUnderElevation: 0.0,
         ),
         body: SingleChildScrollView(
           child: Container(
             color: AppColors.white,
-            padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-
-            // ✅ Move FormBuilder OUTSIDE StreamBuilder
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: FormBuilder(
-              key: _formKey, // ✅ _formKey now persists between rebuilds
+              key: _formKey,
               child: StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('patient')
-                    .doc(widget.patientId)
-                    .snapshots(),
+                stream:
+                    FirebaseFirestore.instance
+                        .collection('patient')
+                        .doc(widget.patientId)
+                        .snapshots(),
                 builder: (context, snapshot) {
                   final hasData = snapshot.hasData && snapshot.data!.exists;
 
@@ -663,24 +652,18 @@ class PatientTrackingState extends State<PatientTracking> {
                           ),
                           child: Column(
                             children: [
-                              const Text(
+                              Text(
                                 'You cannot input vitals and assessment at the moment.',
                                 textAlign: TextAlign.center,
-                                style: TextStyle(
+                                style: Textstyle.body.copyWith(
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 20,
-                                  fontFamily: 'Inter',
                                 ),
                               ),
                               const SizedBox(height: 10),
                               Text(
                                 _formatCooldownTime(remainingCooldownTime),
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.normal,
-                                  fontFamily: 'Inter',
-                                ),
+                                style: Textstyle.body,
                               ),
                             ],
                           ),
@@ -701,25 +684,17 @@ class PatientTrackingState extends State<PatientTracking> {
                                       width: double.infinity,
                                       child: Column(
                                         mainAxisSize: MainAxisSize.max,
-                                        children: const [
+                                        children: [
                                           Text(
                                             'Patient is not Available',
                                             textAlign: TextAlign.center,
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 20,
-                                              fontFamily: 'Inter',
-                                            ),
+                                            style: Textstyle.body,
                                           ),
                                           SizedBox(height: 10),
                                           Text(
                                             'Go to "Patient" at Home',
                                             textAlign: TextAlign.center,
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.normal,
-                                              fontFamily: 'Inter',
-                                            ),
+                                            style: Textstyle.bodySmall,
                                           ),
                                         ],
                                       ),
@@ -732,26 +707,15 @@ class PatientTrackingState extends State<PatientTracking> {
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
-                                    'Vitals',
-                                    style: TextStyle(
-                                      fontSize: 24.0,
-                                      fontWeight: FontWeight.bold,
-                                      fontFamily: 'Outfit',
-                                    ),
-                                  ),
+                                  Text('Vitals', style: Textstyle.subheader),
                                   const SizedBox(height: 10.0),
                                   _buildVitalsInputs(),
+                                  SizedBox(height: 10.0),
+                                  Divider(),
                                   const SizedBox(height: 10.0),
-                                  const Divider(thickness: 1.0),
-                                  const SizedBox(height: 10.0),
-                                  const Text(
+                                  Text(
                                     'Symptom Assessment',
-                                    style: TextStyle(
-                                      fontSize: 24.0,
-                                      fontWeight: FontWeight.bold,
-                                      fontFamily: 'Outfit',
-                                    ),
+                                    style: Textstyle.subheader,
                                   ),
                                   const SizedBox(height: 20.0),
                                   _buildSliders(),
@@ -759,37 +723,35 @@ class PatientTrackingState extends State<PatientTracking> {
                                   SizedBox(
                                     width: double.infinity,
                                     child: TextButton(
-                                      onPressed: hasData
-                                          ? () => _submit(widget.patientId)
-                                          : null,
+                                      onPressed:
+                                          hasData
+                                              ? () => _submit(widget.patientId)
+                                              : null,
                                       style: TextButton.styleFrom(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 50,
                                           vertical: 10,
                                         ),
                                         shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(10),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
                                         ),
-                                        backgroundColor: hasData
-                                            ? AppColors.neon
-                                            : AppColors.blackTransparent,
+                                        backgroundColor:
+                                            hasData
+                                                ? AppColors.neon
+                                                : AppColors.blackTransparent,
                                       ),
-                                      child: const Text(
+                                      child: Text(
                                         'Submit',
-                                        style: TextStyle(
-                                          fontFamily: 'Inter',
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 18,
-                                          color: AppColors.white,
-                                        ),
+                                        style: Textstyle.largeButton,
                                       ),
                                     ),
                                   ),
                                 ],
                               ),
                           ],
-                        )
+                        ),
                     ],
                   );
                 },

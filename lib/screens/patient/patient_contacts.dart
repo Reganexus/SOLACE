@@ -1,10 +1,16 @@
 // ignore_for_file: use_build_context_synchronously, avoid_print
 
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:solace/services/database.dart';
+import 'package:solace/screens/admin/admin_users.dart';
+import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
+import 'package:solace/themes/dropdownfield.dart';
+import 'package:solace/themes/loader.dart';
+import 'package:solace/themes/textformfield.dart';
+import 'package:solace/themes/textstyle.dart';
+import 'package:solace/utility/contact_utility.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class Contacts extends StatefulWidget {
@@ -17,8 +23,11 @@ class Contacts extends StatefulWidget {
 }
 
 class ContactsScreenState extends State<Contacts> {
-  final DatabaseService db = DatabaseService();
+  final ContactUtility contactUtil = ContactUtility();
   late final String patientId;
+  List<Map<String, dynamic>> nurseContacts = [];
+  List<Map<String, dynamic>> relativeContacts = [];
+
   String collectionName = 'patient';
   bool isLoading = true;
 
@@ -28,16 +37,25 @@ class ContactsScreenState extends State<Contacts> {
     patientId = widget.patientId;
 
     debugPrint("Current user id is: $patientId");
-    _initializeCollectionName();
+    _initializeContacts();
   }
 
-  Future<void> _initializeCollectionName() async {
+  Future<void> _initializeContacts() async {
+    setState(() {
+      isLoading = true;
+    });
+
     try {
+      final contacts = await contactUtil.getContacts(widget.patientId);
+      debugPrint("Contacts: $contacts");
+
       setState(() {
+        nurseContacts = contacts['nurse'] ?? [];
+        relativeContacts = contacts['relative'] ?? [];
         isLoading = false;
       });
     } catch (e) {
-      debugPrint("Error fetching collection name: $e");
+      debugPrint("Error initializing contacts: $e");
       setState(() {
         isLoading = false;
       });
@@ -55,6 +73,168 @@ class ContactsScreenState extends State<Contacts> {
     } else {
       debugPrint('Phone permission denied');
     }
+  }
+
+  Widget _buildContactsList(List<dynamic> contacts) {
+    if (contacts.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.gray,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(
+          "No contacts available",
+          textAlign: TextAlign.center,
+          style: Textstyle.body,
+        ),
+      );
+    }
+
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: contacts.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (context, index) {
+        final contactData = Map<String, dynamic>.from(contacts[index]);
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.gray,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "${contactData['name']}",
+                      style: Textstyle.body.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(contactData['phoneNumber'], style: Textstyle.body),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              GestureDetector(
+                onTap: () {
+                  _showContactDialog(contactData);
+                },
+                child: const Icon(
+                  Icons.more_vert,
+                  size: 24,
+                  color: AppColors.black,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCategoryContacts(String title, List<dynamic> contacts) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: Textstyle.subheader),
+        const SizedBox(height: 10),
+        _buildContactsList(contacts), // Use your existing method here
+      ],
+    );
+  }
+
+  Widget _buildContactsView() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildCategoryContacts("Nurse Contacts", nurseContacts),
+          _buildCategoryContacts("Relative Contacts", relativeContacts),
+        ],
+      ),
+    );
+  }
+
+  void _showContactDialog(Map<String, dynamic> contactData) {
+    debugPrint("Contact data: $contactData");
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppColors.white,
+          title: Text(
+            contactData['name'] ?? "Unknown Contact",
+            style: Textstyle.subheader,
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onTap: () {
+                  Navigator.pop(context);
+                  _makeCall(contactData['phoneNumber']);
+                },
+                child: Row(
+                  children: [
+                    const Icon(Icons.phone, color: AppColors.black, size: 24),
+                    const SizedBox(width: 10),
+                    Text('Call', style: Textstyle.body),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 15),
+              GestureDetector(
+                onTap: () {
+                  Navigator.pop(context);
+                  _editContact(contactData);
+                },
+                child: Row(
+                  children: [
+                    const Icon(Icons.edit, color: AppColors.black, size: 24),
+                    const SizedBox(width: 10),
+                    Text('Edit Contact', style: Textstyle.body),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 15),
+              GestureDetector(
+                onTap: () {
+                  Navigator.pop(context);
+                  _deleteContact(contactData);
+                },
+                child: Row(
+                  children: [
+                    const Icon(Icons.delete, color: AppColors.red, size: 24),
+                    const SizedBox(width: 10),
+                    Text('Delete Contact', style: Textstyle.error),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void showToast(String message) {
+    Fluttertoast.showToast(
+      msg: message,
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+      backgroundColor: AppColors.neon,
+      textColor: AppColors.white,
+      fontSize: 16.0,
+    );
   }
 
   void _addContact() {
@@ -83,77 +263,65 @@ class ContactsScreenState extends State<Contacts> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  "Add Contact",
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontFamily: 'Outfit',
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.black,
-                  ),
-                ),
+                Text("Add Contact", style: Textstyle.subheader),
                 const SizedBox(height: 20),
-                TextField(
+                CustomTextField(
                   controller: firstNameController,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.normal,
-                    color: AppColors.black,
-                  ),
                   focusNode: firstNameFocusNode,
-                  decoration:
-                      _buildInputDecoration("First Name", firstNameFocusNode),
+                  labelText: 'First Name',
+                  enabled: true,
+                  validator:
+                      (val) =>
+                          val == null || val.isEmpty
+                              ? 'First name is required'
+                              : null,
                 ),
                 const SizedBox(height: 10),
-                TextField(
+                CustomTextField(
                   controller: lastNameController,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.normal,
-                    color: AppColors.black,
-                  ),
                   focusNode: lastNameFocusNode,
-                  decoration:
-                      _buildInputDecoration("Last Name", lastNameFocusNode),
+                  labelText: 'Last Name',
+                  enabled: true,
+                  validator:
+                      (val) =>
+                          val == null || val.isEmpty
+                              ? 'Last name is required'
+                              : null,
                 ),
                 const SizedBox(height: 10),
-                TextField(
+                CustomTextField(
                   controller: numberController,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.normal,
-                    color: AppColors.black,
-                  ),
                   focusNode: numberFocusNode,
-                  decoration:
-                      _buildInputDecoration("Phone Number", numberFocusNode),
+                  labelText: 'Phone Number',
+                  enabled: true,
+                  validator: (val) {
+                    if (val == null || val.isEmpty) {
+                      return 'Phone number is required';
+                    }
+                    if (!RegExp(r'^09\d{9}$').hasMatch(val)) {
+                      return 'Invalid phone number format';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
+                CustomDropdownField<String>(
                   value: category,
-                  items: const [
-                    DropdownMenuItem(
-                        value: "relative", child: Text("Relative")),
-                    DropdownMenuItem(value: "nurse", child: Text("Nurse")),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      category = value;
+                  focusNode: categoryFocusNode,
+                  labelText: 'Category',
+                  enabled: true,
+                  items: const ['relative', 'nurse'],
+                  onChanged: (val) {
+                    if (val != null) {
+                      category = val;
                     }
                   },
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.normal,
-                    color: AppColors.black,
-                  ),
-                  focusNode: categoryFocusNode,
-                  decoration:
-                      _buildInputDecoration("Category", categoryFocusNode),
-                  dropdownColor: AppColors.white,
+                  validator:
+                      (val) =>
+                          val == null || val.isEmpty
+                              ? 'Select a category'
+                              : null,
+                  displayItem: (item) => item.capitalize(),
                 ),
                 const SizedBox(height: 20),
                 Row(
@@ -161,100 +329,27 @@ class ContactsScreenState extends State<Contacts> {
                     Expanded(
                       child: TextButton(
                         onPressed: () => Navigator.pop(context),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 15, vertical: 5),
-                          backgroundColor: AppColors.red,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: const Text(
-                          "Cancel",
-                          style: TextStyle(
-                            fontSize: 16.0,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Inter',
-                            color: Colors.white,
-                          ),
-                        ),
+                        style: Buttonstyle.buttonRed,
+                        child: Text("Cancel", style: Textstyle.smallButton),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: TextButton(
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 15, vertical: 5),
-                          backgroundColor: AppColors.neon,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
+                        style: Buttonstyle.buttonNeon,
                         onPressed: () async {
                           if (firstNameController.text.isEmpty ||
                               lastNameController.text.isEmpty ||
                               numberController.text.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text("All fields are required")),
-                            );
+                            showToast("All fields are required.");
                             return;
                           }
 
-                          // Capitalize first and last names
-                          final firstName = firstNameController.text.trim();
-                          final lastName = lastNameController.text.trim();
-                          final capitalizedFirstName =
-                              firstName[0].toUpperCase() +
-                                  firstName.substring(1);
-                          final capitalizedLastName =
-                              lastName[0].toUpperCase() + lastName.substring(1);
-
-                          // Validate phone number
-                          final phoneNumber = numberController.text.trim();
-                          final phoneRegExp = RegExp(r'^09\d{9}$');
-                          if (phoneNumber.isEmpty ||
-                              !phoneRegExp.hasMatch(phoneNumber)) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('Invalid phone number.')),
-                            );
-                            return;
-                          }
-
-                          final contactData = {
-                            "firstName": capitalizedFirstName,
-                            "lastName": capitalizedLastName,
-                            "phone": phoneNumber,
-                            "category": category,
-                          };
-
-                          try {
-                            debugPrint("Add Contact: $patientId");
-                            await db.addContact(
-                                patientId, category, contactData);
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text("Contact added successfully")),
-                            );
-                          } catch (e) {
-                            debugPrint("Error adding contact: $e");
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text("Failed to add contact")),
-                            );
-                          }
+                          // Handle form submission logic here
                         },
-                        child: const Text(
+                        child: Text(
                           "Add Contact",
-                          style: TextStyle(
-                            fontSize: 16.0,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Inter',
-                            color: Colors.white,
-                          ),
+                          style: Textstyle.smallButton,
                         ),
                       ),
                     ),
@@ -262,160 +357,6 @@ class ContactsScreenState extends State<Contacts> {
                 ),
               ],
             ),
-          ),
-        );
-      },
-    );
-  }
-
-  // Header for Friends & Requests list
-  Widget _buildHeader(String title) {
-    return SizedBox(
-      width: double.infinity,
-      child: Text(
-        title,
-        textAlign: TextAlign.left,
-        style: TextStyle(
-          fontSize: 24,
-          fontFamily: 'Inter',
-          fontWeight: FontWeight.bold,
-          color: AppColors.black,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildContactsList(List<dynamic> contacts) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ...contacts.map((contact) {
-          final contactData = Map<String, dynamic>.from(contact);
-
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-            decoration: BoxDecoration(
-              color: AppColors.gray,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "${contactData['firstName']} ${contactData['lastName']}",
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        contactData['phone'],
-                        style: const TextStyle(
-                          fontSize: 18,
-                          color: AppColors.blackTransparent,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                GestureDetector(
-                  onTap: () {
-                    _showContactDialog(contactData);
-                  },
-                  child: const Icon(
-                    Icons.more_vert,
-                    size: 30,
-                    color: AppColors.black,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }),
-      ],
-    );
-  }
-
-  void _showContactDialog(Map<String, dynamic> contactData) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: AppColors.white,
-          title: Text(
-            "${contactData['firstName']} ${contactData['lastName']}",
-            style: const TextStyle(
-              fontSize: 24,
-              fontFamily: 'Outfit',
-              fontWeight: FontWeight.bold,
-              color: AppColors.black,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(
-                  Icons.phone,
-                  color: AppColors.black,
-                  size: 25,
-                ),
-                title: const Text(
-                  'Call',
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.normal,
-                      color: AppColors.black),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _makeCall(contactData['phone']);
-                },
-              ),
-              ListTile(
-                leading: const Icon(
-                  Icons.edit,
-                  color: AppColors.black,
-                  size: 25,
-                ),
-                title: const Text(
-                  'Edit Contact',
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.normal,
-                      color: AppColors.black),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _editContact(contactData);
-                },
-              ),
-              ListTile(
-                leading: const Icon(
-                  Icons.delete,
-                  color: AppColors.black,
-                  size: 25,
-                ),
-                title: const Text(
-                  'Delete Contact',
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.normal,
-                      color: AppColors.black),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _deleteContact(contactData);
-                },
-              ),
-            ],
           ),
         );
       },
@@ -423,25 +364,33 @@ class ContactsScreenState extends State<Contacts> {
   }
 
   void _editContact(Map<String, dynamic> contactData) {
-    final TextEditingController firstNameController =
-        TextEditingController(text: contactData['firstName']);
-    final TextEditingController lastNameController =
-        TextEditingController(text: contactData['lastName']);
-    final TextEditingController numberController =
-        TextEditingController(text: contactData['phone']);
+    final TextEditingController firstNameController = TextEditingController(
+      text:
+          contactData['name'].split(
+            " ",
+          )[0], // Assuming 'name' is "FirstName LastName"
+    );
+    final TextEditingController lastNameController = TextEditingController(
+      text:
+          contactData['name'].split(" ").length > 1
+              ? contactData['name'].split(" ")[1]
+              : "",
+    );
+    final TextEditingController numberController = TextEditingController(
+      text: contactData['phoneNumber'],
+    );
     final FocusNode firstNameFocusNode = FocusNode();
     final FocusNode lastNameFocusNode = FocusNode();
     final FocusNode numberFocusNode = FocusNode();
     final FocusNode categoryFocusNode = FocusNode();
-    String category = contactData['category']; // Retain the original category
+    String category = contactData['category'];
+    String oldPhoneNumber = contactData['phoneNumber'];
 
     showDialog(
       context: context,
       builder: (context) {
         return Dialog(
           child: Container(
-            width: MediaQuery.of(context).size.width *
-                0.8, // Adjust width as needed
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: AppColors.white,
@@ -449,165 +398,125 @@ class ContactsScreenState extends State<Contacts> {
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  "Edit Contact",
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontFamily: 'Outfit',
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.black,
-                  ),
-                ),
+                Text("Edit Contact", style: Textstyle.subheader),
                 const SizedBox(height: 20),
-                TextField(
+                CustomTextField(
                   controller: firstNameController,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.normal,
-                    color: AppColors.black,
-                  ),
                   focusNode: firstNameFocusNode,
-                  decoration:
-                      _buildInputDecoration("First Name", firstNameFocusNode),
+                  labelText: 'First Name',
+                  enabled: true,
+                  validator:
+                      (val) =>
+                          val == null || val.isEmpty
+                              ? 'First name is required'
+                              : null,
                 ),
                 const SizedBox(height: 10),
-                TextField(
+                CustomTextField(
                   controller: lastNameController,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.normal,
-                    color: AppColors.black,
-                  ),
                   focusNode: lastNameFocusNode,
-                  decoration:
-                      _buildInputDecoration("Last Name", lastNameFocusNode),
+                  labelText: 'Last Name',
+                  enabled: true,
+                  validator:
+                      (val) =>
+                          val == null || val.isEmpty
+                              ? 'Last name is required'
+                              : null,
                 ),
                 const SizedBox(height: 10),
-                TextField(
+                CustomTextField(
                   controller: numberController,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.normal,
-                    color: AppColors.black,
-                  ),
                   focusNode: numberFocusNode,
-                  decoration:
-                      _buildInputDecoration("Phone Number", numberFocusNode),
+                  labelText: 'Phone Number',
+                  enabled: true,
+                  validator: (val) {
+                    if (val == null || val.isEmpty) {
+                      return 'Phone number is required';
+                    }
+                    if (!RegExp(r'^09\d{9}$').hasMatch(val)) {
+                      return 'Invalid phone number format';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
+                CustomDropdownField<String>(
                   value: category,
-                  items: const [
-                    DropdownMenuItem(
-                        value: "relative", child: Text("Relative")),
-                    DropdownMenuItem(value: "nurse", child: Text("Nurse")),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      category = value;
+                  focusNode: categoryFocusNode,
+                  labelText: 'Category',
+                  enabled: true,
+                  items: const ['relative', 'nurse'],
+                  onChanged: (val) {
+                    if (val != null) {
+                      category = val;
                     }
                   },
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.normal,
-                    color: AppColors.black,
-                  ),
-                  focusNode: categoryFocusNode,
-                  decoration:
-                      _buildInputDecoration("Category", categoryFocusNode),
-                  dropdownColor: AppColors.white,
+                  validator:
+                      (val) =>
+                          val == null || val.isEmpty
+                              ? 'Select a category'
+                              : null,
+                  displayItem: (item) => item.capitalize(),
                 ),
                 const SizedBox(height: 20),
                 Row(
                   children: [
                     Expanded(
                       child: TextButton(
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 15, vertical: 5),
-                          backgroundColor: AppColors.red,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
                         onPressed: () => Navigator.pop(context),
-                        child: const Text(
-                          "Cancel",
-                          style: TextStyle(
-                            fontSize: 16.0,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Inter',
-                            color: Colors.white,
-                          ),
-                        ),
+                        style: Buttonstyle.buttonRed,
+                        child: Text("Cancel", style: Textstyle.smallButton),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: TextButton(
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 15, vertical: 5),
-                          backgroundColor: AppColors.neon,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
+                        style: Buttonstyle.buttonNeon,
                         onPressed: () async {
                           if (firstNameController.text.isEmpty ||
                               lastNameController.text.isEmpty ||
                               numberController.text.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text("All fields are required")),
-                            );
+                            showToast("All fields are required.");
                             return;
                           }
 
+                          final name =
+                              "${firstNameController.text.trim()} ${lastNameController.text.trim()}";
+
                           final updatedContact = {
-                            'firstName': firstNameController.text.trim(),
-                            'lastName': lastNameController.text.trim(),
-                            'phone': numberController.text.trim(),
-                            'category': category, // Update category
+                            'name': name,
+                            'phoneNumber': numberController.text.trim(),
+                            'category': category,
                           };
 
+                          if (!RegExp(
+                            r'^09\d{9}$',
+                          ).hasMatch(updatedContact['phoneNumber']!)) {
+                            showToast('Invalid phone number format.');
+                            return;
+                          }
+
                           try {
-                            await db.editContact(
-                              widget.patientId,
-                              contactData['category'], // Original category
-                              updatedContact,
-                              contactData['phone'], // Old phone number
+                            await contactUtil.editContact(
+                              userId: widget.patientId,
+                              category: contactData['category'],
+                              updatedContact: updatedContact,
+                              oldPhoneNumber: oldPhoneNumber,
                             );
+
                             Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content:
-                                      Text("Contact updated successfully")),
-                            );
+                            showToast("Contact updated successfully.");
+                            _initializeContacts();
                           } catch (e) {
                             debugPrint("Error updating contact: $e");
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text("Failed to update contact")),
-                            );
+                            showToast("Failed to update contact.");
                           }
                         },
-                        child: const Text(
-                          "Save",
-                          style: TextStyle(
-                            fontSize: 16.0,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Inter',
-                            color: Colors.white,
-                          ),
-                        ),
+                        child: Text("Save", style: Textstyle.smallButton),
                       ),
-                    )
+                    ),
                   ],
                 ),
               ],
@@ -619,123 +528,53 @@ class ContactsScreenState extends State<Contacts> {
   }
 
   void _deleteContact(Map<String, dynamic> contactData) {
+    final String name = contactData['name'] ?? 'Contact';
+    final String category = contactData['category'] ?? '';
+    final String phoneNumber = contactData['phoneNumber'] ?? '';
+
+    if (category.isEmpty || phoneNumber.isEmpty) {
+      showToast("Invalid contact data.");
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           backgroundColor: AppColors.white,
-          title: const Text(
-            "Delete Contact",
-            style: TextStyle(
-              fontSize: 24,
-              fontFamily: 'Outfit',
-              fontWeight: FontWeight.bold,
-              color: AppColors.black,
-            ),
-          ),
-          content: const Text(
-            "Are you sure you want to delete this contact?",
-            style: TextStyle(
-                fontSize: 16,
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.normal,
-                color: AppColors.black),
+          title: Text("Delete Contact", style: Textstyle.subheader),
+          content: Text(
+            "Are you sure you want to delete $name?",
+            style: Textstyle.body,
           ),
           actions: [
-            Row(
-              children: [
-                Expanded(
-                  child: TextButton(
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 15, vertical: 5),
-                      backgroundColor: AppColors.neon,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text(
-                      "Cancel",
-                      style: TextStyle(
-                        fontSize: 16.0,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Inter',
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  width: 10.0,
-                ),
-                Expanded(
-                  child: TextButton(
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 15, vertical: 5),
-                      backgroundColor: AppColors.red,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    onPressed: () async {
-                      try {
-                        await db.deleteContact(
-                          widget.patientId,
-                          contactData[
-                              'category'], // Category for precise deletion
-                          contactData[
-                              'phone'], // Unique identifier (phone number)
-                        );
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text("Contact deleted successfully")),
-                        );
-                      } catch (e) {
-                        debugPrint("Error deleting contact: $e");
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text("Failed to delete contact")),
-                        );
-                      }
-                    },
-                    child: const Text(
-                      "Delete",
-                      style: TextStyle(
-                        fontSize: 16.0,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Inter',
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                )
-              ],
+            TextButton(
+              style: Buttonstyle.buttonNeon,
+              onPressed: () => Navigator.pop(context),
+              child: Text("Cancel", style: Textstyle.smallButton),
+            ),
+            TextButton(
+              style: Buttonstyle.buttonRed,
+              onPressed: () async {
+                try {
+                  await contactUtil.deleteContact(
+                    userId: widget.patientId,
+                    category: category,
+                    phoneNumberToDelete: phoneNumber,
+                  );
+                  Navigator.pop(context);
+                  showToast("$name deleted successfully.");
+                  _initializeContacts();
+                } catch (e) {
+                  debugPrint("Error deleting contact: $e");
+                  showToast("Failed to delete contact.");
+                }
+              },
+              child: Text("Delete", style: Textstyle.smallButton),
             ),
           ],
         );
       },
-    );
-  }
-
-  InputDecoration _buildInputDecoration(String label, FocusNode focusNode) {
-    return InputDecoration(
-      labelText: label,
-      filled: true,
-      fillColor: AppColors.gray,
-      border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-      focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: AppColors.neon, width: 2)),
-      labelStyle: TextStyle(
-        fontSize: 16,
-        fontFamily: 'Inter',
-        fontWeight: FontWeight.normal,
-        color: focusNode.hasFocus ? AppColors.neon : AppColors.black,
-      ),
     );
   }
 
@@ -746,112 +585,19 @@ class ContactsScreenState extends State<Contacts> {
       appBar: AppBar(
         backgroundColor: AppColors.white,
         scrolledUnderElevation: 0.0,
-        title: const Text(
-          'Contacts',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Inter',
-          ),
-        ),
+        title: Text('Contacts', style: Textstyle.subheader),
         actions: [
           GestureDetector(
-            onTap: _addContact, // Call the _addContact function when tapped
+            onTap: _addContact,
             child: Padding(
-              padding: const EdgeInsets.only(right: 24.0),
-              child: Icon(
-                Icons.person_add,
-                size: 30,
-                color: AppColors.black,
-              ),
+              padding: const EdgeInsets.only(right: 16.0),
+              child: Icon(Icons.person_add, size: 24, color: AppColors.black),
             ),
           ),
         ],
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : StreamBuilder<DocumentSnapshot?>(
-              stream: FirebaseFirestore.instance
-                  .collection('patient') // Use dynamic collection name
-                  .doc(patientId)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (!snapshot.hasData || snapshot.data!.data() == null) {
-                  return const Center(
-                      child: Text('No contact data available.'));
-                }
-
-                final userDoc = snapshot.data!.data() as Map<String, dynamic>;
-                final contacts = userDoc['contacts'] as Map<String, dynamic>? ??
-                    {'relative': [], 'nurse': []};
-
-                // Safely access relative and nurse contacts
-                final relativeContacts =
-                    (contacts['relative'] as List<dynamic>? ?? []);
-                final nurseContacts =
-                    (contacts['nurse'] as List<dynamic>? ?? []);
-
-                return SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildHeader('Relatives'),
-                        const SizedBox(height: 10),
-                        if (relativeContacts.isNotEmpty)
-                          _buildContactsList(relativeContacts)
-                        else
-                          Container(
-                            alignment: Alignment.center,
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade200,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Text(
-                              "No relative contacts",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontFamily: 'Inter',
-                                fontWeight: FontWeight.normal,
-                                color: AppColors.black,
-                              ),
-                            ),
-                          ),
-                        const SizedBox(height: 20),
-                        _buildHeader('Nurses'),
-                        const SizedBox(height: 10),
-                        if (nurseContacts.isNotEmpty)
-                          _buildContactsList(nurseContacts)
-                        else
-                          Container(
-                            alignment: Alignment.center,
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade200,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Text(
-                              "No nurse contacts",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontFamily: 'Inter',
-                                fontWeight: FontWeight.normal,
-                                color: AppColors.black,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
+      body:
+          isLoading ? Center(child: Loader.loaderPurple) : _buildContactsView(),
     );
   }
 }

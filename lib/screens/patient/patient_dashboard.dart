@@ -1,17 +1,20 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:solace/screens/caregiver/caregiver_add_medicine.dart';
 import 'package:solace/screens/caregiver/caregiver_add_task.dart';
+import 'package:solace/screens/patient/patient_edit.dart';
 import 'package:solace/screens/patient/patient_history.dart';
 import 'package:solace/screens/patient/patient_intervention.dart';
-import 'package:solace/screens/patient/patient_medicine.dart';
 import 'package:solace/screens/patient/patient_note.dart';
-import 'package:solace/screens/patient/patient_schedule.dart';
-import 'package:solace/screens/patient/patient_tasks.dart';
+import 'package:solace/screens/patient/patient_stream.dart';
 import 'package:solace/screens/patient/patient_tracking.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/screens/patient/patient_contacts.dart';
+import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
+import 'package:solace/themes/textstyle.dart';
+import 'package:solace/utility/schedule_utility.dart';
 
 class PatientsDashboard extends StatefulWidget {
   final String patientId;
@@ -30,43 +33,26 @@ class PatientsDashboard extends StatefulWidget {
 }
 
 class _PatientsDashboardState extends State<PatientsDashboard> {
-  final DatabaseService _databaseService = DatabaseService();
+  DatabaseService databaseService = DatabaseService();
+  ScheduleUtility scheduleUtility = ScheduleUtility();
   Map<String, dynamic>? patientData;
   bool isLoading = true;
+  late final PageController _pageController;
 
   @override
   void initState() {
     super.initState();
     fetchPatientData();
+    _pageController = PageController(initialPage: 0);
     debugPrint("Patient Dashboard Patient ID: ${widget.patientId}");
     debugPrint("Patient Dashboard Caregiver ID: ${widget.caregiverId}");
   }
 
-  final Map<String, Widget Function(String, String)> routes = {
-    'Contacts': (caregiverId, patientId) => Contacts(patientId: patientId),
-    'History': (caregiverId, patientId) => PatientHistory(patientId: patientId),
-    'Intervention':
-        (caregiverId, patientId) => PatientIntervention(patientId: patientId),
-    'Medicine':
-        (caregiverId, patientId) => PatientMedicine(patientId: patientId),
-    'Notes': (caregiverId, patientId) => PatientNote(patientId: patientId),
-    'Schedules':
-        (caregiverId, patientId) => PatientSchedule(patientId: patientId),
-    'Tasks': (caregiverId, patientId) => PatientTasks(patientId: patientId),
-    'Tracking':
-        (caregiverId, patientId) => PatientTracking(patientId: patientId),
-  };
-
-  final List<Map<String, dynamic>> gridItems = [
-    {'label': 'Contacts', 'icon': Icons.contact_page_rounded},
-    {'label': 'History', 'icon': Icons.history},
-    {'label': 'Intervention', 'icon': Icons.healing},
-    {'label': 'Medicine', 'icon': Icons.medical_services_rounded},
-    {'label': 'Notes', 'icon': Icons.create_rounded},
-    {'label': 'Schedules', 'icon': Icons.calendar_today},
-    {'label': 'Tasks', 'icon': Icons.task},
-    {'label': 'Tracking', 'icon': Icons.monitor_heart_rounded},
-  ];
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   Future<void> fetchPatientData() async {
     try {
@@ -77,204 +63,454 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
               .get();
 
       if (snapshot.exists) {
-        setState(() {
-          patientData = snapshot.data();
-          isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            patientData = snapshot.data();
+            isLoading = false;
+          });
+        }
       } else {
-        setState(() {
-          isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            isLoading = false;
+          });
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Patient data not found.")),
         );
       }
     } catch (e) {
-      setState(() {
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error fetching patient data: $e")),
       );
     }
   }
 
-  List<Widget> _buildAlternatingItems(
-    BuildContext context,
-    String caregiverId,
-    String patientId,
-  ) {
-    final List<Widget> items = [];
-    for (int i = 0; i < gridItems.length; i += 4) {
-      final iconBatch = gridItems.skip(i).take(4).toList();
-
-      // Add a Row combining icons and their labels
-      items.add(
-        Padding(
-          padding: const EdgeInsets.only(
-            bottom: 20,
-          ), // Adjust spacing between batches
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: List.generate(
-              iconBatch.length * 2 - 1, // Include spaces between items
-              (index) {
-                if (index.isEven) {
-                  // Icon and label container
-                  final item = iconBatch[index ~/ 2];
-                  return Expanded(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (context) => routes[item['label']]!(
-                                      caregiverId,
-                                      patientId,
-                                    ),
-                              ),
-                            );
-                          },
-                          child: _buildIconContainer(item['icon']),
-                        ),
-                        const SizedBox(
-                          height: 5,
-                        ), // Adjust spacing between icon and label
-                        Text(
-                          item['label'],
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontFamily: 'Inter',
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                } else {
-                  // Spacer between items
-                  return const SizedBox(width: 10);
-                }
-              },
+  Widget _buildScheduleContainer() {
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            width: double.infinity,
+            height: 180,
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('lib/assets/images/auth/calendar.jpg'),
+                fit: BoxFit.cover,
+              ),
             ),
+            child: Container(color: AppColors.black.withValues(alpha: 0.4)),
           ),
         ),
-      );
-    }
-    return items;
+        Positioned(
+          bottom: 20,
+          left: 20,
+          right: 20,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Title
+              Text(
+                'Schedule Patient',
+                style: Textstyle.heading.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.white,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Set appointments and visit to the patient at a particular time and day.',
+                style: Textstyle.body.copyWith(color: AppColors.white),
+              ),
+
+              SizedBox(
+                width: 200,
+                child: TextButton(
+                  onPressed: () {
+                    _scheduleAppointment(widget.caregiverId, widget.patientId);
+                  },
+                  style: Buttonstyle.buttonDarkGray,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Schedule',
+                        style: Textstyle.smallButton.copyWith(
+                          color: AppColors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.edit_calendar,
+                        size: 16,
+                        color: AppColors.white,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
-  Widget _buildIconContainer(IconData icon) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.gray,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      alignment: Alignment.center,
-      padding: const EdgeInsets.all(28),
-      child: Icon(icon, size: 28, color: AppColors.black),
+  Widget _buildTaskContainer() {
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            width: double.infinity,
+            height: 180,
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('lib/assets/images/auth/task.jpg'),
+                fit: BoxFit.cover,
+              ),
+            ),
+            child: Container(color: AppColors.black.withValues(alpha: 0.4)),
+          ),
+        ),
+        Positioned(
+          bottom: 20,
+          left: 20,
+          right: 20,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Title
+              Text(
+                'Set Task',
+                style: Textstyle.heading.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.white,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Set tasks for the patient to do.',
+                style: Textstyle.body.copyWith(color: AppColors.white),
+              ),
+
+              SizedBox(
+                width: 200,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (context) =>
+                                ViewPatientTask(patientId: widget.patientId),
+                      ),
+                    );
+                  },
+                  style: Buttonstyle.buttonDarkGray,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Give Task',
+                        style: Textstyle.smallButton.copyWith(
+                          color: AppColors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.edit_calendar,
+                        size: 16,
+                        color: AppColors.white,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMedicineContainer() {
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            width: double.infinity,
+            height: 180,
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('lib/assets/images/auth/medicine.jpg'),
+                fit: BoxFit.cover,
+              ),
+            ),
+            child: Container(color: AppColors.black.withValues(alpha: 0.4)),
+          ),
+        ),
+        Positioned(
+          bottom: 20,
+          left: 20,
+          right: 20,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Title
+              Text(
+                'Prescribe Medicine',
+                style: Textstyle.heading.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.white,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Give medications to the patient to take.',
+                style: Textstyle.body.copyWith(color: AppColors.white),
+              ),
+
+              SizedBox(
+                width: 200,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (context) => ViewPatientMedicine(
+                              patientId: widget.patientId,
+                            ),
+                      ),
+                    );
+                  },
+                  style: Buttonstyle.buttonDarkGray,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Prescribe Medicine',
+                        style: Textstyle.smallButton.copyWith(
+                          color: AppColors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.medical_services_rounded,
+                        size: 16,
+                        color: AppColors.white,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTracking() {
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            width: double.infinity,
+            height: 180,
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('lib/assets/images/auth/tracking.jpg'),
+                fit: BoxFit.cover,
+              ),
+            ),
+            child: Container(color: AppColors.black.withValues(alpha: 0.4)),
+          ),
+        ),
+        Positioned(
+          bottom: 20,
+          left: 20,
+          right: 20,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Title
+              Text(
+                'Track Patient',
+                style: Textstyle.heading.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.white,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Give inputs to monitor and track patient symptom flare-ups and vitals.',
+                style: Textstyle.body.copyWith(color: AppColors.white),
+              ),
+
+              SizedBox(
+                width: 200,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (context) =>
+                                PatientTracking(patientId: widget.patientId),
+                      ),
+                    );
+                  },
+                  style: Buttonstyle.buttonDarkGray,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Track Patient',
+                        style: Textstyle.smallButton.copyWith(
+                          color: AppColors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.monitor_heart_rounded,
+                        size: 16,
+                        color: AppColors.white,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNotes() {
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            width: double.infinity,
+            height: 180,
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('lib/assets/images/auth/notes.jpg'),
+                fit: BoxFit.cover,
+              ),
+            ),
+            child: Container(color: AppColors.black.withValues(alpha: 0.4)),
+          ),
+        ),
+        Positioned(
+          bottom: 20,
+          left: 20,
+          right: 20,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Title
+              Text(
+                'Take Notes',
+                style: Textstyle.heading.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.white,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Add notes to the current events and changes in the condition of patient.',
+                style: Textstyle.body.copyWith(color: AppColors.white),
+              ),
+
+              SizedBox(
+                width: 200,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (context) =>
+                                PatientNote(patientId: widget.patientId),
+                      ),
+                    );
+                  },
+                  style: Buttonstyle.buttonDarkGray,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Add Note',
+                        style: Textstyle.smallButton.copyWith(
+                          color: AppColors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.edit_calendar_rounded,
+                        size: 16,
+                        color: AppColors.white,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildActions(String role) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        Expanded(
-          child: TextButton(
-            onPressed: () {
-              _scheduleAppointment(widget.caregiverId, widget.patientId);
-            },
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              backgroundColor: AppColors.purple,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            child: const Text(
-              'Schedule',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-                color: AppColors.white,
-              ),
-            ),
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("What you can do", style: Textstyle.subheader),
+          const SizedBox(height: 10.0),
+          Text(
+            "Listed below are the features you can use to effectively monitor and manage the patient.",
+            style: Textstyle.body,
           ),
-        ),
-        const SizedBox(width: 10.0),
-        Expanded(
-          child: TextButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder:
-                      (context) => ViewPatientTask(patientId: widget.patientId),
-                ),
-              );
-            },
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              backgroundColor: AppColors.darkpurple,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            child: const Text(
-              'Add Task',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-                color: AppColors.white,
-              ),
-            ),
-          ),
-        ),
-        if (role == 'doctor') ...[
-          const SizedBox(width: 10.0), // Add spacing for the doctor role
-          Expanded(
-            child: TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder:
-                        (context) =>
-                            ViewPatientMedicine(patientId: widget.patientId),
-                  ),
-                );
-              },
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ),
-                backgroundColor: AppColors.darkblue,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: const Text(
-                'Add Med',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  color: AppColors.white,
-                ),
-              ),
-            ),
-          ),
+          const SizedBox(height: 20.0),
+          _buildTracking(),
+          const SizedBox(height: 10.0),
+          _buildNotes(),
+          const SizedBox(height: 10.0),
+          _buildScheduleContainer(),
+          const SizedBox(height: 10.0),
+          _buildTaskContainer(),
+          if (role == 'doctor') ...[
+            const SizedBox(height: 10.0),
+            _buildMedicineContainer(),
+          ],
         ],
-      ],
+      ),
     );
+  }
+
+  Widget _buildInterventions() {
+    return PatientInterventions(patientId: widget.patientId);
   }
 
   Future<void> _scheduleAppointment(
@@ -348,46 +584,269 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
         FirebaseFirestore.instance.collection('_').doc().id;
 
     try {
-      debugPrint("Schedule caregiverId: $caregiverId");
-      debugPrint("Schedule scheduledDateTime: $scheduledDateTime");
-      debugPrint("Schedule patientId: $patientId");
-      debugPrint("Schedule scheduleId: $scheduleId");
+      final caregiverRole = await databaseService.fetchAndCacheUserRole(
+        caregiverId,
+      );
+      final patientRole = await databaseService.fetchAndCacheUserRole(
+        patientId,
+      );
 
-      // Save schedule in Firestore for both caregiver and patient
-      await _databaseService.saveScheduleForCaregiver(
-        caregiverId,
-        scheduledDateTime,
-        patientId,
-        scheduleId,
+      if (caregiverRole == null || patientRole == null) {
+        debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to schedule. Roles not found.")),
+        );
+        return;
+      }
+
+      await scheduleUtility.saveSchedule(
+        userId: caregiverId,
+        scheduleId: scheduleId,
+        subCollectionName: 'schedules',
+        scheduledDateTime: scheduledDateTime,
+        extraData: {'patientId': patientId},
+        collectionName: caregiverRole,
       );
-      await _databaseService.saveScheduleForPatient(
-        patientId,
-        scheduledDateTime,
-        caregiverId,
-        scheduleId,
+
+      await scheduleUtility.saveSchedule(
+        userId: patientId,
+        scheduleId: scheduleId,
+        subCollectionName: 'schedules',
+        scheduledDateTime: scheduledDateTime,
+        extraData: {'caregiverId': caregiverId},
+        collectionName: patientRole,
       );
+
       debugPrint("Schedule saved for both caregiver and patient.");
-
-      // Show success Snackbar
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Appointment successfully scheduled!'),
-          backgroundColor: Colors.green,
-        ),
+        const SnackBar(content: Text('Appointment successfully scheduled!')),
       );
     } catch (e) {
       debugPrint("Failed to save schedule: $e");
-
-      // Show error Snackbar
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Failed to schedule appointment. Please try again.',
-          ),
-          backgroundColor: Colors.red,
-        ),
+        const SnackBar(content: Text("Failed to schedule appointment.")),
       );
     }
+  }
+
+  Widget _buildPatientStatus() {
+    return StreamBuilder<DocumentSnapshot>(
+      stream:
+          FirebaseFirestore.instance
+              .collection('patient') // Assuming you have a 'patient' collection
+              .doc(
+                widget.patientId,
+              ) // Document ID for the current user (patient)
+              .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return const Center(child: Text('Error fetching data'));
+        }
+
+        // Extract patient data and status directly
+        final patientData = snapshot.data?.data() as Map<String, dynamic>?;
+        final status =
+            patientData?['status'] ?? 'stable'; // Default to 'stable' if null
+        final isUnstable = status == 'unstable';
+        final isUnavailable = patientData == null;
+        final String name =
+            '${patientData?['firstName']} ${patientData?['lastName']}';
+        final backgroundColor =
+            isUnavailable
+                ? AppColors.blackTransparent
+                : isUnstable
+                ? AppColors.red
+                : AppColors.neon;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: double.infinity,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    color: backgroundColor,
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(height: 30),
+                        Text(
+                          name,
+                          style: Textstyle.bodyWhite.copyWith(fontSize: 20),
+                        ),
+                        Text(
+                          isUnavailable
+                              ? 'Unavailable'
+                              : isUnstable
+                              ? 'Unstable'
+                              : 'Stable',
+                          style: Textstyle.heading.copyWith(
+                            fontSize: 40,
+                            color: AppColors.white,
+                          ),
+                        ),
+                        SizedBox(height: 20),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder:
+                                        (context) => PatientHistory(
+                                          patientId: widget.patientId,
+                                        ),
+                                  ),
+                                );
+                              },
+                              child: Row(
+                                children: [
+                                  Text(
+                                    'View Patient History',
+                                    style: Textstyle.bodyWhite.copyWith(
+                                      fontSize: 16,
+                                      decoration: TextDecoration.underline,
+                                      decorationColor: AppColors.white,
+                                    ),
+                                  ),
+                                  SizedBox(width: 5),
+                                  Icon(
+                                    Icons.arrow_forward_ios_rounded,
+                                    size: 16,
+                                    color: AppColors.white,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16.0),
+                    color: AppColors.black.withValues(alpha: 0.8),
+                    child: _buildVitals(),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildVitals() {
+    return StreamBuilder<DocumentSnapshot>(
+      stream:
+          FirebaseFirestore.instance
+              .collection('tracking')
+              .doc(widget.patientId)
+              .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return const Center(child: Text('Error fetching vitals data'));
+        }
+
+        final trackingData = snapshot.data?.data() as Map<String, dynamic>?;
+        final trackingArray = trackingData?['tracking'] as List<dynamic>?;
+
+        if (trackingArray == null || trackingArray.isEmpty) {
+          return Center(
+            child: Text(
+              'No recent vitals. Track symptoms now',
+              style: Textstyle.bodySmall.copyWith(color: AppColors.white),
+            ),
+          );
+        }
+
+        // Get the last element in the tracking array
+        final lastElement = trackingArray.last as Map<String, dynamic>;
+        final vitals = lastElement['Vitals'] as Map<String, dynamic>?;
+        final timestamp = lastElement['timestamp'] as Timestamp?;
+
+        if (vitals == null || timestamp == null) {
+          return const Center(child: Text('Incomplete vitals data'));
+        }
+
+        final formattedTimestamp = DateFormat(
+          'MMMM dd, yyyy',
+        ).format(timestamp.toDate());
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Last updated: $formattedTimestamp',
+              style: Textstyle.bodySmall.copyWith(
+                color: AppColors.white,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+
+            SizedBox(height: 10),
+            ...vitals.entries.map((entry) {
+              // Define a map of units
+              final units = {
+                'Blood Pressure': ' mmHg',
+                'Heart Rate': ' bpm',
+                'Temperature': '°C',
+                'Pain': '/10',
+                'Oxygen Saturation': '%',
+                'Respiration': ' breaths/min',
+              };
+
+              // Get the unit for the current entry, default to an empty string if not found
+              final unit = units[entry.key] ?? '';
+
+              return Row(
+                children: [
+                  // Key
+                  Expanded(
+                    child: Text(
+                      entry.key,
+                      style: Textstyle.bodySmall.copyWith(
+                        color: AppColors.white,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '${entry.value}$unit', // Append the unit
+                    style: Textstyle.bodySmall.copyWith(
+                      color: AppColors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              );
+            }),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildCarousel() {
+    return CarouselWidget(
+      pageController: _pageController,
+      patientId: widget.patientId,
+    );
   }
 
   @override
@@ -395,141 +854,60 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: AppBar(
-        title: const Text(
-          'Patient Status',
-          style: TextStyle(
-            fontSize: 24.0,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Outfit',
+        title: Text('Patient Status', style: Textstyle.subheader),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap:
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) =>
+                                  Contacts(patientId: widget.patientId),
+                        ),
+                      ),
+                  child: Icon(
+                    Icons.perm_contact_cal_rounded,
+                    size: 24,
+                    color: AppColors.black,
+                  ),
+                ),
+                SizedBox(width: 5),
+                GestureDetector(
+                  onTap:
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) =>
+                                  EditPatient(patientId: widget.patientId),
+                        ),
+                      ),
+                  child: Icon(Icons.edit, size: 24, color: AppColors.black),
+                ),
+              ],
+            ),
           ),
-        ),
+        ],
         backgroundColor: AppColors.white,
         scrolledUnderElevation: 0.0,
       ),
       body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              StreamBuilder<DocumentSnapshot>(
-                stream:
-                    FirebaseFirestore.instance
-                        .collection(
-                          'patient',
-                        ) // Assuming you have a 'patient' collection
-                        .doc(
-                          widget.patientId,
-                        ) // Document ID for the current user (patient)
-                        .snapshots(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  if (snapshot.hasError) {
-                    return const Center(child: Text('Error fetching data'));
-                  }
-
-                  // Extract patient data and status directly
-                  final patientData =
-                      snapshot.data?.data() as Map<String, dynamic>?;
-                  final status =
-                      patientData?['status'] ??
-                      'stable'; // Default to 'stable' if null
-                  final isUnstable = status == 'unstable';
-                  final isUnavailable = patientData == null;
-
-                  final statusMessage =
-                      isUnavailable
-                          ? 'No status yet'
-                          : isUnstable
-                          ? '⚠️ Symptoms detected. Please consult your doctor.'
-                          : 'ⓘ No symptoms detected. Keep up the good work!';
-                  final backgroundColor =
-                      isUnavailable
-                          ? AppColors.blackTransparent
-                          : isUnstable
-                          ? AppColors.red
-                          : AppColors.neon;
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: backgroundColor,
-                          borderRadius: BorderRadius.circular(10.0),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 20.0,
-                                horizontal: 15.0,
-                              ),
-                              child: Text(
-                                isUnavailable
-                                    ? 'Unavailable'
-                                    : isUnstable
-                                    ? 'Unstable'
-                                    : 'Stable',
-                                style: const TextStyle(
-                                  fontSize: 50.0,
-                                  fontFamily: 'Outfit',
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(12.0),
-                              decoration: const BoxDecoration(
-                                color: AppColors.blackTransparent,
-                                borderRadius: BorderRadius.only(
-                                  bottomLeft: Radius.circular(10.0),
-                                  bottomRight: Radius.circular(10.0),
-                                ),
-                              ),
-                              child: Text(
-                                statusMessage,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12.0,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-
-              // Spacer
-              const SizedBox(height: 20.0),
-
-              _buildActions(widget.role),
-
-              // Spacer
-              const SizedBox(height: 20.0),
-
-              ..._buildAlternatingItems(
-                context,
-                widget.caregiverId,
-                widget.patientId,
-              ),
-            ],
-          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildPatientStatus(),
+            _buildActions(widget.role),
+            const SizedBox(height: 20.0),
+            Divider(),
+            _buildInterventions(),
+            const SizedBox(height: 20.0),
+            _buildCarousel(),
+          ],
         ),
       ),
     );
