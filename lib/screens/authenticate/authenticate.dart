@@ -11,7 +11,7 @@ class Authenticate extends StatefulWidget {
 }
 
 class _AuthenticateState extends State<Authenticate> {
-  bool showLogInPage = false;
+  bool showLogInPage = true;
   toggleView() { setState(() => showLogInPage = !showLogInPage); }
 
   @override

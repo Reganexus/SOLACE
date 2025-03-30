@@ -78,31 +78,31 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
       switch (key) {
         case 'Heart Rate':
-          if (vitalValue < minHeartRate) {
+          if (vitalValue < minNormalHeartRate) {
             symptoms.add('Low Heart rRate');
-          } else if (vitalValue > maxHeartRate) {
+          } else if (vitalValue > maxNormalHeartRate) {
             symptoms.add('High Heart Rate');
           }
           break;
 
         case 'Oxygen Saturation':
-          if (vitalValue < minOxygenSaturation) {
+          if (vitalValue < minNormalOxygenSaturation) {
             symptoms.add('Low Oxygen Saturation');
           }
           break;
 
         case 'Respiration':
-          if (vitalValue < minRespirationRate) {
+          if (vitalValue < minNormalRespirationRate) {
             symptoms.add('Low Respiration Rate');
-          } else if (vitalValue > maxRespirationRate) {
+          } else if (vitalValue > maxNormalRespirationRate) {
             symptoms.add('High Respiration Rate');
           }
           break;
 
         case 'Temperature':
-          if (vitalValue < minTemperature) {
+          if (vitalValue < minNormalTemperature) {
             symptoms.add('Low Temperature');
-          } else if (vitalValue > maxTemperature) {
+          } else if (vitalValue > maxNormalTemperature) {
             symptoms.add('High Temperature');
           }
           break;
@@ -111,11 +111,11 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           final parts = value.split('/');
           final systolic = int.tryParse(parts[0]);
           final diastolic = int.tryParse(parts[1]);
-          if (systolic! > normalBloodPressureSystolic ||
-              diastolic! > normalBloodPressureDiastolic) {
+          if (systolic! > maxNormalBloodPressureSystolic ||
+              diastolic! > maxNormalBloodPressureDiastolic) {
             symptoms.add('High Blood Pressure');
-          } else if (systolic < normalBloodPressureSystolic &&
-              diastolic < normalBloodPressureDiastolic) {
+          } else if (systolic < minNormalBloodPressureSystolic &&
+              diastolic < minNormalBloodPressureDiastolic) {
             symptoms.add('Low Blood Pressure');
           }
           break;
@@ -206,85 +206,95 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
   Future<void> getPrediction(List<dynamic> algoInputs) async {
     // Choose appropriate IP address
-    final virtualAddress =
-        '10.0.2.2'; // Use for virtual devices (e.g., Android emulator)
+    final virtualAddress = '10.0.2.2'; // Use for virtual devices (e.g., Android emulator)
     // final localHostAddress = '127.0.0.1'; // default
 
     // if using physical device, use computer’s IP address instead of 127.0.0.1 or localhost.
-    final url = Uri.parse('http://$virtualAddress:5000/predict');
+    final url = Uri.parse("http://$virtualAddress:8000/predict");
     final headers = {"Content-Type": "application/json"};
 
-    // Ensure inputs are formatted correctly
-    List<dynamic> formattedInputs;
     try {
-      formattedInputs = [
-        algoInputs[0] == 'Male'
-            ? 1
-            : (algoInputs[0] == 'Female' ? 0 : -1), // Gender (int)
-        int.tryParse(algoInputs[1].toString()) ?? 0, // Age (int)
-        double.tryParse(algoInputs[2].toString()) ??
-            0.0, // Temperature (double)
-        int.tryParse(algoInputs[3].toString()) ?? 0, // Oxygen Saturation (int)
-        int.tryParse(algoInputs[4].toString()) ?? 0, // Heart Rate (int)
-        int.tryParse(algoInputs[5].toString()) ?? 0, // Respiration Rate (int)
-        int.tryParse(algoInputs[6].toString()) ?? 0, // Systolic BP (int)
-        int.tryParse(algoInputs[7].toString()) ?? 0, // Diastolic BP (int)
-      ];
+      final Map<String, dynamic> requestBody = {
+        "gender": algoInputs[0] == 'Female' ? 0 : 1, // Convert gender to int
+        "age": (int.tryParse(algoInputs[1].toString()) ?? 0) > 89 ? 90 : int.tryParse(algoInputs[1].toString()) ?? 0, // Cap age at 90
+        "temperature": double.tryParse(algoInputs[2].toString()) ?? 0.0,
+        "sao2": int.tryParse(algoInputs[3].toString()) ?? 0,
+        "heartrate": int.tryParse(algoInputs[4].toString()) ?? 0,
+        "respiration": int.tryParse(algoInputs[5].toString()) ?? 0,
+        "systemicsystolic": int.tryParse(algoInputs[6].toString()) ?? 0,
+        "systemicdiastolic": int.tryParse(algoInputs[7].toString()) ?? 0,
+      };
 
-      debugPrint('Formatted Inputs: $formattedInputs');
-    } catch (e, stackTrace) {
-      debugPrint('Error formatting inputs: $e');
-      debugPrint('StackTrace: $stackTrace');
-      return;
-    }
+      debugPrint("Sending JSON: ${jsonEncode(requestBody)}");
 
-    try {
-      // Wrap formattedInputs inside 'data' key
-      final body = json.encode({
-        "data": [formattedInputs],
-      });
-      debugPrint("JSON Body: $body");
-
-      final response = await http.post(url, headers: headers, body: body);
+      // Send HTTP request
+      final response = await http.post(url, headers: headers, body: jsonEncode(requestBody));
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
 
-        // Extract prediction result
-        List<dynamic> predictions = responseData['predictions'];
-        int predictionResult = predictions[0]; // Get first result
+        if (responseData.containsKey('predictions')) {
+          Map<String, dynamic> predictions = responseData['predictions'];
+          debugPrint("Raw Response: ${response.body}");
 
-        debugPrint("Raw Response: ${response.body}");
-        debugPrint("Prediction Result: $predictionResult");
+          if (predictions.isNotEmpty) {
+            // Store processed values
+            Map<String, dynamic> formattedPredictions = {};
 
-        String status = '';
-        String predictionString = '';
-        // Handle Prediction Output
-        if (predictionResult == 0) {
-          status = 'stable';
-          predictionString =
-              'Prediction: Stable (No complications detected based on algorithm)';
+            // Process the predictions
+            predictions.forEach((key, value) {
+              if (key.startsWith("temperature") || key.startsWith("sao2")) {
+                // Round temperature & sao2 to 2 decimal places
+                formattedPredictions[key] = value.toStringAsFixed(2);
+              } else if (key.startsWith("systemicsystolic")) {
+                // Extract time part
+                String timeSuffix = key.split("_t+")[1];  
+                String bpKey = "bloodpressure_t+$timeSuffix";  
+
+                // If diastolic exists, merge it
+                if (predictions.containsKey("systemicdiastolic_t+$timeSuffix")) {
+                  formattedPredictions[bpKey] =
+                      "${value.round()}/${predictions["systemicdiastolic_t+$timeSuffix"].round()}";
+                }
+              } else if (!key.startsWith("systemicdiastolic")) {
+                // Convert other values to integer
+                formattedPredictions[key] = value.round();
+              }
+            });
+
+            // Now print the formatted predictions
+            formattedPredictions.forEach((key, value) {
+              String label = "";
+
+              if (key.startsWith("temperature")) {
+                label = "Predicted temperature after ";
+              } else if (key.startsWith("sao2")) {
+                label = "Predicted oxygen saturation after ";
+              } else if (key.startsWith("heartrate")) {
+                label = "Predicted heart rate after ";
+              } else if (key.startsWith("respiration")) {
+                label = "Predicted respiration rate after ";
+              } else if (key.startsWith("bloodpressure")) {
+                label = "Predicted blood pressure after ";
+              }
+
+              // Extract time (e.g., "t+1" → "1 hour", "t+2" → "6 hours", "t+3" → "24 hours")
+              String time = key.split("_t+")[1] == "1"
+                  ? "1 hour"
+                  : key.split("_t+")[1] == "2"
+                      ? "6 hours"
+                      : "24 hours";
+
+              debugPrint("$label$time: $value");
+            });
+          } else {
+            debugPrint("API returned empty predictions.");
+          }
         } else {
-          status = 'unstable';
-          predictionString =
-              'Prediction: Unstable (Complications detected based on algorithm)';
-        }
-        await _firestore.collection('patient').doc(widget.uid).update({
-          'status': status,
-        });
-        debugPrint(predictionString);
-
-        // Show success message
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(predictionString),
-              backgroundColor: Colors.green,
-            ),
-          );
+          debugPrint("Unexpected response format: ${response.body}");
         }
       } else {
-        debugPrint("API Error: ${response.statusCode}");
+        debugPrint("API Error: ${response.statusCode}, Response: ${response.body}");
       }
     } catch (e) {
       debugPrint("Network/Parsing Error: $e");

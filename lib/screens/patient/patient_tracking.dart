@@ -304,8 +304,8 @@ class PatientTrackingState extends State<PatientTracking> {
       case 'Oxygen Saturation':
         unitLabel = '%';
         validators.addAll([
-          FormBuilderValidators.integer(),
-          FormBuilderValidators.between(50, 100),
+          FormBuilderValidators.numeric(),
+          FormBuilderValidators.between(50.0, 100.0),
         ]);
         inputFormatters.add(FilteringTextInputFormatter.digitsOnly);
         break;
