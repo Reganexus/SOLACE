@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:solace/screens/patient/patient_tracking.dart';
+import 'package:solace/services/auth.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/shared/globals.dart';
 import 'package:solace/themes/buttonstyle.dart';
@@ -36,6 +37,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final LogService _logService = LogService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final AuthService _authService = AuthService();
 
   void showToast(String message) {
     Fluttertoast.showToast(
@@ -208,7 +210,12 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
   Future<void> getPrediction(List<dynamic> algoInputs) async {
     final url = Uri.parse("https://solace-xgboost-api-805655165429.asia-southeast1.run.app/predict");
-    final headers = {"Content-Type": "application/json"};
+    final String? token = await _authService.getToken();
+    final headers = {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer $token",
+    };
+    debugPrint("Token: $token");
 
     try {
       final Map<String, dynamic> requestBody = {

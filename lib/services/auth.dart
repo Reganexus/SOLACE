@@ -91,6 +91,11 @@ class AuthService {
     return _auth.currentUser;
   }
 
+  Future<String?> getToken() async {
+    User? user = await currentUser();
+    return await user?.getIdToken();
+  }
+
   Future<DocumentSnapshot> getUserDocument(String uid, String userRole) async {
     final String collectionName =
         userRole; // Dynamically create collection name
