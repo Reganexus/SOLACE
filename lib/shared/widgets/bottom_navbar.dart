@@ -108,7 +108,17 @@ class BottomNavBar extends StatelessWidget {
               width: 26,
               height: 26,
             ),
-            label: 'Export',
+            label: 'Logs',
+          ),
+          BottomNavigationBarItem(
+            icon: Image.asset(
+              currentIndex == 3
+                  ? 'lib/assets/images/caregiver/profile_selected.png'
+                  : 'lib/assets/images/caregiver/profile.png',
+              width: 26,
+              height: 26,
+            ),
+            label: 'Profile',
           ),
         ];
       case 'Caregiver':

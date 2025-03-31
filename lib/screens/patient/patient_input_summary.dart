@@ -209,7 +209,9 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   }
 
   Future<void> getPrediction(List<dynamic> algoInputs) async {
-    final url = Uri.parse("https://solace-xgboost-api-805655165429.asia-southeast1.run.app/predict");
+    final url = Uri.parse(
+      "https://solace-xgboost-api-805655165429.asia-southeast1.run.app/predict",
+    );
     final String? token = await _authService.getToken();
     final headers = {
       "Content-Type": "application/json",
@@ -220,7 +222,10 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     try {
       final Map<String, dynamic> requestBody = {
         "gender": algoInputs[0] == 'Female' ? 0 : 1,
-        "age": (int.tryParse(algoInputs[1].toString()) ?? 0) > 89 ? 90 : int.tryParse(algoInputs[1].toString()) ?? 0, // Cap age at 90
+        "age":
+            (int.tryParse(algoInputs[1].toString()) ?? 0) > 89
+                ? 90
+                : int.tryParse(algoInputs[1].toString()) ?? 0, // Cap age at 90
         "temperature": double.tryParse(algoInputs[2].toString()) ?? 0.0,
         "sao2": int.tryParse(algoInputs[3].toString()) ?? 0,
         "heartrate": int.tryParse(algoInputs[4].toString()) ?? 0,
@@ -232,7 +237,9 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       debugPrint("Sending JSON: ${jsonEncode(requestBody)}");
 
       // Send HTTP request
-      final response = await http.post(url, headers: headers, body: jsonEncode(requestBody)).timeout(Duration(seconds: 10));
+      final response = await http
+          .post(url, headers: headers, body: jsonEncode(requestBody))
+          .timeout(Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
@@ -252,11 +259,13 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                 formattedPredictions[key] = value.toStringAsFixed(2);
               } else if (key.startsWith("systemicsystolic")) {
                 // Extract time part
-                String timeSuffix = key.split("_t+")[1];  
-                String bpKey = "bloodpressure_t+$timeSuffix";  
+                String timeSuffix = key.split("_t+")[1];
+                String bpKey = "bloodpressure_t+$timeSuffix";
 
                 // If diastolic exists, merge it
-                if (predictions.containsKey("systemicdiastolic_t+$timeSuffix")) {
+                if (predictions.containsKey(
+                  "systemicdiastolic_t+$timeSuffix",
+                )) {
                   formattedPredictions[bpKey] =
                       "${value.round()}/${predictions["systemicdiastolic_t+$timeSuffix"].round()}";
                 }
@@ -283,9 +292,10 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
               }
 
               // Extract time (e.g., "t+1" → "1 hour", "t+2" → "6 hours", "t+3" → "24 hours")
-              String time = key.split("_t+")[1] == "1"
-                  ? "1 hour"
-                  : key.split("_t+")[1] == "2"
+              String time =
+                  key.split("_t+")[1] == "1"
+                      ? "1 hour"
+                      : key.split("_t+")[1] == "2"
                       ? "6 hours"
                       : "24 hours";
 
@@ -298,7 +308,9 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           debugPrint("Unexpected response format: ${response.body}");
         }
       } else {
-        debugPrint("API Error: ${response.statusCode}, Response: ${response.body}");
+        debugPrint(
+          "API Error: ${response.statusCode}, Response: ${response.body}",
+        );
       }
     } on TimeoutException catch (e) {
       debugPrint("API Timeout: $e");
@@ -462,6 +474,17 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                   child: TextButton(
                     onPressed: () async {
                       try {
+                        DocumentSnapshot doc =
+                            await _firestore
+                                .collection('patient')
+                                .doc(widget.uid)
+                                .get();
+                        String fName = doc.get('firstName');
+                        String lName = doc.get('lastName');
+                        int age = doc.get('age');
+                        String gender = doc.get('gender');
+                        String patientName = '$fName $lName';
+
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -493,6 +516,8 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
                         // Prepare the data to be inserted
                         final trackingData = {
+                          'age': age,
+                          'gender': gender,
                           'timestamp': timestamp,
                           'Vitals': widget.inputs['Vitals'],
                           'Symptom Assessment':
@@ -536,15 +561,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                                 }
                               });
                         }
-
-                        DocumentSnapshot doc =
-                            await _firestore
-                                .collection('patient')
-                                .doc(widget.uid)
-                                .get();
-                        String fName = doc.get('firstName');
-                        String lName = doc.get('lastName');
-                        String patientName = '$fName $lName';
 
                         // Add log entry
                         await _logService.addLog(

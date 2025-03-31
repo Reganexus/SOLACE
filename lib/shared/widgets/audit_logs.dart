@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:solace/services/log_service.dart';
+import 'package:solace/themes/colors.dart';
+import 'package:solace/themes/textstyle.dart';
 
 class AuditLogs extends StatefulWidget {
   final String uid;
@@ -18,43 +20,86 @@ class AuditLogsState extends State<AuditLogs> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: _logService.getLogsForUser(widget.uid),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text("Error: ${snapshot.error}"));
-          }
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text("No logs available."));
-          }
+      backgroundColor: AppColors.white,
+      body: Container(
+        color: AppColors.white,
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: StreamBuilder<List<Map<String, dynamic>>>(
+          stream: _logService.getLogsForUser(widget.uid),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return Center(child: Text("Error: ${snapshot.error}"));
+            }
+            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const Center(child: Text("No logs available."));
+            }
 
-          // Extract log data
-          var logs = snapshot.data!;
+            // Extract log data
+            var logs = snapshot.data!;
 
-          return ListView.builder(
-            itemCount: logs.length,
-            itemBuilder: (context, index) {
-              var log = logs[index];
-              var timestamp = log['timestamp'] != null
-                  ? (log['timestamp'] as Timestamp).toDate()
-                  : DateTime.now();
-              var formattedDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(timestamp);
+            return ListView.builder(
+              itemCount: logs.length,
+              itemBuilder: (context, index) {
+                var log = logs[index];
+                var timestamp =
+                    log['timestamp'] != null
+                        ? (log['timestamp'] as Timestamp).toDate()
+                        : DateTime.now();
+                var formattedDate = DateFormat(
+                  'yyyy-MM-dd HH:mm:ss',
+                ).format(timestamp);
 
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                child: ListTile(
-                  leading: const Icon(Icons.history, color: Colors.blue),
-                  title: Text(log['action'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text("On: $formattedDate"),
-                  isThreeLine: true,
-                ),
-              );
-            },
-          );
-        },
+                return Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.gray,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.all(10),
+                  margin: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Icon(
+                          Icons.history,
+                          color: AppColors.neon,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        // Prevent overflow
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              log['action'] ?? 'Unknown Action',
+                              style: Textstyle.body.copyWith(
+                                fontWeight: FontWeight.bold,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              maxLines: 1,
+                            ),
+                            Text(
+                              "On: $formattedDate",
+                              style: Textstyle.bodySmall,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }

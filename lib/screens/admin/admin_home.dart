@@ -1,12 +1,21 @@
+// ignore_for_file: avoid_print
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/admin/admin_dashboard.dart';
-import 'package:solace/screens/admin/admin_settings.dart';
+import 'package:solace/screens/admin/admin_logs.dart';
 import 'package:solace/screens/admin/admin_users.dart';
+import 'package:solace/screens/authenticate/authenticate.dart';
+import 'package:solace/services/auth.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/shared/widgets/bottom_navbar.dart';
+import 'package:solace/shared/widgets/help_page.dart';
+import 'package:solace/shared/widgets/profile.dart';
+import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
+import 'package:solace/themes/textstyle.dart';
 
 class AdminHome extends StatefulWidget {
   const AdminHome({super.key});
@@ -16,22 +25,20 @@ class AdminHome extends StatefulWidget {
 }
 
 class AdminHomeState extends State<AdminHome> {
-  final GlobalKey<AdminUsersState> _adminUsersKey = GlobalKey<AdminUsersState>();
-  int _currentIndex = 0; // Initialize with a valid index (e.g., 0)
+  DatabaseService db = DatabaseService();
+  int _currentIndex = 0;
   late final List<Widget> _screens;
+  late final String currentUserId;
 
   @override
   void initState() {
     super.initState();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
+    currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
     _screens = [
       AdminDashboard(),
-      AdminUsers(key: _adminUsersKey),
-      AdminSettings(),
+      AdminUsers(),
+      AdminLogs(currentUserId: currentUserId),
+      Profile(),
     ];
   }
 
@@ -41,69 +48,90 @@ class AdminHomeState extends State<AdminHome> {
     });
   }
 
-  PreferredSizeWidget _buildAppBar() {
+  AppBar buildAppBar() {
     final user = Provider.of<MyUser?>(context);
 
-    return PreferredSize(
-      preferredSize: const Size.fromHeight(60.0),
-      child: StreamBuilder<UserData?>(
+    return AppBar(
+      backgroundColor: AppColors.white,
+      scrolledUnderElevation: 0.0,
+      automaticallyImplyLeading: false,
+      elevation: 0.0,
+      title: StreamBuilder<UserData?>(
         stream: DatabaseService(uid: user?.uid).userData,
         builder: (context, snapshot) {
-          return AppBar(
-            backgroundColor: AppColors.white,
-            scrolledUnderElevation: 0.0,
-            automaticallyImplyLeading: false,
-            elevation: 0.0,
-            title: Padding(
-              padding: const EdgeInsets.fromLTRB(15.0, 20.0, 15.0, 10.0),
-              child: _currentIndex == 0
-                  ? const Text(
-                'Dashboard',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Inter',
-                ),
-              )
-                  : _currentIndex == 1
-                  ? Row(
+          return _currentIndex == 0
+              ? Text('Dashboard', style: Textstyle.subheader)
+              : _currentIndex == 1
+              ? Text('Users', style: Textstyle.subheader)
+              : _currentIndex == 2
+              ? Text('Logs', style: Textstyle.subheader)
+              : Row(
                 children: [
-                  const Expanded(
-                    child: Text(
-                      'Users List',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Inter',
-                      ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      // Access the AdminUsersState to toggle sort order
-                      _adminUsersKey.currentState?.toggleSortOrder();
-                    },
-                    child: Image.asset(
-                      'lib/assets/images/shared/navigation/ascending.png', // Adjust based on _isAscending in AdminUsers
-                      height: 24,
-                      width: 24,
-                    ),
-                  ),
-
+                  Expanded(child: Text('Profile', style: Textstyle.subheader)),
+                  buildHelp(),
+                  buildLogOut(),
                 ],
-              )
-                  : Text(
-                'Export',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Inter',
-                ),
-              ),
-            ),
-          );
+              );
         },
       ),
+    );
+  }
+
+  Widget buildHelp() {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const HelpPage()),
+        );
+      },
+      child: const Icon(Icons.info_outline_rounded, size: 24.0),
+    );
+  }
+
+  Widget buildLogOut() {
+    return GestureDetector(
+      onTap: () async {
+        final shouldLogout = await showDialog<bool>(
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                title: Text('Log Out', style: Textstyle.heading),
+                backgroundColor: AppColors.white,
+                contentPadding: const EdgeInsets.all(20),
+                content: Text(
+                  'Are you sure you want to log out?',
+                  style: Textstyle.body,
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    style: Buttonstyle.buttonNeon,
+                    child: Text('Cancel', style: Textstyle.smallButton),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    style: Buttonstyle.buttonRed,
+                    child: Text('Log Out', style: Textstyle.smallButton),
+                  ),
+                ],
+              ),
+        );
+
+        if (shouldLogout ?? false) {
+          await AuthService().signOut();
+
+          // Check if the widget is still mounted before navigating
+          if (mounted) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const Authenticate()),
+              (route) => false, // Remove all previous routes
+            );
+          }
+        }
+      },
+      child: const Icon(Icons.logout_rounded, size: 24.0, color: AppColors.red),
     );
   }
 
@@ -111,7 +139,7 @@ class AdminHomeState extends State<AdminHome> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.white,
-      appBar: _buildAppBar(),
+      appBar: buildAppBar(),
       body: _screens[_currentIndex],
       bottomNavigationBar: BottomNavBar(
         currentIndex: _currentIndex,

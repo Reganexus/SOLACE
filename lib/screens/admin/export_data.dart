@@ -3,127 +3,154 @@
 import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:csv/csv.dart';
 import 'package:flutter/services.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:solace/services/log_service.dart';
+import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
+import 'package:solace/themes/loader.dart';
+import 'package:solace/themes/textstyle.dart';
 
 class ExportDataScreen extends StatefulWidget {
   final String filterValue; // Filter parameter
   final String title; // Title for the export
 
-  const ExportDataScreen(
-      {super.key, required this.filterValue, required this.title});
+  const ExportDataScreen({
+    super.key,
+    required this.filterValue,
+    required this.title,
+  });
 
   @override
   _ExportDataScreenState createState() => _ExportDataScreenState();
 }
 
 class _ExportDataScreenState extends State<ExportDataScreen> {
-  // Export format
-  String? _selectedFormat = 'CSV'; // Default format
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final LogService _logService = LogService();
+  bool isSaving = false;
+  String? _selectedFormat = 'CSV';
+  String? _selectedTimeRange = 'All Time';
   final List<String> _formats = ['CSV', 'PDF'];
-
-  // Time range filter
-  String? _selectedTimeRange = 'All Time'; // Default time range
   final List<String> _timeRanges = ['This Week', 'This Month', 'All Time'];
 
-  // Fetch data method based on filter value
+  void _showToast(String message) {
+    Fluttertoast.showToast(
+      msg: message,
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+      backgroundColor: AppColors.neon,
+      textColor: AppColors.white,
+      fontSize: 16.0,
+    );
+  }
+
   Future<void> _fetchData() async {
+    setState(() => isSaving = true);
+    _showToast("Fetching data...");
     try {
-      // Query based on filter value (userRole or riskLevel)
+      final user = _auth.currentUser;
+
+      if (user == null) {
+        print("Error: No authenticated user found.");
+        return;
+      }
+
+      debugPrint("User ID: $user");
       QuerySnapshot querySnapshot;
       DateTime startDate;
 
-      // Calculate the start date for the selected time range
       if (_selectedTimeRange == 'This Week') {
         startDate = _getStartOfThisWeek();
       } else if (_selectedTimeRange == 'This Month') {
         startDate = _getStartOfThisMonth();
       } else {
-        startDate = DateTime(1970, 1, 1); // All time (no filtering)
+        startDate = DateTime(1970, 1, 1);
       }
 
-      var selectedValue = widget.filterValue;
+      String selectedValue = widget.filterValue;
 
-      // Query Firestore based on the selected time range
       if (widget.filterValue == "patient") {
-        querySnapshot = await FirebaseFirestore.instance
-            .collection('patient')
-            .where('dateCreated', isGreaterThanOrEqualTo: startDate)
-            .get();
-      } else if (widget.filterValue == "caregiver" ||
-          widget.filterValue == "doctor" ||
-          widget.filterValue == "admin") {
-        querySnapshot = await FirebaseFirestore.instance
-            .collection(selectedValue)
-            .where('dateCreated', isGreaterThanOrEqualTo: startDate)
-            .get();
+        querySnapshot =
+            await FirebaseFirestore.instance
+                .collection('patient')
+                .where('dateCreated', isGreaterThanOrEqualTo: startDate)
+                .get();
+      } else if ([
+        "caregiver",
+        "doctor",
+        "admin",
+      ].contains(widget.filterValue)) {
+        querySnapshot =
+            await FirebaseFirestore.instance
+                .collection(selectedValue)
+                .where('dateCreated', isGreaterThanOrEqualTo: startDate)
+                .get();
       } else if (widget.filterValue == "stable" ||
           widget.filterValue == "unstable") {
-        querySnapshot = await FirebaseFirestore.instance
-            .collection('patient')
-            .where('status', isEqualTo: widget.filterValue)
-            .where('dateCreated', isGreaterThanOrEqualTo: startDate)
-            .get();
+        querySnapshot =
+            await FirebaseFirestore.instance
+                .collection('patient')
+                .where('status', isEqualTo: widget.filterValue)
+                .where('dateCreated', isGreaterThanOrEqualTo: startDate)
+                .get();
       } else {
-        querySnapshot = await FirebaseFirestore.instance
-            .collection('admin')
-            .where('dateCreated', isGreaterThanOrEqualTo: startDate)
-            .get();
+        querySnapshot =
+            await FirebaseFirestore.instance
+                .collection('admin')
+                .where('dateCreated', isGreaterThanOrEqualTo: startDate)
+                .get();
       }
 
-      // Columns order
-      final List<String> orderedColumns = [
-        'uid',
-        'firstName',
-        'middleName',
-        'lastName',
-        'email',
-        'phoneNumber',
-        'birthday',
-        'age',
-        'religion',
-        'gender',
-        'address',
-        'dateCreated'
-      ];
-
-      // Prepare data for export
-      List<Map<String, dynamic>> data = [];
-
-      for (var doc in querySnapshot.docs) {
-        Map<String, dynamic> documentData = doc.data() as Map<String, dynamic>;
-
-        // Add uid (document ID)
-        documentData['uid'] = doc.id;
-
-        // Exclude unnecessary fields
-        documentData.removeWhere((key, value) =>
-            key == 'isVerified' ||
-            key == 'newUser' ||
-            key == 'userRole' ||
-            key == 'profileImageUrl');
-
-        // Reorder the document data to match the desired column order
-        Map<String, dynamic> orderedData = {};
-        for (var column in orderedColumns) {
-          if (documentData.containsKey(column)) {
-            orderedData[column] = documentData[column];
-          }
-        }
-
-        data.add(orderedData);
-        print('Fetched Document (Ordered): $orderedData');
+      if (querySnapshot.docs.isEmpty) {
+        _showToast("No data found for the selected filters.");
+        setState(() => isSaving = false);
+        return;
       }
 
-      // Export data based on selected format
+      List<Map<String, dynamic>> data =
+          querySnapshot.docs.map((doc) {
+            Map<String, dynamic> documentData =
+                doc.data() as Map<String, dynamic>;
+
+            String fullName = [
+              documentData['firstName'] ?? '',
+              documentData['middleName'] ?? '',
+              documentData['lastName'] ?? '',
+            ].where((name) => name.isNotEmpty).join(' ');
+
+            documentData.remove('firstName');
+            documentData.remove('middleName');
+            documentData.remove('lastName');
+            documentData.remove('uid');
+            documentData.remove('dateCreated');
+
+            if (widget.filterValue == "patient") {
+              documentData.remove('email');
+              documentData.remove('phoneNumber');
+            }
+
+            documentData['fullname'] = fullName;
+
+            return documentData;
+          }).toList();
+
+      await _logService.addLog(
+        userId: user.uid,
+        action: "Exported ${widget.filterValue} Data to $_selectedFormat",
+      );
+
       _exportData(data, selectedValue);
     } catch (e) {
       print("Error fetching data: $e");
+    } finally {
+      setState(() => isSaving = false);
     }
   }
 
@@ -139,8 +166,11 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
   // Get start of this month (1st day of the month at 00:00)
   DateTime _getStartOfThisMonth() {
     final now = DateTime.now();
-    return DateTime(now.year, now.month, 1)
-        .copyWith(hour: 0, minute: 0, second: 0, millisecond: 0);
+    return DateTime(
+      now.year,
+      now.month,
+      1,
+    ).copyWith(hour: 0, minute: 0, second: 0, millisecond: 0);
   }
 
   // Export data based on selected format
@@ -154,202 +184,157 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
 
   // CSV Export
   Future<void> exportToCSV(
-      List<Map<String, dynamic>> data, String selectedValue) async {
+    List<Map<String, dynamic>> data,
+    String selectedValue,
+  ) async {
     try {
-      final headers = [
-        'uid',
-        'firstName',
-        'middleName',
-        'lastName',
-        'email',
-        'phoneNumber',
-        'birthday',
-        'age',
-        'religion',
-        'gender',
-        'address',
-        'dateCreated'
-      ];
-
-      final dateFormat = DateFormat('MMMM dd, yyyy'); // For birthday
-      final timestampFormat =
-          DateFormat('MMMM dd, yyyy at h:mm:ss a \'UTC\'z'); // For dateCreated
-      List<List<String>> rows = [];
-      rows.add(headers);
+      final headers = _getHeaders(selectedValue);
+      List<List<String>> rows = [headers];
 
       for (var docData in data) {
-        List<String> row = [];
-        for (var header in headers) {
-          var value = docData[header];
-
-          if (header == 'birthday') {
-            if (value is Timestamp) {
-              value = dateFormat.format(
-                  DateTime.fromMillisecondsSinceEpoch(value.seconds * 1000));
-            }
-          } else if (header == 'dateCreated') {
-            if (value is Timestamp) {
-              value = timestampFormat.format(
-                  DateTime.fromMillisecondsSinceEpoch(value.seconds * 1000));
-            }
-          }
-
-          if (value is String &&
-              header == 'phoneNumber' &&
-              value.startsWith('0')) {
-            value =
-                value.replaceFirst(RegExp(r'^0+'), ''); // Remove leading zeros
-          }
-
-          row.add(value.toString());
-        }
-        rows.add(row);
+        rows.add(
+          headers
+              .map((header) => _formatValue(docData[header], header))
+              .toList(),
+        );
       }
+
+      _showToast("CSV data prepared, saving file...");
 
       String csvData = const ListToCsvConverter().convert(rows);
       final csvBytes = Uint8List.fromList(utf8.encode(csvData));
+      await _saveFile(csvBytes, selectedValue, "csv");
 
-      String formattedDate =
-          DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
-      String fileName = "${selectedValue}_exported_data_$formattedDate.csv";
-
-      String? outputFile = await FilePicker.platform.saveFile(
-        dialogTitle: 'Save CSV File',
-        fileName: fileName,
-        bytes: csvBytes,
-      );
-
-      if (outputFile != null) {
-        // outputFile is the file path (String)
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('CSV file saved at: $outputFile')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('File picking cancelled.')),
-        );
-      }
+      _showToast("CSV export completed.");
     } catch (e) {
       print("Error generating CSV: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error generating CSV: $e')),
-      );
+      _showToast("Error generating CSV.");
     }
   }
 
-// PDF Export
   Future<void> exportToPDF(
-      List<Map<String, dynamic>> data, String selectedValue) async {
+    List<Map<String, dynamic>> data,
+    String selectedValue,
+  ) async {
     try {
       final pdf = pw.Document();
-      final headers = [
-        'uid',
-        'firstName',
-        'middleName',
-        'lastName',
-        'email',
-        'phoneNumber',
-        'birthday',
-        'age',
-        'religion',
-        'gender',
-        'address',
-        'dateCreated'
-      ];
-
-      final dateFormat = DateFormat('MMMM dd, yyyy'); // For birthday
-      final timestampFormat =
-          DateFormat('MMMM dd, yyyy at h:mm:ss a \'UTC\'z'); // For dateCreated
+      final headers = _getHeaders(selectedValue);
 
       pdf.addPage(
         pw.Page(
-          orientation: pw.PageOrientation.landscape, // Set to landscape
+          orientation: pw.PageOrientation.landscape,
           build: (pw.Context context) {
-            final List<List<String>> rows = [
-              headers,
-              ...data.map((docData) {
-                return headers.map((header) {
-                  var value = docData[header];
-
-                  if (header == 'birthday') {
-                    if (value is Timestamp) {
-                      value = dateFormat.format(
-                          DateTime.fromMillisecondsSinceEpoch(
-                              value.seconds * 1000));
-                    }
-                  } else if (header == 'dateCreated') {
-                    if (value is Timestamp) {
-                      value = timestampFormat.format(
-                          DateTime.fromMillisecondsSinceEpoch(
-                              value.seconds * 1000));
-                    }
-                  }
-
-                  if (value is String &&
-                      header == 'phoneNumber' &&
-                      value.startsWith('0')) {
-                    value = value.replaceFirst(
-                        RegExp(r'^0+'), ''); // Remove leading zeros
-                  }
-
-                  return value?.toString() ?? ''; // Handle null values
-                }).toList();
-              })
-            ];
-
             return pw.Table(
               border: pw.TableBorder.all(),
               columnWidths: {
                 for (int i = 0; i < headers.length; i++)
                   i: const pw.FlexColumnWidth(1),
               },
-              children: rows.map((row) {
-                return pw.TableRow(
-                  children: row.map((cell) {
-                    return pw.Padding(
-                      padding: const pw.EdgeInsets.all(2),
-                      child: pw.Text(
-                        cell,
-                        style: const pw.TextStyle(fontSize: 8),
-                        textAlign: pw.TextAlign.left,
-                      ),
-                    );
-                  }).toList(),
-                );
-              }).toList(),
+              children: [
+                pw.TableRow(
+                  children:
+                      headers.map((header) => _pdfCell(header, true)).toList(),
+                ),
+                ...data.map(
+                  (docData) => pw.TableRow(
+                    children:
+                        headers
+                            .map(
+                              (header) => _pdfCell(
+                                _formatValue(docData[header], header),
+                              ),
+                            )
+                            .toList(),
+                  ),
+                ),
+              ],
             );
           },
         ),
       );
 
+      _showToast("PDF data prepared, saving file...");
       final pdfBytes = Uint8List.fromList(await pdf.save());
+      await _saveFile(pdfBytes, selectedValue, "pdf");
 
-      // Save the file using FilePicker
-      String formattedDate =
-          DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
-      String fileName = "${selectedValue}_exported_data_$formattedDate.pdf";
-
-      String? outputFile = await FilePicker.platform.saveFile(
-        dialogTitle: 'Save PDF File',
-        fileName: fileName,
-        bytes: pdfBytes,
-      );
-
-      if (outputFile != null) {
-        // outputFile is the file path (String)
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('PDF file saved at: $outputFile')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('File picking cancelled.')),
-        );
-      }
+      _showToast("PDF export completed.");
     } catch (e) {
       print("Error generating PDF: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error generating PDF: $e')),
-      );
+      _showToast("Error generating PDF.");
+    }
+  }
+
+  // Determine headers dynamically based on filter value
+  List<String> _getHeaders(String filterValue) {
+    List<String> headers = [
+      'fullname',
+      'birthday',
+      'age',
+      'religion',
+      'gender',
+      'address',
+    ];
+
+    if (!["patient", "stable", "unstable"].contains(filterValue)) {
+      headers.insert(3, 'email'); // Insert email after lastName
+      headers.insert(4, 'phoneNumber'); // Insert phoneNumber after email
+    }
+
+    return headers;
+  }
+
+  // Format values for CSV/PDF output
+  String _formatValue(dynamic value, String header) {
+    if (value == null) return '';
+
+    if (header == 'birthday' || header == 'dateCreated') {
+      if (value is Timestamp) {
+        return DateFormat(
+          header == 'birthday'
+              ? 'MMMM dd, yyyy'
+              : 'MMMM dd, yyyy at h:mm:ss a \'UTC\'z',
+        ).format(DateTime.fromMillisecondsSinceEpoch(value.seconds * 1000));
+      }
+    }
+
+    return value.toString();
+  }
+
+  // Create a PDF cell with text
+  pw.Widget _pdfCell(String text, [bool isHeader = false]) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(2),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          fontSize: isHeader ? 9 : 8,
+          fontWeight: isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
+        ),
+        textAlign: pw.TextAlign.left,
+      ),
+    );
+  }
+
+  // Save the file
+  Future<void> _saveFile(
+    Uint8List bytes,
+    String selectedValue,
+    String extension,
+  ) async {
+    String formattedDate = DateFormat(
+      'yyyy-MM-dd_HH-mm-ss',
+    ).format(DateTime.now());
+    String fileName =
+        "${selectedValue}_exported_data_$formattedDate.$extension";
+
+    String? outputFile = await FilePicker.platform.saveFile(
+      dialogTitle: 'Save $extension File',
+      fileName: fileName,
+      bytes: bytes,
+    );
+
+    if (outputFile == null) {
+      _showToast("File picking cancelled.");
     }
   }
 
@@ -358,130 +343,75 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: AppBar(
-        title: Text(
-          'Export Data',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Inter',
-          ),
-        ),
+        title: Text(widget.title, style: Textstyle.subheader),
         backgroundColor: AppColors.white,
         scrolledUnderElevation: 0.0,
       ),
-      body: GestureDetector(
-        onTap: () => FocusScope.of(context).unfocus(),
-        child: SingleChildScrollView(
-          child: Container(
-            color: AppColors.white,
-            padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Dynamic title (e.g., "Export Patient Data")
-                Text(
-                  widget.title, // Use the passed title here
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontFamily: 'Outfit',
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.black,
-                  ),
-                ),
-                SizedBox(height: 20), // Add space after the title
+      body: SingleChildScrollView(
+        child: Container(
+          color: AppColors.white,
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Select Export Format:', style: Textstyle.subheader),
 
-                // Export Format Selection
-                Text(
-                  'Select Export Format:',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Outfit',
-                    color: AppColors.black,
-                  ),
-                ),
-                Column(
-                  children: _formats.map((format) {
-                    return RadioListTile<String>(
-                      title: Text(
-                        format,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.normal,
-                          fontFamily: 'Inter',
-                          color: AppColors.black,
-                        ),
-                      ),
-                      activeColor: AppColors.neon,
-                      value: format,
-                      groupValue: _selectedFormat,
-                      onChanged: (String? value) {
-                        setState(() {
-                          _selectedFormat = value;
-                        });
-                      },
-                    );
-                  }).toList(),
-                ),
-                SizedBox(height: 20),
+              Wrap(
+                children:
+                    _formats.map((format) {
+                      return RadioListTile<String>(
+                        title: Text(format, style: Textstyle.body),
+                        activeColor: AppColors.neon,
+                        value: format,
+                        groupValue: _selectedFormat,
+                        onChanged:
+                            isSaving
+                                ? null
+                                : (String? value) {
+                                  setState(() => _selectedFormat = value);
+                                },
+                      );
+                    }).toList(),
+              ),
 
-                // Time Range Selection
-                Text(
-                  'Select Time Range:',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Outfit',
-                    color: AppColors.black,
-                  ),
-                ),
-                Column(
-                  children: _timeRanges.map((range) {
-                    return RadioListTile<String>(
-                      title: Text(
-                        range,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.normal,
-                          fontFamily: 'Inter',
-                          color: AppColors.black,
-                        ),
-                      ),
-                      activeColor: AppColors.neon,
-                      value: range,
-                      groupValue: _selectedTimeRange,
-                      onChanged: (String? value) {
-                        setState(() {
-                          _selectedTimeRange = value;
-                        });
-                      },
-                    );
-                  }).toList(),
-                ),
-                SizedBox(height: 20),
+              SizedBox(height: 20),
 
-                // Export Data Button
-                Center(
-                  child: TextButton(
-                    onPressed: _fetchData,
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 10),
-                      backgroundColor: AppColors.neon,
-                    ),
-                    child: Text(
-                      'Export Data',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: AppColors.white,
-                      ),
-                    ),
-                  ),
+              Text('Select Time Range:', style: Textstyle.subheader),
+
+              Wrap(
+                children:
+                    _timeRanges.map((range) {
+                      return RadioListTile<String>(
+                        title: Text(range, style: Textstyle.body),
+                        activeColor: AppColors.purple,
+                        value: range,
+                        groupValue: _selectedTimeRange,
+                        onChanged:
+                            isSaving
+                                ? null
+                                : (String? value) {
+                                  setState(() => _selectedTimeRange = value);
+                                },
+                      );
+                    }).toList(),
+              ),
+
+              SizedBox(height: 20),
+
+              // Export Data Button
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: isSaving ? null : _fetchData,
+                  style:
+                      isSaving ? Buttonstyle.buttonDarkGray : Buttonstyle.neon,
+                  child:
+                      isSaving
+                          ? Loader.loaderWhite
+                          : Text('Export Data', style: Textstyle.smallButton),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

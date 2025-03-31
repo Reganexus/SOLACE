@@ -199,33 +199,6 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
     );
   }
 
-  /*ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => CaregiverInstructions(
-                            userId: caregiverId,
-                            userRole: userRole!,
-                          ),
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.neon,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    child: Text(
-                      "Go to Caregiver Instructions",
-                      style: Textstyle.body.copyWith(
-                        color: AppColors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),*/
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -291,11 +264,12 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(
-                                  Icons.info_outline_rounded,
-                                  size: 16,
-                                  color: AppColors.white,
-                                ),
+                                if (patients.isNotEmpty)
+                                  const Icon(
+                                    Icons.info_outline_rounded,
+                                    size: 16,
+                                    color: AppColors.white,
+                                  ),
                                 const SizedBox(width: 10),
                                 Text(
                                   patients.isEmpty

@@ -431,12 +431,40 @@ class DatabaseService {
 
   Future<void> deleteUser(String userId) async {
     try {
-      // Fetch user data
-      final userData = await fetchUserData(userId);
-      if (userData == null) {
-        print("User document not found.");
-        return;
+      // Get the currently logged-in user's ID
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('User not logged in.');
       }
+      final currentUserId = currentUser.uid;
+
+      // Check if the current user has admin role
+      final userRole = await fetchAndCacheUserRole(currentUserId);
+      if (userRole != 'admin') {
+        throw Exception('Current user does not have admin privileges.');
+      }
+
+      await _moveUserDataToDeletedCollection(userId);
+
+      // Add a log entry for the deletion
+      await _logService.addLog(
+        userId: userId,
+        action: 'Deleted user $userId and moved to "deleted" collection',
+        relatedUsers: userId,
+      );
+
+      print(
+        "User document successfully moved to 'deleted' collection, removed from the original collection, and authentication deleted.",
+      );
+    } catch (e) {
+      print("Error deleting user: $e");
+      rethrow;
+    }
+  }
+
+  Future<void> _moveUserDataToDeletedCollection(String userId) async {
+    try {
+      final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
       // Get the collection name dynamically using fetchAndCacheUserRole
       final collectionName = await fetchAndCacheUserRole(userId);
@@ -444,35 +472,82 @@ class DatabaseService {
         throw Exception("Unable to determine the user's role.");
       }
 
-      // Delete the user's document from Firestore
-      await FirebaseFirestore.instance
-          .collection(collectionName)
-          .doc(userId)
-          .delete();
-      print("User document deleted from collection: $collectionName.");
+      // Run a Firestore transaction
+      await firestore.runTransaction((transaction) async {
+        // Reference to the original user document
+        final userDocRef = firestore.collection(collectionName).doc(userId);
 
-      // Delete related tracking records
-      final trackingDocs =
-          await FirebaseFirestore.instance
-              .collection('tracking')
-              .where('userId', isEqualTo: userId)
-              .get();
+        // Fetch the user document
+        final userDocSnapshot = await transaction.get(userDocRef);
+        if (!userDocSnapshot.exists) {
+          throw Exception(
+            "User document not found in collection: $collectionName.",
+          );
+        }
 
-      final batch = FirebaseFirestore.instance.batch();
-      for (final doc in trackingDocs.docs) {
-        batch.delete(doc.reference);
-      }
-      await batch.commit();
-      print("Related tracking records deleted.");
+        // Get user document data
+        final userDocData = userDocSnapshot.data();
 
-      // Add a log entry for the deletion
-      await _logService.addLog(
-        userId: uid ?? '',
-        action: 'Deleted user $userId',
-        relatedUsers: userId,
-      );
+        // Reference to the 'deleted' collection document
+        final deletedDocRef = firestore.collection('deleted').doc(userId);
+
+        // Add the document to the 'deleted' collection
+        transaction.set(deletedDocRef, {
+          ...userDocData!,
+          'deletedAt': FieldValue.serverTimestamp(), // Add a deletion timestamp
+        });
+
+        // Delete the document from the original collection
+        transaction.delete(userDocRef);
+      });
     } catch (e) {
-      print("Error deleting user: $e");
+      print("Error moving user data: $e");
+      rethrow;
+    }
+  }
+
+  Future<void> markDecease(String userId) async {
+    try {
+      final FirebaseFirestore firestore = FirebaseFirestore.instance;
+
+      // Get the collection name dynamically using fetchAndCacheUserRole
+      final collectionName = await fetchAndCacheUserRole(userId);
+      if (collectionName == null) {
+        throw Exception("Unable to determine the user's role.");
+      }
+
+      // Run a Firestore transaction
+      await firestore.runTransaction((transaction) async {
+        // Reference to the original user document
+        final userDocRef = firestore.collection(collectionName).doc(userId);
+
+        // Fetch the user document
+        final userDocSnapshot = await transaction.get(userDocRef);
+        if (!userDocSnapshot.exists) {
+          throw Exception(
+            "User document not found in collection: $collectionName.",
+          );
+        }
+
+        // Get user document data
+        final userDocData = userDocSnapshot.data();
+
+        // Reference to the 'deleted' collection document
+        final deletedDocRef = firestore.collection('deceased').doc(userId);
+
+        // Add the document to the 'deleted' collection
+        transaction.set(deletedDocRef, {
+          ...userDocData!,
+          'deceasedAt':
+              FieldValue.serverTimestamp(), // Add a deletion timestamp
+        });
+
+        // Delete the document from the original collection
+        transaction.delete(userDocRef);
+      });
+    } catch (e) {
+      print("Error moving user data: $e");
+      rethrow;
     }
   }
 
@@ -572,6 +647,9 @@ class DatabaseService {
         updatedData['caseDescription'] = caseDescription;
       }
       if (status?.isNotEmpty ?? false) updatedData['status'] = status;
+
+      // Add dateCreated field
+      updatedData['dateCreated'] = Timestamp.now();
 
       // Perform the update only if there's data to update
       if (updatedData.isNotEmpty) {
