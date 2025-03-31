@@ -13,6 +13,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:solace/services/log_service.dart';
 import 'package:solace/themes/textstyle.dart';
+import 'dart:async';
+import 'dart:io';
 
 class ReceiptScreen extends StatefulWidget {
   final String uid;
@@ -205,17 +207,12 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   }
 
   Future<void> getPrediction(List<dynamic> algoInputs) async {
-    // Choose appropriate IP address
-    final virtualAddress = '10.0.2.2'; // Use for virtual devices (e.g., Android emulator)
-    // final localHostAddress = '127.0.0.1'; // default
-
-    // if using physical device, use computer’s IP address instead of 127.0.0.1 or localhost.
-    final url = Uri.parse("http://$virtualAddress:8000/predict");
+    final url = Uri.parse("https://solace-xgboost-api-805655165429.asia-southeast1.run.app/predict");
     final headers = {"Content-Type": "application/json"};
 
     try {
       final Map<String, dynamic> requestBody = {
-        "gender": algoInputs[0] == 'Female' ? 0 : 1, // Convert gender to int
+        "gender": algoInputs[0] == 'Female' ? 0 : 1,
         "age": (int.tryParse(algoInputs[1].toString()) ?? 0) > 89 ? 90 : int.tryParse(algoInputs[1].toString()) ?? 0, // Cap age at 90
         "temperature": double.tryParse(algoInputs[2].toString()) ?? 0.0,
         "sao2": int.tryParse(algoInputs[3].toString()) ?? 0,
@@ -228,7 +225,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       debugPrint("Sending JSON: ${jsonEncode(requestBody)}");
 
       // Send HTTP request
-      final response = await http.post(url, headers: headers, body: jsonEncode(requestBody));
+      final response = await http.post(url, headers: headers, body: jsonEncode(requestBody)).timeout(Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
@@ -296,8 +293,18 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       } else {
         debugPrint("API Error: ${response.statusCode}, Response: ${response.body}");
       }
+    } on TimeoutException catch (e) {
+      debugPrint("API Timeout: $e");
+      // Show a UI message to the user
+    } on SocketException catch (e) {
+      debugPrint("Network Error: $e");
+      // Handle no internet or server unreachable case
+    } on FormatException catch (e) {
+      debugPrint("Invalid Response Format: $e");
+      // Handle cases where API returns unexpected response
     } catch (e) {
-      debugPrint("Network/Parsing Error: $e");
+      debugPrint("Unexpected Error: $e");
+      // Handle any other unknown errors
     }
   }
 

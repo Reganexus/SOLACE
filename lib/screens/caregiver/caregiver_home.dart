@@ -261,7 +261,21 @@ class CaregiverHomeState extends State<CaregiverHome> {
           MaterialPageRoute(builder: (context) => const HelpPage()),
         );
       },
-      child: const Icon(Icons.info_outline_rounded, size: 24.0),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.info_outline_rounded, size: 24.0),
+          const SizedBox(width: 8),
+          const Text(
+            'Support',
+            style: TextStyle(
+              fontSize: 14, 
+              fontWeight: FontWeight.w500,
+              color: Colors.black,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -307,7 +321,21 @@ class CaregiverHomeState extends State<CaregiverHome> {
           }
         }
       },
-      child: const Icon(Icons.logout_rounded, size: 24.0, color: AppColors.red),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.logout_rounded, size: 24.0, color: AppColors.red),
+          const SizedBox(width: 8),
+          const Text(
+            'Log out',
+            style: TextStyle(
+              fontSize: 14, 
+              fontWeight: FontWeight.w500,
+              color: AppColors.red,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
