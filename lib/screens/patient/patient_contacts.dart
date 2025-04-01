@@ -591,7 +591,17 @@ class ContactsScreenState extends State<Contacts> {
             onTap: _addContact,
             child: Padding(
               padding: const EdgeInsets.only(right: 16.0),
-              child: Icon(Icons.person_add, size: 24, color: AppColors.black),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.person_add, size: 24, color: AppColors.black),
+                  SizedBox(width: 6),
+                  Text(
+                    "Add Contacts",
+                    style: TextStyle(fontSize: 14, color: AppColors.black),
+                  ),
+                ],
+              ),
             ),
           ),
         ],

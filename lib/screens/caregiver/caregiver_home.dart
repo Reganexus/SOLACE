@@ -245,7 +245,13 @@ class CaregiverHomeState extends State<CaregiverHome> {
                       ),
                 );
               },
-              child: const Icon(Icons.delete, size: 24.0),
+              child: Row(
+                children: [
+                  Icon(Icons.delete, size: 24.0, color: AppColors.black),
+                  SizedBox(width: 5), // Space between icon and text
+                  Text("Clear", style: TextStyle(fontSize: 14, color: AppColors.black)),
+                ],
+              ),
             );
           },
         );

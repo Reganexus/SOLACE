@@ -1,6 +1,7 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:solace/screens/caregiver/caregiver_add_medicine.dart';
 import 'package:solace/screens/caregiver/caregiver_add_task.dart';
 import 'package:solace/screens/patient/patient_edit.dart';
@@ -50,10 +51,14 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
   bool isLoading = true;
   late final PageController _pageController;
 
+  Timer? _timer;
+  DateTime _currentTime = DateTime.now();
+
   @override
   void initState() {
     super.initState();
     fetchPatientData();
+    _startTimer();
     _pageController = PageController(initialPage: 0);
     debugPrint("Patient Dashboard Patient ID: ${widget.patientId}");
     debugPrint("Patient Dashboard Caregiver ID: ${widget.caregiverId}");
@@ -61,8 +66,17 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
 
   @override
   void dispose() {
+    _timer?.cancel();
     _pageController.dispose();
     super.dispose();
+  }
+
+  void _startTimer() {
+    _timer = Timer.periodic(Duration(seconds: 60), (timer) {
+      setState(() {
+        _currentTime = DateTime.now();
+      });
+    });
   }
 
   Future<void> fetchPatientData() async {
@@ -171,6 +185,38 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     }
 
     return VitalStatus(color: Colors.white, label: "Normal");
+  }
+
+  String _convertPredictionKeyToName(String key) {
+    if (key.startsWith('bloodpressure_t')) return 'Blood Pressure';
+    if (key.startsWith('heartrate_t')) return 'Heart Rate';
+    if (key.startsWith('respiration_t')) return 'Respiration';
+    if (key.startsWith('sao2_t')) return 'Oxygen Saturation';
+    if (key.startsWith('temperature_t')) return 'Temperature';
+    return key;
+  }
+
+  String _getVitalUnit(String key) {
+    return {
+      'Heart Rate': ' bpm',
+      'Blood Pressure': ' mmHg',
+      'Oxygen Saturation': '%',
+      'Respiration': ' breaths/min',
+      'Temperature': '°C',
+      'Pain': '/10',
+    }[key] ?? '';
+  }
+
+  String _formatRemainingTime(Duration duration) {
+    if (duration.inHours > 1) {
+      return '${duration.inHours} hours';
+    } else if (duration.inHours == 1) {
+      return '1 hour';
+    } else if (duration.inMinutes > 1) {
+      return '${duration.inMinutes} minutes';
+    } else {
+      return 'Less than a minute';
+    }
   }
 
   Widget _buildScheduleContainer() {
@@ -857,7 +903,6 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
           );
         }
 
-        // Get the last element in the tracking array
         final lastElement = trackingArray.last as Map<String, dynamic>;
         final vitals = lastElement['Vitals'] as Map<String, dynamic>?;
         final timestamp = lastElement['timestamp'] as Timestamp?;
@@ -868,57 +913,124 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
 
         final formattedTimestamp = timeago.format(timestamp.toDate());
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Last updated: $formattedTimestamp',
-              style: TextStyle(
-                color: AppColors.white,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-            SizedBox(height: 10),
-            ...vitals.entries.map((entry) {
-              final units = {
-                'Heart Rate': ' bpm',
-                'Blood Pressure': ' mmHg',
-                'Oxygen Saturation': '%',
-                'Respiration': ' breaths/min',
-                'Temperature': '°C',
-                'Pain': '/10',
-              };
+        return FutureBuilder<DocumentSnapshot>(
+          future: FirebaseFirestore.instance
+              .collection('patient') // Corrected collection name
+              .doc(widget.patientId)
+              .get(), // Fetch predictions once
+          builder: (context, predictionSnapshot) {
+            if (predictionSnapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-              final unit = units[entry.key] ?? '';
-              final dynamic rawValue = entry.value;
-              final num? value = rawValue is num ? rawValue : num.tryParse(rawValue.toString());
+            if (predictionSnapshot.hasError) {
+              return const Center(child: Text('Error fetching predictions'));
+            }
 
-              // Special handling for Blood Pressure (systolic/diastolic)
-              if (entry.key == 'Blood Pressure' && rawValue is String) {
-                final parts = rawValue.split('/');
-                if (parts.length == 2) {
-                  final systolic = int.tryParse(parts[0]) ?? 0;
-                  final diastolic = int.tryParse(parts[1]) ?? 0;
+            final predictionsData = predictionSnapshot.data?.data() as Map<String, dynamic>?;
+            final predictionsArray = predictionsData?['predictions'] as List<dynamic>?;
 
-                  final systolicStatus = getVitalStatus('Blood Pressure (Systolic)', systolic);
-                  final diastolicStatus = getVitalStatus('Blood Pressure (Diastolic)', diastolic);
+            Map<String, dynamic> criticalPredictions = {};
+            Map<String, String> predictionTimes = {};
 
-                  final status = systolicStatus.color == Colors.red || diastolicStatus.color == Colors.red
-                      ? (systolicStatus.color == Colors.red ? systolicStatus : diastolicStatus)
-                      : (systolicStatus.color == Colors.yellow || diastolicStatus.color == Colors.yellow
-                          ? (systolicStatus.color == Colors.yellow ? systolicStatus : diastolicStatus)
-                          : VitalStatus(color: Colors.white, label: "Normal"));
+            if (predictionsArray != null && predictionsArray.isNotEmpty) {
+              for (var prediction in predictionsArray) {
+                final predMap = prediction as Map<String, dynamic>;
+                final predictionTimestamp = (predMap['timestamp'] as Timestamp?)?.toDate();
 
-                  return _buildVitalRow(entry.key, rawValue, unit, status);
+                if (predictionTimestamp == null) continue;
+
+                // Define future time intervals
+                final timeIntervals = {
+                  't+1': predictionTimestamp.add(Duration(hours: 1)),
+                  't+2': predictionTimestamp.add(Duration(hours: 6)),
+                  't+3': predictionTimestamp.add(Duration(hours: 12)),
+                };
+
+                for (var key in predMap.keys) {
+                  if (!key.startsWith('bloodpressure_t') &&
+                      !key.startsWith('heartrate_t') &&
+                      !key.startsWith('respiration_t') &&
+                      !key.startsWith('sao2_t') &&
+                      !key.startsWith('temperature_t')) {
+                    continue;
+                  }
+
+                  final value = predMap[key];
+                  final status = getVitalStatus(_convertPredictionKeyToName(key), value);
+
+                  if (status.color == Colors.red || status.color == Colors.yellow) {
+                    // Extract the time step (t+1, t+2, t+3)
+                    final match = RegExp(r't\+(\d+)').firstMatch(key);
+                    if (match != null) {
+                      final timeKey = 't+${match.group(1)}';
+                      final futureTime = timeIntervals[timeKey];
+
+                      if (futureTime != null) {
+                        final remainingTime = futureTime.difference(_currentTime);
+
+                        if (!criticalPredictions.containsKey(_convertPredictionKeyToName(key))) {
+                          criticalPredictions[_convertPredictionKeyToName(key)] = value;
+                          predictionTimes[_convertPredictionKeyToName(key)] =
+                              _formatRemainingTime(remainingTime);
+                        }
+                      }
+                    }
+                  }
                 }
               }
+            }
 
-              // Handle other vitals safely
-              final status = (value != null) ? getVitalStatus(entry.key, value) : VitalStatus(color: Colors.white, label: "N/A");
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Last updated: $formattedTimestamp',
+                  style: TextStyle(
+                    color: AppColors.white,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+                SizedBox(height: 10),
 
-              return _buildVitalRow(entry.key, rawValue.toString(), unit, status);
-            }),
-          ],
+                // Display current vitals
+                ...vitals.entries.map((entry) {
+                  final unit = _getVitalUnit(entry.key);
+                  final dynamic rawValue = entry.value;
+                  final num? value = rawValue is num ? rawValue : num.tryParse(rawValue.toString());
+
+                  final status = (value != null) ? getVitalStatus(entry.key, value) : VitalStatus(color: Colors.white, label: "N/A");
+
+                  return _buildVitalRow(entry.key, rawValue.toString(), unit, status);
+                }),
+
+                // Display earliest predicted critical vitals
+                if (criticalPredictions.isNotEmpty) ...[
+                  SizedBox(height: 20),
+                  Text(
+                    'Predicted Critical Vitals',
+                    style: TextStyle(
+                      color: Colors.redAccent,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  ...criticalPredictions.entries.map((entry) {
+                    final unit = _getVitalUnit(entry.key);
+                    final status = getVitalStatus(entry.key, entry.value);
+                    final timeRemaining = predictionTimes[entry.key] ?? "Unknown";
+
+                    return _buildVitalRow(
+                      entry.key,
+                      '(in $timeRemaining) ${entry.value}',
+                      unit,
+                      status,
+                    );
+                  }),
+                ],
+              ],
+            );
+          },
         );
       },
     );
@@ -977,33 +1089,35 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
             child: Row(
               children: [
                 GestureDetector(
-                  onTap:
-                      () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder:
-                              (context) =>
-                                  Contacts(patientId: widget.patientId),
-                        ),
-                      ),
-                  child: Icon(
-                    Icons.perm_contact_cal_rounded,
-                    size: 24,
-                    color: AppColors.black,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => Contacts(patientId: widget.patientId),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.perm_contact_cal_rounded, size: 20, color: AppColors.black),
+                      SizedBox(width: 5),
+                      Text("Contacts", style: TextStyle(fontSize: 12, color: AppColors.black)),
+                    ],
                   ),
                 ),
-                SizedBox(width: 5),
+                SizedBox(width: 15),
                 GestureDetector(
-                  onTap:
-                      () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder:
-                              (context) =>
-                                  EditPatient(patientId: widget.patientId),
-                        ),
-                      ),
-                  child: Icon(Icons.edit, size: 24, color: AppColors.black),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => EditPatient(patientId: widget.patientId),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.edit, size: 20, color: AppColors.black),
+                      SizedBox(width: 5),
+                      Text("Edit Profile", style: TextStyle(fontSize: 12, color: AppColors.black)),
+                    ],
+                  ),
                 ),
               ],
             ),

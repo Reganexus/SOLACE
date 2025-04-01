@@ -1,8 +1,8 @@
 // Global Variables
 bool autoLoginenabled = false;
 bool emailVerificationEnabled = true;
-int maxExtremeScale = 8; // what will be considered high or True in 0-10 range sliders
-int maxNormalScale = 5; // what will be considered normal in 0-10 range sliders
+int maxExtremeScale = 7; // what will be considered high or True in 0-10 range sliders
+int maxNormalScale = 4; // what will be considered normal in 0-10 range sliders
 
 // beats per minute (Heart Rate)
 int minPossibleHeartRate = 20;   // Near-death, rare survival

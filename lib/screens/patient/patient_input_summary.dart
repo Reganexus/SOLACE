@@ -296,10 +296,30 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
               }
             });
 
+            // Add formattedPredictions to Firestore
+            try {
+              // Add a timestamp to the formattedPredictions map
+              formattedPredictions['timestamp'] = Timestamp.now();
+
+              await FirebaseFirestore.instance
+                  .collection('patient')
+                  .doc(widget.uid)
+                  .update({
+                'predictions': [formattedPredictions], // Replace the entire array
+              });
+              debugPrint('Predictions successfully added to Firestore.');
+            } catch (e) {
+              debugPrint('Error adding predictions to Firestore: $e');
+            }
+
             // Now print the formatted predictions
             formattedPredictions.forEach((key, value) {
-              String label = "";
+              // Skip timestamp key
+              if (key == "timestamp") {
+                return;
+              }
 
+              String label = "";
               if (key.startsWith("temperature")) {
                 label = "Predicted temperature after ";
               } else if (key.startsWith("sao2")) {
