@@ -10,6 +10,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:solace/services/database.dart';
+import 'package:solace/shared/widgets/case_picker.dart';
 import 'package:solace/shared/widgets/select_profile_image.dart';
 import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
@@ -31,6 +32,7 @@ class _EditPatientState extends State<EditPatient> {
   final DatabaseService db = DatabaseService();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   Map<String, dynamic> patientData = {};
+  List<String> selectedCases = [];
   File? _profileImage;
   String? _profileImageUrl;
   DateTime? birthday;
@@ -75,6 +77,40 @@ class _EditPatientState extends State<EditPatient> {
       textColor: AppColors.white,
       fontSize: 16.0,
     );
+  }
+
+  Future<void> _loadPatientCases() async {
+    try {
+      final patientDoc = await FirebaseFirestore.instance.collection('patient').doc(widget.patientId).get();
+
+      if (patientDoc.exists) {
+        setState(() {
+          selectedCases = List<String>.from(patientDoc.data()?['cases'] ?? []);
+        });
+        for (var caseItem in selectedCases) {
+          debugPrint('Case item: $caseItem');
+          if (!selectedCases.contains(caseItem)) {
+            _addCase(caseItem);
+          }
+        }
+      } else {
+        debugPrint("Patient document does not exist.");
+      }
+    } catch (e) {
+      debugPrint("Error loading patient cases: $e");
+    }
+  }
+
+  void _addCase(String caseItem) {
+    setState(() {
+      selectedCases.add(caseItem);
+    });
+  }
+
+  void _removeCase(String caseItem) {
+    setState(() {
+      selectedCases.remove(caseItem);
+    });
   }
 
   Future<File> getFileFromAsset(String assetPath) async {
@@ -168,6 +204,7 @@ class _EditPatientState extends State<EditPatient> {
           lastNameController.text = patientData.lastName;
           middleNameController.text = patientData.middleName;
           caseTitleController.text = patientData.caseTitle;
+          caseTitleController.text = patientData.cases.join(', ');
           caseDescriptionController.text = patientData.caseDescription;
           addressController.text = patientData.address;
           willController.text = patientData.will;
@@ -182,6 +219,7 @@ class _EditPatientState extends State<EditPatient> {
                   : '';
 
           _profileImageUrl = patientData.profileImageUrl;
+
         });
       } else {
         showToast('No data found for this user.');
@@ -232,6 +270,7 @@ class _EditPatientState extends State<EditPatient> {
   void initState() {
     super.initState();
     _loadUserData();
+    _loadPatientCases();
   }
 
   @override
@@ -274,6 +313,7 @@ class _EditPatientState extends State<EditPatient> {
               'lastName': lastName,
               'middleName': middleName,
               'caseTitle': caseTitle,
+              'cases': selectedCases,
               'caseDescription': caseDescription,
               'address': address,
               'will': will,
@@ -437,7 +477,6 @@ class _EditPatientState extends State<EditPatient> {
                               ],
                             ),
                           ),
-
                           divider(),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -446,22 +485,12 @@ class _EditPatientState extends State<EditPatient> {
                             ],
                           ),
                           const SizedBox(height: 20),
-
-                          CustomTextField(
-                            controller: caseTitleController,
-                            focusNode: _focusNodes[10],
-                            labelText: 'Case Title',
-                            enabled:
-                                !_isLoading, // Ensure it's not set to false
-                            validator:
-                                (val) =>
-                                    val!.isEmpty
-                                        ? 'Case Title cannot be empty'
-                                        : null,
+                          CasePickerWidget(
+                            selectedCases: selectedCases,
+                            onAddCase: _addCase,
+                            onRemoveCase: _removeCase,
                           ),
-
                           const SizedBox(height: 20),
-
                           CustomTextField(
                             controller: caseDescriptionController,
                             focusNode: _focusNodes[11],
@@ -474,7 +503,6 @@ class _EditPatientState extends State<EditPatient> {
                                         : null,
                           ),
                           divider(),
-
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -680,7 +708,7 @@ class _EditPatientState extends State<EditPatient> {
                                       ? Buttonstyle.gray
                                       : Buttonstyle.neon,
                               child: Text(
-                                'Add Patient',
+                                'Save Changes',
                                 style: Textstyle.largeButton,
                               ),
                             ),

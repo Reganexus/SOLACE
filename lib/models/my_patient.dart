@@ -7,6 +7,7 @@ class PatientData {
   final String lastName;
   final String middleName; // Changed to required
   final String caseTitle; // Required
+  final List<String> cases;
   final String caseDescription; // Required
   final String profileImageUrl;
   final String gender;
@@ -26,6 +27,7 @@ class PatientData {
     required this.lastName,
     required this.middleName, // Marked as required
     required this.caseTitle, // Required
+    required this.cases,
     required this.caseDescription, // Required
     required this.profileImageUrl,
     required this.gender,
@@ -65,6 +67,7 @@ class PatientData {
       middleName:
           data['middleName'] ?? '', // Changed to required with default fallback
       caseTitle: data['caseTitle'] ?? '', // Ensure default value or required
+      cases: List<String>.from(data['cases'] ?? []),
       caseDescription:
           data['caseDescription'] ?? '', // Ensure default value or required
       profileImageUrl: data['profileImageUrl'] ?? '',
@@ -89,6 +92,7 @@ class PatientData {
       'lastName': lastName,
       'middleName': middleName, // Included as required
       'caseTitle': caseTitle, // Include in mapping
+      'cases': cases,
       'caseDescription': caseDescription, // Include in mapping
       'profileImageUrl': profileImageUrl,
       'gender': gender,

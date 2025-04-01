@@ -587,6 +587,7 @@ class DatabaseService {
     String? profileImageUrl,
     DateTime? birthday,
     String? caseTitle,
+    List? cases,
     String? caseDescription,
     String? status,
   }) async {
@@ -643,6 +644,7 @@ class DatabaseService {
 
       // Add case-related data
       if (caseTitle?.isNotEmpty ?? false) updatedData['caseTitle'] = caseTitle;
+      if (cases?.isNotEmpty ?? false) updatedData['cases'] = cases;
       if (caseDescription?.isNotEmpty ?? false) {
         updatedData['caseDescription'] = caseDescription;
       }
@@ -679,6 +681,7 @@ class DatabaseService {
     DateTime? birthday,
     String? caseTitle,
     String? caseDescription,
+    List? cases,
     String? status,
     String? address,
   }) async {
@@ -699,6 +702,7 @@ class DatabaseService {
         if (profileImageUrl != null) 'profileImageUrl': profileImageUrl,
         if (birthday != null) 'birthday': Timestamp.fromDate(birthday),
         if (caseTitle != null && caseTitle.isNotEmpty) 'caseTitle': caseTitle,
+        if (cases != null && cases.isNotEmpty) 'cases': cases,
         if (caseDescription != null && caseDescription.isNotEmpty)
           'caseDescription': caseDescription,
         if (status != null && status.isNotEmpty) 'status': status,

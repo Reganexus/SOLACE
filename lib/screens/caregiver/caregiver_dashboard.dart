@@ -113,64 +113,65 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
       children: [
         Text('Patient List', style: Textstyle.subheader),
         const SizedBox(height: 10.0),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: patients.length,
-          itemBuilder: (context, index) {
-            final patient = patients[index];
+        Expanded(
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: patients.length,
+            itemBuilder: (context, index) {
+              final patient = patients[index];
 
-            return GestureDetector(
-              onTap: () => _navigateToPatientDashboard(patient),
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.symmetric(
-                  vertical: 5.0,
-                  horizontal: 8.0,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.gray,
-                  borderRadius: BorderRadius.circular(10.0),
-                ),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 20.0,
-                      backgroundImage:
-                          patient.profileImageUrl.isNotEmpty
-                              ? NetworkImage(patient.profileImageUrl)
-                              : AssetImage(
-                                    'lib/assets/images/shared/placeholder.png',
-                                  )
-                                  as ImageProvider,
-                    ),
-                    const SizedBox(width: 16.0),
-                    Expanded(
-                      child: Text(
-                        '${patient.firstName} ${patient.lastName}',
-                        style: Textstyle.body,
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
+              return GestureDetector(
+                onTap: () => _navigateToPatientDashboard(patient),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 5.0,
+                    horizontal: 8.0,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.gray,
+                    borderRadius: BorderRadius.circular(10.0),
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 20.0,
+                        backgroundImage:
+                            patient.profileImageUrl.isNotEmpty
+                                ? NetworkImage(patient.profileImageUrl)
+                                : AssetImage(
+                                      'lib/assets/images/shared/placeholder.png',
+                                    )
+                                    as ImageProvider,
                       ),
-                    ),
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(
-                            Icons.arrow_forward_ios_rounded,
-                            size: 16.0,
-                            color: AppColors.black,
-                          ),
-                          onPressed: () => _navigateToPatientDashboard(patient),
+                      const SizedBox(width: 16.0),
+                      Expanded(
+                        child: Text(
+                          '${patient.firstName} ${patient.lastName}',
+                          style: Textstyle.body,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
-                      ],
-                    ),
-                  ],
+                      ),
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 16.0,
+                              color: AppColors.black,
+                            ),
+                            onPressed: () => _navigateToPatientDashboard(patient),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            );
-          },
-        ),
+              );
+            },
+          ),
+        )
       ],
     );
   }

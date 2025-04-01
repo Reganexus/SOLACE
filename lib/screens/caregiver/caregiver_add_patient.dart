@@ -8,6 +8,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:solace/services/error_handler.dart';
 import 'package:solace/services/validator.dart';
+import 'package:solace/shared/widgets/case_picker.dart';
 import 'package:solace/shared/widgets/select_profile_image.dart';
 import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
@@ -26,6 +27,7 @@ class CaregiverAddPatient extends StatefulWidget {
 class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   late Map<String, dynamic> patientData = {};
+  List<String> selectedCases = [];
   File? _profileImage;
   String? _profileImageUrl;
   DateTime? birthday;
@@ -93,6 +95,18 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
       textColor: AppColors.white,
       fontSize: 16.0,
     );
+  }
+
+  void _addCase(String caseItem) {
+    setState(() {
+      selectedCases.add(caseItem);
+    });
+  }
+
+  void _removeCase(String caseItem) {
+    setState(() {
+      selectedCases.remove(caseItem);
+    });
   }
 
   Future<File> getFileFromAsset(String assetPath) async {
@@ -299,11 +313,9 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
       if (fixedWishesController.text.trim().isEmpty) {
         throw Exception('Please select your religion.');
       }
-      if (caseTitleController.text.trim().isEmpty) {
-        throw Exception('Address cannot be empty.');
-      }
+
       if (caseDescriptionController.text.trim().isEmpty) {
-        throw Exception('Address cannot be empty.');
+        throw Exception('Case Description cannot be empty.');
       }
 
       // Submit to database
@@ -321,6 +333,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
         profileImageUrl: profileImageUrl,
         birthday: birthday,
         caseTitle: caseTitleController.text.trim().capitalizeEachWord(),
+        cases: selectedCases,
         caseDescription:
             caseDescriptionController.text.trim().capitalizeEachWord(),
         status: 'stable',
@@ -462,15 +475,10 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
                   children: [Text('Current Case', style: Textstyle.subheader)],
                 ),
                 const SizedBox(height: 20),
-
-                CustomTextField(
-                  controller: caseTitleController,
-                  focusNode: _focusNodes[9],
-                  labelText: 'Case Title',
-                  enabled: !_isLoading,
-                  validator:
-                      (val) =>
-                          val!.isEmpty ? 'Case Title cannot be empty' : null,
+                CasePickerWidget(
+                  selectedCases: selectedCases,
+                  onAddCase: _addCase,
+                  onRemoveCase: _removeCase,
                 ),
                 const SizedBox(height: 20),
 
