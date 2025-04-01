@@ -114,6 +114,15 @@ class PatientInterventionsState extends State<PatientInterventions> {
     'High Respiration Rate': 'highRespirationRate',
     'Low Temperature': 'lowTemperature',
     'High Temperature': 'highTemperature',
+    'Extremely Low Heart Rate': 'extremelyLowHeartRate',
+    'Extremely High Heart Rate': 'extremelyhighHeartRate',
+    'Extremely Low Blood Pressure': 'extremelyLowBloodPressure',
+    'Extremely High Blood Pressure': 'extremelyHighBloodPressure',
+    'Extremely Low Oxygen Saturation': 'extremelyLowOxygenSaturation',
+    'Extremely Low Respiration Rate': 'extremelyLowRespirationRate',
+    'Extremely High Respiration Rate': 'extremelyHighRespirationRate',
+    'Extremely Low Temperature': 'extremelyLowTemperature',
+    'Extremely High Temperature': 'extremelyHighTemperature',
     'Pain': 'pain',
   };
 

@@ -82,21 +82,30 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
       switch (key) {
         case 'Heart Rate':
-          if (vitalValue < minNormalHeartRate) {
-            symptoms.add('Low Heart rRate');
+          if (vitalValue < minExtremeHeartRate) {
+            symptoms.add('Extremely Low Heart Rate');
+          } else if (vitalValue > maxExtremeHeartRate) {
+            symptoms.add('Extremely High Heart Rate');
+          } else if (vitalValue < minNormalHeartRate) {
+            symptoms.add('Low Heart Rate');
           } else if (vitalValue > maxNormalHeartRate) {
             symptoms.add('High Heart Rate');
           }
           break;
-
         case 'Oxygen Saturation':
-          if (vitalValue < minNormalOxygenSaturation) {
+          if (vitalValue < minExtremeOxygenSaturation) {
+            symptoms.add('Extremely Low Oxygen Saturation');
+          } else if (vitalValue < minNormalOxygenSaturation) {
             symptoms.add('Low Oxygen Saturation');
           }
           break;
 
         case 'Respiration':
-          if (vitalValue < minNormalRespirationRate) {
+          if (vitalValue < minExtremeRespirationRate) {
+            symptoms.add('Extremely Low Respiration Rate');
+          } else if (vitalValue > maxExtremeRespirationRate) {
+            symptoms.add('Extremely High Respiration Rate');
+          } else if (vitalValue < minNormalRespirationRate) {
             symptoms.add('Low Respiration Rate');
           } else if (vitalValue > maxNormalRespirationRate) {
             symptoms.add('High Respiration Rate');
@@ -104,7 +113,11 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           break;
 
         case 'Temperature':
-          if (vitalValue < minNormalTemperature) {
+          if (vitalValue < minExtremeTemperature) {
+            symptoms.add('Extremely Low Temperature');
+          } else if (vitalValue > maxExtremeTemperature) {
+            symptoms.add('Extremely High Temperature');
+          } else if (vitalValue < minNormalTemperature) {
             symptoms.add('Low Temperature');
           } else if (vitalValue > maxNormalTemperature) {
             symptoms.add('High Temperature');
@@ -115,8 +128,14 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           final parts = value.split('/');
           final systolic = int.tryParse(parts[0]);
           final diastolic = int.tryParse(parts[1]);
-          if (systolic! > maxNormalBloodPressureSystolic ||
-              diastolic! > maxNormalBloodPressureDiastolic) {
+          if (systolic! > maxExtremeBloodPressureSystolic ||
+              diastolic! > maxExtremeBloodPressureDiastolic) {
+            symptoms.add('Extremely High Blood Pressure');
+          } else if (systolic < minExtremeBloodPressureSystolic &&
+              diastolic < minExtremeBloodPressureDiastolic) {
+            symptoms.add('Extremely Low Blood Pressure');
+          } else if (systolic > maxNormalBloodPressureSystolic ||
+              diastolic > maxNormalBloodPressureDiastolic) {
             symptoms.add('High Blood Pressure');
           } else if (systolic < minNormalBloodPressureSystolic &&
               diastolic < minNormalBloodPressureDiastolic) {

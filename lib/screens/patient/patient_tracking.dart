@@ -261,7 +261,7 @@ class PatientTrackingState extends State<PatientTracking> {
         unitLabel = '°C';
         validators.addAll([
           FormBuilderValidators.numeric(),
-          FormBuilderValidators.between(28.0, 43.0),
+          FormBuilderValidators.between(minPossibleTemperature, maxPossibleTemperature),
         ]);
         inputFormatters.add(
           FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,1}$')),
@@ -271,7 +271,7 @@ class PatientTrackingState extends State<PatientTracking> {
         unitLabel = 'bpm';
         validators.addAll([
           FormBuilderValidators.integer(),
-          FormBuilderValidators.between(30, 220),
+          FormBuilderValidators.between(minPossibleHeartRate, maxPossibleHeartRate),
         ]);
         inputFormatters.add(FilteringTextInputFormatter.digitsOnly);
         break;
@@ -288,11 +288,11 @@ class PatientTrackingState extends State<PatientTracking> {
           final systolic = int.parse(match.group(1)!);
           final diastolic = int.parse(match.group(2)!);
 
-          if (systolic < 60 || systolic > 300) {
-            return 'Systolic must be between 60-300 mmHg';
+          if (systolic < minPossibleBloodPressureSystolic || systolic > maxPossibleBloodPressureSystolic) {
+            return 'Systolic must be between $minPossibleBloodPressureSystolic-$maxPossibleBloodPressureSystolic mmHg';
           }
-          if (diastolic < 20 || diastolic > 200) {
-            return 'Diastolic must be between 20-200 mmHg';
+          if (diastolic < minPossibleBloodPressureDiastolic || diastolic > maxPossibleBloodPressureDiastolic) {
+            return 'Diastolic must be between $minPossibleBloodPressureDiastolic-$maxPossibleBloodPressureDiastolic mmHg';
           }
           return null;
         });
@@ -305,7 +305,7 @@ class PatientTrackingState extends State<PatientTracking> {
         unitLabel = '%';
         validators.addAll([
           FormBuilderValidators.numeric(),
-          FormBuilderValidators.between(50.0, 100.0),
+          FormBuilderValidators.between(minPossibleOxygenSaturation, maxPossibleOxygenSaturation),
         ]);
         inputFormatters.add(FilteringTextInputFormatter.digitsOnly);
         break;
@@ -313,7 +313,7 @@ class PatientTrackingState extends State<PatientTracking> {
         unitLabel = 'b/min';
         validators.addAll([
           FormBuilderValidators.integer(),
-          FormBuilderValidators.between(4, 80),
+          FormBuilderValidators.between(minPossibleRespirationRate, maxPossibleRespirationRate),
         ]);
         inputFormatters.add(FilteringTextInputFormatter.digitsOnly);
         break;
