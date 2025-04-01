@@ -143,7 +143,7 @@ class CaregiverHomeState extends State<CaregiverHome> {
                 Row(
                   children: [
                     buildHelp(),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 18),
                     buildLogOut(),
                   ],
                 ),
@@ -271,7 +271,7 @@ class CaregiverHomeState extends State<CaregiverHome> {
         mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(Icons.info_outline_rounded, size: 24.0),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
           const Text(
             'Support',
             style: TextStyle(
@@ -331,7 +331,7 @@ class CaregiverHomeState extends State<CaregiverHome> {
         mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(Icons.logout_rounded, size: 24.0, color: AppColors.red),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
           const Text(
             'Log out',
             style: TextStyle(
