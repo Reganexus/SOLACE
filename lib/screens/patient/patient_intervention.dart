@@ -114,6 +114,7 @@ class PatientInterventionsState extends State<PatientInterventions> {
     'High Respiration Rate': 'highRespirationRate',
     'Low Temperature': 'lowTemperature',
     'High Temperature': 'highTemperature',
+    'Pain': 'pain',
     'Extremely Low Heart Rate': 'extremelyLowHeartRate',
     'Extremely High Heart Rate': 'extremelyhighHeartRate',
     'Extremely Low Blood Pressure': 'extremelyLowBloodPressure',
@@ -123,7 +124,7 @@ class PatientInterventionsState extends State<PatientInterventions> {
     'Extremely High Respiration Rate': 'extremelyHighRespirationRate',
     'Extremely Low Temperature': 'extremelyLowTemperature',
     'Extremely High Temperature': 'extremelyHighTemperature',
-    'Pain': 'pain',
+    'Extreme Pain': 'extremePain',
   };
 
   final Map<String, String> physicalMapping = {

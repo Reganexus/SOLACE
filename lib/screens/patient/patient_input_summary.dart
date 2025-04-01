@@ -144,7 +144,9 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           break;
 
         case 'Pain':
-          if (vitalValue > maxScale) {
+          if (vitalValue > maxExtremeScale) {
+            symptoms.add('Extreme Pain');
+          } else if (vitalValue > maxNormalScale) {
             symptoms.add('Pain');
           }
           break;
@@ -392,7 +394,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     'Oxygen Saturation': '%',
     'Respiration': 'b/min',
     'Temperature': '°C',
-    'Paint': '',
+    'Pain': '',
   };
 
   @override
@@ -456,6 +458,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                   ...widget.inputs['Vitals'].entries.map((entry) {
                     // Get the unit for the current vital
                     final unit = vitalsUnits[entry.key] ?? '';
+                    final value = (entry.value == null || entry.value.toString().isEmpty) ? '0' : entry.value.toString();
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 5.0),
                       child: Row(
@@ -463,7 +466,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                         children: [
                           Text('${entry.key}:', style: Textstyle.body),
                           Text(
-                            '${entry.value}$unit', // Append the unit
+                            '$value$unit', // Append the unit
                             style: Textstyle.body,
                           ),
                         ],

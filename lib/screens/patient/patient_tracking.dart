@@ -38,7 +38,7 @@ class PatientTrackingState extends State<PatientTracking> {
     'Oxygen Saturation': '',
     'Respiration': '',
     'Temperature': '',
-    'Pain': '',
+    'Pain': '0',
   };
 
   final Map<String, TextEditingController> _controllers = {
@@ -318,17 +318,18 @@ class PatientTrackingState extends State<PatientTracking> {
         inputFormatters.add(FilteringTextInputFormatter.digitsOnly);
         break;
       case 'Pain':
-        int painValue = int.tryParse(_vitalInputs[key] ?? '0') ?? 0;
+        int painValue = double.tryParse(_vitalInputs[key] ?? '0')?.round() ?? 0;
         return Column(
           children: [
             SizedBox(height: 10.0),
             _buildSlider('Pain', painValue, (newValue) {
               setState(() {
-                _vitalInputs[key] = newValue.toString();
+                _vitalInputs[key] = newValue.round().toString();
               });
             }),
           ],
         );
+
       default:
         unitLabel = '';
     }

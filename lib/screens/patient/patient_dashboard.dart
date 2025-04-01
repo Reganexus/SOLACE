@@ -15,6 +15,9 @@ import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/themes/textstyle.dart';
 import 'package:solace/utility/schedule_utility.dart';
+import 'package:timeago/timeago.dart' as timeago;
+import 'package:solace/shared/globals.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 class PatientsDashboard extends StatefulWidget {
   final String patientId;
@@ -30,6 +33,14 @@ class PatientsDashboard extends StatefulWidget {
 
   @override
   State<PatientsDashboard> createState() => _PatientsDashboardState();
+}
+
+class VitalStatus {
+  final Color color;
+  final IconData? icon;
+  final String label;
+
+  VitalStatus({required this.color, this.icon, required this.label});
 }
 
 class _PatientsDashboardState extends State<PatientsDashboard> {
@@ -89,6 +100,77 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
         SnackBar(content: Text("Error fetching patient data: $e")),
       );
     }
+  }
+
+  VitalStatus getVitalStatus(String key, dynamic value) {
+    if (key == 'Blood Pressure' && value is String) {
+      final parts = value.split('/');
+      if (parts.length == 2) {
+        final systolic = int.tryParse(parts[0]) ?? 0;
+        final diastolic = int.tryParse(parts[1]) ?? 0;
+
+        final systolicStatus = getVitalStatus('Blood Pressure (Systolic)', systolic);
+        final diastolicStatus = getVitalStatus('Blood Pressure (Diastolic)', diastolic);
+
+        return systolicStatus.color == Colors.red || diastolicStatus.color == Colors.red
+            ? systolicStatus.color == Colors.red ? systolicStatus : diastolicStatus
+            : systolicStatus.color == Colors.yellow || diastolicStatus.color == Colors.yellow
+                ? systolicStatus.color == Colors.yellow ? systolicStatus : diastolicStatus
+                : VitalStatus(color: Colors.white, label: "Normal");
+      }
+    }
+
+    // Convert value to num safely
+    final numValue = (value is num) ? value : num.tryParse(value.toString()) ?? 0;
+
+    switch (key) {
+      case 'Heart Rate':
+        if (numValue < minExtremeHeartRate) return VitalStatus(color: Colors.red, icon: LucideIcons.alertTriangle, label: "Very Low");
+        if (numValue < minNormalHeartRate) return VitalStatus(color: Colors.yellow, icon: LucideIcons.alertCircle, label: "Low");
+        if (numValue > maxNormalHeartRate) return VitalStatus(color: Colors.yellow, icon: LucideIcons.alertCircle, label: "High");
+        if (numValue > maxExtremeHeartRate) return VitalStatus(color: Colors.red, icon: LucideIcons.alertTriangle, label: "Very High");
+        break;
+
+      case 'Blood Pressure (Systolic)':
+        if (numValue < minExtremeBloodPressureSystolic) return VitalStatus(color: Colors.red, icon: LucideIcons.alertTriangle, label: "Very Low");
+        if (numValue < minNormalBloodPressureSystolic) return VitalStatus(color: Colors.yellow, icon: LucideIcons.alertCircle, label: "Low");
+        if (numValue > maxNormalBloodPressureSystolic) return VitalStatus(color: Colors.yellow, icon: LucideIcons.alertCircle, label: "High");
+        if (numValue > maxExtremeBloodPressureSystolic) return VitalStatus(color: Colors.red, icon: LucideIcons.alertTriangle, label: "Very High");
+        break;
+
+      case 'Blood Pressure (Diastolic)':
+        if (numValue < minExtremeBloodPressureDiastolic) return VitalStatus(color: Colors.red, icon: LucideIcons.alertTriangle, label: "Very Low");
+        if (numValue < minNormalBloodPressureDiastolic) return VitalStatus(color: Colors.yellow, icon: LucideIcons.alertCircle, label: "Low");
+        if (numValue > maxNormalBloodPressureDiastolic) return VitalStatus(color: Colors.yellow, icon: LucideIcons.alertCircle, label: "High");
+        if (numValue > maxExtremeBloodPressureDiastolic) return VitalStatus(color: Colors.red, icon: LucideIcons.alertTriangle, label: "Very High");
+        break;
+
+      case 'Oxygen Saturation':
+        if (numValue < minExtremeOxygenSaturation) return VitalStatus(color: Colors.red, icon: LucideIcons.alertTriangle, label: "Very Low");
+        if (numValue < minNormalOxygenSaturation) return VitalStatus(color: Colors.yellow, icon: LucideIcons.alertCircle, label: "Low");
+        break;
+
+      case 'Respiration':
+        if (numValue < minExtremeRespirationRate) return VitalStatus(color: Colors.red, icon: LucideIcons.alertTriangle, label: "Very Low");
+        if (numValue < minNormalRespirationRate) return VitalStatus(color: Colors.yellow, icon: LucideIcons.alertCircle, label: "Low");
+        if (numValue > maxNormalRespirationRate) return VitalStatus(color: Colors.yellow, icon: LucideIcons.alertCircle, label: "High");
+        if (numValue > maxExtremeRespirationRate) return VitalStatus(color: Colors.red, icon: LucideIcons.alertTriangle, label: "Very High");
+        break;
+
+      case 'Temperature':
+        if (numValue < minExtremeTemperature) return VitalStatus(color: Colors.red, icon: LucideIcons.alertTriangle, label: "Very Low");
+        if (numValue < minNormalTemperature) return VitalStatus(color: Colors.yellow, icon: LucideIcons.alertCircle, label: "Low");
+        if (numValue > maxNormalTemperature) return VitalStatus(color: Colors.yellow, icon: LucideIcons.alertCircle, label: "High");
+        if (numValue > maxExtremeTemperature) return VitalStatus(color: Colors.red, icon: LucideIcons.alertTriangle, label: "Very High");
+        break;
+
+      case 'Pain':
+        if (numValue > maxExtremeScale) return VitalStatus(color: Colors.red, icon: LucideIcons.alertTriangle, label: "Very High");
+        if (numValue > maxNormalScale) return VitalStatus(color: Colors.yellow, icon: LucideIcons.alertCircle, label: "High");
+        break;
+    }
+
+    return VitalStatus(color: Colors.white, label: "Normal");
   }
 
   Widget _buildScheduleContainer() {
@@ -750,11 +832,10 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
 
   Widget _buildVitals() {
     return StreamBuilder<DocumentSnapshot>(
-      stream:
-          FirebaseFirestore.instance
-              .collection('tracking')
-              .doc(widget.patientId)
-              .snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('tracking')
+          .doc(widget.patientId)
+          .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -771,7 +852,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
           return Center(
             child: Text(
               'No recent vitals. Track symptoms now',
-              style: Textstyle.bodySmall.copyWith(color: AppColors.white),
+              style: TextStyle(color: AppColors.white),
             ),
           );
         }
@@ -785,60 +866,95 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
           return const Center(child: Text('Incomplete vitals data'));
         }
 
-        final formattedTimestamp = DateFormat(
-          'MMMM dd, yyyy',
-        ).format(timestamp.toDate());
+        final formattedTimestamp = timeago.format(timestamp.toDate());
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'Last updated: $formattedTimestamp',
-              style: Textstyle.bodySmall.copyWith(
+              style: TextStyle(
                 color: AppColors.white,
                 fontStyle: FontStyle.italic,
               ),
             ),
-
             SizedBox(height: 10),
             ...vitals.entries.map((entry) {
-              // Define a map of units
               final units = {
-                'Blood Pressure': ' mmHg',
                 'Heart Rate': ' bpm',
-                'Temperature': '°C',
-                'Pain': '/10',
+                'Blood Pressure': ' mmHg',
                 'Oxygen Saturation': '%',
                 'Respiration': ' breaths/min',
+                'Temperature': '°C',
+                'Pain': '/10',
               };
 
-              // Get the unit for the current entry, default to an empty string if not found
               final unit = units[entry.key] ?? '';
+              final dynamic rawValue = entry.value;
+              final num? value = rawValue is num ? rawValue : num.tryParse(rawValue.toString());
 
-              return Row(
-                children: [
-                  // Key
-                  Expanded(
-                    child: Text(
-                      entry.key,
-                      style: Textstyle.bodySmall.copyWith(
-                        color: AppColors.white,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    '${entry.value}$unit', // Append the unit
-                    style: Textstyle.bodySmall.copyWith(
-                      color: AppColors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              );
+              // Special handling for Blood Pressure (systolic/diastolic)
+              if (entry.key == 'Blood Pressure' && rawValue is String) {
+                final parts = rawValue.split('/');
+                if (parts.length == 2) {
+                  final systolic = int.tryParse(parts[0]) ?? 0;
+                  final diastolic = int.tryParse(parts[1]) ?? 0;
+
+                  final systolicStatus = getVitalStatus('Blood Pressure (Systolic)', systolic);
+                  final diastolicStatus = getVitalStatus('Blood Pressure (Diastolic)', diastolic);
+
+                  final status = systolicStatus.color == Colors.red || diastolicStatus.color == Colors.red
+                      ? (systolicStatus.color == Colors.red ? systolicStatus : diastolicStatus)
+                      : (systolicStatus.color == Colors.yellow || diastolicStatus.color == Colors.yellow
+                          ? (systolicStatus.color == Colors.yellow ? systolicStatus : diastolicStatus)
+                          : VitalStatus(color: Colors.white, label: "Normal"));
+
+                  return _buildVitalRow(entry.key, rawValue, unit, status);
+                }
+              }
+
+              // Handle other vitals safely
+              final status = (value != null) ? getVitalStatus(entry.key, value) : VitalStatus(color: Colors.white, label: "N/A");
+
+              return _buildVitalRow(entry.key, rawValue.toString(), unit, status);
             }),
           ],
         );
       },
+    );
+  }
+
+  // Extracted UI function to avoid repetition
+  Widget _buildVitalRow(String key, String value, String unit, VitalStatus status) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            key,
+            style: TextStyle(color: AppColors.white),
+          ),
+        ),
+        Row(
+          children: [
+            Text(
+              '$value$unit',
+              style: TextStyle(
+                color: status.color,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            if (status.icon != null) ...[
+              SizedBox(width: 5),
+              Icon(status.icon, color: status.color, size: 16),
+              SizedBox(width: 5),
+              Text(
+                status.label,
+                style: TextStyle(color: status.color, fontSize: 12),
+              ),
+            ],
+          ],
+        ),
+      ],
     );
   }
 

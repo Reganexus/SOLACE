@@ -39,6 +39,8 @@ dependencies:
   table_calendar: ^3.0.0
   timezone: ^0.10.0
   url_launcher: ^6.3.1
+  timeago: ^3.7.0
+  lucide_icons: ^0.257.0
 
 dev_dependencies:
   flutter_test:
