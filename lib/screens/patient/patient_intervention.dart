@@ -377,10 +377,10 @@ class PatientInterventionsState extends State<PatientInterventions> {
                     ? Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Buttons for Sections
                           SizedBox(
-                            height: 60, // Ensure this matches your design
+                            height: 60,
                             child: SingleChildScrollView(
                               scrollDirection: Axis.horizontal,
                               child: Row(
@@ -391,6 +391,7 @@ class PatientInterventionsState extends State<PatientInterventions> {
                                           right: 10.0,
                                         ),
                                         child: ChoiceChip(
+                                          checkmarkColor: AppColors.white,
                                           label: Text(
                                             section,
                                             style: Textstyle.bodySmall.copyWith(
@@ -412,6 +413,9 @@ class PatientInterventionsState extends State<PatientInterventions> {
                                                   isSelected ? section : null;
                                             });
                                           },
+                                          side: BorderSide(
+                                            color: Colors.transparent,
+                                          ),
                                           selectedColor: AppColors.neon,
                                           backgroundColor: AppColors.darkgray,
                                         ),

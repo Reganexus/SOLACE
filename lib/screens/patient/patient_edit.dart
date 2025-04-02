@@ -9,7 +9,9 @@ import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:solace/services/auth.dart';
 import 'package:solace/services/database.dart';
+import 'package:solace/services/log_service.dart';
 import 'package:solace/shared/widgets/select_profile_image.dart';
 import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
@@ -28,15 +30,17 @@ class EditPatient extends StatefulWidget {
 }
 
 class _EditPatientState extends State<EditPatient> {
+  final AuthService _auth = AuthService();
+  final LogService _logService = LogService();
   final DatabaseService db = DatabaseService();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   Map<String, dynamic> patientData = {};
   File? _profileImage;
   String? _profileImageUrl;
   DateTime? birthday;
-  String gender = '';
-  String religion = '';
-  String organDonation = 'None';
+  String? gender;
+  String? religion;
+  String? organDonation;
   bool _isLoading = false;
 
   final List<FocusNode> _focusNodes = List.generate(13, (_) => FocusNode());
@@ -209,9 +213,9 @@ class _EditPatientState extends State<EditPatient> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: ColorScheme.light(
-              primary: Theme.of(context).primaryColor,
-              onPrimary: Colors.white,
-              onSurface: Colors.black,
+              primary: AppColors.neon,
+              onPrimary: AppColors.white,
+              onSurface: AppColors.black,
             ),
           ),
           child: child!,
@@ -222,8 +226,7 @@ class _EditPatientState extends State<EditPatient> {
     if (picked != null) {
       setState(() {
         birthday = picked;
-        birthdayController.text =
-            birthday != null ? DateFormat.yMd().format(birthday!) : '';
+        birthdayController.text = DateFormat("MMMM d, yyyy").format(birthday!);
       });
     }
   }
@@ -245,6 +248,11 @@ class _EditPatientState extends State<EditPatient> {
   Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
       try {
+        final user = _auth.currentUserId;
+        if (user == null) {
+          showToast('User is not authenticated');
+          return;
+        }
         setState(() => _isLoading = true);
 
         // Upload profile image if selected
@@ -286,6 +294,11 @@ class _EditPatientState extends State<EditPatient> {
               'profileImageUrl': _profileImageUrl,
             });
 
+        final name =
+            '${firstNameController.text.trim().capitalizeEachWord()} ${lastNameController.text.trim().capitalizeEachWord()}';
+
+        await _logService.addLog(userId: user, action: "Edited Patient $name");
+
         showToast('User profile updated successfully.');
 
         // Close the current screen and return to the previous screen
@@ -307,9 +320,9 @@ class _EditPatientState extends State<EditPatient> {
         willController.text.trim().isNotEmpty &&
         fixedWishesController.text.trim().isNotEmpty &&
         birthday != null &&
-        gender.isNotEmpty &&
-        religion.isNotEmpty &&
-        organDonation.isNotEmpty;
+        gender != null &&
+        religion != null &&
+        organDonation != null;
   }
 
   Widget divider() {
@@ -372,7 +385,7 @@ class _EditPatientState extends State<EditPatient> {
       child: Scaffold(
         backgroundColor: AppColors.white,
         appBar: AppBar(
-          title: Text('Patient Info', style: Textstyle.subheader),
+          title: Text('Edit Patient Info', style: Textstyle.subheader),
           backgroundColor: AppColors.white,
           scrolledUnderElevation: 0.0,
           automaticallyImplyLeading: _isLoading ? false : true,
@@ -574,7 +587,7 @@ class _EditPatientState extends State<EditPatient> {
                           const SizedBox(height: 20),
 
                           CustomDropdownField<String>(
-                            value: gender.isNotEmpty ? gender : null,
+                            value: gender,
                             focusNode: _focusNodes[4],
                             labelText: 'Gender',
                             items: ['Male', 'Female', 'Other'],
@@ -591,7 +604,7 @@ class _EditPatientState extends State<EditPatient> {
                           const SizedBox(height: 20),
 
                           CustomDropdownField<String>(
-                            value: religion.isNotEmpty ? religion : null,
+                            value: religion,
                             focusNode: _focusNodes[5],
                             labelText: 'Religion',
                             items: religions,
@@ -647,8 +660,7 @@ class _EditPatientState extends State<EditPatient> {
                           const SizedBox(height: 20),
 
                           CustomDropdownField<String>(
-                            value:
-                                organDonation.isNotEmpty ? organDonation : null,
+                            value: organDonation,
                             focusNode: _focusNodes[9],
                             labelText: 'Organ Donation',
                             items: organs,

@@ -216,56 +216,69 @@ class PatientTasksState extends State<PatientTasks> {
 
   @override
   Widget build(BuildContext context) {
+    final bool hasTasks =
+        (!showCompleted && notCompletedTasks.isNotEmpty) ||
+        (showCompleted && completedTasks.isNotEmpty);
+
     return Container(
       height: 700,
       color: AppColors.black.withValues(alpha: 0.8),
       width: double.infinity,
       padding: EdgeInsets.all(16),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              TextButton(
-                style:
-                    showCompleted
-                        ? Buttonstyle.buttonNeon
-                        : Buttonstyle.buttonPurple,
-                onPressed: () {
-                  setState(() {
-                    showCompleted = !showCompleted;
-                  });
-                },
-                child: Row(
+          if (hasTasks)
+            Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
                   children: [
-                    Text(
-                      showCompleted ? 'Show Incomplete' : 'Show Completed',
-                      style: Textstyle.bodySmall.copyWith(
-                        color: AppColors.white,
-                        fontWeight: FontWeight.bold,
+                    TextButton(
+                      style:
+                          showCompleted
+                              ? Buttonstyle.buttonNeon
+                              : Buttonstyle.buttonPurple,
+                      onPressed: () {
+                        setState(() {
+                          showCompleted = !showCompleted;
+                        });
+                      },
+                      child: Row(
+                        children: [
+                          Text(
+                            showCompleted
+                                ? 'Show Incomplete'
+                                : 'Show Completed',
+                            style: Textstyle.bodySmall.copyWith(
+                              color: AppColors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(width: 10),
+                          Icon(
+                            showCompleted
+                                ? Icons.library_add_check_rounded
+                                : Icons.library_add_check_outlined,
+                            size: 20,
+                            color: AppColors.white,
+                          ),
+                        ],
                       ),
-                    ),
-                    SizedBox(width: 10),
-                    Icon(
-                      showCompleted
-                          ? Icons.library_add_check_rounded
-                          : Icons.library_add_check_outlined,
-                      size: 20,
-                      color: AppColors.white,
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-          SizedBox(height: 10),
+                SizedBox(height: 10),
+              ],
+            ),
+
           isLoading
               ? _buildLoadingState()
-              : showCompleted && completedTasks.isNotEmpty
+              : completedTasks.isEmpty && notCompletedTasks.isEmpty
+              ? Expanded(child: Center(child: _buildNoTaskState()))
+              : showCompleted
               ? _buildTaskList(completedTasks)
-              : !showCompleted && notCompletedTasks.isNotEmpty
-              ? _buildTaskList(notCompletedTasks)
-              : _buildNoTaskState(),
+              : _buildTaskList(notCompletedTasks),
         ],
       ),
     );

@@ -5,8 +5,11 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:solace/services/auth.dart';
 import 'package:solace/services/error_handler.dart';
+import 'package:solace/services/log_service.dart';
 import 'package:solace/services/validator.dart';
 import 'package:solace/shared/widgets/select_profile_image.dart';
 import 'package:solace/themes/buttonstyle.dart';
@@ -24,6 +27,9 @@ class CaregiverAddPatient extends StatefulWidget {
 }
 
 class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
+  final AuthService _auth = AuthService();
+  final LogService _logService = LogService();
+  final DatabaseService _database = DatabaseService();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   late Map<String, dynamic> patientData = {};
   File? _profileImage;
@@ -31,7 +37,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
   DateTime? birthday;
   String gender = '';
   String religion = '';
-  String organDonation = 'None';
+  String organDonation = '';
   bool _isLoading = false;
   bool hasError = false;
 
@@ -74,6 +80,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
   void initState() {
     super.initState();
     newPatientId = FirebaseFirestore.instance.collection('patient').doc().id;
+    debugPrint("Add patient id: $newPatientId");
   }
 
   @override
@@ -96,14 +103,10 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
   }
 
   Future<File> getFileFromAsset(String assetPath) async {
-    final byteData = await rootBundle.load(assetPath); // Load the asset
-    final tempDir = await getTemporaryDirectory(); // Get temp directory
-    final tempFile = File(
-      '${tempDir.path}/${assetPath.split('/').last}',
-    ); // Create file
-    return await tempFile.writeAsBytes(
-      byteData.buffer.asUint8List(),
-    ); // Write byte data to file
+    final byteData = await rootBundle.load(assetPath);
+    final tempDir = await getTemporaryDirectory();
+    final tempFile = File('${tempDir.path}/${assetPath.split('/').last}');
+    return await tempFile.writeAsBytes(byteData.buffer.asUint8List());
   }
 
   Future<String> uploadProfileImage({
@@ -111,28 +114,21 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
     required File file,
   }) async {
     try {
-      // Reference to Firebase Storage
       final storageRef = FirebaseStorage.instance
           .ref()
           .child('patient_profile_pictures')
           .child('$userId.jpg');
 
-      // Upload file
       final uploadTask = storageRef.putFile(
         file,
-        SettableMetadata(
-          contentType: 'image/jpeg',
-        ), // Ensure correct content type
+        SettableMetadata(contentType: 'image/jpeg'),
       );
 
-      // Wait for upload to complete
       final snapshot = await uploadTask.whenComplete(() {});
-
-      // Get the download URL
       final downloadUrl = await snapshot.ref.getDownloadURL();
 
       print("Image uploaded successfully: $downloadUrl");
-      return downloadUrl; // Return the URL
+      return downloadUrl;
     } catch (e) {
       print("Error uploading image: $e");
       throw Exception("Error uploading profile image: $e");
@@ -154,15 +150,13 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
 
       if (selectedImage != null) {
         if (selectedImage.startsWith('lib/')) {
-          // Convert asset to file
           _profileImage = await getFileFromAsset(selectedImage);
         } else {
-          // Regular file path
           _profileImage = File(selectedImage);
         }
 
         setState(() {
-          _profileImageUrl = null; // Clear old URLs
+          _profileImageUrl = null;
         });
 
         debugPrint("Selected image file path: ${_profileImage!.path}");
@@ -188,7 +182,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
       context: context,
       initialDate: initialDate,
       firstDate: minDate,
-      lastDate: maxDate, // Allow selecting up to the current date minus 1 year
+      lastDate: maxDate,
       builder: (BuildContext context, Widget? child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -206,8 +200,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
     if (picked != null) {
       setState(() {
         birthday = picked;
-        birthdayController.text =
-            birthday != null ? birthday!.getMonthName() : '';
+        birthdayController.text = DateFormat("MMMM d, yyyy").format(birthday!);
       });
     }
   }
@@ -236,19 +229,43 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
   }
 
   Future<void> _submitForm() async {
+    final user = _auth.currentUserId;
+
+    if (user == null) {
+      showToast("User not authenticated.");
+      return;
+    }
+
+    final role = await _database.fetchAndCacheUserRole(user); // Await here
+
+    if (role == null) {
+      showToast("User role not found.");
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
     setState(() {
-      _isLoading = true; // Start loading
+      _isLoading = true;
     });
 
     try {
+      final user = _auth.currentUserId;
+      if (user == null) {
+        showToast('User is not authenticated');
+        return;
+      }
+
       final userId = newPatientId;
-      if (userId == null) return;
+      if (userId == null) {
+        showToast('Patient is null');
+        return;
+      }
 
       showToast("Submitting data. Please wait.");
+
       // Validate names
       if (Validator.name(firstNameController.text.trim()) != null) {
         throw Exception("Invalid first name.");
@@ -282,7 +299,6 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
 
       final age = _calculateAge(birthday!);
 
-      // Validate other fields
       if (gender.isEmpty) {
         throw Exception('Please select your gender.');
       }
@@ -294,19 +310,19 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
       }
 
       if (willController.text.trim().isEmpty) {
-        throw Exception('Please select your gender.');
+        throw Exception('Will field cannot be empty.');
       }
       if (fixedWishesController.text.trim().isEmpty) {
-        throw Exception('Please select your religion.');
+        throw Exception('Fixed wishes cannot be empty.');
       }
       if (caseTitleController.text.trim().isEmpty) {
-        throw Exception('Address cannot be empty.');
+        throw Exception('Case title cannot be empty.');
       }
       if (caseDescriptionController.text.trim().isEmpty) {
-        throw Exception('Address cannot be empty.');
+        throw Exception('Case description cannot be empty.');
       }
 
-      // Submit to database
+      // Add patient data with conditional tag
       await DatabaseService().addPatientData(
         uid: newPatientId,
         firstName: firstNameController.text.trim().capitalizeEachWord(),
@@ -325,7 +341,13 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
             caseDescriptionController.text.trim().capitalizeEachWord(),
         status: 'stable',
         address: addressController.text.trim().capitalizeEachWord(),
+        tag: role == 'caregiver' ? [user.toString()] : <String>[],
       );
+
+      final name =
+          '${firstNameController.text.trim().capitalizeEachWord()} ${lastNameController.text.trim().capitalizeEachWord()}';
+
+      await _logService.addLog(userId: user, action: "Added Patient $name");
 
       showToast('Patient data submitted successfully!');
       Navigator.of(context).pop();
@@ -339,7 +361,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
 
     showDialog(
       context: context,
-      barrierDismissible: false, // Prevent accidental dismissal
+      barrierDismissible: false,
       builder:
           (context) => ErrorDialog(title: 'Error', messages: errorMessages),
     );
@@ -465,7 +487,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
 
                 CustomTextField(
                   controller: caseTitleController,
-                  focusNode: _focusNodes[9],
+                  focusNode: _focusNodes[10],
                   labelText: 'Case Title',
                   enabled: !_isLoading,
                   validator:
@@ -476,7 +498,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
 
                 CustomTextField(
                   controller: caseDescriptionController,
-                  focusNode: _focusNodes[10],
+                  focusNode: _focusNodes[11],
                   labelText: 'Case Description',
                   enabled: !_isLoading,
                   validator:

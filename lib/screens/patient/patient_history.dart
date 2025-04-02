@@ -1,9 +1,12 @@
 // ignore_for_file: library_private_types_in_public_api
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
+import 'package:solace/services/database.dart';
+import 'package:solace/services/log_service.dart';
 import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/themes/textformfield.dart';
@@ -19,16 +22,24 @@ class PatientHistory extends StatefulWidget {
 }
 
 class _PatientHistoryState extends State<PatientHistory> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final DatabaseService databaseService = DatabaseService();
+  final LogService _logService = LogService();
   DateTime? _selectedDate;
   bool isDescending = true;
+  late String patientName = '';
 
   @override
   void initState() {
     super.initState();
     _selectedDate = null;
     dateController.text =
-        _selectedDate != null ? _formatDate(_selectedDate!) : '';
+        _selectedDate != null
+            ? DateFormat("MMMM d, yyyy").format(_selectedDate!)
+            : '';
     _resetDateControllers();
+    _loadPatientName();
+    debugPrint("Patient Name: $patientName");
   }
 
   @override
@@ -40,6 +51,16 @@ class _PatientHistoryState extends State<PatientHistory> {
     descriptionController.dispose();
     dateController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadPatientName() async {
+    final name = await databaseService.fetchUserName(widget.patientId);
+    if (mounted) {
+      setState(() {
+        patientName = name ?? 'Unknown';
+      });
+    }
+    debugPrint("Patient Name: $patientName");
   }
 
   // Controller for the dialog input fields
@@ -89,27 +110,9 @@ class _PatientHistoryState extends State<PatientHistory> {
         _selectedDate = pickedDate;
 
         // Format the date for the text field
-        dateController.text = _formatDate(_selectedDate!);
+        dateController.text = DateFormat("MMMM d, yyyy").format(_selectedDate!);
       });
     }
-  }
-
-  String _formatDate(DateTime date) {
-    final monthNames = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-    return '${monthNames[date.month - 1]} ${date.day}, ${date.year}';
   }
 
   Future<List<Map<String, dynamic>>> _getDiagnoses() async {
@@ -143,6 +146,20 @@ class _PatientHistoryState extends State<PatientHistory> {
     String description,
     DateTime date,
   ) async {
+    final user = _auth.currentUser;
+
+    if (user == null) {
+      showToast("User is not Authenticated");
+      return;
+    }
+
+    if (user.uid == null) {
+      showToast("User is id Null");
+      return;
+    }
+
+    final String userId = user.uid;
+
     String capitalize(String input) {
       if (input.isEmpty) return input;
       return toBeginningOfSentenceCase(input.toLowerCase()) ?? input;
@@ -157,15 +174,46 @@ class _PatientHistoryState extends State<PatientHistory> {
           'description': capitalize(description), // Capitalized description
           'date': date,
         });
+
+    await _logService.addLog(
+      userId: userId,
+      action: "Added Diagnosis $diagnosis to patient $patientName",
+    );
+
+    showToast('Diagnosis added successfully');
   }
 
   Future<void> _deleteDiagnosis(String diagnosisId) async {
+    final user = _auth.currentUser;
+
+    if (user == null) {
+      showToast("User is not Authenticated");
+      return;
+    }
+
+    final String userId = user.uid;
+
+    final doc =
+        await FirebaseFirestore.instance
+            .collection('patient')
+            .doc(widget.patientId)
+            .collection('diagnoses')
+            .doc(diagnosisId)
+            .get();
+
+    final String diagnosis = doc.data()?['diagnosis'] ?? 'Unknown Diagnosis';
+
     await FirebaseFirestore.instance
         .collection('patient')
         .doc(widget.patientId)
         .collection('diagnoses')
         .doc(diagnosisId)
         .delete();
+
+    await _logService.addLog(
+      userId: userId,
+      action: "Removed Diagnosis $diagnosis from patient $patientName",
+    );
   }
 
   void _showAddDiagnosisDialog() {

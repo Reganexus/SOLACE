@@ -7,6 +7,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:solace/models/my_patient.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/admin/admin_edit.dart';
+import 'package:solace/screens/admin/admin_edit_tags.dart';
 import 'package:solace/screens/admin/admin_logs.dart';
 import 'package:solace/screens/admin/admin_role.dart';
 import 'package:solace/services/database.dart';
@@ -286,6 +287,16 @@ class AdminUsersState extends State<AdminUsers> {
       );
     }
 
+    void navigateToEditTag() {
+      Navigator.pop(context);
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => EditTags(currentUserId: user.uid),
+        ),
+      );
+    }
+
     void confirmDelete(Function action) {
       Navigator.pop(context);
       action();
@@ -336,15 +347,21 @@ class AdminUsersState extends State<AdminUsers> {
                     style: Textstyle.body,
                   ),
                   SizedBox(height: 10),
-                  buildActionButton(
-                    'Change Role',
-                    Buttonstyle.buttonNeon,
-                    navigateToEditUserRole,
-                  ),
+                  if (user is UserData)
+                    buildActionButton(
+                      'Change Role',
+                      Buttonstyle.buttonNeon,
+                      navigateToEditUserRole,
+                    ),
                   buildActionButton(
                     'Edit Profile',
                     Buttonstyle.buttonPurple,
                     navigateToEditProfile,
+                  ),
+                  buildActionButton(
+                    'Edit Tags',
+                    Buttonstyle.buttonBlue,
+                    navigateToEditTag,
                   ),
                   if (user is UserData)
                     buildActionButton(
@@ -556,7 +573,7 @@ class AdminUsersState extends State<AdminUsers> {
                                             horizontal: 10,
                                           ),
                                           child: Text(
-                                            role.capitalize(),
+                                            StringExtension(role).capitalize(),
                                             style: Textstyle.bodySmall,
                                           ),
                                         ),

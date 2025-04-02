@@ -1,9 +1,12 @@
 // ignore_for_file: use_build_context_synchronously, avoid_print
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:solace/screens/admin/admin_users.dart';
+import 'package:solace/services/database.dart';
+import 'package:solace/services/log_service.dart';
 import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/themes/dropdownfield.dart';
@@ -23,6 +26,9 @@ class Contacts extends StatefulWidget {
 }
 
 class ContactsScreenState extends State<Contacts> {
+  final DatabaseService databaseService = DatabaseService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final LogService _logService = LogService();
   final ContactUtility contactUtil = ContactUtility();
   late final String patientId;
   List<Map<String, dynamic>> nurseContacts = [];
@@ -30,6 +36,7 @@ class ContactsScreenState extends State<Contacts> {
 
   String collectionName = 'patient';
   bool isLoading = true;
+  late String patientName = '';
 
   @override
   void initState() {
@@ -38,6 +45,18 @@ class ContactsScreenState extends State<Contacts> {
 
     debugPrint("Current user id is: $patientId");
     _initializeContacts();
+    _loadPatientName();
+    debugPrint("Patient Name: $patientName");
+  }
+
+  Future<void> _loadPatientName() async {
+    final name = await databaseService.fetchUserName(widget.patientId);
+    if (mounted) {
+      setState(() {
+        patientName = name ?? 'Unknown';
+      });
+    }
+    debugPrint("Patient Name: $patientName");
   }
 
   Future<void> _initializeContacts() async {
@@ -158,6 +177,8 @@ class ContactsScreenState extends State<Contacts> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildCategoryContacts("Nurse Contacts", nurseContacts),
+          if (nurseContacts.isEmpty || relativeContacts.isEmpty)
+            SizedBox(height: 10),
           _buildCategoryContacts("Relative Contacts", relativeContacts),
         ],
       ),
@@ -338,14 +359,62 @@ class ContactsScreenState extends State<Contacts> {
                       child: TextButton(
                         style: Buttonstyle.buttonNeon,
                         onPressed: () async {
-                          if (firstNameController.text.isEmpty ||
-                              lastNameController.text.isEmpty ||
-                              numberController.text.isEmpty) {
+                          final user = _auth.currentUser;
+
+                          if (user == null) {
+                            showToast("Current user is not authenticated");
+                            return;
+                          }
+
+                          if (firstNameController.text.trim().isEmpty ||
+                              lastNameController.text.trim().isEmpty ||
+                              numberController.text.trim().isEmpty) {
                             showToast("All fields are required.");
                             return;
                           }
 
-                          // Handle form submission logic here
+                          final String firstName =
+                              firstNameController.text.trim();
+                          final String lastName =
+                              lastNameController.text.trim();
+                          final String phoneNumber =
+                              numberController.text.trim();
+
+                          // Ensure no double spaces
+                          final cleanedFirstName = firstName.replaceAll(
+                            RegExp(r'\s+'),
+                            ' ',
+                          );
+                          final cleanedLastName = lastName.replaceAll(
+                            RegExp(r'\s+'),
+                            ' ',
+                          );
+                          final name = '$cleanedFirstName $cleanedLastName';
+
+                          Map<String, dynamic> contactData = {
+                            "name": name,
+                            "phoneNumber": phoneNumber,
+                            "category": category,
+                            "createdAt": DateTime.now(),
+                          };
+
+                          try {
+                            await contactUtil.addContact(
+                              userId: widget.patientId,
+                              category: category,
+                              contactData: contactData,
+                            );
+                            await _logService.addLog(
+                              userId: user.uid,
+                              action:
+                                  "Added contact $phoneNumber to patient $patientName",
+                            );
+                            showToast("Contact added successfully.");
+                            _initializeContacts();
+                            Navigator.pop(context);
+                          } catch (e) {
+                            showToast("Failed to add contact: $e");
+                          }
                         },
                         child: Text(
                           "Add Contact",
@@ -475,15 +544,35 @@ class ContactsScreenState extends State<Contacts> {
                       child: TextButton(
                         style: Buttonstyle.buttonNeon,
                         onPressed: () async {
-                          if (firstNameController.text.isEmpty ||
-                              lastNameController.text.isEmpty ||
-                              numberController.text.isEmpty) {
+                          final user = _auth.currentUser;
+
+                          if (user == null) {
+                            showToast("Current user is not authenticated");
+                            return;
+                          }
+
+                          if (firstNameController.text.trim().isEmpty ||
+                              lastNameController.text.trim().isEmpty ||
+                              numberController.text.trim().isEmpty) {
                             showToast("All fields are required.");
                             return;
                           }
 
-                          final name =
-                              "${firstNameController.text.trim()} ${lastNameController.text.trim()}";
+                          final String firstName =
+                              firstNameController.text.trim();
+                          final String lastName =
+                              lastNameController.text.trim();
+
+                          // Ensure no double spaces
+                          final cleanedFirstName = firstName.replaceAll(
+                            RegExp(r'\s+'),
+                            ' ',
+                          );
+                          final cleanedLastName = lastName.replaceAll(
+                            RegExp(r'\s+'),
+                            ' ',
+                          );
+                          final name = '$cleanedFirstName $cleanedLastName';
 
                           final updatedContact = {
                             'name': name,
@@ -508,6 +597,12 @@ class ContactsScreenState extends State<Contacts> {
 
                             Navigator.pop(context);
                             showToast("Contact updated successfully.");
+
+                            await _logService.addLog(
+                              userId: user.uid,
+                              action:
+                                  "Updated contact $oldPhoneNumber from patient $patientName",
+                            );
                             _initializeContacts();
                           } catch (e) {
                             debugPrint("Error updating contact: $e");
@@ -557,10 +652,23 @@ class ContactsScreenState extends State<Contacts> {
               style: Buttonstyle.buttonRed,
               onPressed: () async {
                 try {
+                  final user = _auth.currentUser;
+
+                  if (user == null) {
+                    showToast("Current user is not authenticated");
+                    return;
+                  }
+
                   await contactUtil.deleteContact(
                     userId: widget.patientId,
                     category: category,
                     phoneNumberToDelete: phoneNumber,
+                  );
+
+                  await _logService.addLog(
+                    userId: user.uid,
+                    action:
+                        "Deleted contact $phoneNumber from patient $patientName",
                   );
                   Navigator.pop(context);
                   showToast("$name deleted successfully.");

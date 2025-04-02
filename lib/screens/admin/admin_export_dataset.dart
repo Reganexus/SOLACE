@@ -6,10 +6,11 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
+import 'package:solace/services/auth.dart';
+import 'package:solace/services/log_service.dart';
 import 'package:solace/themes/colors.dart';
 
 class ExportDataset {
-  /// Fetches tracking data from Firestore and exports it
   static Future<void> exportTrackingData() async {
     try {
       final firestore = FirebaseFirestore.instance;
@@ -52,8 +53,9 @@ class ExportDataset {
         }
       }
 
-      // Call the generic CSV export function
-      await ExportHelper.exportToCSV(
+      // ✅ Create an instance of ExportHelper
+      ExportHelper exportHelper = ExportHelper();
+      await exportHelper.exportToCSV(
         data: trackingDataList,
         fileName: "tracking_data",
       );
@@ -64,12 +66,15 @@ class ExportDataset {
 }
 
 class ExportHelper {
-  /// Generic function to export any dataset to CSV
-  static Future<void> exportToCSV({
+  final AuthService _auth = AuthService();
+  final LogService _logService = LogService();
+
+  Future<void> exportToCSV({
     required List<Map<String, dynamic>> data,
     required String fileName,
   }) async {
     try {
+      final user = _auth.currentUserId;
       if (data.isEmpty) {
         _showToast("No data available for export.");
         return;
@@ -97,6 +102,11 @@ class ExportHelper {
       // Save file using FilePicker
       await _saveFile(csvBytes, fileName, "csv");
 
+      await _logService.addLog(
+        userId: user!,
+        action: 'Exported dataset as $fileName.csv',
+      );
+
       _showToast("CSV export completed.");
     } catch (e) {
       debugPrint("Error generating CSV: $e");
@@ -105,7 +115,7 @@ class ExportHelper {
   }
 
   /// Formats values for CSV
-  static String _formatValue(dynamic value, String header) {
+  String _formatValue(dynamic value, String header) {
     if (value == null) return '';
     if (value is Timestamp) {
       return value.toDate().toIso8601String();
@@ -113,7 +123,7 @@ class ExportHelper {
     return value.toString();
   }
 
-  /// Saves file using FilePicker (Fixed: Now static)
+  /// Saves file using FilePicker (Static method)
   static Future<void> _saveFile(
     Uint8List bytes,
     String selectedValue,
@@ -136,7 +146,7 @@ class ExportHelper {
     }
   }
 
-  /// Shows toast message
+  /// Shows toast message (Static method)
   static void _showToast(String message) {
     Fluttertoast.showToast(
       msg: message,

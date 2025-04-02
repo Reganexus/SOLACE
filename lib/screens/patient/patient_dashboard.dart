@@ -1,7 +1,10 @@
+// ignore_for_file: avoid_print
+
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:solace/screens/caregiver/caregiver_add_medicine.dart';
 import 'package:solace/screens/caregiver/caregiver_add_task.dart';
 import 'package:solace/screens/patient/patient_edit.dart';
@@ -12,6 +15,7 @@ import 'package:solace/screens/patient/patient_stream.dart';
 import 'package:solace/screens/patient/patient_tracking.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/screens/patient/patient_contacts.dart';
+import 'package:solace/services/log_service.dart';
 import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/themes/textstyle.dart';
@@ -28,7 +32,7 @@ class PatientsDashboard extends StatefulWidget {
   const PatientsDashboard({
     super.key,
     required this.patientId,
-    required this.caregiverId, // Include in constructor
+    required this.caregiverId,
     required this.role,
   });
 
@@ -45,11 +49,14 @@ class VitalStatus {
 }
 
 class _PatientsDashboardState extends State<PatientsDashboard> {
+  final LogService _logService = LogService();
   DatabaseService databaseService = DatabaseService();
   ScheduleUtility scheduleUtility = ScheduleUtility();
   Map<String, dynamic>? patientData;
   bool isLoading = true;
+  bool _isTagging = false;
   late final PageController _pageController;
+  late String patientName = '';
 
   Timer? _timer;
   DateTime _currentTime = DateTime.now();
@@ -62,6 +69,8 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     _pageController = PageController(initialPage: 0);
     debugPrint("Patient Dashboard Patient ID: ${widget.patientId}");
     debugPrint("Patient Dashboard Caregiver ID: ${widget.caregiverId}");
+    _loadPatientName();
+    debugPrint("Patient Name: $patientName");
   }
 
   @override
@@ -69,6 +78,16 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     _timer?.cancel();
     _pageController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadPatientName() async {
+    final name = await databaseService.fetchUserName(widget.patientId);
+    if (mounted) {
+      setState(() {
+        patientName = name ?? 'Unknown';
+      });
+    }
+    debugPrint("Patient Name: $patientName");
   }
 
   void _startTimer() {
@@ -123,68 +142,225 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
         final systolic = int.tryParse(parts[0]) ?? 0;
         final diastolic = int.tryParse(parts[1]) ?? 0;
 
-        final systolicStatus = getVitalStatus('Blood Pressure (Systolic)', systolic);
-        final diastolicStatus = getVitalStatus('Blood Pressure (Diastolic)', diastolic);
+        final systolicStatus = getVitalStatus(
+          'Blood Pressure (Systolic)',
+          systolic,
+        );
+        final diastolicStatus = getVitalStatus(
+          'Blood Pressure (Diastolic)',
+          diastolic,
+        );
 
-        return systolicStatus.color == Colors.red || diastolicStatus.color == Colors.red
-            ? systolicStatus.color == Colors.red ? systolicStatus : diastolicStatus
-            : systolicStatus.color == Colors.yellow || diastolicStatus.color == Colors.yellow
-                ? systolicStatus.color == Colors.yellow ? systolicStatus : diastolicStatus
-                : VitalStatus(color: Colors.white, label: "Normal");
+        return systolicStatus.color == AppColors.red ||
+                diastolicStatus.color == AppColors.red
+            ? systolicStatus.color == AppColors.red
+                ? systolicStatus
+                : diastolicStatus
+            : systolicStatus.color == AppColors.yellow ||
+                diastolicStatus.color == AppColors.yellow
+            ? systolicStatus.color == AppColors.yellow
+                ? systolicStatus
+                : diastolicStatus
+            : VitalStatus(color: AppColors.white, label: "Normal");
       }
     }
 
     // Convert value to num safely
-    final numValue = (value is num) ? value : num.tryParse(value.toString()) ?? 0;
+    final numValue =
+        (value is num) ? value : num.tryParse(value.toString()) ?? 0;
 
     switch (key) {
       case 'Heart Rate':
-        if (numValue < minExtremeHeartRate) return VitalStatus(color: Colors.red, icon: LucideIcons.alertTriangle, label: "Very Low");
-        if (numValue < minNormalHeartRate) return VitalStatus(color: Colors.yellow, icon: LucideIcons.alertCircle, label: "Low");
-        if (numValue > maxNormalHeartRate) return VitalStatus(color: Colors.yellow, icon: LucideIcons.alertCircle, label: "High");
-        if (numValue > maxExtremeHeartRate) return VitalStatus(color: Colors.red, icon: LucideIcons.alertTriangle, label: "Very High");
+        if (numValue < minExtremeHeartRate) {
+          return VitalStatus(
+            color: AppColors.red,
+            icon: LucideIcons.alertTriangle,
+            label: "Very Low",
+          );
+        }
+        if (numValue < minNormalHeartRate) {
+          return VitalStatus(
+            color: AppColors.yellow,
+            icon: LucideIcons.alertCircle,
+            label: "Low",
+          );
+        }
+        if (numValue > maxNormalHeartRate) {
+          return VitalStatus(
+            color: AppColors.yellow,
+            icon: LucideIcons.alertCircle,
+            label: "High",
+          );
+        }
+        if (numValue > maxExtremeHeartRate) {
+          return VitalStatus(
+            color: AppColors.red,
+            icon: LucideIcons.alertTriangle,
+            label: "Very High",
+          );
+        }
         break;
 
       case 'Blood Pressure (Systolic)':
-        if (numValue < minExtremeBloodPressureSystolic) return VitalStatus(color: Colors.red, icon: LucideIcons.alertTriangle, label: "Very Low");
-        if (numValue < minNormalBloodPressureSystolic) return VitalStatus(color: Colors.yellow, icon: LucideIcons.alertCircle, label: "Low");
-        if (numValue > maxNormalBloodPressureSystolic) return VitalStatus(color: Colors.yellow, icon: LucideIcons.alertCircle, label: "High");
-        if (numValue > maxExtremeBloodPressureSystolic) return VitalStatus(color: Colors.red, icon: LucideIcons.alertTriangle, label: "Very High");
+        if (numValue < minExtremeBloodPressureSystolic) {
+          return VitalStatus(
+            color: AppColors.red,
+            icon: LucideIcons.alertTriangle,
+            label: "Very Low",
+          );
+        }
+        if (numValue < minNormalBloodPressureSystolic) {
+          return VitalStatus(
+            color: AppColors.yellow,
+            icon: LucideIcons.alertCircle,
+            label: "Low",
+          );
+        }
+        if (numValue > maxNormalBloodPressureSystolic) {
+          return VitalStatus(
+            color: AppColors.yellow,
+            icon: LucideIcons.alertCircle,
+            label: "High",
+          );
+        }
+        if (numValue > maxExtremeBloodPressureSystolic) {
+          return VitalStatus(
+            color: AppColors.red,
+            icon: LucideIcons.alertTriangle,
+            label: "Very High",
+          );
+        }
         break;
 
       case 'Blood Pressure (Diastolic)':
-        if (numValue < minExtremeBloodPressureDiastolic) return VitalStatus(color: Colors.red, icon: LucideIcons.alertTriangle, label: "Very Low");
-        if (numValue < minNormalBloodPressureDiastolic) return VitalStatus(color: Colors.yellow, icon: LucideIcons.alertCircle, label: "Low");
-        if (numValue > maxNormalBloodPressureDiastolic) return VitalStatus(color: Colors.yellow, icon: LucideIcons.alertCircle, label: "High");
-        if (numValue > maxExtremeBloodPressureDiastolic) return VitalStatus(color: Colors.red, icon: LucideIcons.alertTriangle, label: "Very High");
+        if (numValue < minExtremeBloodPressureDiastolic) {
+          return VitalStatus(
+            color: AppColors.red,
+            icon: LucideIcons.alertTriangle,
+            label: "Very Low",
+          );
+        }
+        if (numValue < minNormalBloodPressureDiastolic) {
+          return VitalStatus(
+            color: AppColors.yellow,
+            icon: LucideIcons.alertCircle,
+            label: "Low",
+          );
+        }
+        if (numValue > maxNormalBloodPressureDiastolic) {
+          return VitalStatus(
+            color: AppColors.yellow,
+            icon: LucideIcons.alertCircle,
+            label: "High",
+          );
+        }
+        if (numValue > maxExtremeBloodPressureDiastolic) {
+          return VitalStatus(
+            color: AppColors.red,
+            icon: LucideIcons.alertTriangle,
+            label: "Very High",
+          );
+        }
         break;
 
       case 'Oxygen Saturation':
-        if (numValue < minExtremeOxygenSaturation) return VitalStatus(color: Colors.red, icon: LucideIcons.alertTriangle, label: "Very Low");
-        if (numValue < minNormalOxygenSaturation) return VitalStatus(color: Colors.yellow, icon: LucideIcons.alertCircle, label: "Low");
+        if (numValue < minExtremeOxygenSaturation) {
+          return VitalStatus(
+            color: AppColors.red,
+            icon: LucideIcons.alertTriangle,
+            label: "Very Low",
+          );
+        }
+        if (numValue < minNormalOxygenSaturation) {
+          return VitalStatus(
+            color: AppColors.yellow,
+            icon: LucideIcons.alertCircle,
+            label: "Low",
+          );
+        }
         break;
 
       case 'Respiration':
-        if (numValue < minExtremeRespirationRate) return VitalStatus(color: Colors.red, icon: LucideIcons.alertTriangle, label: "Very Low");
-        if (numValue < minNormalRespirationRate) return VitalStatus(color: Colors.yellow, icon: LucideIcons.alertCircle, label: "Low");
-        if (numValue > maxNormalRespirationRate) return VitalStatus(color: Colors.yellow, icon: LucideIcons.alertCircle, label: "High");
-        if (numValue > maxExtremeRespirationRate) return VitalStatus(color: Colors.red, icon: LucideIcons.alertTriangle, label: "Very High");
+        if (numValue < minExtremeRespirationRate) {
+          return VitalStatus(
+            color: AppColors.red,
+            icon: LucideIcons.alertTriangle,
+            label: "Very Low",
+          );
+        }
+        if (numValue < minNormalRespirationRate) {
+          return VitalStatus(
+            color: AppColors.yellow,
+            icon: LucideIcons.alertCircle,
+            label: "Low",
+          );
+        }
+        if (numValue > maxNormalRespirationRate) {
+          return VitalStatus(
+            color: AppColors.yellow,
+            icon: LucideIcons.alertCircle,
+            label: "High",
+          );
+        }
+        if (numValue > maxExtremeRespirationRate) {
+          return VitalStatus(
+            color: AppColors.red,
+            icon: LucideIcons.alertTriangle,
+            label: "Very High",
+          );
+        }
         break;
 
       case 'Temperature':
-        if (numValue < minExtremeTemperature) return VitalStatus(color: Colors.red, icon: LucideIcons.alertTriangle, label: "Very Low");
-        if (numValue < minNormalTemperature) return VitalStatus(color: Colors.yellow, icon: LucideIcons.alertCircle, label: "Low");
-        if (numValue > maxNormalTemperature) return VitalStatus(color: Colors.yellow, icon: LucideIcons.alertCircle, label: "High");
-        if (numValue > maxExtremeTemperature) return VitalStatus(color: Colors.red, icon: LucideIcons.alertTriangle, label: "Very High");
+        if (numValue < minExtremeTemperature) {
+          return VitalStatus(
+            color: AppColors.red,
+            icon: LucideIcons.alertTriangle,
+            label: "Very Low",
+          );
+        }
+        if (numValue < minNormalTemperature) {
+          return VitalStatus(
+            color: AppColors.yellow,
+            icon: LucideIcons.alertCircle,
+            label: "Low",
+          );
+        }
+        if (numValue > maxNormalTemperature) {
+          return VitalStatus(
+            color: AppColors.yellow,
+            icon: LucideIcons.alertCircle,
+            label: "High",
+          );
+        }
+        if (numValue > maxExtremeTemperature) {
+          return VitalStatus(
+            color: AppColors.red,
+            icon: LucideIcons.alertTriangle,
+            label: "Very High",
+          );
+        }
         break;
 
       case 'Pain':
-        if (numValue > maxExtremeScale) return VitalStatus(color: Colors.red, icon: LucideIcons.alertTriangle, label: "Very High");
-        if (numValue > maxNormalScale) return VitalStatus(color: Colors.yellow, icon: LucideIcons.alertCircle, label: "High");
+        if (numValue > maxExtremeScale) {
+          return VitalStatus(
+            color: AppColors.red,
+            icon: LucideIcons.alertTriangle,
+            label: "Very High",
+          );
+        }
+        if (numValue > maxNormalScale) {
+          return VitalStatus(
+            color: AppColors.yellow,
+            icon: LucideIcons.alertCircle,
+            label: "High",
+          );
+        }
         break;
     }
 
-    return VitalStatus(color: Colors.white, label: "Normal");
+    return VitalStatus(color: AppColors.white, label: "Normal");
   }
 
   String _convertPredictionKeyToName(String key) {
@@ -198,13 +374,14 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
 
   String _getVitalUnit(String key) {
     return {
-      'Heart Rate': ' bpm',
-      'Blood Pressure': ' mmHg',
-      'Oxygen Saturation': '%',
-      'Respiration': ' breaths/min',
-      'Temperature': '°C',
-      'Pain': '/10',
-    }[key] ?? '';
+          'Heart Rate': ' bpm',
+          'Blood Pressure': ' mmHg',
+          'Oxygen Saturation': '%',
+          'Respiration': ' breaths/min',
+          'Temperature': '°C',
+          'Pain': '/10',
+        }[key] ??
+        '';
   }
 
   String _formatRemainingTime(Duration duration) {
@@ -219,7 +396,14 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     }
   }
 
-  Widget _buildScheduleContainer() {
+  Widget _buildContainer({
+    required String title,
+    required String description,
+    required String imagePath,
+    required String buttonText,
+    required IconData buttonIcon,
+    required VoidCallback onPressed,
+  }) {
     return Stack(
       children: [
         ClipRRect(
@@ -229,7 +413,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
             height: 180,
             decoration: BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('lib/assets/images/auth/calendar.jpg'),
+                image: AssetImage(imagePath),
                 fit: BoxFit.cover,
               ),
             ),
@@ -243,9 +427,8 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Title
               Text(
-                'Schedule Patient',
+                title,
                 style: Textstyle.heading.copyWith(
                   fontWeight: FontWeight.bold,
                   color: AppColors.white,
@@ -254,32 +437,25 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Set appointments and visit to the patient at a particular time and day.',
+                description,
                 style: Textstyle.body.copyWith(color: AppColors.white),
               ),
-
               SizedBox(
                 width: 200,
                 child: TextButton(
-                  onPressed: () {
-                    _scheduleAppointment(widget.caregiverId, widget.patientId);
-                  },
+                  onPressed: onPressed,
                   style: Buttonstyle.buttonDarkGray,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        'Schedule',
+                        buttonText,
                         style: Textstyle.smallButton.copyWith(
                           color: AppColors.white,
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Icon(
-                        Icons.edit_calendar,
-                        size: 16,
-                        color: AppColors.white,
-                      ),
+                      Icon(buttonIcon, size: 16, color: AppColors.white),
                     ],
                   ),
                 ),
@@ -288,323 +464,94 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildScheduleContainer() {
+    return _buildContainer(
+      title: 'Schedule Patient',
+      description:
+          'Set appointments and visit to the patient at a particular time and day.',
+      imagePath: 'lib/assets/images/auth/calendar.jpg',
+      buttonText: 'Schedule',
+      buttonIcon: Icons.edit_calendar,
+      onPressed: () {
+        _scheduleAppointment(widget.caregiverId, widget.patientId);
+      },
     );
   }
 
   Widget _buildTaskContainer() {
-    return Stack(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            width: double.infinity,
-            height: 180,
-            decoration: BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('lib/assets/images/auth/task.jpg'),
-                fit: BoxFit.cover,
-              ),
-            ),
-            child: Container(color: AppColors.black.withValues(alpha: 0.4)),
+    return _buildContainer(
+      title: 'Set Task',
+      description: 'Set tasks for the patient to do.',
+      imagePath: 'lib/assets/images/auth/task.jpg',
+      buttonText: 'Give Task',
+      buttonIcon: Icons.edit_calendar,
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ViewPatientTask(patientId: widget.patientId),
           ),
-        ),
-        Positioned(
-          bottom: 20,
-          left: 20,
-          right: 20,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Title
-              Text(
-                'Set Task',
-                style: Textstyle.heading.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.white,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Set tasks for the patient to do.',
-                style: Textstyle.body.copyWith(color: AppColors.white),
-              ),
-
-              SizedBox(
-                width: 200,
-                child: TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder:
-                            (context) =>
-                                ViewPatientTask(patientId: widget.patientId),
-                      ),
-                    );
-                  },
-                  style: Buttonstyle.buttonDarkGray,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Give Task',
-                        style: Textstyle.smallButton.copyWith(
-                          color: AppColors.white,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.edit_calendar,
-                        size: 16,
-                        color: AppColors.white,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 
   Widget _buildMedicineContainer() {
-    return Stack(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            width: double.infinity,
-            height: 180,
-            decoration: BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('lib/assets/images/auth/medicine.jpg'),
-                fit: BoxFit.cover,
-              ),
-            ),
-            child: Container(color: AppColors.black.withValues(alpha: 0.4)),
+    return _buildContainer(
+      title: 'Prescribe Medicine',
+      description: 'Give medications to the patient to take.',
+      imagePath: 'lib/assets/images/auth/medicine.jpg',
+      buttonText: 'Prescribe Medicine',
+      buttonIcon: Icons.medical_services_rounded,
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder:
+                (context) => ViewPatientMedicine(patientId: widget.patientId),
           ),
-        ),
-        Positioned(
-          bottom: 20,
-          left: 20,
-          right: 20,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Title
-              Text(
-                'Prescribe Medicine',
-                style: Textstyle.heading.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.white,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Give medications to the patient to take.',
-                style: Textstyle.body.copyWith(color: AppColors.white),
-              ),
-
-              SizedBox(
-                width: 200,
-                child: TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder:
-                            (context) => ViewPatientMedicine(
-                              patientId: widget.patientId,
-                            ),
-                      ),
-                    );
-                  },
-                  style: Buttonstyle.buttonDarkGray,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Prescribe Medicine',
-                        style: Textstyle.smallButton.copyWith(
-                          color: AppColors.white,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.medical_services_rounded,
-                        size: 16,
-                        color: AppColors.white,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 
   Widget _buildTracking() {
-    return Stack(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            width: double.infinity,
-            height: 180,
-            decoration: BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('lib/assets/images/auth/tracking.jpg'),
-                fit: BoxFit.cover,
-              ),
-            ),
-            child: Container(color: AppColors.black.withValues(alpha: 0.4)),
+    return _buildContainer(
+      title: 'Track Patient',
+      description: 'Monitor and track patient symptom flare-ups and vitals.',
+      imagePath: 'lib/assets/images/auth/tracking.jpg',
+      buttonText: 'Track Patient',
+      buttonIcon: Icons.monitor_heart_rounded,
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PatientTracking(patientId: widget.patientId),
           ),
-        ),
-        Positioned(
-          bottom: 20,
-          left: 20,
-          right: 20,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Title
-              Text(
-                'Track Patient',
-                style: Textstyle.heading.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.white,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Give inputs to monitor and track patient symptom flare-ups and vitals.',
-                style: Textstyle.body.copyWith(color: AppColors.white),
-              ),
-
-              SizedBox(
-                width: 200,
-                child: TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder:
-                            (context) =>
-                                PatientTracking(patientId: widget.patientId),
-                      ),
-                    );
-                  },
-                  style: Buttonstyle.buttonDarkGray,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Track Patient',
-                        style: Textstyle.smallButton.copyWith(
-                          color: AppColors.white,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.monitor_heart_rounded,
-                        size: 16,
-                        color: AppColors.white,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 
   Widget _buildNotes() {
-    return Stack(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            width: double.infinity,
-            height: 180,
-            decoration: BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('lib/assets/images/auth/notes.jpg'),
-                fit: BoxFit.cover,
-              ),
-            ),
-            child: Container(color: AppColors.black.withValues(alpha: 0.4)),
+    return _buildContainer(
+      title: 'Take Notes',
+      description:
+          'Add notes on the current events and changes in the patient\'s condition.',
+      imagePath: 'lib/assets/images/auth/notes.jpg',
+      buttonText: 'Add Note',
+      buttonIcon: Icons.edit_calendar_rounded,
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PatientNote(patientId: widget.patientId),
           ),
-        ),
-        Positioned(
-          bottom: 20,
-          left: 20,
-          right: 20,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Title
-              Text(
-                'Take Notes',
-                style: Textstyle.heading.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.white,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Add notes to the current events and changes in the condition of patient.',
-                style: Textstyle.body.copyWith(color: AppColors.white),
-              ),
-
-              SizedBox(
-                width: 200,
-                child: TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder:
-                            (context) =>
-                                PatientNote(patientId: widget.patientId),
-                      ),
-                    );
-                  },
-                  style: Buttonstyle.buttonDarkGray,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Add Note',
-                        style: Textstyle.smallButton.copyWith(
-                          color: AppColors.white,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.edit_calendar_rounded,
-                        size: 16,
-                        color: AppColors.white,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -744,6 +691,10 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
         extraData: {'caregiverId': caregiverId},
         collectionName: patientRole,
       );
+      await _logService.addLog(
+        userId: widget.caregiverId,
+        action: "Scheduled patient $patientName on $scheduledDateTime",
+      );
 
       debugPrint("Schedule saved for both caregiver and patient.");
       ScaffoldMessenger.of(context).showSnackBar(
@@ -878,10 +829,11 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
 
   Widget _buildVitals() {
     return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('tracking')
-          .doc(widget.patientId)
-          .snapshots(),
+      stream:
+          FirebaseFirestore.instance
+              .collection('tracking')
+              .doc(widget.patientId)
+              .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -914,10 +866,11 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
         final formattedTimestamp = timeago.format(timestamp.toDate());
 
         return FutureBuilder<DocumentSnapshot>(
-          future: FirebaseFirestore.instance
-              .collection('patient') // Corrected collection name
-              .doc(widget.patientId)
-              .get(), // Fetch predictions once
+          future:
+              FirebaseFirestore.instance
+                  .collection('patient') // Corrected collection name
+                  .doc(widget.patientId)
+                  .get(), // Fetch predictions once
           builder: (context, predictionSnapshot) {
             if (predictionSnapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
@@ -927,8 +880,10 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
               return const Center(child: Text('Error fetching predictions'));
             }
 
-            final predictionsData = predictionSnapshot.data?.data() as Map<String, dynamic>?;
-            final predictionsArray = predictionsData?['predictions'] as List<dynamic>?;
+            final predictionsData =
+                predictionSnapshot.data?.data() as Map<String, dynamic>?;
+            final predictionsArray =
+                predictionsData?['predictions'] as List<dynamic>?;
 
             Map<String, dynamic> criticalPredictions = {};
             Map<String, String> predictionTimes = {};
@@ -936,7 +891,8 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
             if (predictionsArray != null && predictionsArray.isNotEmpty) {
               for (var prediction in predictionsArray) {
                 final predMap = prediction as Map<String, dynamic>;
-                final predictionTimestamp = (predMap['timestamp'] as Timestamp?)?.toDate();
+                final predictionTimestamp =
+                    (predMap['timestamp'] as Timestamp?)?.toDate();
 
                 if (predictionTimestamp == null) continue;
 
@@ -957,9 +913,13 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
                   }
 
                   final value = predMap[key];
-                  final status = getVitalStatus(_convertPredictionKeyToName(key), value);
+                  final status = getVitalStatus(
+                    _convertPredictionKeyToName(key),
+                    value,
+                  );
 
-                  if (status.color == Colors.red || status.color == Colors.yellow) {
+                  if (status.color == AppColors.red ||
+                      status.color == AppColors.yellow) {
                     // Extract the time step (t+1, t+2, t+3)
                     final match = RegExp(r't\+(\d+)').firstMatch(key);
                     if (match != null) {
@@ -967,12 +927,20 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
                       final futureTime = timeIntervals[timeKey];
 
                       if (futureTime != null) {
-                        final remainingTime = futureTime.difference(_currentTime);
+                        final remainingTime = futureTime.difference(
+                          _currentTime,
+                        );
 
-                        if (!criticalPredictions.containsKey(_convertPredictionKeyToName(key))) {
-                          criticalPredictions[_convertPredictionKeyToName(key)] = value;
-                          predictionTimes[_convertPredictionKeyToName(key)] =
-                              _formatRemainingTime(remainingTime);
+                        if (!criticalPredictions.containsKey(
+                          _convertPredictionKeyToName(key),
+                        )) {
+                          criticalPredictions[_convertPredictionKeyToName(
+                                key,
+                              )] =
+                              value;
+                          predictionTimes[_convertPredictionKeyToName(
+                            key,
+                          )] = _formatRemainingTime(remainingTime);
                         }
                       }
                     }
@@ -997,32 +965,44 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
                 ...vitals.entries.map((entry) {
                   final unit = _getVitalUnit(entry.key);
                   final dynamic rawValue = entry.value;
-                  final num? value = rawValue is num ? rawValue : num.tryParse(rawValue.toString());
+                  final num? value =
+                      rawValue is num
+                          ? rawValue
+                          : num.tryParse(rawValue.toString());
 
-                  final status = (value != null) ? getVitalStatus(entry.key, value) : VitalStatus(color: Colors.white, label: "N/A");
+                  final status =
+                      (value != null)
+                          ? getVitalStatus(entry.key, value)
+                          : VitalStatus(color: AppColors.white, label: "N/A");
 
-                  return _buildVitalRow(entry.key, rawValue.toString(), unit, status);
+                  return _buildVitalRow(
+                    entry.key,
+                    rawValue.toString(),
+                    unit,
+                    status,
+                  );
                 }),
+
+                Divider(),
 
                 // Display earliest predicted critical vitals
                 if (criticalPredictions.isNotEmpty) ...[
                   SizedBox(height: 20),
                   Text(
                     'Predicted Critical Vitals',
-                    style: TextStyle(
-                      color: Colors.redAccent,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+                    style: Textstyle.subheader.copyWith(color: AppColors.white),
                   ),
+                  SizedBox(height: 10),
                   ...criticalPredictions.entries.map((entry) {
                     final unit = _getVitalUnit(entry.key);
                     final status = getVitalStatus(entry.key, entry.value);
-                    final timeRemaining = predictionTimes[entry.key] ?? "Unknown";
+                    final timeRemaining =
+                        predictionTimes[entry.key] ?? "Unknown";
 
-                    return _buildVitalRow(
+                    return _buildVitalColumn(
                       entry.key,
-                      '(in $timeRemaining) ${entry.value}',
+                      '(in $timeRemaining)',
+                      '${entry.value}',
                       unit,
                       status,
                     );
@@ -1037,35 +1017,134 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
   }
 
   // Extracted UI function to avoid repetition
-  Widget _buildVitalRow(String key, String value, String unit, VitalStatus status) {
-    return Row(
+  Widget _buildVitalRow(
+    String key,
+    String value,
+    String unit,
+    VitalStatus status,
+  ) {
+    return Column(
       children: [
-        Expanded(
-          child: Text(
-            key,
-            style: TextStyle(color: AppColors.white),
-          ),
-        ),
         Row(
           children: [
-            Text(
-              '$value$unit',
-              style: TextStyle(
-                color: status.color,
-                fontWeight: FontWeight.bold,
+            Expanded(
+              child: Text(
+                key,
+                style: Textstyle.bodySmall.copyWith(color: AppColors.white),
               ),
             ),
-            if (status.icon != null) ...[
-              SizedBox(width: 5),
-              Icon(status.icon, color: status.color, size: 16),
-              SizedBox(width: 5),
-              Text(
-                status.label,
-                style: TextStyle(color: status.color, fontSize: 12),
-              ),
-            ],
+            Row(
+              children: [
+                Text(
+                  '$value$unit',
+                  style: Textstyle.bodySmall.copyWith(
+                    color: AppColors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(width: 8),
+                if (status.icon != null) ...[
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(15),
+                      color: status.color,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(status.icon, color: AppColors.white, size: 14),
+                        SizedBox(width: 5),
+                        Text(
+                          status.label,
+                          style: Textstyle.bodySuperSmall.copyWith(
+                            color: AppColors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ],
         ),
+        SizedBox(height: 8),
+      ],
+    );
+  }
+
+  Widget _buildVitalColumn(
+    String key,
+    String time,
+    String value,
+    String unit,
+    VitalStatus status,
+  ) {
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            color: AppColors.darkgray,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    key,
+                    style: Textstyle.bodySmall.copyWith(
+                      color: AppColors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(width: 5),
+                  Text(
+                    time,
+                    style: Textstyle.bodySmall.copyWith(color: AppColors.white),
+                  ),
+                ],
+              ),
+              SizedBox(height: 5),
+              Row(
+                children: [
+                  if (status.icon != null) ...[
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(15),
+                        color: status.color,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(status.icon, color: AppColors.white, size: 14),
+                          SizedBox(width: 5),
+                          Text(
+                            status.label,
+                            style: Textstyle.bodySuperSmall.copyWith(
+                              color: AppColors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  SizedBox(width: 8),
+                  Text(
+                    '$value$unit',
+                    style: Textstyle.bodySmall.copyWith(color: AppColors.white),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: 10),
       ],
     );
   }
@@ -1074,6 +1153,231 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     return CarouselWidget(
       pageController: _pageController,
       patientId: widget.patientId,
+    );
+  }
+
+  Future<bool> _isUserTagged(String patientId, String userId) async {
+    try {
+      final docSnapshot =
+          await FirebaseFirestore.instance
+              .collection('patient')
+              .doc(patientId)
+              .get();
+
+      if (docSnapshot.exists) {
+        List<dynamic> tags = docSnapshot.data()?['tag'] ?? [];
+        return tags.contains(userId);
+      }
+      return false;
+    } catch (e) {
+      print('Error checking tag: $e');
+      return false;
+    }
+  }
+
+  Future<void> _tagPatient({
+    required String patientId,
+    required String userId,
+  }) async {
+    if (_isTagging) return; // Prevent multiple taps
+
+    final shouldTag = await _showConfirmationDialog(
+      title: 'Tag Patient',
+      definition:
+          'Tagging a patient means adding them to your assigned patient list.',
+      message: 'Are you sure you want to tag this patient?',
+    );
+
+    if (shouldTag) {
+      try {
+        if (userId.isEmpty) {
+          showToast('User is not authenticated');
+          return;
+        }
+
+        final String? userRole = await databaseService.fetchAndCacheUserRole(
+          userId,
+        );
+
+        if (userRole == null) {
+          showToast('User has no role');
+          return;
+        }
+
+        setState(() {
+          _isTagging = true;
+        });
+
+        showToast('Tagging in progress...');
+
+        final patientRef = FirebaseFirestore.instance
+            .collection('patient')
+            .doc(patientId);
+        final userRef = FirebaseFirestore.instance
+            .collection(userRole)
+            .doc(userId);
+
+        // Add caregiver/nurse/doctor ID to patient's tags subcollection
+        await patientRef.collection('tags').doc(userId).set({});
+
+        // Add patient ID to caregiver/nurse/doctor's tags subcollection
+        await userRef.collection('tags').doc(patientId).set({});
+
+        await _logService.addLog(
+          userId: widget.caregiverId,
+          action: "Tagged patient $patientName",
+        );
+        await databaseService.addNotification(
+          widget.caregiverId,
+          'You successfully tagged patient $patientName',
+          'tag',
+        );
+
+        showToast('Successfully tagged patient.');
+      } catch (e) {
+        showToast('Error tagging patient: $e');
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isTagging = false;
+          });
+        }
+      }
+    }
+  }
+
+  Future<void> _untagPatient({
+    required String patientId,
+    required String userId,
+  }) async {
+    if (_isTagging) return;
+
+    final shouldUntag = await _showConfirmationDialog(
+      title: 'Untag Patient',
+      definition:
+          'Untagging a patient means removing them from your assigned patient list.',
+      message: 'Are you sure you want to untag this patient?',
+    );
+
+    if (shouldUntag) {
+      try {
+        if (userId.isEmpty) {
+          showToast('User is not authenticated');
+          return;
+        }
+
+        final String? userRole = await databaseService.fetchAndCacheUserRole(
+          userId,
+        );
+
+        if (userRole == null) {
+          showToast('User has no role');
+          return;
+        }
+
+        setState(() {
+          _isTagging = true;
+        });
+
+        showToast('Untagging in progress...');
+
+        final patientRef = FirebaseFirestore.instance
+            .collection('patient')
+            .doc(patientId);
+        final userRef = FirebaseFirestore.instance
+            .collection(userRole)
+            .doc(userId);
+
+        // Remove caregiver/nurse/doctor ID from patient's tags subcollection
+        await patientRef.collection('tags').doc(userId).delete();
+
+        // Remove patient ID from caregiver/nurse/doctor's tags subcollection
+        await userRef.collection('tags').doc(patientId).delete();
+
+        await _logService.addLog(
+          userId: widget.caregiverId,
+          action: "Untagged patient $patientName",
+        );
+        await databaseService.addNotification(
+          widget.caregiverId,
+          'You successfully untagged patient $patientName',
+          'tag',
+        );
+
+        showToast('Successfully untagged patient.');
+      } catch (e) {
+        showToast('Error untagging patient: $e');
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isTagging = false;
+          });
+        }
+      }
+    }
+  }
+
+  Future<bool> _showConfirmationDialog({
+    required String title,
+    required String definition,
+    required String message,
+  }) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              backgroundColor: AppColors.white,
+              title: Text(title, style: Textstyle.subheader),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(definition, style: Textstyle.body),
+                  SizedBox(height: 30),
+                  Text(
+                    message,
+                    style: Textstyle.body.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              actions: <Widget>[
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop(false);
+                        },
+                        style: Buttonstyle.buttonRed,
+                        child: Text('No', style: Textstyle.smallButton),
+                      ),
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop(true);
+                        },
+                        style: Buttonstyle.buttonNeon,
+                        child: Text('Yes', style: Textstyle.smallButton),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+  }
+
+  void showToast(String message) {
+    Fluttertoast.showToast(
+      msg: message,
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+      backgroundColor: AppColors.neon,
+      textColor: AppColors.white,
+      fontSize: 16.0,
     );
   }
 
@@ -1089,42 +1393,92 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
             child: Row(
               children: [
                 GestureDetector(
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => Contacts(patientId: widget.patientId),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.perm_contact_cal_rounded, size: 20, color: AppColors.black),
-                      SizedBox(width: 5),
-                      Text("Contacts", style: TextStyle(fontSize: 12, color: AppColors.black)),
-                    ],
+                  onTap:
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) =>
+                                  Contacts(patientId: widget.patientId),
+                        ),
+                      ),
+                  child: Icon(
+                    Icons.perm_contact_cal_rounded,
+                    size: 24,
+                    color: AppColors.black,
                   ),
                 ),
-                SizedBox(width: 15),
+                SizedBox(width: 5),
                 GestureDetector(
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => EditPatient(patientId: widget.patientId),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.edit, size: 20, color: AppColors.black),
-                      SizedBox(width: 5),
-                      Text("Edit Profile", style: TextStyle(fontSize: 12, color: AppColors.black)),
-                    ],
-                  ),
+                  onTap:
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) =>
+                                  EditPatient(patientId: widget.patientId),
+                        ),
+                      ),
+                  child: Icon(Icons.edit, size: 24, color: AppColors.black),
                 ),
+                if (widget.role != 'caregiver')
+                  FutureBuilder<bool>(
+                    future: _isUserTagged(widget.patientId, widget.caregiverId),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return CircularProgressIndicator();
+                      }
+
+                      final isTagged = snapshot.data!;
+
+                      return Row(
+                        children: [
+                          SizedBox(width: 5),
+                          SizedBox(
+                            height: 30,
+                            child: TextButton(
+                              onPressed:
+                                  () =>
+                                      isTagged
+                                          ? _untagPatient(
+                                            patientId: widget.patientId,
+                                            userId: widget.caregiverId,
+                                          )
+                                          : _tagPatient(
+                                            patientId: widget.patientId,
+                                            userId: widget.caregiverId,
+                                          ),
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.symmetric(
+                                  vertical: 3,
+                                  horizontal: 8,
+                                ),
+                                backgroundColor:
+                                    isTagged ? AppColors.red : AppColors.neon,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              child: Text(
+                                isTagged ? 'Untag Patient' : 'Tag Patient',
+                                style: Textstyle.bodySuperSmall.copyWith(
+                                  color: AppColors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
               ],
             ),
           ),
         ],
         backgroundColor: AppColors.white,
         scrolledUnderElevation: 0.0,
+        automaticallyImplyLeading: _isTagging ? false : true,
       ),
       body: SingleChildScrollView(
         child: Column(

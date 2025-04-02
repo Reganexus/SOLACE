@@ -5,9 +5,9 @@ class PatientData {
   final String userRole;
   final String firstName;
   final String lastName;
-  final String middleName; // Changed to required
-  final String caseTitle; // Required
-  final String caseDescription; // Required
+  final String middleName;
+  final String caseTitle;
+  final String caseDescription;
   final String profileImageUrl;
   final String gender;
   final DateTime birthday;
@@ -18,15 +18,16 @@ class PatientData {
   final String organDonation;
   final String status;
   final String address;
+  final List<String> tag;
 
   PatientData({
     required this.uid,
     this.userRole = 'patient',
     required this.firstName,
     required this.lastName,
-    required this.middleName, // Marked as required
-    required this.caseTitle, // Required
-    required this.caseDescription, // Required
+    required this.middleName,
+    required this.caseTitle,
+    required this.caseDescription,
     required this.profileImageUrl,
     required this.gender,
     required this.birthday,
@@ -37,9 +38,9 @@ class PatientData {
     required this.organDonation,
     required this.status,
     required this.address,
+    required this.tag,
   });
 
-  /// Calculate age from the birthday
   int get age {
     final now = DateTime.now();
     int years = now.year - birthday.year;
@@ -50,7 +51,6 @@ class PatientData {
     return years;
   }
 
-  /// Factory method to create `PatientData` from a Firestore document
   factory PatientData.fromDocument(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data();
     if (data == null) {
@@ -62,11 +62,9 @@ class PatientData {
       userRole: data['userRole'] ?? 'patient',
       firstName: data['firstName'] ?? '',
       lastName: data['lastName'] ?? '',
-      middleName:
-          data['middleName'] ?? '', // Changed to required with default fallback
-      caseTitle: data['caseTitle'] ?? '', // Ensure default value or required
-      caseDescription:
-          data['caseDescription'] ?? '', // Ensure default value or required
+      middleName: data['middleName'] ?? '',
+      caseTitle: data['caseTitle'] ?? '',
+      caseDescription: data['caseDescription'] ?? '',
       profileImageUrl: data['profileImageUrl'] ?? '',
       gender: data['gender'] ?? '',
       birthday: (data['birthday'] as Timestamp?)?.toDate() ?? DateTime.now(),
@@ -78,18 +76,18 @@ class PatientData {
       organDonation: data['organDonation'] ?? '',
       status: data['status'] ?? 'stable',
       address: data['address'] ?? '',
+      tag: List<String>.from(data['tag'] ?? []),
     );
   }
 
-  /// Converts `PatientData` into a Firestore-compatible map
   Map<String, dynamic> toMap() {
     return {
       'userRole': userRole,
       'firstName': firstName,
       'lastName': lastName,
-      'middleName': middleName, // Included as required
-      'caseTitle': caseTitle, // Include in mapping
-      'caseDescription': caseDescription, // Include in mapping
+      'middleName': middleName,
+      'caseTitle': caseTitle,
+      'caseDescription': caseDescription,
       'profileImageUrl': profileImageUrl,
       'gender': gender,
       'birthday': Timestamp.fromDate(birthday),
@@ -100,11 +98,12 @@ class PatientData {
       'organDonation': organDonation,
       'status': status,
       'address': address,
+      'tag': tag,
     };
   }
 
   @override
   String toString() {
-    return 'PatientData(uid: $uid, userRole: $userRole, firstName: $firstName, lastName: $lastName, middleName: $middleName, caseTitle: $caseTitle, caseDescription: $caseDescription, gender: $gender, birthday: $birthday, age: $age, religion: $religion, address: $address, status: $status)';
+    return 'PatientData(uid: $uid, userRole: $userRole, firstName: $firstName, lastName: $lastName, middleName: $middleName, caseTitle: $caseTitle, caseDescription: $caseDescription, gender: $gender, birthday: $birthday, age: $age, religion: $religion, address: $address, status: $status, tag: $tag)';
   }
 }

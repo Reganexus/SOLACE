@@ -116,11 +116,7 @@ class EditUserRoleDialogState extends State<EditUserRoleDialog> {
         }
 
         // Add user to new collection with updated role
-        transaction.set(newDocRef, {
-          ...userData,
-          'userRole': _selectedRole!, // Update the role explicitly
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+        transaction.set(newDocRef, {...userData, 'userRole': _selectedRole!});
 
         // Delete from previous collection
         transaction.delete(currentDocRef);
@@ -133,9 +129,15 @@ class EditUserRoleDialogState extends State<EditUserRoleDialog> {
         print("Error: No authenticated user found.");
         return;
       }
+
+      if (user.uid == null) {
+        print("Error: User Id is Null.");
+        return;
+      }
+
       await _logService.addLog(
         userId: user.uid,
-        action: "Marked $_userName as deceased",
+        action: "Updated role for $_userName",
       );
       showToast("User role updated successfully.");
       Navigator.pushReplacement(

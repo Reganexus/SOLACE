@@ -316,9 +316,7 @@ class _AdminEditProfileScreenState extends State<AdminEditProfile> {
     if (picked != null) {
       setState(() {
         birthday = picked;
-
-        // Use intl package to format the selected date
-        birthdayController.text = DateFormat('MMMM d, yyyy').format(birthday!);
+        birthdayController.text = DateFormat("MMMM d, yyyy").format(birthday!);
       });
     }
   }
@@ -425,6 +423,9 @@ class _AdminEditProfileScreenState extends State<AdminEditProfile> {
         'age': age,
       });
 
+      final name =
+          '${StringExtensions(firstNameController.text.trim()).capitalizeEachWord()} ${StringExtensions(lastNameController.text.trim()).capitalizeEachWord()}';
+
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const Wrapper()),
@@ -432,7 +433,10 @@ class _AdminEditProfileScreenState extends State<AdminEditProfile> {
       );
 
       if (mounted) {
-        await logService.addLog(userId: userId, action: 'Edited profile');
+        await logService.addLog(
+          userId: userId,
+          action: 'Edited profile of $userRole $name',
+        );
         showToast('Profile updated successfully');
       }
     } catch (e) {

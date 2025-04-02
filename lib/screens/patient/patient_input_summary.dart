@@ -528,26 +528,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                         String patientName = '$fName $lName';
 
                         if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Row(
-                                children: [
-                                  const CircularProgressIndicator(
-                                    strokeWidth: 3,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  const Text('Submitting data...'),
-                                ],
-                              ),
-                              backgroundColor: Colors.green,
-                              duration: const Duration(
-                                seconds: 3,
-                              ), // Keep it open for 10 seconds
-                            ),
-                          );
+                          showToast('Submitting data...');
                         }
 
                         _identifySymptoms();
@@ -619,9 +600,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                                 (context) =>
                                     PatientTracking(patientId: widget.uid),
                           ),
-                          (Route<dynamic> route) =>
-                              route
-                                  .isFirst, // Retain only the first route (Dashboard)
+                          (Route<dynamic> route) => route.isFirst,
                         );
                       } catch (e) {
                         // Handle any unexpected errors here

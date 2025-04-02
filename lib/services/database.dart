@@ -589,6 +589,7 @@ class DatabaseService {
     String? caseTitle,
     String? caseDescription,
     String? status,
+    List<String>? tag,
   }) async {
     try {
       // Get the appropriate collection for the user role
@@ -647,6 +648,7 @@ class DatabaseService {
         updatedData['caseDescription'] = caseDescription;
       }
       if (status?.isNotEmpty ?? false) updatedData['status'] = status;
+      updatedData['tag'] = tag ?? [];
 
       // Add dateCreated field
       updatedData['dateCreated'] = Timestamp.now();
@@ -681,6 +683,7 @@ class DatabaseService {
     String? caseDescription,
     String? status,
     String? address,
+    List<String>? tag,
   }) async {
     try {
       // Prepare the data map with non-null fields
@@ -703,6 +706,7 @@ class DatabaseService {
           'caseDescription': caseDescription,
         if (status != null && status.isNotEmpty) 'status': status,
         if (address != null && address.isNotEmpty) 'address': address,
+        if (tag != null) 'tag': tag,
       };
 
       // Ensure there's data to update

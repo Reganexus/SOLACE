@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
 import 'package:solace/services/database.dart';
+import 'package:solace/services/log_service.dart';
 import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/themes/inputdecoration.dart';
@@ -24,7 +25,8 @@ class ViewPatientTask extends StatefulWidget {
 }
 
 class _ViewPatientTaskState extends State<ViewPatientTask> {
-  late DatabaseService databaseService;
+  final LogService _logService = LogService();
+  final DatabaseService databaseService = DatabaseService();
   final TaskUtility taskUtility = TaskUtility();
   List<Map<String, dynamic>> tasks = [];
   List<FocusNode> _focusNodes = [];
@@ -35,14 +37,14 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
   TextEditingController _startDateController = TextEditingController();
   TextEditingController _endDateController = TextEditingController();
 
-  DateTime? taskStartDate; // Initially null
-  DateTime? taskEndDate; // Initially null
+  DateTime? taskStartDate;
+  DateTime? taskEndDate;
+  late String patientName = '';
 
   @override
   void initState() {
     super.initState();
     _focusNodes = List.generate(5, (index) => FocusNode());
-    databaseService = DatabaseService(); // Initialize the DatabaseService
     _titleController.text = '';
     _descriptionController.text = '';
     _startDateController.text = 'Select Start Date';
@@ -50,6 +52,8 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
 
     _fetchPatientTasks();
     _resetDateControllers();
+    _loadPatientName();
+    debugPrint("Patient Name: $patientName");
   }
 
   @override
@@ -63,6 +67,16 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
     _startDateController.dispose();
     _endDateController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadPatientName() async {
+    final name = await databaseService.fetchUserName(widget.patientId);
+    if (mounted) {
+      setState(() {
+        patientName = name ?? 'Unknown';
+      });
+    }
+    debugPrint("Patient Name: $patientName");
   }
 
   Future<void> _fetchPatientTasks() async {
@@ -145,6 +159,14 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
     );
   }
 
+  String getTaskNameById(String taskId) {
+    final task = tasks.firstWhere(
+      (med) => med['taskId'] == taskId,
+      orElse: () => {'taskName': 'Unknown Task'},
+    );
+    return task['taskName'] ?? 'Unknown Task';
+  }
+
   Future<void> _removeTask(
     String patientId,
     String taskId,
@@ -180,6 +202,12 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
         taskId: taskId,
         collectionName: caregiverRole,
         subCollectionName: 'tasks',
+      );
+
+      await _logService.addLog(
+        userId: caregiverId,
+        action:
+            "Removed Medicine ${getTaskNameById(taskId)} from patient $patientName",
       );
 
       showToast('Task deleted successfully');
@@ -263,9 +291,12 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
         endDate: endDate,
       );
 
-      // Reload tasks after saving the new one
       _fetchPatientTasks();
       _resetDateControllers();
+      await _logService.addLog(
+        userId: caregiverId,
+        action: "Added Task $title to patient $patientName",
+      );
 
       showToast("Task added successfully");
     } catch (e) {

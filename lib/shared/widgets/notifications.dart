@@ -256,6 +256,8 @@ class NotificationsListState extends State<NotificationsList> {
         return Icon(Icons.assignment, color: AppColors.black, size: 24);
       case 'medicine':
         return Icon(Icons.healing, color: AppColors.black, size: 24);
+      case 'tag':
+        return Icon(Icons.how_to_reg_sharp, color: AppColors.black, size: 24);
       default:
         return Icon(Icons.notifications, color: AppColors.black, size: 24);
     }
@@ -308,6 +310,9 @@ class NotificationsListState extends State<NotificationsList> {
         break;
       case 'update':
         title = 'Account Update';
+        break;
+      case 'tag':
+        title = 'Tagging Details';
         break;
       default:
         title = 'Notification Details';
@@ -429,6 +434,8 @@ class NotificationsListState extends State<NotificationsList> {
                             ? 'Schedule Confirmation'
                             : notification['type'] == 'update'
                             ? 'Account Update'
+                            : notification['type'] == 'tag'
+                            ? 'Tagging Details'
                             : 'Notification';
 
                     return GestureDetector(

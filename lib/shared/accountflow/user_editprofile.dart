@@ -250,9 +250,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (picked != null) {
       setState(() {
         birthday = picked;
-
-        // Use intl package to format the selected date
-        birthdayController.text = DateFormat('MMMM d, yyyy').format(birthday!);
+        birthdayController.text = DateFormat("MMMM d, yyyy").format(birthday!);
       });
     }
   }

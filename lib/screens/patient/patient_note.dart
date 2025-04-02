@@ -1,9 +1,12 @@
 // ignore_for_file: use_build_context_synchronously, avoid_print
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
+import 'package:solace/services/database.dart';
+import 'package:solace/services/log_service.dart';
 import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/themes/inputdecoration.dart';
@@ -19,16 +22,32 @@ class PatientNote extends StatefulWidget {
 }
 
 class PatientNoteState extends State<PatientNote> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final DatabaseService databaseService = DatabaseService();
+  final LogService _logService = LogService();
   List<Map<String, dynamic>> notes = [];
   DateTime selectedDay = DateTime.now();
   DateTime? userCreatedDate;
   bool isLoading = true;
+  late String patientName = '';
 
   @override
   void initState() {
     super.initState();
     fetchNotesForDay(selectedDay);
     fetchUserCreationDate();
+    _loadPatientName();
+    debugPrint("Patient Name: $patientName");
+  }
+
+  Future<void> _loadPatientName() async {
+    final name = await databaseService.fetchUserName(widget.patientId);
+    if (mounted) {
+      setState(() {
+        patientName = name ?? 'Unknown';
+      });
+    }
+    debugPrint("Patient Name: $patientName");
   }
 
   void showToast(String message) {
@@ -106,6 +125,19 @@ class PatientNoteState extends State<PatientNote> {
 
   Future<void> addNoteForToday(String title, String noteText) async {
     try {
+      final user = _auth.currentUser;
+
+      if (user == null) {
+        showToast("User is not Authenticated");
+        return;
+      }
+
+      if (user.uid == null) {
+        showToast("User is id Null");
+        return;
+      }
+
+      final String userId = user.uid;
       final DateTime selectedDate = selectedDay;
       final String noteId = '${selectedDate.millisecondsSinceEpoch}';
 
@@ -124,6 +156,11 @@ class PatientNoteState extends State<PatientNote> {
 
       await noteRef.set(newNote);
 
+      await _logService.addLog(
+        userId: userId,
+        action: "Added note $title to patient $patientName",
+      );
+
       fetchNotesForDay(selectedDay);
       showToast('Note added successfully!');
     } catch (e) {
@@ -133,6 +170,19 @@ class PatientNoteState extends State<PatientNote> {
 
   Future<void> _deleteNote(Map<String, dynamic> note) async {
     try {
+      final user = _auth.currentUser;
+
+      if (user == null) {
+        showToast("User is not Authenticated");
+        return;
+      }
+
+      if (user.uid == null) {
+        showToast("User is id Null");
+        return;
+      }
+
+      final String userId = user.uid;
       final noteRef = FirebaseFirestore.instance
           .collection('patient')
           .doc(widget.patientId)
@@ -140,6 +190,11 @@ class PatientNoteState extends State<PatientNote> {
           .doc(note['noteId']);
 
       await noteRef.delete();
+
+      await _logService.addLog(
+        userId: userId,
+        action: "Deleted note ${note['title']} from patient $patientName",
+      );
 
       fetchNotesForDay(selectedDay);
       showToast('Note deleted successfully!');

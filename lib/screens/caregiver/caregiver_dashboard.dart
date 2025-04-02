@@ -27,6 +27,8 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
   final DatabaseService db = DatabaseService();
   late final String caregiverId;
   String? userRole;
+  bool _showAllPatients = true;
+  bool _showTaggedPatients = false;
 
   @override
   void initState() {
@@ -43,57 +45,34 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
       });
     } catch (e) {
       setState(() {
-        userRole = null; // Handle error case
+        userRole = null;
       });
     }
   }
 
-  Stream<Map<String, dynamic>> _fetchPatients() {
-    return FirebaseFirestore.instance.collection('patient').snapshots().map((
-      snapshot,
-    ) {
-      // Initialize counters
-      int stableCount = 0;
-      int unstableCount = 0;
-
-      // Map documents to PatientData and count status
-      final patients =
-          snapshot.docs.map((doc) {
-            final data = PatientData.fromDocument(doc);
-            if (data.status == 'stable') {
-              stableCount++;
-            } else if (data.status == 'unstable') {
-              unstableCount++;
-            }
-            return data;
-          }).toList();
-
-      return {
-        'patients': patients,
-        'total': patients.length,
-        'stable': stableCount,
-        'unstable': unstableCount,
-      };
-    });
+  Stream<List<PatientData>> _allPatientsStream() {
+    return FirebaseFirestore.instance
+        .collection('patient')
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map((doc) => PatientData.fromDocument(doc))
+                  .toList(),
+        );
   }
 
-  void _navigateToPatientDashboard(PatientData patient) {
-    if (userRole == null) {
-      showToast('Unable to determine user role.');
-      return;
-    }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder:
-            (context) => PatientsDashboard(
-              patientId: patient.uid,
-              caregiverId: caregiverId,
-              role: userRole!, // Safely pass the role
-            ),
-      ),
-    );
+  Stream<List<PatientData>> _taggedPatientsStream(String userId) {
+    return FirebaseFirestore.instance
+        .collection('patient')
+        .where('tag', arrayContains: userId)
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map((doc) => PatientData.fromDocument(doc))
+                  .toList(),
+        );
   }
 
   void showToast(String message) {
@@ -107,11 +86,222 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
     );
   }
 
-  Widget _buildPatientList(List<PatientData> patients) {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.white,
+      body: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              userRole == null
+                  ? Center(child: Loader.loaderWhite)
+                  : Column(
+                    children: [
+                      if (userRole == 'doctor' || userRole == 'nurse')
+                        _buildPatientContent(),
+                      if (userRole == 'caregiver')
+                        _buildCaregiverPatientContent(),
+                    ],
+                  ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPatientSelection() {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.black.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(10),
+          bottomRight: Radius.circular(10),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Filter List",
+            style: Textstyle.body.copyWith(
+              color: AppColors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            "Select the list you want to view. Tagged patients lists all of your assigned patients.",
+            style: Textstyle.bodySmall.copyWith(color: AppColors.white),
+          ),
+
+          SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              ChoiceChip(
+                checkmarkColor: AppColors.white,
+                label: Text(
+                  'All Patients',
+                  style: Textstyle.bodySmall.copyWith(
+                    color:
+                        _showAllPatients
+                            ? AppColors.white
+                            : AppColors.black.withValues(alpha: 0.5),
+                    fontWeight:
+                        _showAllPatients ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+                selected: _showAllPatients,
+                onSelected: (bool selected) {
+                  setState(() {
+                    _showAllPatients = true;
+                    _showTaggedPatients = false;
+                  });
+                },
+                selectedColor: AppColors.neon,
+                backgroundColor: AppColors.black.withValues(alpha: 0.6),
+                side: BorderSide(color: Colors.transparent),
+              ),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                checkmarkColor: AppColors.white,
+                labelPadding: EdgeInsets.symmetric(horizontal: 0, vertical: 0),
+                label: Text(
+                  'Tagged Patients',
+                  style: Textstyle.bodySmall.copyWith(
+                    color:
+                        _showTaggedPatients
+                            ? AppColors.white
+                            : AppColors.black.withValues(alpha: 0.5),
+                    fontWeight:
+                        _showTaggedPatients
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                  ),
+                ),
+                selected: _showTaggedPatients,
+                onSelected: (bool selected) {
+                  setState(() {
+                    _showTaggedPatients = true;
+                    _showAllPatients = false;
+                  });
+                },
+                selectedColor: AppColors.neon,
+                backgroundColor: AppColors.black.withValues(alpha: 0.6),
+                side: BorderSide(color: Colors.transparent),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPatientContent() {
+    return Column(
+      children: [
+        if (_showAllPatients)
+          StreamBuilder<List<PatientData>>(
+            stream: _allPatientsStream(),
+            builder: (context, allPatientsSnapshot) {
+              return _buildPatientContentColumn(
+                allPatientsSnapshot,
+                'Patient Lists',
+              );
+            },
+          ),
+        if (_showTaggedPatients)
+          StreamBuilder<List<PatientData>>(
+            stream: _taggedPatientsStream(caregiverId),
+            builder: (context, taggedPatientsSnapshot) {
+              return _buildPatientContentColumn(
+                taggedPatientsSnapshot,
+                'Tagged Patients',
+              );
+            },
+          ),
+      ],
+    );
+  }
+
+  Widget _buildPatientContentColumn(
+    AsyncSnapshot<List<PatientData>> snapshot,
+    String title,
+  ) {
+    if (snapshot.connectionState == ConnectionState.waiting) {
+      return Center(child: Loader.loaderWhite);
+    }
+    if (snapshot.hasError) {
+      return Center(child: Text('Error: ${snapshot.error}'));
+    }
+
+    List<PatientData> patients = snapshot.data ?? [];
+    int total = patients.length;
+    int stableCount = patients.where((p) => p.status == 'stable').length;
+    int unstableCount = patients.where((p) => p.status == 'unstable').length;
+
+    return Column(
+      children: [
+        StatisticsRow(
+          total: total,
+          stable: stableCount,
+          unstable: unstableCount,
+          role: userRole.toString(),
+        ),
+        if (userRole == 'doctor' || userRole == 'nurse')
+          _buildPatientSelection(),
+
+        const SizedBox(height: 20),
+        if (patients.isEmpty)
+          SizedBox(height: 300, child: _buildNoPatientState()),
+        if (patients.isNotEmpty) _buildPatientList(title, patients),
+      ],
+    );
+  }
+
+  Widget _buildCaregiverPatientContent() {
+    return StreamBuilder<List<PatientData>>(
+      stream: _taggedPatientsStream(caregiverId),
+      builder: (context, snapshot) {
+        return _buildPatientContentColumn(snapshot, 'Your Patients');
+      },
+    );
+  }
+
+  Widget _buildNoPatientState() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.person_off_rounded,
+            color: AppColors.black,
+            size: 70,
+          ),
+          const SizedBox(height: 10.0),
+          Text(
+            "No Patients Yet",
+            style: Textstyle.body.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10.0),
+          Text(
+            "Add patients by clicking the 'Add Patient' button",
+            style: Textstyle.bodySmall,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPatientList(String title, List<PatientData> patients) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Patient List', style: Textstyle.subheader),
+        Text(title, style: Textstyle.subheader),
         const SizedBox(height: 10.0),
         ListView.builder(
           shrinkWrap: true,
@@ -175,130 +365,21 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
     );
   }
 
-  Widget _buildNoPatientState() {
-    return Expanded(
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.person_off_rounded,
-              color: AppColors.black,
-              size: 80,
+  void _navigateToPatientDashboard(PatientData patient) {
+    if (userRole == null) {
+      showToast('Unable to determine user role.');
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => PatientsDashboard(
+              patientId: patient.uid,
+              caregiverId: caregiverId,
+              role: userRole!,
             ),
-            const SizedBox(height: 20.0),
-            Text("No Patients Yet", style: Textstyle.subheader),
-            const SizedBox(height: 10.0),
-            Text(
-              "Add by patients by clicking the 'Add Patient' button",
-              style: Textstyle.bodySmall,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.white,
-      body: GestureDetector(
-        onTap: () {
-          FocusScope.of(context).unfocus();
-        },
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (userRole == null)
-              Center(child: Loader.loaderWhite)
-            else
-              Expanded(
-                child: StreamBuilder<Map<String, dynamic>>(
-                  stream: _fetchPatients(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return Center(child: Loader.loaderWhite);
-                    }
-                    if (snapshot.hasError) {
-                      return Center(
-                        child: Text(
-                          "Error loading patients: ${snapshot.error}",
-                          style: Textstyle.body,
-                        ),
-                      );
-                    }
-
-                    final data =
-                        snapshot.data ??
-                        {
-                          'patients': [],
-                          'total': 0,
-                          'stable': 0,
-                          'unstable': 0,
-                        };
-
-                    final patients = data['patients'] as List<PatientData>;
-                    final total = data['total'] as int;
-                    final stable = data['stable'] as int;
-                    final unstable = data['unstable'] as int;
-
-                    return Padding(
-                      padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
-                      child: Column(
-                        children: [
-                          StatisticsRow(
-                            total: total,
-                            stable: stable,
-                            unstable: unstable,
-                          ),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: const Color.fromARGB(255, 0, 153, 122),
-                              borderRadius: BorderRadius.only(
-                                bottomLeft: Radius.circular(10),
-                                bottomRight: Radius.circular(10),
-                              ),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                if (patients.isNotEmpty)
-                                  const Icon(
-                                    Icons.info_outline_rounded,
-                                    size: 16,
-                                    color: AppColors.white,
-                                  ),
-                                const SizedBox(width: 10),
-                                Text(
-                                  patients.isEmpty
-                                      ? ''
-                                      : 'Tap on the list of patients to monitor them.',
-                                  style: Textstyle.bodySuperSmall.copyWith(
-                                    color: AppColors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-
-                          // Conditional rendering of patient data
-                          Expanded(
-                            child:
-                                patients.isEmpty
-                                    ? _buildNoPatientState()
-                                    : _buildPatientList(patients),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-          ],
-        ),
       ),
     );
   }
@@ -308,12 +389,14 @@ class StatisticsRow extends StatelessWidget {
   final int total;
   final int stable;
   final int unstable;
+  final String role;
 
   const StatisticsRow({
     super.key,
     required this.total,
     required this.stable,
     required this.unstable,
+    required this.role,
   });
 
   @override
@@ -321,13 +404,16 @@ class StatisticsRow extends StatelessWidget {
     return Stack(
       children: [
         ClipRRect(
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(10),
-            topRight: Radius.circular(10),
-          ),
+          borderRadius:
+              role == 'caregiver'
+                  ? BorderRadius.circular(10)
+                  : BorderRadius.only(
+                    topLeft: Radius.circular(10),
+                    topRight: Radius.circular(10),
+                  ),
           child: Container(
             width: double.infinity,
-            height: 220,
+            height: 200,
             color: AppColors.darkblue,
             child: Stack(
               children: [
@@ -335,8 +421,8 @@ class StatisticsRow extends StatelessWidget {
                   right: 10,
                   bottom: 40,
                   child: SizedBox(
-                    width: 140,
-                    height: 140,
+                    width: 130,
+                    height: 130,
                     child: Image.asset(
                       'lib/assets/images/auth/solace.png',
                       fit: BoxFit.contain,

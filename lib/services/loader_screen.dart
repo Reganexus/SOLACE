@@ -12,14 +12,17 @@ class LoaderScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Loader.loaderNeon,
-            const SizedBox(height: 20),
-            Text(message, style: Textstyle.body),
-          ],
+      body: Container(
+        color: AppColors.white,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Loader.loaderNeon,
+              const SizedBox(height: 20),
+              Text(message, style: Textstyle.body),
+            ],
+          ),
         ),
       ),
     );

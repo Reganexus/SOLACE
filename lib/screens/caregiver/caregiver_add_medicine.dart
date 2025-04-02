@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:solace/services/database.dart';
+import 'package:solace/services/log_service.dart';
 import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/themes/dropdownfield.dart';
@@ -22,6 +23,7 @@ class ViewPatientMedicine extends StatefulWidget {
 }
 
 class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
+  final LogService _logService = LogService();
   DatabaseService databaseService = DatabaseService();
   MedicineUtility medicineUtility = MedicineUtility();
   List<Map<String, dynamic>> medicines = [];
@@ -31,12 +33,15 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
   TextEditingController _medicineNameController = TextEditingController();
   TextEditingController _dosageController = TextEditingController();
   TextEditingController _usageController = TextEditingController();
-  String dosageUnit = "mg"; // Default value for dosage unit
+  String dosageUnit = "mg";
+  late String patientName = '';
 
   @override
   void initState() {
     super.initState();
     _fetchPatientMedicines();
+    _loadPatientName();
+    debugPrint("Patient Name: $patientName");
   }
 
   @override
@@ -48,6 +53,16 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
       focusNode.dispose();
     }
     super.dispose();
+  }
+
+  Future<void> _loadPatientName() async {
+    final name = await databaseService.fetchUserName(widget.patientId);
+    if (mounted) {
+      setState(() {
+        patientName = name ?? 'Unknown';
+      });
+    }
+    debugPrint("Patient Name: $patientName");
   }
 
   void refreshValues() {
@@ -68,6 +83,15 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
       textColor: AppColors.white,
       fontSize: 16.0,
     );
+  }
+
+  String getMedicineNameById(String medicineId) {
+    final medicine = medicines.firstWhere(
+      (med) => med['medicineId'] == medicineId,
+      orElse:
+          () => {'medicineName': 'Unknown Medicine'}, // Default if not found
+    );
+    return medicine['medicineName'] ?? 'Unknown Medicine';
   }
 
   Future<void> _fetchPatientMedicines() async {
@@ -199,6 +223,11 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
         dosage: dosage,
         usage: frequency,
       );
+
+      await _logService.addLog(
+        userId: caregiverId,
+        action: "Added Medicine $medicineName to patient $patientName",
+      );
       refreshValues();
       _fetchPatientMedicines();
 
@@ -245,6 +274,12 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
         medicineId: medicineId,
         collectionName: caregiverRole,
         subCollectionName: 'medicines',
+      );
+
+      await _logService.addLog(
+        userId: caregiverId,
+        action:
+            "Removed Medicine ${getMedicineNameById(medicineId)} from patient $patientName",
       );
 
       showToast('Medicine deleted successfully');

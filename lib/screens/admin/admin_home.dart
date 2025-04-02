@@ -69,7 +69,7 @@ class AdminHomeState extends State<AdminHome> {
                 children: [
                   Expanded(child: Text('Profile', style: Textstyle.subheader)),
                   buildHelp(),
-                  const SizedBox(width: 18),
+                  const SizedBox(width: 8),
                   buildLogOut(),
                 ],
               );
@@ -90,11 +90,11 @@ class AdminHomeState extends State<AdminHome> {
         mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(Icons.info_outline_rounded, size: 24.0),
-          const SizedBox(width: 4),
+          const SizedBox(width: 8),
           const Text(
             'Support',
             style: TextStyle(
-              fontSize: 14, 
+              fontSize: 14,
               fontWeight: FontWeight.w500,
               color: Colors.black,
             ),
@@ -150,11 +150,11 @@ class AdminHomeState extends State<AdminHome> {
         mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(Icons.logout_rounded, size: 24.0, color: AppColors.red),
-          const SizedBox(width: 4),
+          const SizedBox(width: 8),
           const Text(
             'Log out',
             style: TextStyle(
-              fontSize: 14, 
+              fontSize: 14,
               fontWeight: FontWeight.w500,
               color: AppColors.red,
             ),

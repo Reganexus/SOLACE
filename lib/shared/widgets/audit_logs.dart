@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:solace/services/alert_handler.dart';
 import 'package:solace/services/log_service.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/themes/textstyle.dart';
@@ -16,6 +17,13 @@ class AuditLogs extends StatefulWidget {
 
 class AuditLogsState extends State<AuditLogs> {
   final LogService _logService = LogService();
+
+  void _showLogDetails(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertHandler(title: title, messages: [message]),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,10 +45,10 @@ class AuditLogsState extends State<AuditLogs> {
               return const Center(child: Text("No logs available."));
             }
 
-            // Extract log data
             var logs = snapshot.data!;
 
             return ListView.builder(
+              // ✅ Added return
               itemCount: logs.length,
               itemBuilder: (context, index) {
                 var log = logs[index];
@@ -52,52 +60,58 @@ class AuditLogsState extends State<AuditLogs> {
                   'yyyy-MM-dd HH:mm:ss',
                 ).format(timestamp);
 
-                return Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.gray,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  padding: const EdgeInsets.all(10),
-                  margin: const EdgeInsets.only(bottom: 10),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Icon(
-                          Icons.history,
-                          color: AppColors.neon,
-                          size: 24,
-                        ),
+                return GestureDetector(
+                  onTap:
+                      () => _showLogDetails(
+                        'Log Details',
+                        log['action'] ?? 'No details available',
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        // Prevent overflow
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              log['action'] ?? 'Unknown Action',
-                              style: Textstyle.body.copyWith(
-                                fontWeight: FontWeight.bold,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.gray,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    padding: const EdgeInsets.all(10),
+                    margin: const EdgeInsets.only(bottom: 10),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Icon(
+                            Icons.history,
+                            color: AppColors.neon,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                log['action'] ?? 'Unknown Action',
+                                style: Textstyle.body.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                maxLines: 1,
+                              ),
+                              Text(
+                                "On: $formattedDate",
+                                style: Textstyle.bodySmall,
+                                maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              maxLines: 1,
-                            ),
-                            Text(
-                              "On: $formattedDate",
-                              style: Textstyle.bodySmall,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 );
               },
-            );
+            ); // ✅ Now StreamBuilder always returns a Widget
           },
         ),
       ),
