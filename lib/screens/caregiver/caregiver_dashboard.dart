@@ -62,17 +62,37 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
         );
   }
 
-  Stream<List<PatientData>> _taggedPatientsStream(String userId) {
+  Stream<List<PatientData>> _taggedPatientsStream(String caregiverId) {
     return FirebaseFirestore.instance
-        .collection('patient')
-        .where('tag', arrayContains: userId)
+        .collection(
+          userRole!,
+        ) // Assuming userRole is the collection name (e.g., caregiver, nurse, etc.)
+        .doc(caregiverId) // Document for the specific caregiver
+        .collection(
+          'tags',
+        ) // Subcollection containing the tagged patients (by patient ID)
         .snapshots()
-        .map(
-          (snapshot) =>
-              snapshot.docs
-                  .map((doc) => PatientData.fromDocument(doc))
-                  .toList(),
-        );
+        .asyncMap((snapshot) async {
+          // Extract the patient IDs (document IDs) from the 'tags' subcollection
+          var patientIds = snapshot.docs.map((doc) => doc.id).toList();
+
+          if (patientIds.isEmpty) return []; // No tagged patients
+
+          // Fetch patient documents based on these patient IDs
+          var patientSnapshots =
+              await FirebaseFirestore.instance
+                  .collection('patient')
+                  .where(
+                    FieldPath.documentId,
+                    whereIn: patientIds,
+                  ) // Get patients by IDs
+                  .get();
+
+          // Map the documents to PatientData objects
+          return patientSnapshots.docs
+              .map((doc) => PatientData.fromDocument(doc))
+              .toList();
+        });
   }
 
   void showToast(String message) {
@@ -303,65 +323,63 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
       children: [
         Text(title, style: Textstyle.subheader),
         const SizedBox(height: 10.0),
-        Expanded(
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: patients.length,
-            itemBuilder: (context, index) {
-              final patient = patients[index];
+        ListView.builder(
+          shrinkWrap: true,
+          itemCount: patients.length,
+          itemBuilder: (context, index) {
+            final patient = patients[index];
 
-              return GestureDetector(
-                onTap: () => _navigateToPatientDashboard(patient),
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 5.0,
-                    horizontal: 8.0,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.gray,
-                    borderRadius: BorderRadius.circular(10.0),
-                  ),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 20.0,
-                        backgroundImage:
-                            patient.profileImageUrl.isNotEmpty
-                                ? NetworkImage(patient.profileImageUrl)
-                                : AssetImage(
-                                      'lib/assets/images/shared/placeholder.png',
-                                    )
-                                    as ImageProvider,
-                      ),
-                      const SizedBox(width: 16.0),
-                      Expanded(
-                        child: Text(
-                          '${patient.firstName} ${patient.lastName}',
-                          style: Textstyle.body,
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(
-                              Icons.arrow_forward_ios_rounded,
-                              size: 16.0,
-                              color: AppColors.black,
-                            ),
-                            onPressed: () => _navigateToPatientDashboard(patient),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+            return GestureDetector(
+              onTap: () => _navigateToPatientDashboard(patient),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 5.0,
+                  horizontal: 8.0,
                 ),
-              );
-            },
-          ),
-        )
+                decoration: BoxDecoration(
+                  color: AppColors.gray,
+                  borderRadius: BorderRadius.circular(10.0),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 20.0,
+                      backgroundImage:
+                          patient.profileImageUrl.isNotEmpty
+                              ? NetworkImage(patient.profileImageUrl)
+                              : AssetImage(
+                                    'lib/assets/images/shared/placeholder.png',
+                                  )
+                                  as ImageProvider,
+                    ),
+                    const SizedBox(width: 16.0),
+                    Expanded(
+                      child: Text(
+                        '${patient.firstName} ${patient.lastName}',
+                        style: Textstyle.body,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 16.0,
+                            color: AppColors.black,
+                          ),
+                          onPressed: () => _navigateToPatientDashboard(patient),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
       ],
     );
   }

@@ -1158,17 +1158,18 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
 
   Future<bool> _isUserTagged(String patientId, String userId) async {
     try {
-      final docSnapshot =
-          await FirebaseFirestore.instance
-              .collection('patient')
-              .doc(patientId)
-              .get();
+      // Get the patient document
+      final patientDocRef = FirebaseFirestore.instance
+          .collection('patient')
+          .doc(patientId)
+          .collection('tags') // tags subcollection
+          .doc(userId); // Check if this specific user is tagged
 
-      if (docSnapshot.exists) {
-        List<dynamic> tags = docSnapshot.data()?['tag'] ?? [];
-        return tags.contains(userId);
-      }
-      return false;
+      final docSnapshot =
+          await patientDocRef.get(); // Fetch the tag for the specific user
+
+      // Return true if the user is tagged, otherwise false
+      return docSnapshot.exists;
     } catch (e) {
       print('Error checking tag: $e');
       return false;
