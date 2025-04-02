@@ -151,7 +151,7 @@ class _RoleChooserState extends State<RoleChooser> {
                       Text(
                         'Every role matters in SOLACE',
                         textAlign: TextAlign.center,
-                        style: Textstyle.subheader,
+                        style: Textstyle.body,
                       ),
                       const SizedBox(height: 20),
                       Form(

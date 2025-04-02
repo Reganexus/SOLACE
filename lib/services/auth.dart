@@ -298,7 +298,7 @@ class AuthService {
             isVerified: true,
             newUser: true,
             userRole: UserRole.unregistered,
-            profileImageUrl: googleUser.photoUrl ?? '',
+            profileImageUrl: '',
           );
         }
 

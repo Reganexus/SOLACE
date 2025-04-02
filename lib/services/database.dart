@@ -581,12 +581,8 @@ class DatabaseService {
     String? gender,
     String? religion,
     String? address,
-    String? will,
-    String? fixedWishes,
-    String? organDonation,
     String? profileImageUrl,
     DateTime? birthday,
-    String? caseTitle,
     List? cases,
     String? caseDescription,
     String? status,
@@ -631,20 +627,10 @@ class DatabaseService {
 
       if (gender != null) updatedData['gender'] = gender;
       if (religion != null) updatedData['religion'] = religion;
-      if (will?.isNotEmpty ?? false) updatedData['will'] = will;
-      if (fixedWishes?.isNotEmpty ?? false) {
-        updatedData['fixedWishes'] = fixedWishes;
-      }
-      if (organDonation?.isNotEmpty ?? false) {
-        updatedData['organDonation'] = organDonation;
-      }
       if (profileImageUrl != null) {
         updatedData['profileImageUrl'] = profileImageUrl;
       }
       if (address?.isNotEmpty ?? false) updatedData['address'] = address;
-
-      // Add case-related data
-      if (caseTitle?.isNotEmpty ?? false) updatedData['caseTitle'] = caseTitle;
       if (cases?.isNotEmpty ?? false) updatedData['cases'] = cases;
       if (caseDescription?.isNotEmpty ?? false) {
         updatedData['caseDescription'] = caseDescription;
@@ -676,12 +662,8 @@ class DatabaseService {
     int? age,
     String? gender,
     String? religion,
-    String? will,
-    String? fixedWishes,
-    String? organDonation,
     String? profileImageUrl,
     DateTime? birthday,
-    String? caseTitle,
     String? caseDescription,
     List? cases,
     String? status,
@@ -697,14 +679,8 @@ class DatabaseService {
         if (age != null) 'age': age,
         if (gender != null) 'gender': gender,
         if (religion != null) 'religion': religion,
-        if (will != null && will.isNotEmpty) 'will': will,
-        if (fixedWishes != null && fixedWishes.isNotEmpty)
-          'fixedWishes': fixedWishes,
-        if (organDonation != null && organDonation.isNotEmpty)
-          'organDonation': organDonation,
         if (profileImageUrl != null) 'profileImageUrl': profileImageUrl,
         if (birthday != null) 'birthday': Timestamp.fromDate(birthday),
-        if (caseTitle != null && caseTitle.isNotEmpty) 'caseTitle': caseTitle,
         if (cases != null && cases.isNotEmpty) 'cases': cases,
         if (caseDescription != null && caseDescription.isNotEmpty)
           'caseDescription': caseDescription,

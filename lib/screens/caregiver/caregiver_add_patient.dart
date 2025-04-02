@@ -39,7 +39,6 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
   DateTime? birthday;
   String gender = '';
   String religion = '';
-  String organDonation = '';
   bool _isLoading = false;
   bool hasError = false;
 
@@ -50,10 +49,6 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
   final TextEditingController ageController = TextEditingController();
   final TextEditingController genderController = TextEditingController();
   final TextEditingController religionController = TextEditingController();
-  final TextEditingController willController = TextEditingController();
-  final TextEditingController fixedWishesController = TextEditingController();
-  final TextEditingController organDonationController = TextEditingController();
-  final TextEditingController caseTitleController = TextEditingController();
   final TextEditingController caseDescriptionController =
       TextEditingController();
   final TextEditingController profileImageUrlController =
@@ -68,14 +63,6 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
     'Islam',
     'Iglesia ni Cristo',
     'Other',
-  ];
-
-  static const List<String> organs = [
-    'Heart',
-    'Liver',
-    'Kidney',
-    'Lung',
-    'None',
   ];
 
   @override
@@ -231,15 +218,11 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
   bool _areAllFieldsFilled() {
     return firstNameController.text.trim().isNotEmpty &&
         lastNameController.text.trim().isNotEmpty &&
-        caseTitleController.text.trim().isNotEmpty &&
         caseDescriptionController.text.trim().isNotEmpty &&
         addressController.text.trim().isNotEmpty &&
-        willController.text.trim().isNotEmpty &&
-        fixedWishesController.text.trim().isNotEmpty &&
         birthday != null &&
         gender.isNotEmpty &&
-        religion.isNotEmpty &&
-        organDonation.isNotEmpty;
+        religion.isNotEmpty;
   }
 
   Future<void> _submitForm() async {
@@ -322,16 +305,6 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
       if (addressController.text.trim().isEmpty) {
         throw Exception('Address cannot be empty.');
       }
-
-      if (willController.text.trim().isEmpty) {
-        throw Exception('Will field cannot be empty.');
-      }
-      if (fixedWishesController.text.trim().isEmpty) {
-        throw Exception('Fixed wishes cannot be empty.');
-      }
-      if (caseTitleController.text.trim().isEmpty) {
-        throw Exception('Case title cannot be empty.');
-      }
       if (caseDescriptionController.text.trim().isEmpty) {
         throw Exception('Case Description cannot be empty.');
       }
@@ -345,12 +318,8 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
         age: age,
         gender: gender,
         religion: religion,
-        will: willController.text.trim().capitalizeEachWord(),
-        fixedWishes: fixedWishesController.text.trim().capitalizeEachWord(),
-        organDonation: organDonation,
         profileImageUrl: profileImageUrl,
         birthday: birthday,
-        caseTitle: caseTitleController.text.trim().capitalizeEachWord(),
         cases: selectedCases,
         caseDescription:
             caseDescriptionController.text.trim().capitalizeEachWord(),
@@ -498,17 +467,16 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [Text('Current Case', style: Textstyle.subheader)],
                 ),
-                const SizedBox(height: 20),
                 CasePickerWidget(
                   selectedCases: selectedCases,
                   onAddCase: _addCase,
                   onRemoveCase: _removeCase,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 10),
 
                 CustomTextField(
                   controller: caseDescriptionController,
-                  focusNode: _focusNodes[11],
+                  focusNode: _focusNodes[7],
                   labelText: 'Case Description',
                   enabled: !_isLoading,
                   validator:
@@ -525,7 +493,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
                     Text('Personal Information', style: Textstyle.subheader),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 10),
 
                 CustomTextField(
                   controller: firstNameController,
@@ -536,7 +504,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
                       (val) =>
                           val!.isEmpty ? 'First Name cannot be empty' : null,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 10),
 
                 CustomTextField(
                   controller: middleNameController,
@@ -544,7 +512,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
                   labelText: 'Middle Name',
                   enabled: !_isLoading,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 10),
 
                 CustomTextField(
                   controller: lastNameController,
@@ -555,7 +523,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
                       (val) =>
                           val!.isEmpty ? 'Last Name cannot be empty' : null,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 10),
 
                 TextFormField(
                   controller: birthdayController,
@@ -602,7 +570,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
                   onTap: () => _selectDate(context),
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 10),
 
                 CustomDropdownField<String>(
                   value: gender.isNotEmpty ? gender : null,
@@ -616,7 +584,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
                   displayItem: (value) => value,
                   enabled: !_isLoading,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 10),
 
                 CustomDropdownField<String>(
                   value: religion.isNotEmpty ? religion : null,
@@ -630,7 +598,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
                   displayItem: (value) => value,
                   enabled: !_isLoading,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 10),
 
                 CustomTextField(
                   controller: addressController,
@@ -640,44 +608,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
                   validator:
                       (val) => val!.isEmpty ? 'Address cannot be empty' : null,
                 ),
-                const SizedBox(height: 20),
-
-                CustomTextField(
-                  controller: willController,
-                  focusNode: _focusNodes[7],
-                  labelText: 'Will',
-                  enabled: !_isLoading,
-                  validator:
-                      (val) => val!.isEmpty ? 'Will cannot be empty' : null,
-                ),
-                const SizedBox(height: 20),
-
-                CustomTextField(
-                  controller: fixedWishesController,
-                  focusNode: _focusNodes[8],
-                  labelText: 'Fixed Wishes',
-                  enabled: !_isLoading,
-                  validator:
-                      (val) =>
-                          val!.isEmpty ? 'Fixed Wishes cannot be empty' : null,
-                ),
-                const SizedBox(height: 20),
-
-                CustomDropdownField<String>(
-                  value: organDonation.isNotEmpty ? organDonation : null,
-                  focusNode: _focusNodes[9],
-                  labelText: 'Organ Donation',
-                  items: organs,
-                  onChanged:
-                      (val) => setState(() => organDonation = val ?? 'None'),
-                  validator:
-                      (val) =>
-                          val == null || val.isEmpty
-                              ? 'Select Organ Donation'
-                              : null,
-                  displayItem: (value) => value,
-                  enabled: !_isLoading,
-                ),
+                const SizedBox(height: 10),
 
                 divider(),
 
@@ -719,25 +650,5 @@ extension StringExtensions on String {
           RegExp(r'(?<=[.!?]\s)(\w)'),
           (match) => match.group(1)!.toUpperCase(),
         );
-  }
-}
-
-extension DateTimeExtensions on DateTime {
-  String getMonthName() {
-    const monthNames = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-    return monthNames[month - 1];
   }
 }

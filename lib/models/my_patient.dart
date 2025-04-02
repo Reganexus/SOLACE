@@ -5,18 +5,15 @@ class PatientData {
   final String userRole;
   final String firstName;
   final String lastName;
-  final String middleName; // Changed to required
-  final String caseTitle; // Required
+  final String middleName;
+  final String caseTitle;
   final List<String> cases;
-  final String caseDescription; // Required
+  final String caseDescription;
   final String profileImageUrl;
   final String gender;
   final DateTime birthday;
   final DateTime dateCreated;
   final String religion;
-  final String will;
-  final String fixedWishes;
-  final String organDonation;
   final String status;
   final String address;
   final List<String> tag;
@@ -35,9 +32,6 @@ class PatientData {
     required this.birthday,
     required this.dateCreated,
     required this.religion,
-    required this.will,
-    required this.fixedWishes,
-    required this.organDonation,
     required this.status,
     required this.address,
     required this.tag,
@@ -76,9 +70,6 @@ class PatientData {
       dateCreated:
           (data['dateCreated'] as Timestamp?)?.toDate() ?? DateTime.now(),
       religion: data['religion'] ?? '',
-      will: data['will'] ?? '',
-      fixedWishes: data['fixedWishes'] ?? '',
-      organDonation: data['organDonation'] ?? '',
       status: data['status'] ?? 'stable',
       address: data['address'] ?? '',
       tag: List<String>.from(data['tag'] ?? []),
@@ -99,9 +90,6 @@ class PatientData {
       'birthday': Timestamp.fromDate(birthday),
       'dateCreated': Timestamp.fromDate(dateCreated),
       'religion': religion,
-      'will': will,
-      'fixedWishes': fixedWishes,
-      'organDonation': organDonation,
       'status': status,
       'address': address,
       'tag': tag,

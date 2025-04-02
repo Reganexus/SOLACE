@@ -42,19 +42,15 @@ class _EditPatientState extends State<EditPatient> {
   DateTime? birthday;
   String? gender;
   String? religion;
-  String? organDonation;
   bool _isLoading = false;
 
-  final List<FocusNode> _focusNodes = List.generate(13, (_) => FocusNode());
+  final List<FocusNode> _focusNodes = List.generate(10, (_) => FocusNode());
   final TextEditingController firstNameController = TextEditingController();
   final TextEditingController lastNameController = TextEditingController();
   final TextEditingController middleNameController = TextEditingController();
-  final TextEditingController caseTitleController = TextEditingController();
   final TextEditingController caseDescriptionController =
       TextEditingController();
   final TextEditingController addressController = TextEditingController();
-  final TextEditingController willController = TextEditingController();
-  final TextEditingController fixedWishesController = TextEditingController();
   final TextEditingController birthdayController = TextEditingController();
 
   static const List<String> religions = [
@@ -62,14 +58,6 @@ class _EditPatientState extends State<EditPatient> {
     'Islam',
     'Iglesia ni Cristo',
     'Other',
-  ];
-
-  static const List<String> organs = [
-    'Heart',
-    'Liver',
-    'Kidney',
-    'Lung',
-    'None',
   ];
 
   void showToast(String message) {
@@ -211,15 +199,10 @@ class _EditPatientState extends State<EditPatient> {
           firstNameController.text = patientData.firstName;
           lastNameController.text = patientData.lastName;
           middleNameController.text = patientData.middleName;
-          caseTitleController.text = patientData.caseTitle;
-          caseTitleController.text = patientData.cases.join(', ');
           caseDescriptionController.text = patientData.caseDescription;
           addressController.text = patientData.address;
-          willController.text = patientData.will;
-          fixedWishesController.text = patientData.fixedWishes;
           gender = patientData.gender;
           religion = patientData.religion;
-          organDonation = patientData.organDonation;
           birthday = patientData.birthday;
           birthdayController.text =
               birthday != null
@@ -309,11 +292,8 @@ class _EditPatientState extends State<EditPatient> {
         final firstName = firstNameController.text.capitalizeEachWord();
         final lastName = lastNameController.text.capitalizeEachWord();
         final middleName = middleNameController.text.capitalizeEachWord();
-        final caseTitle = caseTitleController.text.sentenceCase();
         final caseDescription = caseDescriptionController.text.sentenceCase();
         final address = addressController.text.capitalizeEachWord();
-        final will = willController.text.sentenceCase();
-        final fixedWishes = fixedWishesController.text.sentenceCase();
 
         // Update Firestore with formatted data
         await FirebaseFirestore.instance
@@ -323,15 +303,11 @@ class _EditPatientState extends State<EditPatient> {
               'firstName': firstName,
               'lastName': lastName,
               'middleName': middleName,
-              'caseTitle': caseTitle,
               'cases': selectedCases,
               'caseDescription': caseDescription,
               'address': address,
-              'will': will,
-              'fixedWishes': fixedWishes,
               'gender': gender,
               'religion': religion,
-              'organDonation': organDonation,
               'birthday':
                   birthday != null ? Timestamp.fromDate(birthday!) : null,
               'profileImageUrl': _profileImageUrl,
@@ -357,15 +333,11 @@ class _EditPatientState extends State<EditPatient> {
   bool _areAllFieldsFilled() {
     return firstNameController.text.trim().isNotEmpty &&
         lastNameController.text.trim().isNotEmpty &&
-        caseTitleController.text.trim().isNotEmpty &&
         caseDescriptionController.text.trim().isNotEmpty &&
         addressController.text.trim().isNotEmpty &&
-        willController.text.trim().isNotEmpty &&
-        fixedWishesController.text.trim().isNotEmpty &&
         birthday != null &&
         gender != null &&
-        religion != null &&
-        organDonation != null;
+        religion != null;
   }
 
   Widget divider() {
@@ -500,16 +472,15 @@ class _EditPatientState extends State<EditPatient> {
                               Text('Current Case', style: Textstyle.subheader),
                             ],
                           ),
-                          const SizedBox(height: 20),
                           CasePickerWidget(
                             selectedCases: selectedCases,
                             onAddCase: _addCase,
                             onRemoveCase: _removeCase,
                           ),
-                          const SizedBox(height: 20),
+                          SizedBox(height: 10),
                           CustomTextField(
                             controller: caseDescriptionController,
-                            focusNode: _focusNodes[11],
+                            focusNode: _focusNodes[7],
                             labelText: 'Case Description',
                             enabled: !_isLoading,
                             validator:
@@ -528,7 +499,7 @@ class _EditPatientState extends State<EditPatient> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 20),
+                          SizedBox(height: 20),
 
                           CustomTextField(
                             controller: firstNameController,
@@ -541,7 +512,7 @@ class _EditPatientState extends State<EditPatient> {
                                         ? 'First Name cannot be empty'
                                         : null,
                           ),
-                          const SizedBox(height: 20),
+                          SizedBox(height: 10),
 
                           CustomTextField(
                             controller: middleNameController,
@@ -549,7 +520,7 @@ class _EditPatientState extends State<EditPatient> {
                             labelText: 'Middle Name',
                             enabled: !_isLoading,
                           ),
-                          const SizedBox(height: 20),
+                          SizedBox(height: 10),
 
                           CustomTextField(
                             controller: lastNameController,
@@ -562,7 +533,7 @@ class _EditPatientState extends State<EditPatient> {
                                         ? 'Last Name cannot be empty'
                                         : null,
                           ),
-                          const SizedBox(height: 20),
+                          SizedBox(height: 10),
 
                           TextFormField(
                             controller: birthdayController,
@@ -615,7 +586,7 @@ class _EditPatientState extends State<EditPatient> {
                             onTap: () => _selectDate(context),
                           ),
 
-                          const SizedBox(height: 20),
+                          SizedBox(height: 10),
 
                           CustomDropdownField<String>(
                             value: gender,
@@ -632,7 +603,7 @@ class _EditPatientState extends State<EditPatient> {
                             displayItem: (value) => value,
                             enabled: !_isLoading,
                           ),
-                          const SizedBox(height: 20),
+                          SizedBox(height: 10),
 
                           CustomDropdownField<String>(
                             value: religion,
@@ -649,7 +620,7 @@ class _EditPatientState extends State<EditPatient> {
                             displayItem: (value) => value,
                             enabled: !_isLoading,
                           ),
-                          const SizedBox(height: 20),
+                          SizedBox(height: 10),
 
                           CustomTextField(
                             controller: addressController,
@@ -662,51 +633,7 @@ class _EditPatientState extends State<EditPatient> {
                                         ? 'Address cannot be empty'
                                         : null,
                           ),
-                          const SizedBox(height: 20),
-
-                          CustomTextField(
-                            controller: willController,
-                            focusNode: _focusNodes[7],
-                            labelText: 'Will',
-                            enabled: !_isLoading,
-                            validator:
-                                (val) =>
-                                    val!.isEmpty
-                                        ? 'Will cannot be empty'
-                                        : null,
-                          ),
-                          const SizedBox(height: 20),
-
-                          CustomTextField(
-                            controller: fixedWishesController,
-                            focusNode: _focusNodes[8],
-                            labelText: 'Fixed Wishes',
-                            enabled: !_isLoading,
-                            validator:
-                                (val) =>
-                                    val!.isEmpty
-                                        ? 'Fixed Wishes cannot be empty'
-                                        : null,
-                          ),
-                          const SizedBox(height: 20),
-
-                          CustomDropdownField<String>(
-                            value: organDonation,
-                            focusNode: _focusNodes[9],
-                            labelText: 'Organ Donation',
-                            items: organs,
-                            onChanged:
-                                (val) => setState(
-                                  () => organDonation = val ?? 'None',
-                                ),
-                            validator:
-                                (val) =>
-                                    val == null || val.isEmpty
-                                        ? 'Select Organ Donation'
-                                        : null,
-                            displayItem: (value) => value,
-                            enabled: !_isLoading,
-                          ),
+                          SizedBox(height: 10),
 
                           divider(),
 

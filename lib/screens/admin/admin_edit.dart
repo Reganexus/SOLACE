@@ -531,7 +531,7 @@ class _AdminEditProfileScreenState extends State<AdminEditProfile> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 20),
+                          SizedBox(height: 10),
                           CustomTextField(
                             controller: firstNameController,
                             focusNode: _focusNodes[0],
@@ -544,7 +544,7 @@ class _AdminEditProfileScreenState extends State<AdminEditProfile> {
                                         : null,
                           ),
 
-                          const SizedBox(height: 20),
+                          SizedBox(height: 10),
                           CustomTextField(
                             controller: middleNameController,
                             focusNode: _focusNodes[1],
@@ -552,7 +552,7 @@ class _AdminEditProfileScreenState extends State<AdminEditProfile> {
                             enabled: !_isLoading,
                           ),
 
-                          const SizedBox(height: 20),
+                          SizedBox(height: 10),
                           CustomTextField(
                             controller: lastNameController,
                             focusNode: _focusNodes[2],
@@ -565,7 +565,7 @@ class _AdminEditProfileScreenState extends State<AdminEditProfile> {
                                         : null,
                           ),
 
-                          const SizedBox(height: 20),
+                          SizedBox(height: 10),
                           CustomTextField(
                             controller: phoneNumberController,
                             focusNode: _focusNodes[3],
@@ -584,7 +584,7 @@ class _AdminEditProfileScreenState extends State<AdminEditProfile> {
                           ),
 
                           // Birthday Field
-                          const SizedBox(height: 20),
+                          SizedBox(height: 10),
                           TextFormField(
                             controller: birthdayController,
                             enabled: !_isLoading,
@@ -635,7 +635,7 @@ class _AdminEditProfileScreenState extends State<AdminEditProfile> {
                             readOnly: true,
                             onTap: () => _selectDate(context),
                           ),
-                          const SizedBox(height: 20),
+                          SizedBox(height: 10),
                           CustomDropdownField<String>(
                             value:
                                 gender.isNotEmpty &&
@@ -659,7 +659,7 @@ class _AdminEditProfileScreenState extends State<AdminEditProfile> {
                                         : null,
                             displayItem: (item) => item,
                           ),
-                          const SizedBox(height: 20),
+                          SizedBox(height: 10),
                           CustomDropdownField<String>(
                             value:
                                 religion.isNotEmpty &&
@@ -679,7 +679,7 @@ class _AdminEditProfileScreenState extends State<AdminEditProfile> {
                                         : null,
                             displayItem: (item) => item,
                           ),
-                          const SizedBox(height: 20),
+                          SizedBox(height: 10),
                           CustomTextField(
                             controller: addressController,
                             focusNode: _focusNodes[7],
