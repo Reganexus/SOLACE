@@ -5,9 +5,10 @@ class PatientData {
   final String userRole;
   final String firstName;
   final String lastName;
-  final String middleName;
-  final String caseTitle;
-  final String caseDescription;
+  final String middleName; // Changed to required
+  final String caseTitle; // Required
+  final List<String> cases;
+  final String caseDescription; // Required
   final String profileImageUrl;
   final String gender;
   final DateTime birthday;
@@ -25,9 +26,10 @@ class PatientData {
     this.userRole = 'patient',
     required this.firstName,
     required this.lastName,
-    required this.middleName,
-    required this.caseTitle,
-    required this.caseDescription,
+    required this.middleName, // Marked as required
+    required this.caseTitle, // Required
+    required this.cases,
+    required this.caseDescription, // Required
     required this.profileImageUrl,
     required this.gender,
     required this.birthday,
@@ -62,9 +64,12 @@ class PatientData {
       userRole: data['userRole'] ?? 'patient',
       firstName: data['firstName'] ?? '',
       lastName: data['lastName'] ?? '',
-      middleName: data['middleName'] ?? '',
-      caseTitle: data['caseTitle'] ?? '',
-      caseDescription: data['caseDescription'] ?? '',
+      middleName:
+          data['middleName'] ?? '', // Changed to required with default fallback
+      caseTitle: data['caseTitle'] ?? '', // Ensure default value or required
+      cases: List<String>.from(data['cases'] ?? []),
+      caseDescription:
+          data['caseDescription'] ?? '', // Ensure default value or required
       profileImageUrl: data['profileImageUrl'] ?? '',
       gender: data['gender'] ?? '',
       birthday: (data['birthday'] as Timestamp?)?.toDate() ?? DateTime.now(),
@@ -85,9 +90,10 @@ class PatientData {
       'userRole': userRole,
       'firstName': firstName,
       'lastName': lastName,
-      'middleName': middleName,
-      'caseTitle': caseTitle,
-      'caseDescription': caseDescription,
+      'middleName': middleName, // Included as required
+      'caseTitle': caseTitle, // Include in mapping
+      'cases': cases,
+      'caseDescription': caseDescription, // Include in mapping
       'profileImageUrl': profileImageUrl,
       'gender': gender,
       'birthday': Timestamp.fromDate(birthday),
