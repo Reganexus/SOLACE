@@ -66,7 +66,7 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
     return FirebaseFirestore.instance
         .collection(
           userRole!,
-        ) // Assuming userRole is the collection name (e.g., caregiver, nurse, etc.)
+        ) // Collection for the specific user role (e.g., caregiver)
         .doc(caregiverId) // Document for the specific caregiver
         .collection(
           'tags',
@@ -82,13 +82,10 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
           var patientSnapshots =
               await FirebaseFirestore.instance
                   .collection('patient')
-                  .where(
-                    FieldPath.documentId,
-                    whereIn: patientIds,
-                  ) // Get patients by IDs
+                  .where(FieldPath.documentId, whereIn: patientIds)
                   .get();
 
-          // Map the documents to PatientData objects
+          // Map the documents to PatientData objects and return the list
           return patientSnapshots.docs
               .map((doc) => PatientData.fromDocument(doc))
               .toList();

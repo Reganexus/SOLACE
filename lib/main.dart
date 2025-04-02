@@ -34,7 +34,7 @@ Future<void> main() async {
   final bool isNewInstall = await _isFirstInstall();
 
   DatabaseService db = DatabaseService();
-  await db.clearUserRoleCache();
+  await db.clearAllCache();
   // Run the app
   runApp(
     MyApp(

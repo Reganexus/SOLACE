@@ -1,8 +1,8 @@
 // ignore_for_file: avoid_print
 
 import 'dart:async';
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:solace/screens/wrapper.dart';
 import 'package:solace/themes/buttonstyle.dart';
@@ -26,7 +26,8 @@ class CaregiverInstructions extends StatefulWidget {
 class CaregiverInstructionsState extends State<CaregiverInstructions> {
   late final PageController _pageController;
   int _currentPage = 0;
-  bool _isProcessing = false; // Tracks if the "Let's Go!" button is clicked
+  bool _isProcessing = false;
+  bool _isLoading = true; // Track whether everything is loading
 
   static const List<String> headings = [
     'Tracking',
@@ -46,6 +47,15 @@ class CaregiverInstructionsState extends State<CaregiverInstructions> {
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: 0);
+    _loadContent();
+  }
+
+  Future<void> _loadContent() async {
+    // Simulate content loading (including GIFs, database calls, etc.)
+    await Future.delayed(const Duration(seconds: 3)); // Simulate loading delay
+    setState(() {
+      _isLoading = false; // All content loaded, update state
+    });
   }
 
   @override
@@ -69,7 +79,7 @@ class CaregiverInstructionsState extends State<CaregiverInstructions> {
     try {
       showToast('Navigating to Home');
       setState(() {
-        _isProcessing = true; // Disable the button
+        _isProcessing = true;
       });
 
       final userDocRef = FirebaseFirestore.instance
@@ -100,7 +110,9 @@ class CaregiverInstructionsState extends State<CaregiverInstructions> {
 
   Widget _buildCarousel() {
     return SizedBox(
-      height: 400,
+      height:
+          MediaQuery.of(context).size.height *
+          0.7, // Adjust height to 70% of the screen height
       child: PageView(
         controller: _pageController,
         onPageChanged: (index) {
@@ -109,78 +121,30 @@ class CaregiverInstructionsState extends State<CaregiverInstructions> {
           });
         },
         children: [
-          // Slide 1
-          Container(
-            color: AppColors.gray,
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text("Step 1", style: Textstyle.subheader),
-                  const SizedBox(height: 10),
-                  Text(
-                    "Select Patient by tapping their containers to manage them",
-                    style: Textstyle.body,
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // Slide 2
-          Container(
-            color: AppColors.gray,
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text("Step 2", style: Textstyle.subheader),
-                  const SizedBox(height: 10),
-                  Text(
-                    "Select the features you want to assist the patient.",
-                    style: Textstyle.body,
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // Slide 3
-          Container(
-            color: AppColors.gray,
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text("Step 3", style: Textstyle.subheader),
-                  const SizedBox(height: 10),
-                  Text(
-                    "You can add more patients by clicking the 'Add Patient' button.",
-                    style: Textstyle.body,
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Container(
-            color: AppColors.gray,
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text("Step 4", style: Textstyle.subheader),
-                  const SizedBox(height: 10),
-                  Text(
-                    "You can add more patients by clicking the 'Add Patient' button.",
-                    style: Textstyle.body,
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ),
+          // Slide 1 - GIF for Page 1
+          _buildGifPage('lib/assets/images/auth/page1.gif'),
+          // Slide 2 - GIF for Page 2
+          _buildGifPage('lib/assets/images/auth/page2.gif'),
+          // Slide 3 - GIF for Page 3
+          _buildGifPage('lib/assets/images/auth/page3.gif'),
+          // Slide 4 - GIF for Page 4
+          _buildGifPage('lib/assets/images/auth/page4.gif'),
         ],
+      ),
+    );
+  }
+
+  // Helper function to build a page with a GIF
+  Widget _buildGifPage(String gifPath) {
+    return Container(
+      width: MediaQuery.of(context).size.width,
+      height: MediaQuery.of(context).size.height * 0.5,
+      color: AppColors.gray,
+      child: Center(
+        child:
+            _isLoading
+                ? CircularProgressIndicator() // Show loading spinner while content is loading
+                : Image.asset(gifPath, fit: BoxFit.cover),
       ),
     );
   }
@@ -213,8 +177,9 @@ class CaregiverInstructionsState extends State<CaregiverInstructions> {
       height: 40,
       child: TextButton(
         onPressed:
-            _isProcessing
-                ? null // Disable button when processing
+            _isProcessing ||
+                    _isLoading // Disable button when processing or content is loading
+                ? null
                 : () {
                   if (_currentPage < headings.length - 1) {
                     _pageController.nextPage(
@@ -240,7 +205,8 @@ class CaregiverInstructionsState extends State<CaregiverInstructions> {
   }
 
   Widget _buildHeader() {
-    return SizedBox(
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 16.0),
       height: 120,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -260,21 +226,42 @@ class CaregiverInstructionsState extends State<CaregiverInstructions> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            _buildHeader(),
-            const SizedBox(height: 20),
-            _buildCarousel(),
-            const SizedBox(height: 20),
-            _buildNavigationCircles(),
-            const SizedBox(height: 20),
-            _buildNextButton(),
-          ],
-        ),
+      appBar: AppBar(
+        backgroundColor: AppColors.white,
+        scrolledUnderElevation: 0.0,
+        automaticallyImplyLeading: false,
+      ),
+      body: Stack(
+        children: [
+          // Main content of the screen
+          Padding(
+            padding: EdgeInsets.only(bottom: 16.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _buildHeader(),
+                Expanded(child: _buildCarousel()),
+                const SizedBox(height: 20),
+                _buildNavigationCircles(),
+                const SizedBox(height: 20),
+                _buildNextButton(),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+
+          // Loading overlay
+          if (_isLoading)
+            Container(
+              color: AppColors.white,
+              child: Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.neon),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
