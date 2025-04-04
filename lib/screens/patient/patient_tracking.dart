@@ -6,6 +6,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:solace/controllers/notification_service.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/screens/patient/patient_input_summary.dart';
 import 'package:solace/shared/globals.dart';
@@ -26,7 +27,9 @@ class PatientTracking extends StatefulWidget {
 
 class PatientTrackingState extends State<PatientTracking> {
   final GlobalKey<FormBuilderState> _formKey = GlobalKey<FormBuilderState>();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final DatabaseService databaseService = DatabaseService();
+  final notificationService = NotificationService();
 
   bool isCooldownActive = false; // Added this variable
   int remainingCooldownTime = 0; // Added this variable
@@ -216,15 +219,17 @@ class PatientTrackingState extends State<PatientTracking> {
         return;
       }
 
-      // Define custom data for the notification
-      final Map<String, String> data = {
-        "type": "cooldown_lifted",
-        "title": "Cooldown Lifted",
-        "body": "Your cooldown period has ended. You can submit again!",
-      };
+      DocumentSnapshot doc =
+          await _firestore.collection('patient').doc(widget.patientId).get();
+      String fName = doc.get('firstName');
+      String lName = doc.get('lastName');
+      String patientName = '$fName $lName';
 
-      // Send data message using MessagingService
-      await MessagingService.sendDataMessage(targetToken, data);
+      await notificationService.sendNotificationToTaggedUsers(
+        widget.patientId,
+        "Cooldown Lifted",
+        "You can track patient $patientName now.",
+      );
 
       debugPrint("Cooldown lifted notification sent successfully.");
     } catch (e, stackTrace) {
@@ -261,7 +266,10 @@ class PatientTrackingState extends State<PatientTracking> {
         unitLabel = '°C';
         validators.addAll([
           FormBuilderValidators.numeric(),
-          FormBuilderValidators.between(minPossibleTemperature, maxPossibleTemperature),
+          FormBuilderValidators.between(
+            minPossibleTemperature,
+            maxPossibleTemperature,
+          ),
         ]);
         inputFormatters.add(
           FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,1}$')),
@@ -271,7 +279,10 @@ class PatientTrackingState extends State<PatientTracking> {
         unitLabel = 'bpm';
         validators.addAll([
           FormBuilderValidators.integer(),
-          FormBuilderValidators.between(minPossibleHeartRate, maxPossibleHeartRate),
+          FormBuilderValidators.between(
+            minPossibleHeartRate,
+            maxPossibleHeartRate,
+          ),
         ]);
         inputFormatters.add(FilteringTextInputFormatter.digitsOnly);
         break;
@@ -288,10 +299,12 @@ class PatientTrackingState extends State<PatientTracking> {
           final systolic = int.parse(match.group(1)!);
           final diastolic = int.parse(match.group(2)!);
 
-          if (systolic < minPossibleBloodPressureSystolic || systolic > maxPossibleBloodPressureSystolic) {
+          if (systolic < minPossibleBloodPressureSystolic ||
+              systolic > maxPossibleBloodPressureSystolic) {
             return 'Systolic must be between $minPossibleBloodPressureSystolic-$maxPossibleBloodPressureSystolic mmHg';
           }
-          if (diastolic < minPossibleBloodPressureDiastolic || diastolic > maxPossibleBloodPressureDiastolic) {
+          if (diastolic < minPossibleBloodPressureDiastolic ||
+              diastolic > maxPossibleBloodPressureDiastolic) {
             return 'Diastolic must be between $minPossibleBloodPressureDiastolic-$maxPossibleBloodPressureDiastolic mmHg';
           }
           return null;
@@ -305,7 +318,10 @@ class PatientTrackingState extends State<PatientTracking> {
         unitLabel = '%';
         validators.addAll([
           FormBuilderValidators.numeric(),
-          FormBuilderValidators.between(minPossibleOxygenSaturation, maxPossibleOxygenSaturation),
+          FormBuilderValidators.between(
+            minPossibleOxygenSaturation,
+            maxPossibleOxygenSaturation,
+          ),
         ]);
         inputFormatters.add(FilteringTextInputFormatter.digitsOnly);
         break;
@@ -313,7 +329,10 @@ class PatientTrackingState extends State<PatientTracking> {
         unitLabel = 'b/min';
         validators.addAll([
           FormBuilderValidators.integer(),
-          FormBuilderValidators.between(minPossibleRespirationRate, maxPossibleRespirationRate),
+          FormBuilderValidators.between(
+            minPossibleRespirationRate,
+            maxPossibleRespirationRate,
+          ),
         ]);
         inputFormatters.add(FilteringTextInputFormatter.digitsOnly);
         break;

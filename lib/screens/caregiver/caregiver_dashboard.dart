@@ -4,8 +4,10 @@ import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:solace/controllers/messaging_service.dart';
 import 'package:solace/models/my_patient.dart';
 import 'package:solace/screens/caregiver/caregiver_add_patient.dart';
 import 'package:solace/screens/caregiver/caregiver_instructions.dart';
@@ -103,26 +105,66 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
     );
   }
 
+  Future<String?> fetchUserToken() async {
+    try {
+      final String? token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        debugPrint("FCM Token: $token");
+        return token;
+      } else {
+        debugPrint("Failed to fetch FCM token.");
+        return null;
+      }
+    } catch (e) {
+      debugPrint("Error fetching FCM token: $e");
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        child: SingleChildScrollView(
+      body: SingleChildScrollView(
+        // Wrap the entire body in a scrollable view
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              userRole == null
-                  ? Center(child: Loader.loaderWhite)
-                  : Column(
-                    children: [
-                      if (userRole == 'doctor' || userRole == 'nurse')
-                        _buildPatientContent(),
-                      if (userRole == 'caregiver')
-                        _buildCaregiverPatientContent(),
-                    ],
-                  ),
+              if (userRole == null)
+                Center(child: Loader.loaderWhite)
+              else
+                Column(
+                  children: [
+                    ElevatedButton(
+                      onPressed: () async {
+                        final String? targetToken = await fetchUserToken();
+                        debugPrint("Target Token: $targetToken");
+
+                        if (targetToken != null) {
+                          try {
+                            await MessagingService.sendDataMessage(
+                              targetToken,
+                              "Hello",
+                              "Sample Message there bud!",
+                            );
+                            debugPrint("Notification sent!");
+                          } catch (e) {
+                            debugPrint("Error sending notification: $e");
+                          }
+                        } else {
+                          debugPrint("No valid FCM token available.");
+                        }
+                      },
+                      child: Text('Send Notification to Device'),
+                    ),
+                    if (userRole == 'doctor' || userRole == 'nurse')
+                      _buildPatientContent(),
+                    if (userRole == 'caregiver')
+                      _buildCaregiverPatientContent(),
+                  ],
+                ),
             ],
           ),
         ),
@@ -322,6 +364,7 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
         const SizedBox(height: 10.0),
         ListView.builder(
           shrinkWrap: true,
+          physics: NeverScrollableScrollPhysics(),
           itemCount: patients.length,
           itemBuilder: (context, index) {
             final patient = patients[index];

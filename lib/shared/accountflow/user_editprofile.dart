@@ -486,11 +486,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             focusNode: _focusNodes[0],
                             labelText: 'First Name',
                             enabled: !_isLoading,
-                            validator:
-                                (val) =>
-                                    val!.isEmpty
-                                        ? 'First Name cannot be empty'
-                                        : null,
+                            validator: (value) => Validator.name(value?.trim()),
                           ),
 
                           SizedBox(height: 10),
@@ -499,6 +495,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             focusNode: _focusNodes[1],
                             labelText: 'Middle Name',
                             enabled: !_isLoading,
+                            validator: (value) => Validator.name(value?.trim()),
                           ),
 
                           SizedBox(height: 10),
@@ -507,11 +504,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             focusNode: _focusNodes[2],
                             labelText: 'Last Name',
                             enabled: !_isLoading,
-                            validator:
-                                (val) =>
-                                    val!.isEmpty
-                                        ? 'Last Name cannot be empty'
-                                        : null,
+                            validator: (value) => Validator.name(value?.trim()),
                           ),
 
                           SizedBox(height: 10),
@@ -521,15 +514,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             labelText: 'Phone Number',
                             keyboardType: TextInputType.phone,
                             enabled: !_isLoading,
-                            validator: (val) {
-                              if (val == null || val.isEmpty) {
-                                return 'Phone number cannot be empty';
-                              }
-                              if (!RegExp(r'^09\d{9}$').hasMatch(val)) {
-                                return 'Invalid Phone Number';
-                              }
-                              return null;
-                            },
+                            validator:
+                                (value) => Validator.phoneNumber(value?.trim()),
                           ),
 
                           // Birthday Field

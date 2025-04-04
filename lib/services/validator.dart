@@ -37,9 +37,10 @@ class Validator {
       return 'Name cannot be empty.';
     }
     final nameRegExp = RegExp(
-      r"^[\p{L}\s'-]+(?:\.\s?[\p{L}]+)*$",
+      r"^(?!['.-])[\p{L}]+(?:[\s'-][\p{L}]+)*(?<!['.-])$",
       unicode: true,
     );
+
     if (!nameRegExp.hasMatch(value)) {
       return 'Enter a valid name.';
     }

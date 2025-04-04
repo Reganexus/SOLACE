@@ -1,17 +1,17 @@
-// ignore_for_file: avoid_print
+// ignore_for_file: avoid_print, unused_element
 
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:googleapis_auth/auth_io.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:solace/services/database.dart';
-import '../firebase_options.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 class MessagingService {
   static final FirebaseMessaging _firebaseMessaging =
@@ -22,12 +22,19 @@ class MessagingService {
   static String? _cachedAccessToken;
   static DateTime? _tokenExpiry;
 
-  /// Initialize Firebase Messaging and Notification Handling
   static Future<void> initialize() async {
     try {
-      // Request permissions for notifications
+      requestNotificationPermission();
       NotificationSettings settings = await _firebaseMessaging
-          .requestPermission(alert: true, badge: true, sound: true);
+          .requestPermission(
+            alert: true,
+            announcement: false,
+            badge: true,
+            carPlay: false,
+            criticalAlert: false,
+            provisional: false,
+            sound: true,
+          );
 
       if (settings.authorizationStatus == AuthorizationStatus.authorized) {
         debugPrint('User granted permission for notifications.');
@@ -35,30 +42,33 @@ class MessagingService {
         debugPrint('User denied notification permissions.');
       }
 
-      // Initialize local notifications
+      // Initialize Local Notifications
       const AndroidInitializationSettings androidSettings =
-          AndroidInitializationSettings('@drawable/notification_icon');
+          AndroidInitializationSettings('@drawable/ic_notification');
       const InitializationSettings initializationSettings =
           InitializationSettings(android: androidSettings);
 
       await _localNotificationsPlugin.initialize(initializationSettings);
 
-      // Handle foreground messages
-      FirebaseMessaging.onMessage.listen(_onForegroundMessage);
+      // Listen for messages in foreground
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        debugPrint(
+          'Received message in foreground: ${message.notification?.title}',
+        );
+        showLocalNotification(message);
+      });
 
-      // Register background message handler
-      FirebaseMessaging.onBackgroundMessage(
-        _firebaseMessagingBackgroundHandler,
-      );
+      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        print("Notification clicked! Data: ${message.data}");
+      });
 
-      // Manage FCM token
+      // Listen for token refresh
       _firebaseMessaging.onTokenRefresh.listen((newToken) async {
         if (newToken != null) {
           await _handleTokenRefresh(newToken);
         }
       });
 
-      // Fetch and save the initial token
       await fetchAndSaveToken();
     } catch (e, stackTrace) {
       debugPrint('Error initializing MessagingService: $e');
@@ -66,66 +76,64 @@ class MessagingService {
     }
   }
 
-  /// Handle messages received in the foreground
-  static void _onForegroundMessage(RemoteMessage message) {
-    debugPrint(
-      'Received message in the foreground: ${message.notification?.title}',
-    );
-    _showLocalNotification(message);
-  }
-
-  /// Background message handler
-  @pragma('vm:entry-point') // Ensures this function is preserved for isolates
-  static Future<void> _firebaseMessagingBackgroundHandler(
-    RemoteMessage message,
-  ) async {
-    try {
-      // Ensure Firebase is initialized in the isolate
-      if (Firebase.apps.isEmpty) {
-        await Firebase.initializeApp(
-          options: DefaultFirebaseOptions.currentPlatform,
-        );
-      }
-
-      // Handle the background message
-      debugPrint("Handling a background message: ${message.messageId}");
-    } catch (e, stackTrace) {
-      debugPrint('Error in background message handler: $e');
-      debugPrint('Stack trace: $stackTrace');
+  static Future<void> requestNotificationPermission() async {
+    if (await Permission.notification.isDenied) {
+      await Permission.notification.request();
     }
   }
 
-  /// Show local notification
-  static Future<void> _showLocalNotification(RemoteMessage message) async {
+  static void _onForegroundMessage(RemoteMessage message) {
+    debugPrint('Received message in foreground: ${message.data}');
+    showLocalNotification(message);
+  }
+
+  static Future<void> showLocalNotification(RemoteMessage message) async {
     try {
-      const AndroidNotificationDetails androidDetails =
+      debugPrint('Preparing to show local notification');
+
+      // Wake up the device (only for the duration of the notification)
+      WakelockPlus.enable();
+
+      const AndroidNotificationDetails androidNotificationDetails =
           AndroidNotificationDetails(
-            'default_channel',
-            'Default Channel',
+            'high_importance_channel',
+            'High Importance Notifications',
             channelDescription: 'Channel for default notifications',
             importance: Importance.high,
             priority: Priority.high,
             playSound: true,
-            icon: '@drawable/notification_icon',
+            icon: '@drawable/ic_notification',
+            fullScreenIntent: true,
+            timeoutAfter: 30000,
           );
 
       const NotificationDetails notificationDetails = NotificationDetails(
-        android: androidDetails,
+        android: androidNotificationDetails,
       );
+
+      final String title = message.notification?.title ?? 'New Notification';
+      final String body = message.notification?.body ?? 'Tap to open the app';
+
+      debugPrint('Showing notification: Title: $title, Body: $body');
 
       await _localNotificationsPlugin.show(
         message.hashCode,
-        message.notification?.title,
-        message.notification?.body,
+        title,
+        body,
         notificationDetails,
       );
+
+      // Release wake lock after a short delay
+      await Future.delayed(const Duration(seconds: 5));
+      WakelockPlus.disable();
+
+      debugPrint('Notification displayed successfully.');
     } catch (e, stackTrace) {
       debugPrint('Error showing local notification: $e');
       debugPrint('Stack trace: $stackTrace');
     }
   }
 
-  /// Fetch and save the FCM token to Firestore
   static Future<void> fetchAndSaveToken() async {
     try {
       final DatabaseService db = DatabaseService();
@@ -194,52 +202,37 @@ class MessagingService {
     }
   }
 
-  /// Save FCM Token to Firestore
-  static Future<void> _saveTokenToDatabase(
-    String token,
-    String userId,
-    String collection,
-  ) async {
-    try {
-      await FirebaseFirestore.instance
-          .collection(collection)
-          .doc(userId)
-          .update({'fcmToken': token});
-
-      debugPrint('FCM Token saved successfully: $token');
-    } catch (e, stackTrace) {
-      debugPrint('Error saving FCM token: $e');
-      debugPrint('Stack trace: $stackTrace');
-    }
-  }
-
-  /// Handle FCM token refresh and save to Firestore
   static Future<void> _handleTokenRefresh(String token) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      try {
-        final role = await DatabaseService().fetchAndCacheUserRole(user.uid);
-        if (role == null) {
-          debugPrint('User role not found for UID: ${user.uid}');
-          return;
-        }
-        await _saveTokenToDatabase(token, user.uid, role);
-      } catch (e, stackTrace) {
-        debugPrint('Error updating FCM token: $e');
-        debugPrint('Stack trace: $stackTrace');
-      }
+      await fetchAndSaveToken(); // Ensures proper handling
     } else {
       debugPrint('No authenticated user found for token update.');
     }
   }
 
-  /// Load service account JSON from assets
   static Future<Map<String, dynamic>> _loadServiceAccountJson() async {
     try {
-      final jsonString = await rootBundle.loadString(
-        'lib/assets/solace-28954-firebase-adminsdk-xa5bk-d441055ef8.json',
+      final ref = FirebaseStorage.instance.ref().child(
+        'admin_sdk/service_account.json',
       );
-      return json.decode(jsonString) as Map<String, dynamic>;
+      final String downloadUrl = await ref.getDownloadURL();
+
+      debugPrint("Service account JSON URL: $downloadUrl");
+
+      final response = await http.get(Uri.parse(downloadUrl));
+
+      if (response.statusCode == 200) {
+        debugPrint("Successfully fetched service account JSON.");
+        return json.decode(response.body);
+      } else {
+        debugPrint(
+          "Failed to fetch service account JSON. Status code: ${response.statusCode}",
+        );
+        throw Exception(
+          'Failed to fetch service account JSON. Status code: ${response.statusCode}',
+        );
+      }
     } catch (e, stackTrace) {
       debugPrint('Error loading service account JSON: $e');
       debugPrint('Stack trace: $stackTrace');
@@ -253,10 +246,12 @@ class MessagingService {
         DateTime.now().isBefore(
           _tokenExpiry!.subtract(const Duration(minutes: 1)),
         )) {
+      debugPrint("Using cached access token.");
       return _cachedAccessToken!;
     }
 
     try {
+      debugPrint("Fetching new access token...");
       final serviceAccount = await _loadServiceAccountJson();
       final accountCredentials = ServiceAccountCredentials.fromJson(
         serviceAccount,
@@ -270,6 +265,7 @@ class MessagingService {
       _cachedAccessToken = authClient.credentials.accessToken.data;
       _tokenExpiry = authClient.credentials.accessToken.expiry;
 
+      debugPrint("Access token fetched successfully.");
       return _cachedAccessToken!;
     } catch (e, stackTrace) {
       debugPrint('Error fetching access token: $e');
@@ -284,7 +280,12 @@ class MessagingService {
     try {
       final serviceAccount = await _loadServiceAccountJson();
       final projectId = serviceAccount['project_id'];
-      return 'https://fcm.googleapis.com/v1/projects/$projectId/messages:send';
+      final fcmEndpoint =
+          'https://fcm.googleapis.com/v1/projects/$projectId/messages:send';
+
+      debugPrint("FCM endpoint: $fcmEndpoint");
+
+      return fcmEndpoint;
     } catch (e, stackTrace) {
       debugPrint('Error fetching FCM endpoint: $e');
       debugPrint('Stack trace: $stackTrace');
@@ -292,36 +293,54 @@ class MessagingService {
     }
   }
 
-  /// Send custom data messages without notifications
   static Future<void> sendDataMessage(
-    String targetToken,
-    Map<String, String> data,
+    String token,
+    String title,
+    String body,
   ) async {
     try {
-      final String accessToken = await getAccessToken();
-      final String fcmEndpoint = await getFcmEndpoint();
+      debugPrint("Preparing data message to send.");
+      debugPrint("Ttile $title");
+      debugPrint("Body: $body");
 
-      final payload = {
-        "message": {"token": targetToken, "data": data},
+      final accessToken = await getAccessToken();
+      debugPrint("Access token: $accessToken");
+
+      final messageTitle = title;
+      final messageBody = body;
+
+      final message = {
+        "message": {
+          "token": token,
+          "notification": {"title": messageTitle, "body": messageBody},
+        },
       };
 
+      debugPrint("Sending message to FCM...");
+
+      final endpoint = await getFcmEndpoint();
+      debugPrint("FCM Endpoint: $endpoint");
+
       final response = await http.post(
-        Uri.parse(fcmEndpoint),
+        Uri.parse(endpoint),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $accessToken',
         },
-        body: json.encode(payload),
+        body: json.encode(message),
       );
 
+      debugPrint("FCM Response Status: ${response.statusCode}");
+      debugPrint("FCM Response Body: ${response.body}");
+
       if (response.statusCode == 200) {
-        debugPrint('Data message sent successfully.');
+        debugPrint('Notification sent successfully');
       } else {
-        throw Exception('Failed to send data message: ${response.body}');
+        debugPrint('Error sending notification: ${response.body}');
       }
-    } catch (e, stackTrace) {
+    } catch (e) {
       debugPrint('Error sending data message: $e');
-      debugPrint('Stack trace: $stackTrace');
+      rethrow;
     }
   }
 }

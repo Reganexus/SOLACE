@@ -6,6 +6,7 @@ import 'package:solace/screens/home/home.dart';
 import 'package:solace/screens/authenticate/authenticate.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
+import 'package:solace/shared/accountflow/rolechooser.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/themes/loader.dart';
 import 'package:solace/themes/textstyle.dart';
@@ -46,9 +47,16 @@ class Wrapper extends StatelessWidget {
               userData['newUser'] ?? true; // Default to true for safety.
           final role = userData['userRole'];
 
-          if (newUser) {
+          if (newUser && !isVerified) {
             debugPrint("Wrapper: Directing to Verify()");
             return const Verify();
+          } else if (newUser && isVerified) {
+            debugPrint("Wrapper: Directing to Home() with role: $role");
+            return RoleChooser(
+              onRoleSelected: (role) {
+                debugPrint("User role: $role");
+              },
+            );
           } else if (!newUser && isVerified) {
             debugPrint("Wrapper: Directing to Home() with role: $role");
             return Home(uid: user.uid, role: role);

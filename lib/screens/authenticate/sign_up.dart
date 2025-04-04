@@ -406,6 +406,69 @@ class _SignUpState extends State<SignUp> {
     );
   }
 
+  Widget _buildSignUpButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: TextButton(
+        onPressed:
+            (!_isLoading && _isSignUpButtonEnabled) ? _handleSignUp : null,
+        style: (!_isSignUpButtonEnabled) ? Buttonstyle.gray : Buttonstyle.neon,
+        child:
+            _isLoading
+                ? SizedBox(width: 26, height: 26, child: Loader.loaderWhite)
+                : Text('Sign Up', style: Textstyle.largeButton),
+      ),
+    );
+  }
+
+  Widget _buildDivider() {
+    return const Row(
+      children: <Widget>[
+        Expanded(child: Divider()),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 10),
+          child: Text("or"),
+        ),
+        Expanded(child: Divider()),
+      ],
+    );
+  }
+
+  Widget _buildGoogleButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: TextButton(
+        onPressed:
+            (!_isLoading && _isGoogleSignUpButtonEnabled)
+                ? _handleSignUpWithGoogle
+                : null,
+        style: Buttonstyle.white,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset('lib/assets/images/auth/google.png', height: 24),
+            const SizedBox(width: 10),
+            Text('Sign up with Google', style: Textstyle.body),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildToggleViewButton() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: <Widget>[
+        Text('Already have an account?', style: Textstyle.body),
+        const SizedBox(width: 5),
+        GestureDetector(
+          onTap: _isLoading ? null : () => widget.toggleView(),
+          child: Text('Login', style: Textstyle.bodyNeon),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -416,107 +479,31 @@ class _SignUpState extends State<SignUp> {
         },
         child: LayoutBuilder(
           builder: (context, constraints) {
-            return SingleChildScrollView(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight, // Full screen height
-                ),
-                child: IntrinsicHeight(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 30),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: <Widget>[
-                          _buildSignUpHeader(),
-                          _emailField(),
-                          const SizedBox(height: 20),
-                          _passwordField(),
-                          const SizedBox(height: 20),
-                          _buildTermsAndConditions(),
-                          const SizedBox(height: 20),
-                          SizedBox(
-                            width: double.infinity,
-                            child: TextButton(
-                              onPressed:
-                                  (!_isLoading && _isSignUpButtonEnabled)
-                                      ? _handleSignUp
-                                      : null,
-                              style:
-                                  (!_isSignUpButtonEnabled)
-                                      ? Buttonstyle.gray
-                                      : Buttonstyle.neon,
-                              child:
-                                  _isLoading
-                                      ? SizedBox(
-                                        width: 26,
-                                        height: 26,
-                                        child: Loader.loaderWhite,
-                                      )
-                                      : Text(
-                                        'Sign Up',
-                                        style: Textstyle.largeButton,
-                                      ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          const Row(
-                            children: <Widget>[
-                              Expanded(child: Divider()),
-                              Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 10),
-                                child: Text("or"),
-                              ),
-                              Expanded(child: Divider()),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-                          SizedBox(
-                            width: double.infinity,
-                            child: TextButton(
-                              onPressed:
-                                  (!_isLoading && _isGoogleSignUpButtonEnabled)
-                                      ? _handleSignUpWithGoogle
-                                      : null,
-                              style: Buttonstyle.white,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Image.asset(
-                                    'lib/assets/images/auth/google.png',
-                                    height: 24,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Text(
-                                    'Sign up with Google',
-                                    style: Textstyle.body,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: <Widget>[
-                              Text(
-                                'Already have an account?',
-                                style: Textstyle.body,
-                              ),
-                              const SizedBox(width: 5),
-                              GestureDetector(
-                                onTap:
-                                    _isLoading
-                                        ? null
-                                        : () => widget.toggleView(),
-                                child: Text('Login', style: Textstyle.bodyNeon),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
+            return Center(
+              child: Container(
+                constraints: BoxConstraints(maxWidth: 400),
+                padding: const EdgeInsets.symmetric(horizontal: 30),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      _buildSignUpHeader(),
+                      _emailField(),
+                      const SizedBox(height: 20),
+                      _passwordField(),
+                      const SizedBox(height: 20),
+                      _buildTermsAndConditions(),
+                      const SizedBox(height: 20),
+                      _buildSignUpButton(),
+                      const SizedBox(height: 20),
+                      _buildDivider(),
+                      const SizedBox(height: 20),
+                      _buildGoogleButton(),
+                      const SizedBox(height: 20),
+                      _buildToggleViewButton(),
+                    ],
                   ),
                 ),
               ),

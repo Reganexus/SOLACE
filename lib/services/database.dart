@@ -122,18 +122,18 @@ class DatabaseService {
   }
 
   Future<UserData?> fetchUserData(String userId) async {
-    final doc = await _fetchUserDocument(userId);
+    final doc = await fetchUserDocument(userId);
     if (doc == null || !doc.exists) return null;
     return UserData.fromDocument(doc);
   }
 
   Future<bool> checkUserExists(String userId) async {
-    final doc = await _fetchUserDocument(userId);
+    final doc = await fetchUserDocument(userId);
     return doc?.exists ?? false;
   }
 
   Future<String?> fetchProfileImageUrl(String userId) async {
-    final doc = await _fetchUserDocument(userId);
+    final doc = await fetchUserDocument(userId);
     final data = doc?.data() as Map<String, dynamic>?;
 
     return data?['profileImageUrl'];
@@ -166,7 +166,7 @@ class DatabaseService {
   }
 
   Future<String?> fetchUserName(String userId) async {
-    final doc = await _fetchUserDocument(userId);
+    final doc = await fetchUserDocument(userId);
     if (doc == null || !doc.exists) return null;
 
     // Safely cast data() to Map<String, dynamic>
@@ -205,7 +205,7 @@ class DatabaseService {
   }
 
   Future<bool> isUserFriend(String currentUserId, String targetUserId) async {
-    final doc = await _fetchUserDocument(currentUserId);
+    final doc = await fetchUserDocument(currentUserId);
 
     // Safely cast data() to Map<String, dynamic>
     final data = doc?.data() as Map<String, dynamic>?;
@@ -705,7 +705,7 @@ class DatabaseService {
     }
   }
 
-  Future<DocumentSnapshot?> _fetchUserDocument(String userId) async {
+  Future<DocumentSnapshot?> fetchUserDocument(String userId) async {
     try {
       final role = await fetchAndCacheUserRole(userId);
       if (role == null) return null;

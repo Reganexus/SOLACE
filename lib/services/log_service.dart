@@ -17,7 +17,7 @@ class LogService {
             'action': action,
             'relatedUsers': relatedUsers ?? '',
             'timestamp': Timestamp.now(),
-          }
+          },
         ]),
       }, SetOptions(merge: true)); // Merge to avoid overwriting existing logs
     } catch (e) {
@@ -27,7 +27,9 @@ class LogService {
 
   /// Fetches logs for a specific user, ordered by timestamp.
   Stream<List<Map<String, dynamic>>> getLogsForUser(String userId) {
-    return _firestore.collection(logsCollection).doc(userId).snapshots().map((snapshot) {
+    return _firestore.collection(logsCollection).doc(userId).snapshots().map((
+      snapshot,
+    ) {
       if (!snapshot.exists) return [];
       List<dynamic> logs = snapshot.data()?['logs'] ?? [];
       return logs.cast<Map<String, dynamic>>().reversed.toList();
@@ -46,10 +48,11 @@ class LogService {
   /// Clears all logs for a specific user.
   Future<void> clearUserLogs(String userId) async {
     try {
-      var logsQuery = await _firestore
-          .collection(logsCollection)
-          .where('userId', isEqualTo: userId)
-          .get();
+      var logsQuery =
+          await _firestore
+              .collection(logsCollection)
+              .where('userId', isEqualTo: userId)
+              .get();
 
       for (var doc in logsQuery.docs) {
         await doc.reference.delete();
@@ -59,5 +62,3 @@ class LogService {
     }
   }
 }
-
-

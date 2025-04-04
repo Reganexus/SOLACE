@@ -24,6 +24,7 @@ class _RoleChooserState extends State<RoleChooser> {
   final _formKey = GlobalKey<FormState>();
   String? _selectedRole;
   late FocusNode _roleFocusNode;
+  Map<String, dynamic>? _userData;
 
   @override
   void initState() {
@@ -34,10 +35,14 @@ class _RoleChooserState extends State<RoleChooser> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+
+    // Try to get userData from navigation arguments
     final userData =
         ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-    if (userData == null) {
-      debugPrint("Error: No userData received in RoleChooser.");
+
+    if (userData == null || userData.isEmpty) {
+      debugPrint("No userData received. Fetching from Firestore...");
+      _fetchUserDocument();
     } else {
       debugPrint("Received userData: $userData");
     }
@@ -58,6 +63,37 @@ class _RoleChooserState extends State<RoleChooser> {
       builder:
           (context) => ErrorDialog(title: 'Error', messages: errorMessages),
     );
+  }
+
+  Future<void> _fetchUserDocument() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _showError(["User not logged in. Please try again."]);
+      return;
+    }
+
+    try {
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('unregistered') // Adjust collection if needed
+              .doc(user.uid)
+              .get();
+
+      if (doc.exists && doc.data() != null) {
+        final fetchedData = doc.data()!;
+        debugPrint("User document fetched: $fetchedData");
+
+        setState(() {
+          // Assign the fetched userData
+          _userData = fetchedData;
+        });
+      } else {
+        debugPrint("No user document found for ${user.uid}");
+      }
+    } catch (e) {
+      debugPrint("Error fetching user document: $e");
+      _showError(["Failed to fetch user data. Please try again."]);
+    }
   }
 
   void _showAlert(List<String> messages) {
@@ -82,7 +118,8 @@ class _RoleChooserState extends State<RoleChooser> {
       }
 
       final userData =
-          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ??
+          _userData; // Use fetched data if arguments are null
 
       if (userData == null || userData.isEmpty) {
         _showError([
@@ -96,7 +133,7 @@ class _RoleChooserState extends State<RoleChooser> {
         final targetCollection = _selectedRole!;
         final targetRef = firestore.collection(targetCollection).doc(user.uid);
 
-        // Perform a transaction to ensure atomicity
+        // Perform a transaction to move user to the correct collection
         await firestore.runTransaction((transaction) async {
           transaction.set(targetRef, {...userData, 'userRole': _selectedRole});
           transaction.delete(
@@ -111,7 +148,7 @@ class _RoleChooserState extends State<RoleChooser> {
           "User document transferred to '$targetCollection' collection and role cached as '$_selectedRole'.",
         );
 
-        // Update userData locally with the new userRole
+        // Update userData locally with the new role
         userData['userRole'] = _selectedRole;
 
         Navigator.pushReplacement(

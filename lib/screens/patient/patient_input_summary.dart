@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:solace/controllers/notification_service.dart';
 import 'package:solace/screens/patient/patient_tracking.dart';
 import 'package:solace/services/auth.dart';
 import 'package:solace/services/database.dart';
@@ -34,6 +35,7 @@ class ReceiptScreen extends StatefulWidget {
 }
 
 class _ReceiptScreenState extends State<ReceiptScreen> {
+  final notificationService = NotificationService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final LogService _logService = LogService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -305,8 +307,10 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                   .collection('patient')
                   .doc(widget.uid)
                   .update({
-                'predictions': [formattedPredictions], // Replace the entire array
-              });
+                    'predictions': [
+                      formattedPredictions,
+                    ], // Replace the entire array
+                  });
               debugPrint('Predictions successfully added to Firestore.');
             } catch (e) {
               debugPrint('Error adding predictions to Firestore: $e');
@@ -417,6 +421,162 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     'Pain': '',
   };
 
+  Widget _buildDeter() {
+    return Container(
+      padding: EdgeInsets.all(20),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.neon,
+        borderRadius: BorderRadius.circular(10.0),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.max,
+        children: [
+          Icon(Icons.info_outline_rounded, size: 40, color: AppColors.white),
+          SizedBox(height: 10),
+          Text(
+            'Please check the input before submitting.',
+            textAlign: TextAlign.center,
+            style: Textstyle.body.copyWith(color: AppColors.white),
+          ),
+          Text(
+            'Once submitted, it cannot be reverted',
+            textAlign: TextAlign.center,
+            style: Textstyle.subheader.copyWith(color: AppColors.white),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(String title) {
+    return Text(title, textAlign: TextAlign.left, style: Textstyle.subheader);
+  }
+
+  Widget _buildSubmit() {
+    return SizedBox(
+      width: double.infinity,
+      child: TextButton(
+        onPressed: () async {
+          try {
+            DocumentSnapshot doc =
+                await _firestore.collection('patient').doc(widget.uid).get();
+            String fName = doc.get('firstName');
+            String lName = doc.get('lastName');
+            int age = doc.get('age');
+            String gender = doc.get('gender');
+            String patientName = '$fName $lName';
+
+            if (mounted) {
+              showToast('Submitting data...');
+            }
+
+            _identifySymptoms();
+
+            final timestamp = Timestamp.now();
+
+            debugPrint("Timestamp now at tracking: $timestamp");
+
+            // Prepare the data to be inserted
+            final trackingData = {
+              'age': age,
+              'gender': gender,
+              'timestamp': timestamp,
+              'Vitals': widget.inputs['Vitals'],
+              'Symptom Assessment': widget.inputs['Symptom Assessment'],
+            };
+
+            // Get reference to the patient's document in the 'tracking' collection
+            final trackingRef = FirebaseFirestore.instance
+                .collection('tracking')
+                .doc(widget.uid);
+
+            // Get the document snapshot to check if the 'tracking' data exists
+            final docSnapshot = await trackingRef.get();
+
+            if (docSnapshot.exists) {
+              // If the document exists, update the 'tracking' array
+              await trackingRef
+                  .update({
+                    'tracking': FieldValue.arrayUnion([trackingData]),
+                  })
+                  .catchError((e) {
+                    debugPrint("Error storing data: $e");
+                    if (mounted) {
+                      showToast('Error storing data: $e');
+                    }
+                  });
+            } else {
+              // If the document doesn't exist, create the document with the tracking data
+              await trackingRef
+                  .set({
+                    'tracking': [trackingData],
+                  })
+                  .catchError((e) {
+                    debugPrint("Error creating tracking document: $e");
+                    if (mounted) {
+                      showToast('Error creating tracking data: $e');
+                    }
+                  });
+            }
+
+            // Add log entry
+            await _logService.addLog(
+              userId: _auth.currentUser!.uid,
+              action: 'Submitted $patientName\'s tracking information',
+              relatedUsers: widget.uid,
+            );
+
+            DocumentSnapshot patientDoc =
+                await _firestore.collection('patient').doc(widget.uid).get();
+            String status = patientDoc.get('status') ?? 'uncertain';
+
+            if (status == 'unstable') {
+              // Send notification for unstable status
+              await notificationService.sendNotificationToTaggedUsers(
+                widget.uid,
+                "Tracking Update",
+                "Patient $patientName is unstable. Check it now.",
+              );
+            } else if (status == 'stable') {
+              // Send notification for stable status
+              await notificationService.sendNotificationToTaggedUsers(
+                widget.uid,
+                "Tracking Update",
+                "Patient $patientName is stable. View it now.",
+              );
+            } else if (status == 'uncertain') {
+              // Send notification for uncertain status
+              await notificationService.sendNotificationToTaggedUsers(
+                widget.uid,
+                "Tracking Update",
+                "Patient $patientName is uncertain. Check it now.",
+              );
+            } else {
+              debugPrint("Status is not stable, unstable, or uncertain.");
+            }
+
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PatientTracking(patientId: widget.uid),
+              ),
+              (Route<dynamic> route) => route.isFirst,
+            );
+          } catch (e) {
+            // Handle any unexpected errors here
+            debugPrint("Unexpected error: $e");
+            if (mounted) {
+              showToast('An unexpected error occurred: $e');
+            }
+          }
+        },
+        style: Buttonstyle.neon,
+        child: Text('Submit Final', style: Textstyle.largeButton),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
@@ -435,50 +595,19 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: EdgeInsets.all(20),
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: AppColors.neon,
-                    borderRadius: BorderRadius.circular(10.0),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.max,
-                    children: [
-                      Icon(
-                        Icons.info_outline_rounded,
-                        size: 40,
-                        color: AppColors.white,
-                      ),
-                      SizedBox(height: 10),
-                      Text(
-                        'Please check the input before submitting.',
-                        textAlign: TextAlign.center,
-                        style: Textstyle.body.copyWith(color: AppColors.white),
-                      ),
-                      Text(
-                        'Once submitted, it cannot be reverted',
-                        textAlign: TextAlign.center,
-                        style: Textstyle.subheader.copyWith(
-                          color: AppColors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                _buildDeter(),
                 const SizedBox(height: 20),
-                Text(
-                  'Your Assessment',
-                  textAlign: TextAlign.left,
-                  style: Textstyle.subheader,
-                ),
+                _buildHeader("Your Assessment"),
                 const SizedBox(height: 20.0),
-                Text('Vitals:', style: Textstyle.subheader),
+                _buildHeader("Vitals:"),
                 if (widget.inputs['Vitals'] is Map)
                   ...widget.inputs['Vitals'].entries.map((entry) {
                     // Get the unit for the current vital
                     final unit = vitalsUnits[entry.key] ?? '';
-                    final value = (entry.value == null || entry.value.toString().isEmpty) ? '0' : entry.value.toString();
+                    final value =
+                        (entry.value == null || entry.value.toString().isEmpty)
+                            ? '0'
+                            : entry.value.toString();
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 5.0),
                       child: Row(
@@ -494,7 +623,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                     );
                   }).toList(),
                 const SizedBox(height: 20.0),
-                Text('Symptom Assessment:', style: Textstyle.subheader),
+                _buildHeader("Symptom Assessment:"),
                 const SizedBox(height: 10.0),
                 if (widget.inputs['Symptom Assessment'] is Map)
                   ...widget.inputs['Symptom Assessment'].entries.map((entry) {
@@ -511,109 +640,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                   }).toList(),
                 Divider(),
                 SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: TextButton(
-                    onPressed: () async {
-                      try {
-                        DocumentSnapshot doc =
-                            await _firestore
-                                .collection('patient')
-                                .doc(widget.uid)
-                                .get();
-                        String fName = doc.get('firstName');
-                        String lName = doc.get('lastName');
-                        int age = doc.get('age');
-                        String gender = doc.get('gender');
-                        String patientName = '$fName $lName';
-
-                        if (mounted) {
-                          showToast('Submitting data...');
-                        }
-
-                        _identifySymptoms();
-
-                        final timestamp = Timestamp.now();
-
-                        debugPrint("Timestamp now at tracking: $timestamp");
-
-                        // Prepare the data to be inserted
-                        final trackingData = {
-                          'age': age,
-                          'gender': gender,
-                          'timestamp': timestamp,
-                          'Vitals': widget.inputs['Vitals'],
-                          'Symptom Assessment':
-                              widget.inputs['Symptom Assessment'],
-                        };
-
-                        // Get reference to the patient's document in the 'tracking' collection
-                        final trackingRef = FirebaseFirestore.instance
-                            .collection('tracking')
-                            .doc(widget.uid);
-
-                        // Get the document snapshot to check if the 'tracking' data exists
-                        final docSnapshot = await trackingRef.get();
-
-                        if (docSnapshot.exists) {
-                          // If the document exists, update the 'tracking' array
-                          await trackingRef
-                              .update({
-                                'tracking': FieldValue.arrayUnion([
-                                  trackingData,
-                                ]),
-                              })
-                              .catchError((e) {
-                                debugPrint("Error storing data: $e");
-                                if (mounted) {
-                                  showToast('Error storing data: $e');
-                                }
-                              });
-                        } else {
-                          // If the document doesn't exist, create the document with the tracking data
-                          await trackingRef
-                              .set({
-                                'tracking': [trackingData],
-                              })
-                              .catchError((e) {
-                                debugPrint(
-                                  "Error creating tracking document: $e",
-                                );
-                                if (mounted) {
-                                  showToast('Error creating tracking data: $e');
-                                }
-                              });
-                        }
-
-                        // Add log entry
-                        await _logService.addLog(
-                          userId: _auth.currentUser!.uid,
-                          action:
-                              'Submitted $patientName\'s tracking information',
-                          relatedUsers: widget.uid,
-                        );
-
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (context) =>
-                                    PatientTracking(patientId: widget.uid),
-                          ),
-                          (Route<dynamic> route) => route.isFirst,
-                        );
-                      } catch (e) {
-                        // Handle any unexpected errors here
-                        debugPrint("Unexpected error: $e");
-                        if (mounted) {
-                          showToast('An unexpected error occurred: $e');
-                        }
-                      }
-                    },
-                    style: Buttonstyle.neon,
-                    child: Text('Submit Final', style: Textstyle.largeButton),
-                  ),
-                ),
+                _buildSubmit(),
               ],
             ),
           ),

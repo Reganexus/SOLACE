@@ -1,88 +1,88 @@
-// ignore_for_file: avoid_print, unused_import
+// ignore_for_file: avoid_print
 
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:solace/screens/authenticate/authenticate.dart';
-import 'package:solace/services/database.dart';
 import 'package:solace/themes/colors.dart';
 import 'firebase_options.dart';
 import 'package:solace/controllers/messaging_service.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/authenticate/get_started.dart';
 import 'package:solace/services/auth.dart';
+import 'package:provider/provider.dart';
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  print("Handling a background message: ${message.messageId}");
+  MessagingService.showLocalNotification(message);
+  FirebaseFirestore.instance.collection('messages').add({
+    'text': 'background message',
+  });
+}
+
+const String _isNewInstallKey = 'isNewInstall';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await _initializeFirebase();
+  await _initializeMessaging();
 
-  // Initialize Firebase and related services
-  await _initializeFirebaseAndMessaging();
+  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+    print("🚀 Notification Clicked! Data: ${message.data}");
+  });
 
-  // Lock screen orientation
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-
-  // Determine the initial screen
-  final bool isNewInstall = await _isFirstInstall();
-
-  DatabaseService db = DatabaseService();
-  await db.clearAllCache();
-  // Run the app
-  runApp(
-    MyApp(
-      initialScreen: isNewInstall ? const GetStarted() : const Authenticate(),
-    ),
-  );
+  final Widget initialScreen = await _determineInitialScreen();
+  runApp(MyApp(initialScreen: initialScreen));
 }
 
-/// Initializes Firebase and messaging services.
-Future<void> _initializeFirebaseAndMessaging() async {
+Future<void> _initializeFirebase() async {
   try {
-    // Check if Firebase has already been initialized
-    if (Firebase.apps.isEmpty) {
-      await Firebase.initializeApp(
-        name: 'solace-28954',
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-      debugPrint('Firebase initialized successfully.');
-    } else {
-      debugPrint('Firebase already initialized.');
-    }
-
-    // Activate Firebase App Check
-    await FirebaseAppCheck.instance.activate(
-      androidProvider: AndroidProvider.playIntegrity,
+    await Firebase.initializeApp(
+      name: "solace-28954",
+      options: DefaultFirebaseOptions.currentPlatform,
     );
-
-    // Initialize Messaging Service
-    await MessagingService.initialize();
+    await FirebaseMessaging.instance.setAutoInitEnabled(true);
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   } catch (e) {
-    debugPrint('Error initializing Firebase: $e');
+    print("Error initializing Firebase: $e");
   }
 }
 
-/// Checks if the app is being run for the first time.
-Future<bool> _isFirstInstall() async {
-  final SharedPreferences prefs = await SharedPreferences.getInstance();
-  final bool isNewInstall = prefs.getBool('isNewInstall') ?? true;
-  if (isNewInstall) {
-    await prefs.setBool('isNewInstall', false);
+Future<void> _initializeMessaging() async {
+  try {
+    MessagingService.initialize();
+  } catch (e) {
+    print("Error initializing messaging service: $e");
   }
-  return isNewInstall;
 }
 
-/// Main application widget.
+Future<Widget> _determineInitialScreen() async {
+  try {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final bool isNewInstall = prefs.getBool(_isNewInstallKey) ?? true;
+    if (isNewInstall) {
+      await prefs.setBool(_isNewInstallKey, false);
+      print("App is newly installed");
+      return const GetStarted();
+    }
+    return const Authenticate();
+  } catch (e) {
+    print("Error determining initial screen: $e");
+    return const Authenticate(); // Default to Authenticate on error
+  }
+}
+
 class MyApp extends StatelessWidget {
   final Widget initialScreen;
-
   const MyApp({super.key, required this.initialScreen});
 
   @override

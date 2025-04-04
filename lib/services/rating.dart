@@ -61,9 +61,12 @@ class _RatingWidgetState extends State<RatingWidget> {
     } catch (error) {
       showToast('Failed to fetch rating: $error');
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        // Ensure the widget is still mounted before calling setState
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 

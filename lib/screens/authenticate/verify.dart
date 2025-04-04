@@ -196,6 +196,11 @@ class _VerifyState extends State<Verify> {
     } else {
       _showError(["User is not authenticated."]);
     }
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => Verify()),
+    );
   }
 
   void resendVerificationEmail() {

@@ -13,7 +13,6 @@ import 'package:solace/services/auth.dart';
 import 'package:flutter/material.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/services/error_handler.dart';
-import 'package:solace/services/validator.dart';
 import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/themes/inputdecoration.dart';
@@ -298,7 +297,6 @@ class _LogInState extends State<LogIn> {
     required String labelText,
     bool obscureText = false,
     Widget? suffixIcon,
-    required String? Function(String?) validator,
     required Function(String) onChanged,
     Function(String)? onFieldSubmitted, // New parameter
   }) {
@@ -311,7 +309,6 @@ class _LogInState extends State<LogIn> {
         labelText,
         focusNode,
       ).copyWith(suffixIcon: suffixIcon),
-      validator: validator,
       onChanged: onChanged,
       onFieldSubmitted: onFieldSubmitted,
     );
@@ -321,7 +318,6 @@ class _LogInState extends State<LogIn> {
     controller: _emailController,
     focusNode: _emailFocusNode,
     labelText: 'Email',
-    validator: Validator.email,
     onChanged: (val) => setState(() => _email = val),
     onFieldSubmitted: (_) => FocusScope.of(context).nextFocus(),
   );
@@ -338,7 +334,6 @@ class _LogInState extends State<LogIn> {
       ),
       onPressed: togglePasswordVisibility,
     ),
-    validator: Validator.password,
     onChanged: (val) => setState(() => _password = val),
     onFieldSubmitted: (_) => FocusScope.of(context).unfocus(),
   );
