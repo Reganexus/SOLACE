@@ -18,6 +18,7 @@ import 'package:solace/themes/colors.dart';
 import 'package:solace/themes/inputdecoration.dart';
 import 'package:solace/themes/loader.dart';
 import 'package:solace/themes/textstyle.dart';
+import 'package:solace/services/log_service.dart';
 
 class LogIn extends StatefulWidget {
   final VoidCallback toggleView; // Updated to VoidCallback
@@ -32,6 +33,7 @@ class _LogInState extends State<LogIn> {
   MyUser? currentUser;
   final AuthService _auth = AuthService();
   final DatabaseService _db = DatabaseService();
+  final logService = LogService();
   late final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   bool _isLoginButtonEnabled = true;
   bool _isGoogleSignInButtonEnabled = true;
@@ -169,6 +171,33 @@ class _LogInState extends State<LogIn> {
   Future<void> _performLogin() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
+    final allowed = await isLoginAllowed(email);
+    
+    if (!allowed) {
+      final docRef = FirebaseFirestore.instance.collection('login_attempts').doc(email);
+      final snapshot = await docRef.get();
+      String lockedDurationMessage = '';
+
+      if (snapshot.exists) {
+        final data = snapshot.data()!;
+        final lockedUntil = (data['lockedUntil'] as Timestamp?)?.toDate();
+
+        if (lockedUntil != null) {
+          final remainingDuration = lockedUntil.difference(DateTime.now());
+          if (remainingDuration.isNegative) {
+            lockedDurationMessage = 'You can try logging in now.';
+          } else {
+            final minutes = remainingDuration.inMinutes;
+            final seconds = remainingDuration.inSeconds % 60;
+            lockedDurationMessage =
+                'Too many failed login attempts. Please try again after ${minutes}m ${seconds}s.';
+          }
+        }
+      }
+
+      _showError([lockedDurationMessage]);
+      return;
+    }
 
     MyUser? result = await _auth
         .logInWithEmailAndPassword(email, password)
@@ -179,21 +208,43 @@ class _LogInState extends State<LogIn> {
         );
 
     if (result != null) {
+      await resetLoginAttempts(email);
       await _processLogin(result);
     } else {
+      await recordLoginAttempt(email);
       _showError(['Invalid email or password.']);
     }
   }
 
-  void _handleLoginError(Object e) {
+  void _handleLoginError(Object e) async {
+    String attemptedEmail = _emailController.text.trim();
+
     if (e is FirebaseAuthException) {
+      await logService.addLog(
+        userId: 'unauthenticated',
+        action: 'Failed login: ${e.code}',
+        relatedUsers: attemptedEmail,
+      );
       handleFirebaseAuthError(e);
     } else if (e is TimeoutException) {
+      await logService.addLog(
+        userId: 'unauthenticated',
+        action: 'Login timeout',
+        relatedUsers: attemptedEmail,
+      );
       _showError(['Login timed out. Please try again later.']);
     } else {
+      await logService.addLog(
+        userId: 'unauthenticated',
+        action: 'Login error: ${e.toString()}',
+        relatedUsers: attemptedEmail,
+      );
       _showError(['Login failed: $e']);
     }
+
+    await recordLoginAttempt(attemptedEmail);
   }
+
 
   void showToast(String message) {
     Fluttertoast.showToast(
@@ -262,6 +313,53 @@ class _LogInState extends State<LogIn> {
     } else {
       setState(() => error = 'User role not found.');
     }
+  }
+
+  Future<void> recordLoginAttempt(String email) async {
+    if(_email.isEmpty) return; // Avoid unnecessary Firestore calls if email is empty
+    final docRef = FirebaseFirestore.instance.collection('login_attempts').doc(email);
+    final snapshot = await docRef.get();
+    int attempts = 1;
+    DateTime? lockedUntil;
+
+    if (snapshot.exists) {
+      final data = snapshot.data()!;
+      attempts = (data['attempts'] ?? 0) + 1;
+
+      if (attempts >= 20) {
+        lockedUntil = DateTime.now().add(Duration(minutes: 10));
+      } else if (attempts >= 15) {
+        lockedUntil = DateTime.now().add(Duration(minutes: 5));
+      } else if (attempts >= 10) {
+        lockedUntil = DateTime.now().add(Duration(minutes: 1));
+      } else if (attempts >= 5) {
+        lockedUntil = DateTime.now().add(Duration(seconds: 30));
+      }
+    }
+
+    await docRef.set({
+      'attempts': attempts,
+      'lastAttempt': FieldValue.serverTimestamp(),
+      'lockedUntil': lockedUntil,
+    });
+  }
+
+  Future<void> resetLoginAttempts(String email) async {
+    await FirebaseFirestore.instance.collection('login_attempts').doc(email).delete();
+  }
+
+  Future<bool> isLoginAllowed(String email) async {
+    final docRef = FirebaseFirestore.instance.collection('login_attempts').doc(email);
+    final snapshot = await docRef.get();
+    
+    if (snapshot.exists) {
+      final data = snapshot.data()!;
+      final lockedUntil = (data['lockedUntil'] as Timestamp?)?.toDate();
+      if (lockedUntil != null && DateTime.now().isBefore(lockedUntil)) {
+        return false; // Locked out
+      }
+    }
+    return true;
   }
 
   Future<bool> _checkDocumentExists(String role, String uid) async {
