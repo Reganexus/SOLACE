@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/themes/textstyle.dart';
@@ -25,134 +26,7 @@ class CasePickerWidgetState extends State<CasePickerWidget> {
   final FocusNode _searchFocusNode = FocusNode();
   bool showDropdown = false;
 
-  final List<String> allCases = [
-    // **Cancer (AJCC TNM Staging for Solid Tumors)**
-    'Lung Cancer (Stage 0)',
-    'Lung Cancer (Stage I)',
-    'Lung Cancer (Stage II)',
-    'Lung Cancer (Stage III)',
-    'Lung Cancer (Stage IV)',
-    'Colon Cancer (Stage 0)',
-    'Colon Cancer (Stage I)',
-    'Colon Cancer (Stage II)',
-    'Colon Cancer (Stage III)',
-    'Colon Cancer (Stage IV)',
-    'Pancreatic Cancer (Stage 0)',
-    'Pancreatic Cancer (Stage I)',
-    'Pancreatic Cancer (Stage II)',
-    'Pancreatic Cancer (Stage III)',
-    'Pancreatic Cancer (Stage IV)',
-    'Breast Cancer (Stage 0)',
-    'Breast Cancer (Stage I)',
-    'Breast Cancer (Stage II)',
-    'Breast Cancer (Stage III)',
-    'Breast Cancer (Stage IV)',
-    'Prostate Cancer (Localized)',
-    'Prostate Cancer (Locally Advanced)',
-    'Prostate Cancer (Metastatic)',
-    'Ovarian Cancer (Stage I)',
-    'Ovarian Cancer (Stage II)',
-    'Ovarian Cancer (Stage III)',
-    'Ovarian Cancer (Stage IV)',
-    'Brain Tumor (WHO Grade 1)',
-    'Brain Tumor (WHO Grade 2)',
-    'Brain Tumor (WHO Grade 3)',
-    'Brain Tumor (WHO Grade 4 - Glioblastoma)',
-    'Leukemia (Acute Lymphoblastic)',
-    'Leukemia (Acute Myeloid)',
-    'Leukemia (Chronic Lymphocytic)',
-    'Leukemia (Chronic Myeloid)',
-    'Lymphoma (Stage I)',
-    'Lymphoma (Stage II)',
-    'Lymphoma (Stage III)',
-    'Lymphoma (Stage IV)',
-    'Skin Cancer (Basal Cell)',
-    'Skin Cancer (Squamous Cell)',
-    'Melanoma (Stage I)',
-    'Melanoma (Stage II)',
-    'Melanoma (Stage III)',
-    'Melanoma (Stage IV)',
-    'Bladder Cancer (Non-Invasive)',
-    'Bladder Cancer (Invasive)',
-    'Bladder Cancer (Metastatic)',
-
-    // **Cardiovascular & Pulmonary Diseases**
-    'Heart Failure (NYHA Class I)',
-    'Heart Failure (NYHA Class II)',
-    'Heart Failure (NYHA Class III)',
-    'Heart Failure (NYHA Class IV)',
-    'Stroke (Ischemic)', 'Stroke (Hemorrhagic)',
-    'Atrial Fibrillation (Paroxysmal)',
-    'Atrial Fibrillation (Persistent)',
-    'Atrial Fibrillation (Permanent)',
-    'Hypertension (Stage 1)',
-    'Hypertension (Stage 2)',
-    'Hypertension (Hypertensive Crisis)',
-    'COPD (GOLD Stage 1 - Mild)',
-    'COPD (GOLD Stage 2 - Moderate)',
-    'COPD (GOLD Stage 3 - Severe)',
-    'COPD (GOLD Stage 4 - Very Severe)',
-    'Pulmonary Fibrosis (Early)', 'Pulmonary Fibrosis (Advanced)',
-
-    // **Neurological Disorders**
-    'Alzheimer’s Disease (Mild)',
-    'Alzheimer’s Disease (Moderate)',
-    'Alzheimer’s Disease (Severe)',
-    'Parkinson’s Disease (Stage 1)',
-    'Parkinson’s Disease (Stage 2)',
-    'Parkinson’s Disease (Stage 3)',
-    'Parkinson’s Disease (Stage 4)',
-    'Parkinson’s Disease (Stage 5)',
-    'ALS (Early Stage)',
-    'ALS (Middle Stage)',
-    'ALS (Late Stage)',
-    'ALS (End-Stage)',
-    'Multiple Sclerosis (Relapsing-Remitting)',
-    'Multiple Sclerosis (Primary Progressive)',
-    'Multiple Sclerosis (Secondary Progressive)',
-    'Epilepsy (Focal)', 'Epilepsy (Generalized)',
-
-    // **Kidney and Liver Diseases**
-    'Chronic Kidney Disease (Stage 1)',
-    'Chronic Kidney Disease (Stage 2)',
-    'Chronic Kidney Disease (Stage 3)',
-    'Chronic Kidney Disease (Stage 4)',
-    'Chronic Kidney Disease (Stage 5 - End-Stage Renal Disease)',
-    'Liver Cirrhosis (Compensated)', 'Liver Cirrhosis (Decompensated)',
-    'Liver Failure (Acute)', 'Liver Failure (Chronic)',
-
-    // **Endocrine & Metabolic Disorders**
-    'Diabetes Mellitus (Type 1)',
-    'Diabetes Mellitus (Type 2)',
-    'Diabetes (With Complications)',
-    'Thyroid Disease (Hypothyroidism)', 'Thyroid Disease (Hyperthyroidism)',
-    'Cushing’s Syndrome', 'Addison’s Disease',
-
-    // **Autoimmune & Chronic Inflammatory Disorders**
-    'HIV/AIDS (Stage 1)', 'HIV/AIDS (Stage 2)', 'HIV/AIDS (Stage 3 - AIDS)',
-    'Rheumatoid Arthritis (Early)', 'Rheumatoid Arthritis (Advanced)',
-    'Lupus (Mild)', 'Lupus (Severe)',
-    'Severe Malnutrition',
-
-    // **Musculoskeletal Disorders**
-    'Frailty Syndrome',
-    'Severe Osteoarthritis',
-    'Chronic Pain Syndrome',
-
-    // **Wound and Skin Conditions**
-    'Pressure Ulcers (Stage 1)',
-    'Pressure Ulcers (Stage 2)',
-    'Pressure Ulcers (Stage 3)',
-    'Pressure Ulcers (Stage 4)',
-    'Severe Burns (Partial Thickness)', 'Severe Burns (Full Thickness)',
-
-    // **Other Terminal and Chronic Conditions**
-    'Dementia (Mild)', 'Dementia (Moderate)', 'Dementia (Severe)',
-    'Amyloidosis (Primary)', 'Amyloidosis (Secondary)',
-    'Pulmonary Hypertension (Mild)', 'Pulmonary Hypertension (Severe)',
-    'Systemic Sclerosis (Limited)', 'Systemic Sclerosis (Diffuse)',
-    'Sickle Cell Disease (Chronic)', 'Sickle Cell Disease (Crisis)',
-  ];
+  final List<String> allCases = [];
 
   List<String> filteredCases = [];
 
@@ -164,7 +38,38 @@ class CasePickerWidgetState extends State<CasePickerWidget> {
         showDropdown = _searchFocusNode.hasFocus;
       });
     });
+    _fetchCasesFromFirestore();
     _updateFilteredCases();
+  }
+
+  void _fetchCasesFromFirestore() async {
+    try {
+      DocumentSnapshot snapshot = await FirebaseFirestore.instance
+          .collection('globals')
+          .doc('cases')
+          .get();
+
+      if (snapshot.exists) {
+        Map<String, dynamic> data = snapshot.data() as Map<String, dynamic>;
+
+        // Combine all arrays into one flat list
+        List<String> combinedCases = [];
+
+        for (var value in data.values) {
+          if (value is List) {
+            combinedCases.addAll(List<String>.from(value));
+          }
+        }
+
+        setState(() {
+          allCases.clear();
+          allCases.addAll(combinedCases);
+          _updateFilteredCases();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching cases: $e');
+    }
   }
 
   /// Extracts the base name of a case (e.g., "Lung Cancer" from "Lung Cancer (Stage 1)")

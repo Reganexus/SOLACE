@@ -170,6 +170,10 @@ class _LogInState extends State<LogIn> {
 
   Future<void> _performLogin() async {
     final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      _showError(['Email cannot be empty.']);
+      return;
+    }
     final password = _passwordController.text.trim();
     final allowed = await isLoginAllowed(email);
     
