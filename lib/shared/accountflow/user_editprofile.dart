@@ -16,6 +16,7 @@ import 'package:solace/screens/home/home.dart';
 import 'package:solace/screens/wrapper.dart';
 import 'package:solace/services/error_handler.dart';
 import 'package:solace/services/loader_screen.dart';
+import 'package:solace/services/sms_auth_service.dart';
 import 'package:solace/services/validator.dart';
 import 'package:solace/shared/widgets/select_profile_image.dart';
 import 'package:solace/themes/buttonstyle.dart';
@@ -362,15 +363,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       // Determine navigation
       final bool isNewUser = widget.userData['newUser'] == true;
       if (isNewUser) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            builder:
-                (context) =>
-                    CaregiverInstructions(userId: userId, userRole: userRole),
-          ),
-          (route) => false,
-        );
+        // Enroll the user in SMS authentication
+        await _enrollInSmsAuth(phoneNumberController.text.trim(), userRole);
       } else {
         Navigator.pushAndRemoveUntil(
           context,
@@ -392,6 +386,78 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _showError([e.toString()]);
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _enrollInSmsAuth(String phoneNumber, String userRole) async {
+    try {
+      SmsAuthService.verifyPhoneNumber(
+        context,
+        phoneNumber,
+        onVerificationCompleted: (PhoneAuthCredential credential) async {
+          // Automatically link the phone number to the current account
+          try {
+            await FirebaseAuth.instance.currentUser?.linkWithCredential(credential);
+            debugPrint('Phone number verified and linked successfully.');
+            if (mounted) {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      CaregiverInstructions(userId: userId, userRole: userRole),
+                ),
+                (route) => false,
+              );
+            }
+          } catch (e) {
+            debugPrint('Error linking phone number: $e');
+            _showError(['Failed to link phone number.']);
+          }
+        },
+        onCodeSent: (String verificationId) async {
+          // Show dialog to input the code
+          debugPrint('Code sent to phone number: $phoneNumber');
+          debugPrint('Verification ID: $verificationId');
+          await SmsAuthService.showVerificationDialog(
+            context,
+            verificationId,
+            onCodeVerified: (String enteredCode) async {
+              try {
+                // Create a PhoneAuthCredential with the verification code
+                PhoneAuthCredential credential = PhoneAuthProvider.credential(
+                  verificationId: verificationId,
+                  smsCode: enteredCode,
+                );
+
+                // Link the phone number to the current account
+                await FirebaseAuth.instance.currentUser?.linkWithCredential(credential);
+                debugPrint('Phone number linked successfully after manual verification.');
+
+                if (mounted) {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          CaregiverInstructions(userId: userId, userRole: userRole),
+                    ),
+                    (route) => false,
+                  );
+                }
+              } catch (e) {
+                debugPrint('Error linking phone number after manual verification: $e');
+                _showError(['Failed to link phone number.']);
+              }
+            },
+          );
+        },
+        onVerificationFailed: (String errorMessage) {
+          debugPrint('Phone number verification failed: $errorMessage');
+          _showError([errorMessage]);
+        },
+      );
+    } catch (e) {
+      debugPrint('Error during SMS authentication enrollment: $e');
+      _showError(['Failed to enroll in SMS authentication.']);
     }
   }
 

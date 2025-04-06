@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "805655165429-anlcb9js2chj0dkige8q62faqhj6oj58.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.res.solace",
+            "certificate_hash": "327a0e3f61e0889974beb402a6af982c5922e743"
+          }
+        },
+        {
           "client_id": "805655165429-da1ckreftg8ls402ifg0icb2567364sp.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
@@ -59,8 +67,15 @@
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "805655165429-ujad3padtajbssnfdo3bb1dej0j4hou6.apps.googleusercontent.com",
+              "client_id": "108722915730595089339",
               "client_type": 3
+            },
+            {
+              "client_id": "805655165429-h3sqcfvbvr9cvn6tscckobpqqmvnoad7.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.res.solace"
+              }
             }
           ]
         }
