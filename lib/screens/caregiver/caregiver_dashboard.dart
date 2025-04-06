@@ -357,6 +357,17 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
   }
 
   Widget _buildPatientList(String title, List<PatientData> patients) {
+    // Sort the patients list: 'unstable' patients first
+    patients.sort((a, b) {
+      if (a.status == 'unstable' && b.status != 'unstable') {
+        return -1; // a comes before b
+      } else if (a.status != 'unstable' && b.status == 'unstable') {
+        return 1; // b comes before a
+      } else {
+        return 0; // Keep the original order if both have the same status
+      }
+    });
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -395,11 +406,25 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
                     ),
                     const SizedBox(width: 16.0),
                     Expanded(
-                      child: Text(
-                        '${patient.firstName} ${patient.lastName}',
-                        style: Textstyle.body,
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${patient.firstName} ${patient.lastName}',
+                              style: Textstyle.body,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ),
+                          if (patient.status == 'unstable') ...[
+                            const SizedBox(width: 8.0),
+                            Icon(
+                              Icons.warning_amber_rounded,
+                              color: AppColors.red,
+                              size: 20.0,
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                     Row(

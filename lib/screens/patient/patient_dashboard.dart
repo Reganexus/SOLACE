@@ -185,18 +185,18 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
             label: "Low",
           );
         }
-        if (numValue > maxNormalHeartRate) {
-          return VitalStatus(
-            color: AppColors.yellow,
-            icon: LucideIcons.alertCircle,
-            label: "High",
-          );
-        }
         if (numValue > maxExtremeHeartRate) {
           return VitalStatus(
             color: AppColors.red,
             icon: LucideIcons.alertTriangle,
             label: "Very High",
+          );
+        }
+        if (numValue > maxNormalHeartRate) {
+          return VitalStatus(
+            color: AppColors.yellow,
+            icon: LucideIcons.alertCircle,
+            label: "High",
           );
         }
         break;
@@ -216,18 +216,18 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
             label: "Low",
           );
         }
-        if (numValue > maxNormalBloodPressureSystolic) {
-          return VitalStatus(
-            color: AppColors.yellow,
-            icon: LucideIcons.alertCircle,
-            label: "High",
-          );
-        }
         if (numValue > maxExtremeBloodPressureSystolic) {
           return VitalStatus(
             color: AppColors.red,
             icon: LucideIcons.alertTriangle,
             label: "Very High",
+          );
+        }
+        if (numValue > maxNormalBloodPressureSystolic) {
+          return VitalStatus(
+            color: AppColors.yellow,
+            icon: LucideIcons.alertCircle,
+            label: "High",
           );
         }
         break;
@@ -247,18 +247,18 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
             label: "Low",
           );
         }
-        if (numValue > maxNormalBloodPressureDiastolic) {
-          return VitalStatus(
-            color: AppColors.yellow,
-            icon: LucideIcons.alertCircle,
-            label: "High",
-          );
-        }
         if (numValue > maxExtremeBloodPressureDiastolic) {
           return VitalStatus(
             color: AppColors.red,
             icon: LucideIcons.alertTriangle,
             label: "Very High",
+          );
+        }
+        if (numValue > maxNormalBloodPressureDiastolic) {
+          return VitalStatus(
+            color: AppColors.yellow,
+            icon: LucideIcons.alertCircle,
+            label: "High",
           );
         }
         break;
@@ -295,18 +295,18 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
             label: "Low",
           );
         }
-        if (numValue > maxNormalRespirationRate) {
-          return VitalStatus(
-            color: AppColors.yellow,
-            icon: LucideIcons.alertCircle,
-            label: "High",
-          );
-        }
         if (numValue > maxExtremeRespirationRate) {
           return VitalStatus(
             color: AppColors.red,
             icon: LucideIcons.alertTriangle,
             label: "Very High",
+          );
+        }
+        if (numValue > maxNormalRespirationRate) {
+          return VitalStatus(
+            color: AppColors.yellow,
+            icon: LucideIcons.alertCircle,
+            label: "High",
           );
         }
         break;
@@ -326,18 +326,18 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
             label: "Low",
           );
         }
-        if (numValue > maxNormalTemperature) {
-          return VitalStatus(
-            color: AppColors.yellow,
-            icon: LucideIcons.alertCircle,
-            label: "High",
-          );
-        }
         if (numValue > maxExtremeTemperature) {
           return VitalStatus(
             color: AppColors.red,
             icon: LucideIcons.alertTriangle,
             label: "Very High",
+          );
+        }
+        if (numValue > maxNormalTemperature) {
+          return VitalStatus(
+            color: AppColors.yellow,
+            icon: LucideIcons.alertCircle,
+            label: "High",
           );
         }
         break;
@@ -965,14 +965,9 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
                 ...vitals.entries.map((entry) {
                   final unit = _getVitalUnit(entry.key);
                   final dynamic rawValue = entry.value;
-                  final num? value =
-                      rawValue is num
-                          ? rawValue
-                          : num.tryParse(rawValue.toString());
-
                   final status =
-                      (value != null)
-                          ? getVitalStatus(entry.key, value)
+                      (rawValue != null)
+                          ? getVitalStatus(entry.key, rawValue)
                           : VitalStatus(color: AppColors.white, label: "N/A");
 
                   return _buildVitalRow(

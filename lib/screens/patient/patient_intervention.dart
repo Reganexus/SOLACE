@@ -116,7 +116,7 @@ class PatientInterventionsState extends State<PatientInterventions> {
     'High Temperature': 'highTemperature',
     'Pain': 'pain',
     'Extremely Low Heart Rate': 'extremelyLowHeartRate',
-    'Extremely High Heart Rate': 'extremelyhighHeartRate',
+    'Extremely High Heart Rate': 'extremelyHighHeartRate',
     'Extremely Low Blood Pressure': 'extremelyLowBloodPressure',
     'Extremely High Blood Pressure': 'extremelyHighBloodPressure',
     'Extremely Low Oxygen Saturation': 'extremelyLowOxygenSaturation',
@@ -129,21 +129,20 @@ class PatientInterventionsState extends State<PatientInterventions> {
 
   final Map<String, String> physicalMapping = {
     'Diarrhea': 'diarrhea',
-    'Bowel Obstruction': 'bowelObstruction',
     'Constipation': 'constipation',
     'Fatigue': 'fatigue',
-    'Shortness of Breath': 'cough',
-    'Appetite': 'appetite',
-    'Weight Loss': 'anorexia',
+    'Shortness of Breath': 'dyspnea',
+    'Poor Appetite': 'appetite',
     'Coughing': 'cough',
-    'Nausea': 'nauseaOrVomiting',
-    'Drowsiness': 'drowsiness',
+    'Nausea': 'nausea',
+    'Vomiting': 'vomiting',
   };
 
   final Map<String, String> emotionalMapping = {
     'Depression': 'depression',
-    'Anxiety': 'anxietyOrAgitation',
+    'Anxiety': 'anxiety',
     'Confusion': 'delirium',
+    'Insomnia': 'insomnia',
   };
 
   Future<Map<String, List<String>>> _fetchInterventions() async {

@@ -74,18 +74,16 @@ class PatientTrackingState extends State<PatientTracking> {
   };
 
   int _diarrheaValue = 0;
-  int _bowelObstructionValue = 0;
   int _constipationValue = 0;
   int _fatigueValue = 0;
   int _shortnessOfBreathValue = 0;
-  int _appetiteValue = 0;
-  int _weightLossValue = 0;
+  int _poorAppetiteValue = 0;
   int _coughingValue = 0;
   int _nauseaValue = 0;
   int _depressionValue = 0;
   int _anxietyValue = 0;
-  int _drowsinessValue = 0;
   int _confusionValue = 0;
+  int _insomniaValue = 0;
 
   late Map<String, dynamic> _combinedInputs;
 
@@ -118,18 +116,16 @@ class PatientTrackingState extends State<PatientTracking> {
 
       // Reset symptom values
       _diarrheaValue = 0;
-      _bowelObstructionValue = 0;
       _constipationValue = 0;
       _fatigueValue = 0;
       _shortnessOfBreathValue = 0;
-      _appetiteValue = 0;
-      _weightLossValue = 0;
+      _poorAppetiteValue = 0;
       _coughingValue = 0;
       _nauseaValue = 0;
       _depressionValue = 0;
       _anxietyValue = 0;
-      _drowsinessValue = 0;
       _confusionValue = 0;
+      _insomniaValue = 0;
     });
   }
 
@@ -500,9 +496,6 @@ class PatientTrackingState extends State<PatientTracking> {
         _buildSlider('Diarrhea', _diarrheaValue, (val) {
           setState(() => _diarrheaValue = val);
         }),
-        _buildSlider('Bowel Obstruction', _bowelObstructionValue, (val) {
-          setState(() => _bowelObstructionValue = val);
-        }),
         _buildSlider('Constipation', _constipationValue, (val) {
           setState(() => _constipationValue = val);
         }),
@@ -512,20 +505,14 @@ class PatientTrackingState extends State<PatientTracking> {
         _buildSlider('Shortness of Breath', _shortnessOfBreathValue, (val) {
           setState(() => _shortnessOfBreathValue = val);
         }),
-        _buildSlider('Appetite', _appetiteValue, (val) {
-          setState(() => _appetiteValue = val);
-        }),
-        _buildSlider('Weight Loss', _weightLossValue, (val) {
-          setState(() => _weightLossValue = val);
+        _buildSlider('Poor Appetite', _poorAppetiteValue, (val) {
+          setState(() => _poorAppetiteValue = val);
         }),
         _buildSlider('Coughing', _coughingValue, (val) {
           setState(() => _coughingValue = val);
         }),
         _buildSlider('Nausea', _nauseaValue, (val) {
           setState(() => _nauseaValue = val);
-        }),
-        _buildSlider('Drowsiness', _drowsinessValue, (val) {
-          setState(() => _drowsinessValue = val);
         }),
         const SizedBox(height: 10),
         const Divider(thickness: 1.0),
@@ -547,6 +534,9 @@ class PatientTrackingState extends State<PatientTracking> {
         }),
         _buildSlider('Confusion', _confusionValue, (val) {
           setState(() => _confusionValue = val);
+        }),
+        _buildSlider('Insomnia', _insomniaValue, (val) {
+          setState(() => _insomniaValue = val);
         }),
       ],
     );
@@ -597,18 +587,16 @@ class PatientTrackingState extends State<PatientTracking> {
       'Vitals': _vitalInputs,
       'Symptom Assessment': {
         'Diarrhea': _diarrheaValue,
-        'Bowel Obstruction': _bowelObstructionValue,
         'Constipation': _constipationValue,
         'Fatigue': _fatigueValue,
         'Shortness of Breath': _shortnessOfBreathValue,
-        'Appetite': _appetiteValue,
-        'Weight Loss': _weightLossValue,
+        'Poor Appetite': _poorAppetiteValue,
         'Coughing': _coughingValue,
         'Nausea': _nauseaValue,
-        'Drowsiness': _drowsinessValue,
         'Depression': _depressionValue,
         'Anxiety': _anxietyValue,
         'Confusion': _confusionValue,
+        'Insomnia': _insomniaValue,
       },
     };
 
