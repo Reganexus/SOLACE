@@ -382,6 +382,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (isNewUser) {
         // Update newUser to false after navigating to CaregiverInstructions
         await userDocRef.update({'newUser': false});
+        // enroll user in sms authentication here
       }
 
       if (mounted) {
