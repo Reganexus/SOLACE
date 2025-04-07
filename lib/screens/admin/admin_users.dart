@@ -8,10 +8,10 @@ import 'package:solace/models/my_patient.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/admin/admin_edit.dart';
 import 'package:solace/screens/admin/admin_edit_tags.dart';
-import 'package:solace/screens/admin/admin_logs.dart';
 import 'package:solace/screens/admin/admin_role.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/services/log_service.dart';
+import 'package:solace/shared/widgets/audit_logs.dart';
 import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/themes/inputdecoration.dart';
@@ -281,9 +281,7 @@ class AdminUsersState extends State<AdminUsers> {
       Navigator.pop(context);
       Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (context) => AdminLogs(currentUserId: user.uid),
-        ),
+        MaterialPageRoute(builder: (context) => AuditLogs(uid: user.uid)),
       );
     }
 
@@ -490,132 +488,121 @@ class AdminUsersState extends State<AdminUsers> {
     );
   }
 
+  Widget _buildSearchBar() {
+    return IntrinsicHeight(
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              height: double.infinity, // Match height of the Row
+              decoration: BoxDecoration(
+                color: AppColors.gray, // Background color for TextField
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(10),
+                  bottomLeft: Radius.circular(
+                    10,
+                  ), // Rounded corners for left side
+                ),
+              ),
+              child: TextField(
+                controller: _searchController,
+                focusNode: _focusNode,
+                onChanged: _filterUsers,
+                decoration: InputDecorationStyles.build('Search', _focusNode),
+              ),
+            ),
+          ),
+          Container(
+            width: 120,
+            height: double.infinity,
+            decoration: BoxDecoration(
+              color: AppColors.gray,
+              borderRadius: const BorderRadius.only(
+                topRight: Radius.circular(10),
+                bottomRight: Radius.circular(10),
+              ),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _selectedRole,
+                onChanged: (role) {
+                  if (role != null) {
+                    if (mounted) {
+                      setState(() {
+                        _selectedRole = role;
+                        _searchController.clear();
+                        _refreshUserList();
+                      });
+                    }
+                  }
+                },
+                items:
+                    ['admin', 'caregiver', 'doctor', 'nurse', 'patient']
+                        .map(
+                          (role) => DropdownMenuItem(
+                            value: role,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                              ),
+                              child: Text(
+                                StringExtension(role).capitalize(),
+                                style: Textstyle.bodySmall,
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                icon: const Icon(Icons.arrow_drop_down),
+                isExpanded: true,
+                dropdownColor: AppColors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLister() {
+    if (filteredUsers.isEmpty) {
+      return _buildNoData();
+    }
+
+    return ListView.builder(
+      shrinkWrap: true, // Let it take only the space it needs
+      physics:
+          const NeverScrollableScrollPhysics(), // Prevent nested scroll conflict
+      itemCount: filteredUsers.length,
+      itemBuilder: (context, index) {
+        final user = filteredUsers[index];
+
+        if (_selectedRole == 'patient' && user is PatientData) {
+          return _buildPatientItem(user);
+        } else {
+          return _buildItem(user as UserData);
+        }
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.white,
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
-        child: Container(
-          color: AppColors.white,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Column(
-              children: [
-                _buildUserManagementInfo(),
-                const SizedBox(height: 20),
-                IntrinsicHeight(
-                  child: Row(
-                    children: [
-                      // Search TextField container
-                      Expanded(
-                        child: Container(
-                          height: double.infinity, // Match height of the Row
-                          decoration: BoxDecoration(
-                            color:
-                                AppColors
-                                    .gray, // Background color for TextField
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(10),
-                              bottomLeft: Radius.circular(
-                                10,
-                              ), // Rounded corners for left side
-                            ),
-                          ),
-                          child: TextField(
-                            controller: _searchController,
-                            focusNode: _focusNode,
-                            onChanged: _filterUsers,
-                            decoration: InputDecorationStyles.build(
-                              'Search',
-                              _focusNode,
-                            ),
-                          ),
-                        ),
-                      ),
-                      Container(
-                        width: 120,
-                        height: double.infinity,
-                        decoration: BoxDecoration(
-                          color: AppColors.gray,
-                          borderRadius: const BorderRadius.only(
-                            topRight: Radius.circular(10),
-                            bottomRight: Radius.circular(10),
-                          ),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: _selectedRole,
-                            onChanged: (role) {
-                              if (role != null) {
-                                if (mounted) {
-                                  setState(() {
-                                    _selectedRole = role;
-                                    _searchController.clear();
-                                    _refreshUserList();
-                                  });
-                                }
-                              }
-                            },
-                            items:
-                                [
-                                      'admin',
-                                      'caregiver',
-                                      'doctor',
-                                      'nurse',
-                                      'patient',
-                                    ]
-                                    .map(
-                                      (role) => DropdownMenuItem(
-                                        value: role,
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                          ),
-                                          child: Text(
-                                            StringExtension(role).capitalize(),
-                                            style: Textstyle.bodySmall,
-                                          ),
-                                        ),
-                                      ),
-                                    )
-                                    .toList(),
-                            icon: const Icon(Icons.arrow_drop_down),
-                            isExpanded: true,
-                            dropdownColor: AppColors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Flexible(
-                  fit: FlexFit.loose,
-                  child:
-                      filteredUsers.isEmpty
-                          ? _buildNoData()
-                          : ListView.builder(
-                            itemCount: filteredUsers.length,
-                            itemBuilder: (context, index) {
-                              final user = filteredUsers[index];
-                              if (_selectedRole == 'patient' &&
-                                  user is PatientData) {
-                                return _buildPatientItem(user);
-                              } else if (_selectedRole == 'caregiver') {
-                                return _buildItem(user as UserData);
-                              } else if (_selectedRole == 'doctor') {
-                                return _buildItem(user as UserData);
-                              } else if (_selectedRole == 'nurse') {
-                                return _buildItem(user as UserData);
-                              } else {
-                                return _buildItem(user as UserData);
-                              }
-                            },
-                          ),
-                ),
-              ],
-            ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildUserManagementInfo(),
+              const SizedBox(height: 20),
+              _buildSearchBar(),
+              const SizedBox(height: 10),
+              _buildLister(),
+            ],
           ),
         ),
       ),
@@ -623,22 +610,21 @@ class AdminUsersState extends State<AdminUsers> {
   }
 
   Widget _buildNoData() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.error_outline_rounded, size: 50, color: AppColors.black),
-          const SizedBox(height: 10),
-          Text(
-            'No ${_selectedRole}s available',
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.normal,
-              fontFamily: 'Inter',
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline_rounded, size: 50, color: AppColors.black),
+            const SizedBox(height: 10),
+            Text(
+              'No ${_selectedRole}s available',
+              style: Textstyle.body,
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -729,7 +715,7 @@ class AdminUsersState extends State<AdminUsers> {
           borderRadius: BorderRadius.circular(10),
           child: Container(
             width: double.infinity,
-            height: 180,
+            height: 200,
             decoration: BoxDecoration(
               image: DecorationImage(
                 image: AssetImage('lib/assets/images/auth/manage.jpg'),

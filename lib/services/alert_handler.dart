@@ -13,7 +13,7 @@ class AlertHandler extends StatelessWidget {
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: AppColors.white,
-      title: Text(title, style: Textstyle.heading),
+      title: Text(title, style: Textstyle.subheader),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,

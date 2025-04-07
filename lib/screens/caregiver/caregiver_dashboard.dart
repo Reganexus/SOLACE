@@ -126,7 +126,6 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
     return Scaffold(
       backgroundColor: AppColors.white,
       body: SingleChildScrollView(
-        // Wrap the entire body in a scrollable view
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: Column(
@@ -137,28 +136,6 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
               else
                 Column(
                   children: [
-                    ElevatedButton(
-                      onPressed: () async {
-                        final String? targetToken = await fetchUserToken();
-                        debugPrint("Target Token: $targetToken");
-
-                        if (targetToken != null) {
-                          try {
-                            await MessagingService.sendDataMessage(
-                              targetToken,
-                              "Hello",
-                              "Sample Message there bud!",
-                            );
-                            debugPrint("Notification sent!");
-                          } catch (e) {
-                            debugPrint("Error sending notification: $e");
-                          }
-                        } else {
-                          debugPrint("No valid FCM token available.");
-                        }
-                      },
-                      child: Text('Send Notification to Device'),
-                    ),
                     if (userRole == 'doctor' || userRole == 'nurse')
                       _buildPatientContent(),
                     if (userRole == 'caregiver')

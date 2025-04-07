@@ -30,7 +30,19 @@ class Wrapper extends StatelessWidget {
           return Container(
             color: AppColors.neon,
             alignment: Alignment.center,
-            child: Loader.loaderWhite,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Loader.loaderWhite,
+                SizedBox(height: 20),
+                Text(
+                  "Loading your data. Please wait.",
+                  style: Textstyle.bodyWhite.copyWith(
+                    decoration: TextDecoration.none,
+                  ),
+                ),
+              ],
+            ),
           );
         }
 

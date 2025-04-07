@@ -13,7 +13,7 @@ class ErrorDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: AppColors.white,
-      title: Text(title, style: Textstyle.title),
+      title: Text(title, style: Textstyle.subheader),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -31,7 +31,7 @@ class ErrorDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          style: Buttonstyle.neon,
+          style: Buttonstyle.buttonNeon,
           child: Text('OK', style: Textstyle.smallButton),
         ),
       ],

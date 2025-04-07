@@ -474,36 +474,42 @@ class _SignUpState extends State<SignUp> {
     return Scaffold(
       backgroundColor: AppColors.white,
       body: GestureDetector(
-        onTap: () {
-          FocusScope.of(context).unfocus(); // Dismiss the keyboard
-        },
+        onTap: () => FocusScope.of(context).unfocus(),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            return Center(
-              child: Container(
-                constraints: BoxConstraints(maxWidth: 400),
-                padding: const EdgeInsets.symmetric(horizontal: 30),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      _buildSignUpHeader(),
-                      _emailField(),
-                      const SizedBox(height: 20),
-                      _passwordField(),
-                      const SizedBox(height: 20),
-                      _buildTermsAndConditions(),
-                      const SizedBox(height: 20),
-                      _buildSignUpButton(),
-                      const SizedBox(height: 20),
-                      _buildDivider(),
-                      const SizedBox(height: 20),
-                      _buildGoogleButton(),
-                      const SizedBox(height: 20),
-                      _buildToggleViewButton(),
-                    ],
+            return SingleChildScrollView(
+              physics: NeverScrollableScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: IntrinsicHeight(
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget>[
+                        _buildSignUpHeader(),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Column(
+                            children: [
+                              _emailField(),
+                              const SizedBox(height: 20),
+                              _passwordField(),
+                              const SizedBox(height: 20),
+                              _buildTermsAndConditions(),
+                              const SizedBox(height: 20),
+                              _buildSignUpButton(),
+                              const SizedBox(height: 20),
+                              _buildDivider(),
+                              const SizedBox(height: 20),
+                              _buildGoogleButton(),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        _buildToggleViewButton(),
+                      ],
+                    ),
                   ),
                 ),
               ),

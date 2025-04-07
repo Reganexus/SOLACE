@@ -353,24 +353,6 @@ class PatientInterventionsState extends State<PatientInterventions> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Header Section
-              Container(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Interventions', style: Textstyle.subheader),
-                    const SizedBox(height: 10),
-                    Text(
-                      'Select a section to view the checklist of interventions based on the patient\'s current status.',
-                      style: Textstyle.body,
-                    ),
-                    const SizedBox(height: 10),
-                  ],
-                ),
-              ),
-
-              // Display Interventions or No Interventions Widget
               if (selectedSection != null)
                 sections[selectedSection]!.isNotEmpty
                     ? Padding(
@@ -408,8 +390,9 @@ class PatientInterventionsState extends State<PatientInterventions> {
                                           selected: selectedSection == section,
                                           onSelected: (isSelected) {
                                             setState(() {
-                                              selectedSection =
-                                                  isSelected ? section : null;
+                                              if (selectedSection != section) {
+                                                selectedSection = section;
+                                              }
                                             });
                                           },
                                           side: BorderSide(
@@ -423,7 +406,6 @@ class PatientInterventionsState extends State<PatientInterventions> {
                               ),
                             ),
                           ),
-
                           const SizedBox(height: 10),
                           buildSymptomSection(
                             sections[selectedSection] ?? [],

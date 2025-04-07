@@ -175,10 +175,16 @@ class _LogInState extends State<LogIn> {
       return;
     }
     final password = _passwordController.text.trim();
+    if (password.isEmpty) {
+      _showError(['Password cannot be empty.']);
+      return;
+    }
     final allowed = await isLoginAllowed(email);
-    
+
     if (!allowed) {
-      final docRef = FirebaseFirestore.instance.collection('login_attempts').doc(email);
+      final docRef = FirebaseFirestore.instance
+          .collection('login_attempts')
+          .doc(email);
       final snapshot = await docRef.get();
       String lockedDurationMessage = '';
 
@@ -248,7 +254,6 @@ class _LogInState extends State<LogIn> {
 
     await recordLoginAttempt(attemptedEmail);
   }
-
 
   void showToast(String message) {
     Fluttertoast.showToast(
@@ -320,8 +325,12 @@ class _LogInState extends State<LogIn> {
   }
 
   Future<void> recordLoginAttempt(String email) async {
-    if(_email.isEmpty) return; // Avoid unnecessary Firestore calls if email is empty
-    final docRef = FirebaseFirestore.instance.collection('login_attempts').doc(email);
+    if (_email.isEmpty) {
+      return; // Avoid unnecessary Firestore calls if email is empty
+    }
+    final docRef = FirebaseFirestore.instance
+        .collection('login_attempts')
+        .doc(email);
     final snapshot = await docRef.get();
     int attempts = 1;
     DateTime? lockedUntil;
@@ -349,13 +358,18 @@ class _LogInState extends State<LogIn> {
   }
 
   Future<void> resetLoginAttempts(String email) async {
-    await FirebaseFirestore.instance.collection('login_attempts').doc(email).delete();
+    await FirebaseFirestore.instance
+        .collection('login_attempts')
+        .doc(email)
+        .delete();
   }
 
   Future<bool> isLoginAllowed(String email) async {
-    final docRef = FirebaseFirestore.instance.collection('login_attempts').doc(email);
+    final docRef = FirebaseFirestore.instance
+        .collection('login_attempts')
+        .doc(email);
     final snapshot = await docRef.get();
-    
+
     if (snapshot.exists) {
       final data = snapshot.data()!;
       final lockedUntil = (data['lockedUntil'] as Timestamp?)?.toDate();
@@ -469,116 +483,108 @@ class _LogInState extends State<LogIn> {
     );
   }
 
+  Widget _buildLoginButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: TextButton(
+        onPressed: (!_isLoading && _isLoginButtonEnabled) ? _handleLogin : null,
+        style: Buttonstyle.neon,
+        child:
+            _isLoading
+                ? SizedBox(width: 26, height: 26, child: Loader.loaderWhite)
+                : Text('Login', style: Textstyle.largeButton),
+      ),
+    );
+  }
+
+  Widget _buildDivider() {
+    return Row(
+      children: <Widget>[
+        Expanded(child: Divider()),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 10),
+          child: Text("or"),
+        ),
+        Expanded(child: Divider()),
+      ],
+    );
+  }
+
+  Widget _buildGoogleSignInButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: TextButton(
+        onPressed:
+            (!_isLoading && _isGoogleSignInButtonEnabled)
+                ? _handleSignUpWithGoogle
+                : null,
+        style: Buttonstyle.white,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset('lib/assets/images/auth/google.png', height: 24),
+            const SizedBox(width: 10),
+            Text('Sign in with Google', style: Textstyle.body),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildToggleViewButton() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: <Widget>[
+        Text('Don\'t have an account?', style: Textstyle.body),
+        const SizedBox(width: 5),
+        GestureDetector(
+          onTap: _isLoading ? null : () => widget.toggleView(),
+          child: Text('Sign Up', style: Textstyle.bodyNeon),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.white,
       body: GestureDetector(
-        onTap: () {
-          FocusScope.of(context).unfocus(); // Dismiss the keyboard
-        },
+        onTap: () => FocusScope.of(context).unfocus(),
         child: LayoutBuilder(
           builder: (context, constraints) {
             return SingleChildScrollView(
+              physics: NeverScrollableScrollPhysics(),
               child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight, // Full screen height
-                ),
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
                 child: IntrinsicHeight(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 30),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: <Widget>[
-                          _buildLoginHeader(), // Header widget
-                          _emailField(),
-                          const SizedBox(height: 20),
-                          _passwordField(),
-                          const SizedBox(height: 20),
-                          _buildForgotPassword(),
-                          const SizedBox(height: 20),
-                          SizedBox(
-                            width: double.infinity,
-                            child: TextButton(
-                              onPressed:
-                                  (!_isLoading && _isLoginButtonEnabled)
-                                      ? _handleLogin
-                                      : null,
-                              style: Buttonstyle.neon,
-                              child:
-                                  _isLoading
-                                      ? SizedBox(
-                                        width: 26,
-                                        height: 26,
-                                        child: Loader.loaderWhite,
-                                      )
-                                      : Text(
-                                        'Login',
-                                        style: Textstyle.largeButton,
-                                      ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          const Row(
-                            children: <Widget>[
-                              Expanded(child: Divider()),
-                              Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 10),
-                                child: Text("or"),
-                              ),
-                              Expanded(child: Divider()),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget>[
+                        _buildLoginHeader(),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Column(
+                            children: [
+                              _emailField(),
+                              const SizedBox(height: 20),
+                              _passwordField(),
+                              const SizedBox(height: 20),
+                              _buildForgotPassword(),
+                              const SizedBox(height: 20),
+                              _buildLoginButton(),
+                              const SizedBox(height: 20),
+                              _buildDivider(),
+                              const SizedBox(height: 20),
+                              _buildGoogleSignInButton(),
                             ],
                           ),
-                          const SizedBox(height: 20),
-                          SizedBox(
-                            width: double.infinity,
-                            child: TextButton(
-                              onPressed:
-                                  (!_isLoading && _isGoogleSignInButtonEnabled)
-                                      ? _handleSignUpWithGoogle
-                                      : null,
-                              style: Buttonstyle.white,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Image.asset(
-                                    'lib/assets/images/auth/google.png',
-                                    height: 24,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Text(
-                                    'Sign in with Google',
-                                    style: Textstyle.body,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: <Widget>[
-                              Text(
-                                'Don\'t have an account?',
-                                style: Textstyle.body,
-                              ),
-                              const SizedBox(width: 5),
-                              GestureDetector(
-                                onTap:
-                                    _isLoading
-                                        ? null
-                                        : () => widget.toggleView(),
-                                child: Text(
-                                  'Sign Up',
-                                  style: Textstyle.bodyNeon,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(height: 20),
+                        _buildToggleViewButton(),
+                      ],
                     ),
                   ),
                 ),

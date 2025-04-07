@@ -1,7 +1,10 @@
+// ignore_for_file: avoid_print
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:solace/services/alert_handler.dart';
+import 'package:solace/services/database.dart';
 import 'package:solace/services/log_service.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/themes/textstyle.dart';
@@ -17,6 +20,15 @@ class AuditLogs extends StatefulWidget {
 
 class AuditLogsState extends State<AuditLogs> {
   final LogService _logService = LogService();
+  DatabaseService databaseService = DatabaseService();
+
+  String? name = '';
+
+  @override
+  void initState() {
+    super.initState();
+    fetchName();
+  }
 
   void _showLogDetails(String title, String message) {
     showDialog(
@@ -25,9 +37,41 @@ class AuditLogsState extends State<AuditLogs> {
     );
   }
 
+  Future<void> fetchName() async {
+    try {
+      final doc = await databaseService.fetchUserData(widget.uid);
+      if (doc == null) return;
+
+      // Safely cast data() to Map<String, dynamic>
+      final data = doc.toMap() as Map<String, dynamic>?;
+
+      // Retrieve only firstName and lastName
+      final firstName = data?['firstName'] ?? '';
+      final lastName = data?['lastName'] ?? '';
+
+      // Construct the full name
+      final fetchedName =
+          [
+            firstName,
+            lastName,
+          ].where((name) => name.isNotEmpty).join(' ').trim();
+
+      // Update state with the fetched name
+      setState(() {
+        name = fetchedName;
+      });
+    } catch (e) {
+      print("Error fetching name: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: Text('$name Logs', style: Textstyle.subheader),
+        backgroundColor: AppColors.white,
+      ),
       backgroundColor: AppColors.white,
       body: Container(
         color: AppColors.white,
@@ -48,7 +92,6 @@ class AuditLogsState extends State<AuditLogs> {
             var logs = snapshot.data!;
 
             return ListView.builder(
-              // ✅ Added return
               itemCount: logs.length,
               itemBuilder: (context, index) {
                 var log = logs[index];
@@ -111,7 +154,7 @@ class AuditLogsState extends State<AuditLogs> {
                   ),
                 );
               },
-            ); // ✅ Now StreamBuilder always returns a Widget
+            );
           },
         ),
       ),

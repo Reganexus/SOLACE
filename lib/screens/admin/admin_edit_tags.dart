@@ -27,6 +27,7 @@ class EditTagsState extends State<EditTags> {
   List<String> availableUserIds = [];
   String? _selectedRole = '';
   bool _isTagging = false;
+  bool isFetching = false;
   late String userName = '';
   late String adminId = '';
 
@@ -61,24 +62,32 @@ class EditTagsState extends State<EditTags> {
   }
 
   Future<void> _loadUserData() async {
-    // Fetch the user role (optional if we already have it)
-    String? userRole = await _db.fetchAndCacheUserRole(widget.currentUserId);
-
-    if (userRole == null) {
-      debugPrint("user role is null");
-      return;
-    }
-
-    // Fetch the tag field from Firestore based on the user role
-    var taggedUsers = await _fetchTaggedUsers(userRole);
-
-    // Filter available users for the selection (e.g., doctors, nurses, patients, etc.)
-    var availableUsers = await _fetchAvailableUsers(userRole);
-
     setState(() {
-      taggedUserIds = taggedUsers;
-      availableUserIds = availableUsers;
+      isFetching = true;
     });
+
+    try {
+      String? userRole = await _db.fetchAndCacheUserRole(widget.currentUserId);
+
+      if (userRole == null) {
+        debugPrint("User role is null");
+        return;
+      }
+
+      var taggedUsers = await _fetchTaggedUsers(userRole);
+      var availableUsers = await _fetchAvailableUsers(userRole);
+
+      setState(() {
+        taggedUserIds = taggedUsers;
+        availableUserIds = availableUsers;
+      });
+    } catch (e) {
+      debugPrint("Error loading user data: $e");
+    } finally {
+      setState(() {
+        isFetching = false;
+      });
+    }
   }
 
   Future<List<String>> _fetchTaggedUsers(String userRole) async {
@@ -223,6 +232,10 @@ class EditTagsState extends State<EditTags> {
   }
 
   Widget _buildTaggedUserList() {
+    if (isFetching) {
+      return Center(child: Loader.loaderNeon);
+    }
+
     if (taggedUserIds.isEmpty) {
       return _buildNoTaggedUsersState();
     }
@@ -233,9 +246,6 @@ class EditTagsState extends State<EditTags> {
             return FutureBuilder<String?>(
               future: _db.fetchUserName(userId),
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Center(child: CircularProgressIndicator());
-                }
                 if (snapshot.hasError) {
                   return Container(
                     padding: EdgeInsets.all(10),
@@ -319,6 +329,10 @@ class EditTagsState extends State<EditTags> {
   }
 
   Widget _buildAvailableUserList() {
+    if (isFetching) {
+      return Center(child: Loader.loaderNeon);
+    }
+
     if (availableUserIds.isEmpty) {
       return _buildNoAvailableUsersState();
     }
@@ -326,9 +340,6 @@ class EditTagsState extends State<EditTags> {
     return FutureBuilder<String?>(
       future: _db.fetchAndCacheUserRole(widget.currentUserId),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: Loader.loaderNeon);
-        }
         if (snapshot.hasError) {
           return Text('Error fetching user role', style: Textstyle.body);
         }
@@ -351,10 +362,6 @@ class EditTagsState extends State<EditTags> {
             FutureBuilder<List<String>>(
               future: _fetchAvailableUsers(userRole),
               builder: (context, availableUsersSnapshot) {
-                if (availableUsersSnapshot.connectionState ==
-                    ConnectionState.waiting) {
-                  return Center(child: Loader.loaderNeon);
-                }
                 if (availableUsersSnapshot.hasError) {
                   return Text(
                     'Error fetching available users',
@@ -376,10 +383,6 @@ class EditTagsState extends State<EditTags> {
                   return FutureBuilder<Map<String, List<String>>>(
                     future: _categorizeAvailableUsers(availableUserIds),
                     builder: (context, categorizedSnapshot) {
-                      if (categorizedSnapshot.connectionState ==
-                          ConnectionState.waiting) {
-                        return Center(child: Loader.loaderNeon);
-                      }
                       if (categorizedSnapshot.hasError) {
                         return Text(
                           'Error categorizing users',
@@ -465,12 +468,6 @@ class EditTagsState extends State<EditTags> {
                                     return FutureBuilder<String?>(
                                       future: _db.fetchUserName(userId),
                                       builder: (context, nameSnapshot) {
-                                        if (nameSnapshot.connectionState ==
-                                            ConnectionState.waiting) {
-                                          return Center(
-                                            child: Loader.loaderNeon,
-                                          );
-                                        }
                                         if (nameSnapshot.hasError) {
                                           return Container(
                                             padding: EdgeInsets.all(10),
@@ -586,10 +583,6 @@ class EditTagsState extends State<EditTags> {
                           return FutureBuilder<String?>(
                             future: _db.fetchUserName(userId),
                             builder: (context, nameSnapshot) {
-                              if (nameSnapshot.connectionState ==
-                                  ConnectionState.waiting) {
-                                return Center(child: Loader.loaderNeon);
-                              }
                               if (nameSnapshot.hasError) {
                                 return Container(
                                   padding: EdgeInsets.all(10),
@@ -889,9 +882,9 @@ class EditTagsState extends State<EditTags> {
               Text('Tagged Users', style: Textstyle.subheader),
               SizedBox(height: 10),
               _buildTaggedUserList(),
-              SizedBox(height: 10),
+              SizedBox(height: 20),
               Divider(),
-              SizedBox(height: 10),
+              SizedBox(height: 20),
               _buildAvailableUserList(),
             ],
           ),

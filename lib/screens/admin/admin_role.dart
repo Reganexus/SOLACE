@@ -74,34 +74,31 @@ class EditUserRoleDialogState extends State<EditUserRoleDialog> {
   }
 
   void _changeUserRole() async {
-    debugPrint("Selected role: $_selectedRole");
-    if (_selectedRole == null) return;
+    if (_selectedRole == null || _selectedRole!.isEmpty) {
+      showToast("Please select a new role before submitting.");
+      return;
+    }
 
     setState(() => _isSaving = true);
 
     try {
       final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
-      // Fetch current role
       final currentRole = await db.fetchAndCacheUserRole(widget.uid);
       if (currentRole == null) {
         showToast("Error: Unable to determine the current role.");
-        setState(() => _isSaving = false);
         return;
       }
 
       if (currentRole == _selectedRole) {
-        showToast("The user is already in the selected role.");
-        setState(() => _isSaving = false);
+        showToast("The user is already assigned to the selected role.");
         return;
       }
 
       await firestore.runTransaction((transaction) async {
-        // References
         final currentDocRef = firestore.collection(currentRole).doc(widget.uid);
         final newDocRef = firestore.collection(_selectedRole!).doc(widget.uid);
 
-        // Fetch current user document
         final currentDocSnapshot = await transaction.get(currentDocRef);
         if (!currentDocSnapshot.exists) {
           throw Exception(
@@ -109,44 +106,34 @@ class EditUserRoleDialogState extends State<EditUserRoleDialog> {
           );
         }
 
-        // Get document data
         final userData = currentDocSnapshot.data();
         if (userData == null) {
-          throw Exception("User data is null.");
+          throw Exception("User data is empty.");
         }
 
-        // Add user to new collection with updated role
         transaction.set(newDocRef, {...userData, 'userRole': _selectedRole!});
 
-        // Delete from previous collection
         transaction.delete(currentDocRef);
       });
 
-      // Success feedback
       final user = _auth.currentUser;
-
-      if (user == null) {
-        print("Error: No authenticated user found.");
-        return;
+      if (user?.uid == null) {
+        debugPrint("Warning: Authenticated user not found.");
+      } else {
+        await _logService.addLog(
+          userId: user!.uid,
+          action: "Updated role for $_userName",
+        );
       }
 
-      if (user.uid == null) {
-        print("Error: User Id is Null.");
-        return;
-      }
-
-      await _logService.addLog(
-        userId: user.uid,
-        action: "Updated role for $_userName",
-      );
       showToast("User role updated successfully.");
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => AdminHome()),
       );
     } catch (e) {
-      debugPrint("Error changing user role: $e");
-      showToast("Failed to update role.");
+      debugPrint("Error during role change: $e");
+      showToast("Failed to update role. Please try again.");
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);
@@ -240,18 +227,28 @@ class EditUserRoleDialogState extends State<EditUserRoleDialog> {
                               .map(
                                 (role) => DropdownMenuItem(
                                   value: role,
-                                  child: Text(role, style: Textstyle.body),
+                                  child: Text(
+                                    role[0].toUpperCase() + role.substring(1),
+                                    style: Textstyle.body,
+                                  ),
                                 ),
                               )
                               .toList(),
+
                       dropdownColor: AppColors.white,
                     ),
                     SizedBox(height: 20),
                     SizedBox(
                       width: double.infinity,
                       child: TextButton(
-                        onPressed: _isSaving ? null : _changeUserRole,
-                        style: Buttonstyle.buttonNeon,
+                        onPressed:
+                            (_selectedRole == null || _isSaving)
+                                ? null
+                                : _changeUserRole,
+                        style:
+                            _selectedRole == null
+                                ? Buttonstyle.buttonGray
+                                : Buttonstyle.buttonNeon,
                         child:
                             _isSaving
                                 ? Loader.loaderWhite

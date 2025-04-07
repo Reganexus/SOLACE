@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:intl/intl.dart';
 import 'package:solace/screens/caregiver/caregiver_add_medicine.dart';
 import 'package:solace/screens/caregiver/caregiver_add_task.dart';
 import 'package:solace/screens/patient/patient_edit.dart';
@@ -119,9 +120,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
             isLoading = false;
           });
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Patient data not found.")),
-        );
+        showToast("Patient data not found.");
       }
     } catch (e) {
       if (mounted) {
@@ -129,9 +128,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
           isLoading = false;
         });
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error fetching patient data: $e")),
-      );
+      showToast("Error fetching patient data: $e");
     }
   }
 
@@ -404,66 +401,69 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     required IconData buttonIcon,
     required VoidCallback onPressed,
   }) {
-    return Stack(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            width: double.infinity,
-            height: 180,
-            decoration: BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage(imagePath),
-                fit: BoxFit.cover,
+    return GestureDetector(
+      onTap: onPressed,
+      child: Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              width: double.infinity,
+              height: 200,
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage(imagePath),
+                  fit: BoxFit.cover,
+                ),
               ),
+              child: Container(color: AppColors.black.withValues(alpha: 0.4)),
             ),
-            child: Container(color: AppColors.black.withValues(alpha: 0.4)),
           ),
-        ),
-        Positioned(
-          bottom: 20,
-          left: 20,
-          right: 20,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: Textstyle.heading.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.white,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                description,
-                style: Textstyle.body.copyWith(color: AppColors.white),
-              ),
-              SizedBox(
-                width: 200,
-                child: TextButton(
-                  onPressed: onPressed,
-                  style: Buttonstyle.buttonDarkGray,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        buttonText,
-                        style: Textstyle.smallButton.copyWith(
-                          color: AppColors.white,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(buttonIcon, size: 16, color: AppColors.white),
-                    ],
+          Positioned(
+            bottom: 20,
+            left: 20,
+            right: 20,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Textstyle.heading.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.white,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  description,
+                  style: Textstyle.body.copyWith(color: AppColors.white),
+                ),
+                const SizedBox(height: 20),
+                Divider(),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    Text(
+                      buttonText,
+                      style: Textstyle.body.copyWith(
+                        color: AppColors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 16,
+                      color: AppColors.white,
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -519,20 +519,23 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
   }
 
   Widget _buildTracking() {
-    return _buildContainer(
-      title: 'Track Patient',
-      description: 'Monitor and track patient symptom flare-ups and vitals.',
-      imagePath: 'lib/assets/images/auth/tracking.jpg',
-      buttonText: 'Track Patient',
-      buttonIcon: Icons.monitor_heart_rounded,
-      onPressed: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => PatientTracking(patientId: widget.patientId),
-          ),
-        );
-      },
+    return GestureDetector(
+      child: _buildContainer(
+        title: 'Track Patient',
+        description: 'Monitor and track patient symptom flare-ups and vitals.',
+        imagePath: 'lib/assets/images/auth/tracking.jpg',
+        buttonText: 'Track Patient',
+        buttonIcon: Icons.monitor_heart_rounded,
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (context) => PatientTracking(patientId: widget.patientId),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -582,10 +585,6 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
         ],
       ),
     );
-  }
-
-  Widget _buildInterventions() {
-    return PatientInterventions(patientId: widget.patientId);
   }
 
   Future<void> _scheduleAppointment(
@@ -668,9 +667,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
 
       if (caregiverRole == null || patientRole == null) {
         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Failed to schedule. Roles not found.")),
-        );
+        showToast("Failed to schedule. Roles not found.");
         return;
       }
 
@@ -696,15 +693,15 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
         action: "Scheduled patient $patientName on $scheduledDateTime",
       );
 
+      final formattedDateTime = DateFormat(
+        "MMMM d, yyyy",
+      ).format(scheduledDateTime);
+
       debugPrint("Schedule saved for both caregiver and patient.");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Appointment successfully scheduled!')),
-      );
+      showToast("Appointment scheduled for $patientName at $formattedDateTime");
     } catch (e) {
       debugPrint("Failed to save schedule: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to schedule appointment.")),
-      );
+      showToast("Failed to schedule appointment.");
     }
   }
 
@@ -718,10 +715,6 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
               ) // Document ID for the current user (patient)
               .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
         if (snapshot.hasError) {
           return const Center(child: Text('Error fetching data'));
         }
@@ -835,10 +828,6 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
               .doc(widget.patientId)
               .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
         if (snapshot.hasError) {
           return const Center(child: Text('Error fetching vitals data'));
         }
@@ -872,10 +861,6 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
                   .doc(widget.patientId)
                   .get(), // Fetch predictions once
           builder: (context, predictionSnapshot) {
-            if (predictionSnapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
             if (predictionSnapshot.hasError) {
               return const Center(child: Text('Error fetching predictions'));
             }
@@ -1011,7 +996,6 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     );
   }
 
-  // Extracted UI function to avoid repetition
   Widget _buildVitalRow(
     String key,
     String value,
@@ -1148,6 +1132,30 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     return CarouselWidget(
       pageController: _pageController,
       patientId: widget.patientId,
+    );
+  }
+
+  Widget _buildInterventions() {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Interventions', style: Textstyle.subheader),
+              const SizedBox(height: 10),
+              Text(
+                'Select a section to view the checklist of interventions based on the patient\'s current status.',
+                style: Textstyle.body,
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 10),
+        PatientInterventions(patientId: widget.patientId),
+      ],
     );
   }
 
