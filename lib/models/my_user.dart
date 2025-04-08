@@ -53,7 +53,7 @@ class UserData {
   final UserRole userRole;
   final String uid;
   final String firstName;
-  final String middleName;
+  final String? middleName;
   final String lastName;
   final String email;
   final String phoneNumber;
@@ -71,7 +71,7 @@ class UserData {
     required this.userRole,
     required this.uid,
     required this.firstName,
-    required this.middleName,
+    this.middleName,
     required this.lastName,
     required this.email,
     required this.phoneNumber,

@@ -5,10 +5,9 @@ class PatientData {
   final String userRole;
   final String firstName;
   final String lastName;
-  final String middleName;
-  final String caseTitle;
+  final String? middleName;
   final List<String> cases;
-  final String caseDescription;
+  final String? caseDescription;
   final String profileImageUrl;
   final String gender;
   final DateTime birthday;
@@ -23,10 +22,9 @@ class PatientData {
     this.userRole = 'patient',
     required this.firstName,
     required this.lastName,
-    required this.middleName, // Marked as required
-    required this.caseTitle, // Required
+    this.middleName,
     required this.cases,
-    required this.caseDescription, // Required
+    this.caseDescription,
     required this.profileImageUrl,
     required this.gender,
     required this.birthday,
@@ -60,7 +58,6 @@ class PatientData {
       lastName: data['lastName'] ?? '',
       middleName:
           data['middleName'] ?? '', // Changed to required with default fallback
-      caseTitle: data['caseTitle'] ?? '', // Ensure default value or required
       cases: List<String>.from(data['cases'] ?? []),
       caseDescription:
           data['caseDescription'] ?? '', // Ensure default value or required
@@ -81,8 +78,7 @@ class PatientData {
       'userRole': userRole,
       'firstName': firstName,
       'lastName': lastName,
-      'middleName': middleName, // Included as required
-      'caseTitle': caseTitle, // Include in mapping
+      'middleName': middleName,
       'cases': cases,
       'caseDescription': caseDescription, // Include in mapping
       'profileImageUrl': profileImageUrl,
@@ -98,6 +94,6 @@ class PatientData {
 
   @override
   String toString() {
-    return 'PatientData(uid: $uid, userRole: $userRole, firstName: $firstName, lastName: $lastName, middleName: $middleName, caseTitle: $caseTitle, caseDescription: $caseDescription, gender: $gender, birthday: $birthday, age: $age, religion: $religion, address: $address, status: $status, tag: $tag)';
+    return 'PatientData(uid: $uid, userRole: $userRole, firstName: $firstName, lastName: $lastName, middleName: $middleName, caseDescription: $caseDescription, gender: $gender, birthday: $birthday, age: $age, religion: $religion, address: $address, status: $status, tag: $tag)';
   }
 }

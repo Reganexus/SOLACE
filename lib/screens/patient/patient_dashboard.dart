@@ -916,6 +916,10 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
                           _currentTime,
                         );
 
+                        if (futureTime.isBefore(_currentTime)) {
+                          continue;
+                        }
+
                         if (!criticalPredictions.containsKey(
                           _convertPredictionKeyToName(key),
                         )) {

@@ -198,8 +198,8 @@ class _EditPatientState extends State<EditPatient> {
         setState(() {
           firstNameController.text = patientData.firstName;
           lastNameController.text = patientData.lastName;
-          middleNameController.text = patientData.middleName;
-          caseDescriptionController.text = patientData.caseDescription;
+          middleNameController.text = patientData.middleName ?? '';
+          caseDescriptionController.text = patientData.caseDescription ?? '';
           addressController.text = patientData.address;
           gender = patientData.gender;
           religion = patientData.religion;
