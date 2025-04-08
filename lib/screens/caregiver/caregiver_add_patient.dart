@@ -380,9 +380,6 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
         currentUserId: user,
       );
 
-      final name =
-          '${firstNameController.text.trim().capitalizeEachWord()} ${lastNameController.text.trim().capitalizeEachWord()}';
-
       await _logService.addLog(
         userId: user,
         action: "Added Patient $patientName",
