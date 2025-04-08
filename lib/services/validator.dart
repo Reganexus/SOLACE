@@ -34,7 +34,10 @@ class Validator {
 
   static String? name(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Name cannot be empty.';
+      return 'This field cannot be empty.';
+    }
+    if (value.length > 50) {
+      return 'Cannot exceed 50 characters.';
     }
     final nameRegExp = RegExp(
       r"^(?!['.-])[\p{L}]+(?:[\s'-][\p{L}]+)*(?<!['.-])$",
@@ -54,6 +57,16 @@ class Validator {
     final phoneRegExp = RegExp(r'^09\d{9}$');
     if (!phoneRegExp.hasMatch(value)) {
       return 'Enter a valid phone number.';
+    }
+    return null;
+  }
+
+  static String? address(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Address cannot be empty.';
+    }
+    if (value.length > 200) {
+      return 'Cannot exceed 200 characters.';
     }
     return null;
   }

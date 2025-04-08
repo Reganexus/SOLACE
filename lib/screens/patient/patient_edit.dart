@@ -198,8 +198,8 @@ class _EditPatientState extends State<EditPatient> {
         setState(() {
           firstNameController.text = patientData.firstName;
           lastNameController.text = patientData.lastName;
-          middleNameController.text = patientData.middleName;
-          caseDescriptionController.text = patientData.caseDescription;
+          middleNameController.text = patientData.middleName ?? '';
+          caseDescriptionController.text = patientData.caseDescription ?? '';
           addressController.text = patientData.address;
           gender = patientData.gender;
           religion = patientData.religion;
@@ -483,11 +483,6 @@ class _EditPatientState extends State<EditPatient> {
                             focusNode: _focusNodes[7],
                             labelText: 'Case Description',
                             enabled: !_isLoading,
-                            validator:
-                                (val) =>
-                                    val!.isEmpty
-                                        ? 'Case Description cannot be empty'
-                                        : null,
                           ),
                           divider(),
                           Row(

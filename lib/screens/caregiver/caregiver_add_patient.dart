@@ -267,9 +267,6 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
       if (Validator.name(firstNameController.text.trim()) != null) {
         throw Exception("Invalid first name.");
       }
-      if (Validator.name(middleNameController.text.trim()) != null) {
-        throw Exception("Invalid middle name.");
-      }
       if (Validator.name(lastNameController.text.trim()) != null) {
         throw Exception("Invalid last name.");
       }
@@ -305,9 +302,6 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
       if (addressController.text.trim().isEmpty) {
         throw Exception('Address cannot be empty.');
       }
-      if (caseDescriptionController.text.trim().isEmpty) {
-        throw Exception('Case Description cannot be empty.');
-      }
 
       // Add patient data with conditional tag
       await DatabaseService().addPatientData(
@@ -327,6 +321,13 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
         address: addressController.text.trim().capitalizeEachWord(),
         tag: role == 'caregiver' ? [user.toString()] : <String>[],
       );
+
+      final userRef = FirebaseFirestore.instance
+            .collection('caregiver')
+            .doc(user);
+
+        // Add patient ID to caregiver's tags subcollection
+        await userRef.collection('tags').doc(userId).set({});
 
       final name =
           '${firstNameController.text.trim().capitalizeEachWord()} ${lastNameController.text.trim().capitalizeEachWord()}';
@@ -479,11 +480,6 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
                   focusNode: _focusNodes[7],
                   labelText: 'Case Description',
                   enabled: !_isLoading,
-                  validator:
-                      (val) =>
-                          val!.isEmpty
-                              ? 'Case Description cannot be empty'
-                              : null,
                 ),
                 divider(),
 
@@ -509,7 +505,12 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
                   focusNode: _focusNodes[1],
                   labelText: 'Middle Name',
                   enabled: !_isLoading,
-                  validator: (value) => Validator.name(value?.trim()),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return null;
+                    }
+                    return Validator.name(value.trim());
+                  },
                 ),
                 const SizedBox(height: 10),
 

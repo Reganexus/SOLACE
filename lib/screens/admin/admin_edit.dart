@@ -166,7 +166,7 @@ class _AdminEditProfileScreenState extends State<AdminEditProfile> {
         setState(() {
           firstNameController.text = fetchedUser.firstName;
           lastNameController.text = fetchedUser.lastName;
-          middleNameController.text = fetchedUser.middleName;
+          middleNameController.text = fetchedUser.middleName ?? '';
           phoneNumberController.text = fetchedUser.phoneNumber;
           addressController.text = fetchedUser.address;
           birthday = fetchedUser.birthday;

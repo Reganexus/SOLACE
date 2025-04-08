@@ -266,6 +266,7 @@ class PatientTrackingState extends State<PatientTracking> {
             minPossibleTemperature,
             maxPossibleTemperature,
           ),
+          FormBuilderValidators.maxLength(5),
         ]);
         inputFormatters.add(
           FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,1}$')),
@@ -279,11 +280,13 @@ class PatientTrackingState extends State<PatientTracking> {
             minPossibleHeartRate,
             maxPossibleHeartRate,
           ),
+          FormBuilderValidators.maxLength(3),
         ]);
         inputFormatters.add(FilteringTextInputFormatter.digitsOnly);
         break;
       case 'Blood Pressure':
         unitLabel = 'mmHg';
+        FormBuilderValidators.maxLength(7);
         validators.add((value) {
           final bpPattern = RegExp(r'^(\d{2,3})/(\d{2,3})$');
           final match = bpPattern.firstMatch(value!);
@@ -318,6 +321,7 @@ class PatientTrackingState extends State<PatientTracking> {
             minPossibleOxygenSaturation,
             maxPossibleOxygenSaturation,
           ),
+          FormBuilderValidators.maxLength(5),
         ]);
         inputFormatters.add(FilteringTextInputFormatter.digitsOnly);
         break;
@@ -329,6 +333,7 @@ class PatientTrackingState extends State<PatientTracking> {
             minPossibleRespirationRate,
             maxPossibleRespirationRate,
           ),
+          FormBuilderValidators.maxLength(3),
         ]);
         inputFormatters.add(FilteringTextInputFormatter.digitsOnly);
         break;
