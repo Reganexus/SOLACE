@@ -393,6 +393,254 @@ class _EditPatientState extends State<EditPatient> {
     );
   }
 
+  Widget _buildForm() {
+    return Form(
+      key: _formKey,
+      child: Column(
+        children: [
+          FormField(
+            validator: (value) {
+              if (_profileImage == null &&
+                  (_profileImageUrl == null || _profileImageUrl!.isEmpty)) {
+                return 'Please select a profile image.';
+              }
+              return null;
+            },
+            builder: (FormFieldState state) {
+              return Center(
+                child: Column(
+                  children: [
+                    Stack(
+                      alignment: Alignment.bottomRight,
+                      children: [
+                        CircleAvatar(
+                          radius: 60,
+                          backgroundImage:
+                              _profileImage != null
+                                  ? FileImage(_profileImage!) // Picked image
+                                  : (_profileImageUrl != null &&
+                                          _profileImageUrl!.isNotEmpty
+                                      ? NetworkImage(_profileImageUrl!)
+                                      : AssetImage(
+                                            'lib/assets/images/shared/placeholder.png',
+                                          )
+                                          as ImageProvider),
+                          backgroundColor: Colors.transparent,
+                        ),
+                        Container(
+                          height: 40,
+                          width: 40,
+                          decoration: BoxDecoration(
+                            color: AppColors.blackTransparent,
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            onPressed:
+                                _isLoading
+                                    ? null // Disable during loading
+                                    : () {
+                                      _pickProfileImage('patient');
+                                    },
+                            icon: Icon(
+                              Icons.camera_alt,
+                              color: AppColors.white,
+                            ),
+                            iconSize: 18,
+                          ),
+                        ),
+                      ],
+                    ),
+                    // Display error message if validation fails
+                    if (state.hasError)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Text(
+                          state.errorText ?? '',
+                          style: TextStyle(
+                            color: Colors.red.shade900,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+          divider(),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [Text('Current Case', style: Textstyle.subheader)],
+          ),
+          CasePickerWidget(
+            selectedCases: selectedCases,
+            onAddCase: _addCase,
+            onRemoveCase: _removeCase,
+            enabled: !_isLoading,
+            validator: (selectedCases) {
+              if (selectedCases == null || selectedCases.isEmpty) {
+                return 'Please select at least one case.';
+              }
+              return null;
+            },
+          ),
+          SizedBox(height: 10),
+          CustomTextField(
+            controller: caseDescriptionController,
+            focusNode: _focusNodes[7],
+            labelText: 'Case Description',
+            enabled: !_isLoading,
+            validator:
+                (val) =>
+                    val!.isEmpty ? 'Case Description cannot be empty' : null,
+          ),
+          divider(),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Personal Information', style: Textstyle.subheader),
+            ],
+          ),
+          SizedBox(height: 20),
+
+          CustomTextField(
+            controller: firstNameController,
+            focusNode: _focusNodes[0],
+            labelText: 'First Name',
+            enabled: !_isLoading,
+            validator:
+                (val) => val!.isEmpty ? 'First Name cannot be empty' : null,
+          ),
+          SizedBox(height: 10),
+
+          CustomTextField(
+            controller: middleNameController,
+            focusNode: _focusNodes[1],
+            labelText: 'Middle Name',
+            enabled: !_isLoading,
+          ),
+          SizedBox(height: 10),
+
+          CustomTextField(
+            controller: lastNameController,
+            focusNode: _focusNodes[2],
+            labelText: 'Last Name',
+            enabled: !_isLoading,
+            validator:
+                (val) => val!.isEmpty ? 'Last Name cannot be empty' : null,
+          ),
+          SizedBox(height: 10),
+
+          TextFormField(
+            controller: birthdayController,
+            enabled: !_isLoading,
+            focusNode: _focusNodes[3],
+            style: TextStyle(
+              fontSize: 16,
+              fontFamily: 'Inter',
+              fontWeight: FontWeight.normal,
+              color: AppColors.black,
+            ),
+            decoration: InputDecoration(
+              labelText: 'Birthday',
+              filled: true,
+              fillColor: AppColors.gray,
+              suffixIcon: Icon(
+                Icons.calendar_today,
+                color:
+                    _focusNodes[3].hasFocus ? AppColors.neon : AppColors.black,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: AppColors.neon, width: 2),
+              ),
+              labelStyle: TextStyle(
+                fontSize: 16,
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.normal,
+                color:
+                    _focusNodes[3].hasFocus ? AppColors.neon : AppColors.black,
+              ),
+            ),
+            validator:
+                (val) => val!.isEmpty ? 'Birthday cannot be empty' : null,
+            readOnly: true,
+            onTap: () => _selectDate(context),
+          ),
+
+          SizedBox(height: 10),
+
+          CustomDropdownField<String>(
+            value: gender,
+            focusNode: _focusNodes[4],
+            labelText: 'Gender',
+            items: ['Male', 'Female', 'Other'],
+            onChanged: (val) => setState(() => gender = val ?? ''),
+            validator:
+                (val) => val == null || val.isEmpty ? 'Select Gender' : null,
+            displayItem: (value) => value,
+            enabled: !_isLoading,
+          ),
+          SizedBox(height: 10),
+
+          CustomDropdownField<String>(
+            value: religion,
+            focusNode: _focusNodes[5],
+            labelText: 'Religion',
+            items: religions,
+            onChanged: (val) => setState(() => religion = val ?? ''),
+            validator:
+                (val) => val == null || val.isEmpty ? 'Select Religion' : null,
+            displayItem: (value) => value,
+            enabled: !_isLoading,
+          ),
+          SizedBox(height: 10),
+
+          CustomTextField(
+            controller: addressController,
+            focusNode: _focusNodes[6],
+            labelText: 'Address',
+            enabled: !_isLoading,
+            validator: (val) => val!.isEmpty ? 'Address cannot be empty' : null,
+          ),
+          SizedBox(height: 10),
+
+          divider(),
+
+          _areAllFieldsFilled() ? deter() : const SizedBox.shrink(),
+
+          SizedBox(
+            width: double.infinity,
+            child: TextButton(
+              onPressed:
+                  (!_isLoading &&
+                          _formKey.currentState?.validate() == true &&
+                          _profileImage !=
+                              null && // Check profile image is selected
+                          (selectedCases != null &&
+                              selectedCases
+                                  .isNotEmpty) // Check cases are selected
+                          )
+                      ? _submitForm
+                      : null, // Disable if any condition fails
+              style:
+                  (_isLoading || _profileImage == null || selectedCases.isEmpty)
+                      ? Buttonstyle
+                          .gray // Disable button style if any condition is not met
+                      : Buttonstyle
+                          .neon, // Enable neon style if everything is valid
+              child: Text('Save Changes', style: Textstyle.largeButton),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -410,255 +658,23 @@ class _EditPatientState extends State<EditPatient> {
           padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
           child:
               _isLoading
-                  ? Center(child: Loader.loaderPurple)
-                  : SingleChildScrollView(
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        children: [
-                          // Profile Image Section
-                          Center(
-                            child: Stack(
-                              alignment: Alignment.bottomRight,
-                              children: [
-                                CircleAvatar(
-                                  radius: 60,
-                                  backgroundImage:
-                                      _profileImage != null
-                                          ? FileImage(
-                                            _profileImage!,
-                                          ) // Use picked image
-                                          : (_profileImageUrl != null &&
-                                                      _profileImageUrl!
-                                                          .isNotEmpty
-                                                  ? NetworkImage(
-                                                    _profileImageUrl!,
-                                                  ) // Use network image
-                                                  : AssetImage(
-                                                    'lib/assets/images/shared/placeholder.png',
-                                                  ))
-                                              as ImageProvider,
-                                  backgroundColor: Colors.transparent,
-                                ),
-                                Container(
-                                  height: 40,
-                                  width: 40,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.blackTransparent,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: IconButton(
-                                    onPressed:
-                                        _isLoading
-                                            ? null // Disable during loading
-                                            : () {
-                                              _pickProfileImage('patient');
-                                            },
-                                    icon: Icon(
-                                      Icons.camera_alt,
-                                      color: AppColors.white,
-                                    ),
-                                    iconSize: 18,
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                              ],
-                            ),
+                  ? Container(
+                    alignment: Alignment.center,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Loader.loaderPurple,
+                        SizedBox(height: 20),
+                        Text(
+                          "Saving changes. Please wait.",
+                          style: Textstyle.body.copyWith(
+                            decoration: TextDecoration.none,
                           ),
-                          divider(),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text('Current Case', style: Textstyle.subheader),
-                            ],
-                          ),
-                          CasePickerWidget(
-                            selectedCases: selectedCases,
-                            onAddCase: _addCase,
-                            onRemoveCase: _removeCase,
-                          ),
-                          SizedBox(height: 10),
-                          CustomTextField(
-                            controller: caseDescriptionController,
-                            focusNode: _focusNodes[7],
-                            labelText: 'Case Description',
-                            enabled: !_isLoading,
-                            validator:
-                                (val) =>
-                                    val!.isEmpty
-                                        ? 'Case Description cannot be empty'
-                                        : null,
-                          ),
-                          divider(),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Personal Information',
-                                style: Textstyle.subheader,
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: 20),
-
-                          CustomTextField(
-                            controller: firstNameController,
-                            focusNode: _focusNodes[0],
-                            labelText: 'First Name',
-                            enabled: !_isLoading,
-                            validator:
-                                (val) =>
-                                    val!.isEmpty
-                                        ? 'First Name cannot be empty'
-                                        : null,
-                          ),
-                          SizedBox(height: 10),
-
-                          CustomTextField(
-                            controller: middleNameController,
-                            focusNode: _focusNodes[1],
-                            labelText: 'Middle Name',
-                            enabled: !_isLoading,
-                          ),
-                          SizedBox(height: 10),
-
-                          CustomTextField(
-                            controller: lastNameController,
-                            focusNode: _focusNodes[2],
-                            labelText: 'Last Name',
-                            enabled: !_isLoading,
-                            validator:
-                                (val) =>
-                                    val!.isEmpty
-                                        ? 'Last Name cannot be empty'
-                                        : null,
-                          ),
-                          SizedBox(height: 10),
-
-                          TextFormField(
-                            controller: birthdayController,
-                            enabled: !_isLoading,
-                            focusNode: _focusNodes[3],
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontFamily: 'Inter',
-                              fontWeight: FontWeight.normal,
-                              color: AppColors.black,
-                            ),
-                            decoration: InputDecoration(
-                              labelText: 'Birthday',
-                              filled: true,
-                              fillColor: AppColors.gray,
-                              suffixIcon: Icon(
-                                Icons.calendar_today,
-                                color:
-                                    _focusNodes[3].hasFocus
-                                        ? AppColors.neon
-                                        : AppColors.black,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide.none,
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide(
-                                  color: AppColors.neon,
-                                  width: 2,
-                                ),
-                              ),
-                              labelStyle: TextStyle(
-                                fontSize: 16,
-                                fontFamily: 'Inter',
-                                fontWeight: FontWeight.normal,
-                                color:
-                                    _focusNodes[3].hasFocus
-                                        ? AppColors.neon
-                                        : AppColors.black,
-                              ),
-                            ),
-                            validator:
-                                (val) =>
-                                    val!.isEmpty
-                                        ? 'Birthday cannot be empty'
-                                        : null,
-                            readOnly: true,
-                            onTap: () => _selectDate(context),
-                          ),
-
-                          SizedBox(height: 10),
-
-                          CustomDropdownField<String>(
-                            value: gender,
-                            focusNode: _focusNodes[4],
-                            labelText: 'Gender',
-                            items: ['Male', 'Female', 'Other'],
-                            onChanged:
-                                (val) => setState(() => gender = val ?? ''),
-                            validator:
-                                (val) =>
-                                    val == null || val.isEmpty
-                                        ? 'Select Gender'
-                                        : null,
-                            displayItem: (value) => value,
-                            enabled: !_isLoading,
-                          ),
-                          SizedBox(height: 10),
-
-                          CustomDropdownField<String>(
-                            value: religion,
-                            focusNode: _focusNodes[5],
-                            labelText: 'Religion',
-                            items: religions,
-                            onChanged:
-                                (val) => setState(() => religion = val ?? ''),
-                            validator:
-                                (val) =>
-                                    val == null || val.isEmpty
-                                        ? 'Select Religion'
-                                        : null,
-                            displayItem: (value) => value,
-                            enabled: !_isLoading,
-                          ),
-                          SizedBox(height: 10),
-
-                          CustomTextField(
-                            controller: addressController,
-                            focusNode: _focusNodes[6],
-                            labelText: 'Address',
-                            enabled: !_isLoading,
-                            validator:
-                                (val) =>
-                                    val!.isEmpty
-                                        ? 'Address cannot be empty'
-                                        : null,
-                          ),
-                          SizedBox(height: 10),
-
-                          divider(),
-
-                          _areAllFieldsFilled()
-                              ? deter()
-                              : const SizedBox.shrink(),
-
-                          SizedBox(
-                            width: double.infinity,
-                            child: TextButton(
-                              onPressed: _submitForm,
-                              style:
-                                  _isLoading
-                                      ? Buttonstyle.gray
-                                      : Buttonstyle.neon,
-                              child: Text(
-                                'Save Changes',
-                                style: Textstyle.largeButton,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ),
+                  )
+                  : SingleChildScrollView(child: _buildForm()),
         ),
       ),
     );

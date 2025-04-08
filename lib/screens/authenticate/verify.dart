@@ -286,8 +286,7 @@ class _VerifyState extends State<Verify> {
     if (!_navigated) {
       _navigated = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted)
-          return; // Prevent navigation if the widget is no longer in the tree.
+        if (!mounted) return;
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -298,7 +297,7 @@ class _VerifyState extends State<Verify> {
                     // Handle role selection logic.
                   },
                 ),
-            settings: RouteSettings(arguments: userData), // Pass userData here.
+            settings: RouteSettings(arguments: userData),
           ),
         );
       });

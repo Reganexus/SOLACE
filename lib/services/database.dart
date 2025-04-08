@@ -63,6 +63,124 @@ class DatabaseService {
     debugPrint("Cached role updated to: $role for userId: $userId");
   }
 
+  Future<void> cacheFormData({
+    required String userId,
+    required String firstName,
+    required String middleName,
+    required String lastName,
+    required String birthday,
+    required String phoneNumber,
+    required String gender,
+    required String religion,
+    required String address,
+    required String imagePath,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('imagePath_$userId', imagePath);
+    await prefs.setString('firstName_$userId', firstName);
+    await prefs.setString('middleName_$userId', middleName);
+    await prefs.setString('lastName_$userId', lastName);
+    await prefs.setString('phoneNumber_$userId', phoneNumber);
+    await prefs.setString('birthday_$userId', birthday);
+    await prefs.setString('gender_$userId', gender);
+    await prefs.setString('religion_$userId', religion);
+    await prefs.setString('address_$userId', address);
+    if (imagePath != null) {
+      await prefs.setString('imagePath_$userId', imagePath);
+    }
+    debugPrint("Form data cached for userId: $userId");
+  }
+
+  Future<void> clearFormCache(String userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('imagePath_$userId');
+    await prefs.remove('firstName_$userId');
+    await prefs.remove('middleName_$userId');
+    await prefs.remove('lastName_$userId');
+    await prefs.remove('phoneNumber_$userId');
+    await prefs.remove('birthday_$userId');
+    await prefs.remove('gender_$userId');
+    await prefs.remove('religion_$userId');
+    await prefs.remove('address_$userId');
+
+    debugPrint("Form cache cleared for userId: $userId");
+  }
+
+  Future<void> cacheTrackingData({
+    required String userId,
+    required Map<String, String> vitalInputs,
+    required Map<String, int> symptomValues,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Cache vital inputs
+    vitalInputs.forEach((key, value) async {
+      await prefs.setString('${key}_${userId}', value);
+    });
+
+    // Cache symptom values (slider values)
+    symptomValues.forEach((key, value) async {
+      await prefs.setInt('${key}_${userId}', value);
+    });
+
+    debugPrint("Form data cached for userId: $userId");
+  }
+
+  Future<void> clearTrackingCache(String userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final keys = prefs.getKeys();
+
+    for (var key in keys) {
+      if (key.endsWith('_$userId')) {
+        await prefs.remove(key);
+      }
+    }
+
+    debugPrint("Form cache cleared for userId: $userId");
+  }
+
+  Future<Map<String, String>> getVitalInputs(String userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    Map<String, String> vitalInputs = {};
+    // Assuming you have keys for each vital input (e.g., "Heart Rate", "Temperature", etc.)
+    List<String> vitalKeys = [
+      'Heart Rate',
+      'Systolic',
+      'Diastolic',
+      'Oxygen Saturation',
+      'Respiration',
+      'Temperature',
+      'Pain',
+    ];
+    for (var key in vitalKeys) {
+      vitalInputs[key] = prefs.getString('${key}_${userId}') ?? '';
+    }
+    return vitalInputs;
+  }
+
+  Future<Map<String, int>> getSymptomValues(String userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    Map<String, int> symptomValues = {};
+    // List of symptom slider keys (e.g., "Diarrhea", "Constipation", etc.)
+    List<String> symptomKeys = [
+      'Diarrhea',
+      'Constipation',
+      'Fatigue',
+      'Shortness of Breath',
+      'Poor Appetite',
+      'Coughing',
+      'Nausea',
+      'Depression',
+      'Anxiety',
+      'Confusion',
+      'Insomnia',
+    ];
+    for (var key in symptomKeys) {
+      symptomValues[key] = prefs.getInt('${key}_${userId}') ?? 0;
+    }
+    return symptomValues;
+  }
+
   Future<String?> fetchAndCacheUserRole(String userId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -586,7 +704,7 @@ class DatabaseService {
     List? cases,
     String? caseDescription,
     String? status,
-    List<String>? tag,
+    String? currentUserId, // Current user who is tagging the patient
   }) async {
     try {
       // Get the appropriate collection for the user role
@@ -597,7 +715,7 @@ class DatabaseService {
         collectionName,
       );
 
-      // Prepare the data map
+      // Prepare the data map for the patient
       Map<String, dynamic> updatedData = {};
 
       // Add userRole
@@ -636,17 +754,41 @@ class DatabaseService {
         updatedData['caseDescription'] = caseDescription;
       }
       if (status?.isNotEmpty ?? false) updatedData['status'] = status;
-      updatedData['tag'] = tag ?? [];
 
-      // Add dateCreated field
+      // Add the dateCreated field
       updatedData['dateCreated'] = Timestamp.now();
 
-      // Perform the update only if there's data to update
+      // Save the patient data to the patient collection
       if (updatedData.isNotEmpty) {
         await collectionRef.doc(uid).set(updatedData, SetOptions(merge: true));
         print("Patient data added successfully in collection: $collectionName");
       } else {
         print("No data provided to add patient.");
+      }
+
+      // Save tags as subcollections for both the patient and current user
+      if (currentUserId != null) {
+        final String? userRole = await fetchAndCacheUserRole(currentUserId);
+        if (userRole == null) {
+          throw Exception("User role not found for $currentUserId");
+        }
+
+        await FirebaseFirestore.instance
+            .collection('patient')
+            .doc(uid)
+            .collection('tags')
+            .doc(currentUserId)
+            .set({});
+
+        // Add patient tag to the current user's document
+        await FirebaseFirestore.instance
+            .collection(userRole)
+            .doc(currentUserId)
+            .collection('tags')
+            .doc(uid)
+            .set({});
+
+        print("Tagging successful for patient and user.");
       }
     } catch (e) {
       print("Error adding patient data: $e");

@@ -6,10 +6,12 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:solace/controllers/notification_service.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/screens/patient/patient_input_summary.dart';
 import 'package:solace/shared/globals.dart';
+import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
@@ -30,14 +32,17 @@ class PatientTrackingState extends State<PatientTracking> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final DatabaseService databaseService = DatabaseService();
   final notificationService = NotificationService();
+  late PageController _pageController;
+  int _currentPage = 0;
 
-  bool isCooldownActive = false; // Added this variable
-  int remainingCooldownTime = 0; // Added this variable
+  bool isCooldownActive = false;
+  int remainingCooldownTime = 0;
   Timer? _countdownTimer;
 
   final Map<String, String> _vitalInputs = {
     'Heart Rate': '',
-    'Blood Pressure': '',
+    'Systolic': '',
+    'Diastolic': '',
     'Oxygen Saturation': '',
     'Respiration': '',
     'Temperature': '',
@@ -46,7 +51,8 @@ class PatientTrackingState extends State<PatientTracking> {
 
   final Map<String, TextEditingController> _controllers = {
     'Heart Rate': TextEditingController(),
-    'Blood Pressure': TextEditingController(),
+    'Systolic': TextEditingController(),
+    'Diastolic': TextEditingController(),
     'Oxygen Saturation': TextEditingController(),
     'Respiration': TextEditingController(),
     'Temperature': TextEditingController(),
@@ -66,7 +72,8 @@ class PatientTrackingState extends State<PatientTracking> {
 
   final Map<String, FocusNode> _focusNodes = {
     'Heart Rate': FocusNode(),
-    'Blood Pressure': FocusNode(),
+    'Systolic': FocusNode(),
+    'Diastolic': FocusNode(),
     'Oxygen Saturation': FocusNode(),
     'Respiration': FocusNode(),
     'Temperature': FocusNode(),
@@ -91,7 +98,22 @@ class PatientTrackingState extends State<PatientTracking> {
   void initState() {
     super.initState();
     _initializeCooldown();
-    checkAndResetOptions();
+    _loadCachedData();
+    _pageController = PageController(initialPage: _currentPage);
+
+    // Add navigation listener
+    _pageController.addListener(() {
+      final newPage = _pageController.page?.round() ?? 0;
+      if (newPage != _currentPage) {
+        setState(() {
+          _currentPage = newPage;
+        });
+
+        // Log or handle page change
+        debugPrint('Navigated to page: $_currentPage');
+      }
+    });
+
     debugPrint('Tracking patient id: ${widget.patientId}');
   }
 
@@ -104,17 +126,64 @@ class PatientTrackingState extends State<PatientTracking> {
     for (var focusNode in _focusNodes.values) {
       focusNode.dispose();
     }
+    _pageController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadCachedData() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Load cached vital inputs
+    for (var key in _vitalInputs.keys) {
+      String cachedValue = prefs.getString('${key}_${widget.patientId}') ?? '';
+
+      // Check if the key is not related to the Pain slider before updating the text controller
+      if (key != 'Pain') {
+        setState(() {
+          _vitalInputs[key] = cachedValue;
+          _controllers[key]?.text =
+              cachedValue; // Set value to the text controller
+        });
+      }
+    }
+
+    // Load cached symptom slider values
+    setState(() {
+      // Reset Pain slider value to 0, but do not change the text controller
+      _diarrheaValue = prefs.getInt('Diarrhea_${widget.patientId}') ?? 0;
+      _constipationValue =
+          prefs.getInt('Constipation_${widget.patientId}') ?? 0;
+      _fatigueValue = prefs.getInt('Fatigue_${widget.patientId}') ?? 0;
+      _shortnessOfBreathValue =
+          prefs.getInt('Shortness of Breath_${widget.patientId}') ?? 0;
+      _poorAppetiteValue =
+          prefs.getInt('Poor Appetite_${widget.patientId}') ?? 0;
+      _coughingValue = prefs.getInt('Coughing_${widget.patientId}') ?? 0;
+      _nauseaValue = prefs.getInt('Nausea_${widget.patientId}') ?? 0;
+      _depressionValue = prefs.getInt('Depression_${widget.patientId}') ?? 0;
+      _anxietyValue = prefs.getInt('Anxiety_${widget.patientId}') ?? 0;
+      _confusionValue = prefs.getInt('Confusion_${widget.patientId}') ?? 0;
+      _insomniaValue = prefs.getInt('Insomnia_${widget.patientId}') ?? 0;
+
+      if (_controllers.containsKey('Pain')) {
+        _controllers['Pain']?.text = '';
+      }
+    });
+
+    FocusScope.of(context).unfocus();
+
+    debugPrint("Loaded cached vitals: $_vitalInputs");
+    debugPrint(
+      "Loaded cached symptoms: $_diarrheaValue, $_constipationValue, $_fatigueValue",
+    );
   }
 
   void checkAndResetOptions() {
     setState(() {
-      // Clear form fields
       for (var controller in _controllers.values) {
         controller.clear();
       }
 
-      // Reset symptom values
       _diarrheaValue = 0;
       _constipationValue = 0;
       _fatigueValue = 0;
@@ -135,25 +204,36 @@ class PatientTrackingState extends State<PatientTracking> {
 
     if (!mounted) return;
 
-    setState(() {
-      if (lastSubmitted == 0) {
+    if (lastSubmitted == 0) {
+      setState(() {
         isCooldownActive = false;
-      } else {
-        final currentTime = DateTime.now().millisecondsSinceEpoch;
-        final timeDifference = currentTime - lastSubmitted;
+      });
+    } else {
+      final currentTime = DateTime.now().millisecondsSinceEpoch;
+      final timeDifference = currentTime - lastSubmitted;
 
-        if (timeDifference < 300 * 1000) {
-          // 30 seconds in milliseconds
+      // Set the cooldown period to 1 minute (60 seconds)
+      final cooldownDuration = 60 * 1000; // 1 minute in milliseconds
+
+      if (timeDifference < cooldownDuration) {
+        setState(() {
           isCooldownActive = true;
           remainingCooldownTime =
-              (300) - (timeDifference / 1000).round(); // 30 seconds
-          debugPrint("Remaining Cooldown: $remainingCooldownTime");
-          _startCountdown();
-        } else {
+              (cooldownDuration / 1000).round() -
+              (timeDifference / 1000).round(); // Remaining time in seconds
+        });
+        debugPrint("Remaining Cooldown: $remainingCooldownTime");
+        _startCountdown();
+
+        // Call the async method outside setState
+        await databaseService.clearTrackingCache(widget.patientId);
+        checkAndResetOptions();
+      } else {
+        setState(() {
           isCooldownActive = false;
-        }
+        });
       }
-    });
+    }
   }
 
   void _startCountdown() {
@@ -235,14 +315,24 @@ class PatientTrackingState extends State<PatientTracking> {
   }
 
   Widget _buildVitalsInputs() {
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: NeverScrollableScrollPhysics(),
-      itemCount: _focusNodes.keys.length,
-      itemBuilder: (context, index) {
-        final key = _focusNodes.keys.elementAt(index);
-        return _buildVitalInputField(key);
-      },
+    return Column(
+      children: [
+        _buildVitalInputField('Heart Rate'),
+        Row(
+          children: [
+            Expanded(child: _buildVitalInputField('Systolic')),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8.0),
+              child: Text(' / ', style: Textstyle.body),
+            ),
+            Expanded(child: _buildVitalInputField('Diastolic')),
+          ],
+        ),
+        _buildVitalInputField('Oxygen Saturation'),
+        _buildVitalInputField('Respiration'),
+        _buildVitalInputField('Temperature'),
+        _buildVitalInputField('Pain'),
+      ],
     );
   }
 
@@ -282,33 +372,27 @@ class PatientTrackingState extends State<PatientTracking> {
         ]);
         inputFormatters.add(FilteringTextInputFormatter.digitsOnly);
         break;
-      case 'Blood Pressure':
+      case 'Systolic':
         unitLabel = 'mmHg';
-        validators.add((value) {
-          final bpPattern = RegExp(r'^(\d{2,3})/(\d{2,3})$');
-          final match = bpPattern.firstMatch(value!);
-
-          if (match == null) {
-            return 'Format: <Systolic>/<Diastolic> (e.g. 120/80)';
-          }
-
-          final systolic = int.parse(match.group(1)!);
-          final diastolic = int.parse(match.group(2)!);
-
-          if (systolic < minPossibleBloodPressureSystolic ||
-              systolic > maxPossibleBloodPressureSystolic) {
-            return 'Systolic must be between $minPossibleBloodPressureSystolic-$maxPossibleBloodPressureSystolic mmHg';
-          }
-          if (diastolic < minPossibleBloodPressureDiastolic ||
-              diastolic > maxPossibleBloodPressureDiastolic) {
-            return 'Diastolic must be between $minPossibleBloodPressureDiastolic-$maxPossibleBloodPressureDiastolic mmHg';
-          }
-          return null;
-        });
-
-        inputFormatters.add(
-          FilteringTextInputFormatter.allow(RegExp(r'^\d{0,3}/?\d{0,3}$')),
-        );
+        validators.addAll([
+          FormBuilderValidators.integer(),
+          FormBuilderValidators.between(
+            minPossibleBloodPressureSystolic,
+            maxPossibleBloodPressureSystolic,
+          ),
+        ]);
+        inputFormatters.add(FilteringTextInputFormatter.digitsOnly);
+        break;
+      case 'Diastolic':
+        unitLabel = 'mmHg';
+        validators.addAll([
+          FormBuilderValidators.integer(),
+          FormBuilderValidators.between(
+            minPossibleBloodPressureDiastolic,
+            maxPossibleBloodPressureDiastolic,
+          ),
+        ]);
+        inputFormatters.add(FilteringTextInputFormatter.digitsOnly);
         break;
       case 'Oxygen Saturation':
         unitLabel = '%';
@@ -340,6 +424,8 @@ class PatientTrackingState extends State<PatientTracking> {
             _buildSlider('Pain', painValue, (newValue) {
               setState(() {
                 _vitalInputs[key] = newValue.round().toString();
+                debugPrint("Updated Pain value: ${_vitalInputs[key]}");
+                debugPrint("Current _vitalInputs: $_vitalInputs");
               });
             }),
           ],
@@ -367,11 +453,27 @@ class PatientTrackingState extends State<PatientTracking> {
                 child: TextFormField(
                   controller: controller,
                   focusNode: focusNode,
-                  decoration: InputDecorationStyles.build(key, focusNode),
-                  // keyboardType: TextInputType.number,
+                  decoration: InputDecorationStyles.build(
+                    key,
+                    focusNode,
+                  ).copyWith(
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(10),
+                        bottomLeft: Radius.circular(10),
+                      ),
+                      borderSide: const BorderSide(
+                        color: AppColors.neon,
+                        width: 2,
+                      ),
+                    ),
+                  ),
                   validator: FormBuilderValidators.compose(validators),
                   inputFormatters: inputFormatters,
-                  onChanged: (value) => _vitalInputs[key] = value,
+                  onChanged: (value) {
+                    setState(() {});
+                    _vitalInputs[key] = value;
+                  },
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                 ),
               ),
@@ -432,22 +534,20 @@ class PatientTrackingState extends State<PatientTracking> {
             Expanded(
               child: SliderTheme(
                 data: SliderTheme.of(context).copyWith(
-                  thumbColor: sliderColor, // Thumb color
-                  activeTrackColor: sliderColor, // Active track color
-                  inactiveTrackColor: sliderColor.withValues(
-                    alpha: 0.3,
-                  ), // Inactive track
-                  valueIndicatorColor: sliderColor, // Indicator color
+                  thumbColor: sliderColor,
+                  activeTrackColor: sliderColor.withValues(alpha: 0.8),
+                  inactiveTrackColor: sliderColor.withValues(alpha: 0.3),
+                  valueIndicatorColor: sliderColor,
                   valueIndicatorTextStyle: const TextStyle(
-                    color: Colors.white, // Text color inside the indicator
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
                   ),
-                  trackHeight: 5,
+                  trackHeight: 20,
                   overlayShape: const RoundSliderOverlayShape(
-                    overlayRadius: 20,
+                    overlayRadius: 10,
                   ),
                   thumbShape: const RoundSliderThumbShape(
-                    enabledThumbRadius: 10,
+                    enabledThumbRadius: 13,
                   ),
                   valueIndicatorShape: const PaddleSliderValueIndicatorShape(),
                 ),
@@ -484,14 +584,7 @@ class PatientTrackingState extends State<PatientTracking> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Physical',
-          style: TextStyle(
-            fontSize: 20.0,
-            fontWeight: FontWeight.bold,
-            fontFamily: "Outfit",
-          ),
-        ),
+        Text('Physical', style: Textstyle.subheader),
         const SizedBox(height: 10),
         _buildSlider('Diarrhea', _diarrheaValue, (val) {
           setState(() => _diarrheaValue = val);
@@ -517,14 +610,7 @@ class PatientTrackingState extends State<PatientTracking> {
         const SizedBox(height: 10),
         const Divider(thickness: 1.0),
         const SizedBox(height: 10),
-        const Text(
-          'Emotional',
-          style: TextStyle(
-            fontSize: 20.0,
-            fontWeight: FontWeight.bold,
-            fontFamily: "Outfit",
-          ),
-        ),
+        Text('Emotional', style: Textstyle.subheader),
         const SizedBox(height: 10),
         _buildSlider('Depression', _depressionValue, (val) {
           setState(() => _depressionValue = val);
@@ -544,7 +630,6 @@ class PatientTrackingState extends State<PatientTracking> {
 
   void _submit(String uid) async {
     if (!_formKey.currentState!.saveAndValidate()) {
-      // Validation failed, show error SnackBar
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text(
@@ -564,12 +649,16 @@ class PatientTrackingState extends State<PatientTracking> {
     }
 
     // Blood Pressure Parsing and Classification
-    final parts = _vitalInputs['Blood Pressure']!.split('/');
-    final systolic = int.tryParse(parts[0].trim());
-    final diastolic = int.tryParse(parts[1].trim());
+    final systolic = int.tryParse(_vitalInputs['Systolic'] ?? '');
+    final diastolic = int.tryParse(_vitalInputs['Diastolic'] ?? '');
+
+    debugPrint('Systolic value: ${_vitalInputs['Systolic']}');
+    debugPrint('Diastolic value: ${_vitalInputs['Diastolic']}');
+    debugPrint('Parsed systolic: $systolic');
+    debugPrint('Parsed diastolic: $diastolic');
 
     if (systolic == null || diastolic == null) {
-      debugPrint("Invalid blood pressure input.");
+      debugPrint("Invalid blood pressure inputs.");
       return;
     }
 
@@ -600,6 +689,25 @@ class PatientTrackingState extends State<PatientTracking> {
       },
     };
 
+    // Cache the data
+    await databaseService.cacheTrackingData(
+      userId: uid,
+      vitalInputs: _vitalInputs,
+      symptomValues: {
+        'Diarrhea': _diarrheaValue,
+        'Constipation': _constipationValue,
+        'Fatigue': _fatigueValue,
+        'Shortness of Breath': _shortnessOfBreathValue,
+        'Poor Appetite': _poorAppetiteValue,
+        'Coughing': _coughingValue,
+        'Nausea': _nauseaValue,
+        'Depression': _depressionValue,
+        'Anxiety': _anxietyValue,
+        'Confusion': _confusionValue,
+        'Insomnia': _insomniaValue,
+      },
+    );
+
     // Navigate to the summary screen
     try {
       FocusScope.of(context).unfocus();
@@ -614,12 +722,396 @@ class PatientTrackingState extends State<PatientTracking> {
               ),
         ),
       );
-      checkAndResetOptions();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('An error occurred: ${e.toString()}')),
       );
     }
+  }
+
+  Future<void> _showConfirmationDialog() async {
+    bool shouldSubmit =
+        await showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              backgroundColor: AppColors.white,
+              title: Text('Confirm Submission', style: Textstyle.subheader),
+              content: Text(
+                'Are you sure you want to submit the data?',
+                style: Textstyle.body,
+              ),
+              actions: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        style: Buttonstyle.buttonRed,
+                        child: Text('Cancel', style: Textstyle.smallButton),
+                      ),
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        style: Buttonstyle.buttonNeon,
+                        child: Text('Submit', style: Textstyle.smallButton),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+
+    if (shouldSubmit) {
+      _submit(widget.patientId);
+    }
+  }
+
+  bool _hasValues() {
+    bool vitalInputsHaveValues = _vitalInputs.values.every((value) {
+      bool isNotEmpty = value.isNotEmpty;
+      return isNotEmpty;
+    });
+
+    bool hasValues = vitalInputsHaveValues;
+    return hasValues;
+  }
+
+  Widget _buildCooldownContainer() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10.0),
+        color: AppColors.gray,
+      ),
+      child: Column(
+        children: [
+          Text(
+            'You cannot input vitals and assessment at the moment.',
+            textAlign: TextAlign.center,
+            style: Textstyle.body.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            _formatCooldownTime(remainingCooldownTime),
+            textAlign: TextAlign.center,
+            style: Textstyle.body,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPatientNotAvailable() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10.0),
+        color: AppColors.gray,
+      ),
+      child: Column(
+        children: [
+          SizedBox(
+            width: double.infinity,
+            child: Column(
+              mainAxisSize: MainAxisSize.max,
+              children: [
+                Text(
+                  'Patient is not Available',
+                  textAlign: TextAlign.center,
+                  style: Textstyle.body,
+                ),
+                SizedBox(height: 10),
+                Text(
+                  'Go to "Patient" at Home',
+                  textAlign: TextAlign.center,
+                  style: Textstyle.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 20.0),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVitalsInfo() {
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            width: double.infinity,
+            height: 120,
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('lib/assets/images/auth/notes.jpg'),
+                fit: BoxFit.cover,
+              ),
+            ),
+            child: Container(color: AppColors.black.withValues(alpha: 0.4)),
+          ),
+        ),
+        Positioned(
+          bottom: 20,
+          left: 20,
+          right: 20,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Title
+              Text(
+                'Vital Assessment',
+                style: Textstyle.subheader.copyWith(color: AppColors.white),
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Assess patient vitals. Fill in all the tracked vital inputs',
+                style: Textstyle.body.copyWith(color: AppColors.white),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSymptomManagementInfo() {
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            width: double.infinity,
+            height: 120,
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('lib/assets/images/auth/task.jpg'),
+                fit: BoxFit.cover,
+              ),
+            ),
+            child: Container(color: AppColors.black.withValues(alpha: 0.4)),
+          ),
+        ),
+        Positioned(
+          bottom: 20,
+          left: 20,
+          right: 20,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Title
+              Text(
+                'Symptom Assessment',
+                style: Textstyle.subheader.copyWith(color: AppColors.white),
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Assess patient symptoms through Physical and Emotional Assessment',
+                style: Textstyle.body.copyWith(color: AppColors.white),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNavigationCircles() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap:
+                  _hasValues()
+                      ? () {
+                        setState(() {
+                          _currentPage = 0;
+                          _pageController.jumpToPage(_currentPage);
+                        });
+                      }
+                      : null,
+              child: Container(
+                color: AppColors.white,
+                child: Column(
+                  children: [
+                    Text(
+                      "Step 1: Vitals",
+                      style:
+                          _currentPage == 0
+                              ? Textstyle.bodySmall.copyWith(
+                                color: AppColors.neon,
+                                fontWeight: FontWeight.bold,
+                              )
+                              : Textstyle.bodySmall.copyWith(
+                                color: AppColors.blackTransparent,
+                              ),
+                    ),
+                    SizedBox(height: 5),
+                    Container(
+                      height: 5,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        color:
+                            _currentPage == 0
+                                ? AppColors.neon
+                                : AppColors.blackTransparent,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          SizedBox(width: 5),
+          Expanded(
+            child: GestureDetector(
+              onTap:
+                  _hasValues()
+                      ? () {
+                        setState(() {
+                          _currentPage = 1;
+                          _pageController.jumpToPage(_currentPage);
+                        });
+                      }
+                      : null,
+              child: Container(
+                color: AppColors.white,
+                child: Column(
+                  children: [
+                    Text(
+                      "Step 2: Symptoms",
+                      style:
+                          _currentPage == 1
+                              ? Textstyle.bodySmall.copyWith(
+                                color: AppColors.neon,
+                                fontWeight: FontWeight.bold,
+                              )
+                              : Textstyle.bodySmall.copyWith(
+                                color: AppColors.blackTransparent,
+                              ),
+                    ),
+                    SizedBox(height: 5),
+                    Container(
+                      height: 5,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        color:
+                            _currentPage == 1
+                                ? AppColors.neon
+                                : AppColors.blackTransparent,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTrackingForm(bool hasData) {
+    return Expanded(
+      child: PageView(
+        controller: _pageController,
+        children: [
+          // First Page
+          SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildVitalsInfo(),
+                const SizedBox(height: 20.0),
+                Text('Vitals', style: Textstyle.subheader),
+                const SizedBox(height: 10.0),
+                _buildVitalsInputs(),
+                const SizedBox(height: 10.0),
+                const Divider(),
+                const SizedBox(height: 10.0),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed:
+                        _hasValues()
+                            ? () {
+                              _pageController.nextPage(
+                                duration: const Duration(milliseconds: 500),
+                                curve: Curves.easeInOut,
+                              );
+                            }
+                            : null,
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 50,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      backgroundColor:
+                          hasData && _hasValues()
+                              ? AppColors.neon
+                              : AppColors.blackTransparent,
+                    ),
+                    child: Text('Next', style: Textstyle.largeButton),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Second Page
+          SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSymptomManagementInfo(),
+                const SizedBox(height: 20.0),
+                _buildSliders(),
+                const SizedBox(height: 20.0),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed:
+                        hasData && _hasValues()
+                            ? () => _showConfirmationDialog()
+                            : null,
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 50,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      backgroundColor:
+                          hasData && _hasValues()
+                              ? AppColors.neon
+                              : AppColors.blackTransparent,
+                    ),
+                    child: Text('Submit', style: Textstyle.largeButton),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -629,142 +1121,42 @@ class PatientTrackingState extends State<PatientTracking> {
       child: Scaffold(
         backgroundColor: AppColors.white,
         appBar: AppBar(
-          title: Text('Tracking', style: Textstyle.subheader),
+          title: Text('Patient Tracking', style: Textstyle.subheader),
+          centerTitle: true,
           backgroundColor: AppColors.white,
           scrolledUnderElevation: 0.0,
         ),
-        body: SingleChildScrollView(
-          child: Container(
-            color: AppColors.white,
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: FormBuilder(
-              key: _formKey,
-              child: StreamBuilder<DocumentSnapshot>(
-                stream:
-                    FirebaseFirestore.instance
-                        .collection('patient')
-                        .doc(widget.patientId)
-                        .snapshots(),
-                builder: (context, snapshot) {
-                  final hasData = snapshot.hasData && snapshot.data!.exists;
+        body: FormBuilder(
+          key: _formKey,
+          child: StreamBuilder<DocumentSnapshot>(
+            stream:
+                FirebaseFirestore.instance
+                    .collection('patient')
+                    .doc(widget.patientId)
+                    .snapshots(),
+            builder: (context, snapshot) {
+              final hasData = snapshot.hasData && snapshot.data!.exists;
 
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (isCooldownActive)
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10.0),
-                            color: AppColors.gray,
-                          ),
-                          child: Column(
-                            children: [
-                              Text(
-                                'You cannot input vitals and assessment at the moment.',
-                                textAlign: TextAlign.center,
-                                style: Textstyle.body.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                _formatCooldownTime(remainingCooldownTime),
-                                textAlign: TextAlign.center,
-                                style: Textstyle.body,
-                              ),
-                            ],
-                          ),
-                        ),
-                      if (!isCooldownActive)
-                        Column(
-                          children: [
-                            if (!hasData)
-                              Container(
-                                padding: const EdgeInsets.all(20),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(10.0),
-                                  color: AppColors.gray,
-                                ),
-                                child: Column(
-                                  children: [
-                                    SizedBox(
-                                      width: double.infinity,
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.max,
-                                        children: [
-                                          Text(
-                                            'Patient is not Available',
-                                            textAlign: TextAlign.center,
-                                            style: Textstyle.body,
-                                          ),
-                                          SizedBox(height: 10),
-                                          Text(
-                                            'Go to "Patient" at Home',
-                                            textAlign: TextAlign.center,
-                                            style: Textstyle.bodySmall,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    SizedBox(height: 20.0),
-                                  ],
-                                ),
-                              )
-                            else
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (isCooldownActive) _buildCooldownContainer(),
+                  if (!isCooldownActive)
+                    Expanded(
+                      child:
+                          hasData
+                              ? Column(
                                 children: [
-                                  Text('Vitals', style: Textstyle.subheader),
-                                  const SizedBox(height: 10.0),
-                                  _buildVitalsInputs(),
-                                  SizedBox(height: 10.0),
-                                  Divider(),
-                                  const SizedBox(height: 10.0),
-                                  Text(
-                                    'Symptom Assessment',
-                                    style: Textstyle.subheader,
-                                  ),
-                                  const SizedBox(height: 20.0),
-                                  _buildSliders(),
-                                  const SizedBox(height: 20.0),
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: TextButton(
-                                      onPressed:
-                                          hasData
-                                              ? () => _submit(widget.patientId)
-                                              : null,
-                                      style: TextButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 50,
-                                          vertical: 10,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                        ),
-                                        backgroundColor:
-                                            hasData
-                                                ? AppColors.neon
-                                                : AppColors.blackTransparent,
-                                      ),
-                                      child: Text(
-                                        'Submit',
-                                        style: Textstyle.largeButton,
-                                      ),
-                                    ),
-                                  ),
+                                  _buildNavigationCircles(),
+                                  SizedBox(height: 20),
+                                  _buildTrackingForm(hasData),
                                 ],
-                              ),
-                          ],
-                        ),
-                    ],
-                  );
-                },
-              ),
-            ),
+                              )
+                              : _buildPatientNotAvailable(),
+                    ),
+                ],
+              );
+            },
           ),
         ),
       ),

@@ -8,13 +8,15 @@ class CasePickerWidget extends StatefulWidget {
   final void Function(String) onAddCase;
   final void Function(String) onRemoveCase;
   final FormFieldValidator<List<String>>? validator;
+  final bool enabled;
 
   const CasePickerWidget({
     super.key,
     required this.selectedCases,
     required this.onAddCase,
     required this.onRemoveCase,
-    this.validator,
+    required this.validator,
+    required this.enabled,
   });
 
   @override
@@ -27,7 +29,6 @@ class CasePickerWidgetState extends State<CasePickerWidget> {
   bool showDropdown = false;
 
   final List<String> allCases = [];
-
   List<String> filteredCases = [];
 
   @override
@@ -44,10 +45,11 @@ class CasePickerWidgetState extends State<CasePickerWidget> {
 
   void _fetchCasesFromFirestore() async {
     try {
-      DocumentSnapshot snapshot = await FirebaseFirestore.instance
-          .collection('globals')
-          .doc('cases')
-          .get();
+      DocumentSnapshot snapshot =
+          await FirebaseFirestore.instance
+              .collection('globals')
+              .doc('cases')
+              .get();
 
       if (snapshot.exists) {
         Map<String, dynamic> data = snapshot.data() as Map<String, dynamic>;
@@ -72,12 +74,10 @@ class CasePickerWidgetState extends State<CasePickerWidget> {
     }
   }
 
-  /// Extracts the base name of a case (e.g., "Lung Cancer" from "Lung Cancer (Stage 1)")
   String _getBaseCaseName(String caseItem) {
     return caseItem.split('(')[0].trim();
   }
 
-  /// Updates the filtered case list by excluding already selected cases
   void _updateFilteredCases() {
     setState(() {
       List<String> selectedBaseNames =
@@ -90,7 +90,6 @@ class CasePickerWidgetState extends State<CasePickerWidget> {
     });
   }
 
-  /// Handles adding a case while removing its other severity variants
   void _addCase(String caseItem) {
     String baseName = _getBaseCaseName(caseItem);
 
@@ -110,7 +109,6 @@ class CasePickerWidgetState extends State<CasePickerWidget> {
     _updateFilteredCases();
   }
 
-  /// Handles removing a case and restoring its variants
   void _removeCase(String caseItem) {
     widget.onRemoveCase(caseItem);
     _updateFilteredCases(); // Restore all variants when removed
@@ -120,6 +118,7 @@ class CasePickerWidgetState extends State<CasePickerWidget> {
   Widget build(BuildContext context) {
     return FormField<List<String>>(
       validator: widget.validator,
+      initialValue: widget.selectedCases, // Ensure initial value is passed
       builder: (FormFieldState<List<String>> state) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -144,6 +143,7 @@ class CasePickerWidgetState extends State<CasePickerWidget> {
             TextField(
               controller: _searchController,
               focusNode: _searchFocusNode,
+              enabled: widget.enabled,
               onChanged: _onSearchChanged,
               decoration: InputDecoration(
                 labelText: 'Add Case',
@@ -167,13 +167,14 @@ class CasePickerWidgetState extends State<CasePickerWidget> {
                           : AppColors.black,
                 ),
                 suffixIcon:
-                    _searchController.text.isNotEmpty
+                    _searchController.text.isNotEmpty || showDropdown == true
                         ? IconButton(
-                          icon: Icon(Icons.clear),
+                          icon: Icon(Icons.close),
                           onPressed: () {
                             setState(() {
                               _searchController.clear();
-                              _updateFilteredCases();
+                              FocusScope.of(context).unfocus();
+                              showDropdown = false;
                             });
                           },
                         )
@@ -213,10 +214,10 @@ class CasePickerWidgetState extends State<CasePickerWidget> {
             // Display validation error if any
             if (state.hasError)
               Padding(
-                padding: const EdgeInsets.only(top: 8.0),
+                padding: const EdgeInsets.only(left: 12.0),
                 child: Text(
                   state.errorText ?? '',
-                  style: TextStyle(color: Colors.red),
+                  style: TextStyle(color: Colors.red.shade900, fontSize: 12),
                 ),
               ),
           ],

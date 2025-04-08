@@ -7,6 +7,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:solace/screens/wrapper.dart';
 import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
+import 'package:solace/themes/loader.dart';
 import 'package:solace/themes/textstyle.dart';
 
 class CaregiverInstructions extends StatefulWidget {
@@ -48,13 +49,14 @@ class CaregiverInstructionsState extends State<CaregiverInstructions> {
     super.initState();
     _pageController = PageController(initialPage: 0);
     _loadContent();
+    debugPrint("user id: ${widget.userId}");
+    debugPrint("user role: ${widget.userRole}");
   }
 
   Future<void> _loadContent() async {
-    // Simulate content loading (including GIFs, database calls, etc.)
-    await Future.delayed(const Duration(seconds: 3)); // Simulate loading delay
+    await Future.delayed(const Duration(seconds: 3));
     setState(() {
-      _isLoading = false; // All content loaded, update state
+      _isLoading = false;
     });
   }
 
@@ -110,9 +112,7 @@ class CaregiverInstructionsState extends State<CaregiverInstructions> {
 
   Widget _buildCarousel() {
     return SizedBox(
-      height:
-          MediaQuery.of(context).size.height *
-          0.7, // Adjust height to 70% of the screen height
+      height: MediaQuery.of(context).size.height * 0.7,
       child: PageView(
         controller: _pageController,
         onPageChanged: (index) {
@@ -138,12 +138,12 @@ class CaregiverInstructionsState extends State<CaregiverInstructions> {
   Widget _buildGifPage(String gifPath) {
     return Container(
       width: MediaQuery.of(context).size.width,
-      height: MediaQuery.of(context).size.height * 0.5,
+      height: MediaQuery.of(context).size.height * 0.7,
       color: AppColors.gray,
       child: Center(
         child:
             _isLoading
-                ? CircularProgressIndicator() // Show loading spinner while content is loading
+                ? Loader.loaderPurple
                 : Image.asset(gifPath, fit: BoxFit.cover),
       ),
     );
@@ -226,16 +226,11 @@ class CaregiverInstructionsState extends State<CaregiverInstructions> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.white,
-      appBar: AppBar(
-        backgroundColor: AppColors.white,
-        scrolledUnderElevation: 0.0,
-        automaticallyImplyLeading: false,
-      ),
       body: Stack(
         children: [
           // Main content of the screen
           Padding(
-            padding: EdgeInsets.only(bottom: 16.0),
+            padding: EdgeInsets.symmetric(vertical: 60.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -251,15 +246,10 @@ class CaregiverInstructionsState extends State<CaregiverInstructions> {
             ),
           ),
 
-          // Loading overlay
           if (_isLoading)
             Container(
               color: AppColors.white,
-              child: Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.neon),
-                ),
-              ),
+              child: Center(child: Loader.loaderPurple),
             ),
         ],
       ),

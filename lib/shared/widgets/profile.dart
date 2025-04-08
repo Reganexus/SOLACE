@@ -182,8 +182,10 @@ class _ProfileState extends State<Profile> {
                 context,
                 MaterialPageRoute(
                   builder:
-                      (context) =>
-                          EditProfileScreen(userData: userData.toMap()),
+                      (context) => EditProfileScreen(
+                        userData: userData.toMap(),
+                        userRole: UserRole.unregistered.name,
+                      ),
                 ),
               );
             });
@@ -297,6 +299,7 @@ class _ProfileState extends State<Profile> {
                                       builder:
                                           (context) => EditProfileScreen(
                                             userData: userData.toMap(),
+                                            userRole: userData.userRole.name,
                                           ),
                                     ),
                                   );

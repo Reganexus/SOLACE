@@ -23,6 +23,8 @@ class Wrapper extends StatelessWidget {
       return const Authenticate();
     }
 
+    clearFieldsCache(user.uid);
+
     return FutureBuilder<Map<String, dynamic>?>(
       future: _fetchUserDataWithRetries(user.uid),
       builder: (context, snapshot) {
@@ -80,12 +82,16 @@ class Wrapper extends StatelessWidget {
           }
         } else {
           debugPrint("No user data found after retries.");
-          return _errorScreen(
-            "User account not found. Please contact support.",
-          );
+          return Authenticate();
         }
       },
     );
+  }
+
+  Future<void> clearFieldsCache(String uid) async {
+    final DatabaseService databaseService = DatabaseService();
+    await databaseService.clearFormCache(uid);
+    debugPrint("Cleared fields cache for UID: $uid");
   }
 
   Future<Map<String, dynamic>?> _fetchUserDataWithRetries(String uid) async {

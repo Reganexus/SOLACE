@@ -40,6 +40,102 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   final LogService _logService = LogService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final AuthService _authService = AuthService();
+  bool _isLoading = false;
+
+  final vitalsUnits = {
+    'Heart Rate': 'bpm',
+    'Blood Pressure': 'mmHg',
+    'Oxygen Saturation': '%',
+    'Respiration': 'b/min',
+    'Temperature': '°C',
+    'Pain': '',
+  };
+
+  Future<bool> _onWillPop() async {
+    bool shouldPop =
+        await showDialog<bool>(
+          context: context,
+          barrierDismissible: false, // Prevent dismissing by tapping outside
+          builder: (BuildContext context) {
+            return AlertDialog(
+              backgroundColor: AppColors.white,
+              title: Text('Go Back?', style: Textstyle.subheader),
+              content: Text(
+                'Do you want to go back to change your tracking?',
+                style: Textstyle.body,
+              ),
+              actions: <Widget>[
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop(true);
+                        },
+                        style: Buttonstyle.buttonRed,
+                        child: Text('Cancel', style: Textstyle.smallButton),
+                      ),
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.pushAndRemoveUntil(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (context) =>
+                                      PatientTracking(patientId: widget.uid),
+                            ),
+                            (Route<dynamic> route) => route.isFirst,
+                          );
+                        },
+                        style: Buttonstyle.buttonNeon,
+                        child: Text('Continue', style: Textstyle.smallButton),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+
+    return shouldPop;
+  }
+
+  Widget _buildDeter() {
+    return Container(
+      padding: EdgeInsets.all(20),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.neon,
+        borderRadius: BorderRadius.circular(10.0),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.max,
+        children: [
+          Icon(Icons.info_outline_rounded, size: 40, color: AppColors.white),
+          SizedBox(height: 10),
+          Text(
+            'Please check the input before submitting.',
+            textAlign: TextAlign.center,
+            style: Textstyle.body.copyWith(color: AppColors.white),
+          ),
+          Text(
+            'Once submitted, it cannot be reverted',
+            textAlign: TextAlign.center,
+            style: Textstyle.subheader.copyWith(color: AppColors.white),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(String title) {
+    return Text(title, textAlign: TextAlign.left, style: Textstyle.subheader);
+  }
 
   void showToast(String message) {
     Fluttertoast.showToast(
@@ -372,36 +468,159 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     }
   }
 
-  Future<bool> _onWillPop() async {
-    // Show confirmation dialog
-    bool shouldPop =
-        await showDialog<bool>(
+  Future<void> _submitData() async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      DocumentSnapshot doc =
+          await _firestore.collection('patient').doc(widget.uid).get();
+      String fName = doc.get('firstName');
+      String lName = doc.get('lastName');
+      int age = doc.get('age');
+      String gender = doc.get('gender');
+      String patientName = '$fName $lName';
+
+      if (mounted) {
+        showToast('Submitting data...');
+      }
+
+      _identifySymptoms();
+
+      final timestamp = Timestamp.now();
+
+      debugPrint("Timestamp now at tracking: $timestamp");
+
+      // Prepare the data to be inserted
+      final trackingData = {
+        'age': age,
+        'gender': gender,
+        'timestamp': timestamp,
+        'Vitals': widget.inputs['Vitals'],
+        'Symptom Assessment': widget.inputs['Symptom Assessment'],
+      };
+
+      // Get reference to the patient's document in the 'tracking' collection
+      final trackingRef = FirebaseFirestore.instance
+          .collection('tracking')
+          .doc(widget.uid);
+
+      // Get the document snapshot to check if the 'tracking' data exists
+      final docSnapshot = await trackingRef.get();
+
+      if (docSnapshot.exists) {
+        // If the document exists, update the 'tracking' array
+        await trackingRef
+            .update({
+              'tracking': FieldValue.arrayUnion([trackingData]),
+            })
+            .catchError((e) {
+              debugPrint("Error storing data: $e");
+              if (mounted) {
+                showToast('Error storing data: $e');
+              }
+            });
+      } else {
+        // If the document doesn't exist, create the document with the tracking data
+        await trackingRef
+            .set({
+              'tracking': [trackingData],
+            })
+            .catchError((e) {
+              debugPrint("Error creating tracking document: $e");
+              if (mounted) {
+                showToast('Error creating tracking data: $e');
+              }
+            });
+      }
+
+      // Add log entry
+      await _logService.addLog(
+        userId: _auth.currentUser!.uid,
+        action: 'Submitted $patientName\'s tracking information',
+        relatedUsers: widget.uid,
+      );
+
+      DocumentSnapshot patientDoc =
+          await _firestore.collection('patient').doc(widget.uid).get();
+      String status = patientDoc.get('status') ?? 'uncertain';
+
+      if (status == 'unstable') {
+        // Send notification for unstable status
+        await notificationService.sendNotificationToTaggedUsers(
+          widget.uid,
+          "Tracking Update",
+          "Patient $patientName is unstable. Check it now.",
+        );
+      } else if (status == 'stable') {
+        // Send notification for stable status
+        await notificationService.sendNotificationToTaggedUsers(
+          widget.uid,
+          "Tracking Update",
+          "Patient $patientName is stable. View it now.",
+        );
+      } else if (status == 'uncertain') {
+        // Send notification for uncertain status
+        await notificationService.sendNotificationToTaggedUsers(
+          widget.uid,
+          "Tracking Update",
+          "Patient $patientName is uncertain. Check it now.",
+        );
+      } else {
+        debugPrint("Status is not stable, unstable, or uncertain.");
+      }
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PatientTracking(patientId: widget.uid),
+        ),
+        (Route<dynamic> route) => route.isFirst,
+      );
+    } catch (e) {
+      // Handle any unexpected errors here
+      debugPrint("Unexpected error: $e");
+      if (mounted) {
+        showToast('An unexpected error occurred: $e');
+      }
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _showConfirmationDialog() async {
+    bool shouldSubmit =
+        await showDialog(
           context: context,
-          barrierDismissible: false, // Prevent dismissing by tapping outside
           builder: (BuildContext context) {
             return AlertDialog(
               backgroundColor: AppColors.white,
-              title: Text('Unsaved Changes', style: Textstyle.subheader),
+              title: Text('Confirm Submission', style: Textstyle.subheader),
               content: Text(
-                'If you go back, your inputs will not be saved. Do you want to continue?',
+                'Are you sure you want to submit the data?',
                 style: Textstyle.body,
               ),
-              actions: <Widget>[
-                TextButton(
-                  onPressed: () {
-                    // If "Continue" is pressed, allow navigation
-                    Navigator.of(context).pop(true);
-                  },
-                  style: Buttonstyle.buttonRed,
-                  child: Text('Continue', style: Textstyle.smallButton),
-                ),
-                TextButton(
-                  onPressed: () {
-                    // If "Cancel" is pressed, stay on the page
-                    Navigator.of(context).pop(false);
-                  },
-                  style: Buttonstyle.buttonNeon,
-                  child: Text('Cancel', style: Textstyle.smallButton),
+              actions: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        style: Buttonstyle.buttonRed,
+                        child: Text('Cancel', style: Textstyle.smallButton),
+                      ),
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        style: Buttonstyle.buttonNeon,
+                        child: Text('Submit', style: Textstyle.smallButton),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             );
@@ -409,169 +628,17 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         ) ??
         false;
 
-    return shouldPop;
+    if (shouldSubmit) {
+      _submitData();
+    }
   }
 
-  final vitalsUnits = {
-    'Heart Rate': 'bpm',
-    'Blood Pressure': 'mmHg',
-    'Oxygen Saturation': '%',
-    'Respiration': 'b/min',
-    'Temperature': '°C',
-    'Pain': '',
-  };
-
-  Widget _buildDeter() {
-    return Container(
-      padding: EdgeInsets.all(20),
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: AppColors.neon,
-        borderRadius: BorderRadius.circular(10.0),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.max,
-        children: [
-          Icon(Icons.info_outline_rounded, size: 40, color: AppColors.white),
-          SizedBox(height: 10),
-          Text(
-            'Please check the input before submitting.',
-            textAlign: TextAlign.center,
-            style: Textstyle.body.copyWith(color: AppColors.white),
-          ),
-          Text(
-            'Once submitted, it cannot be reverted',
-            textAlign: TextAlign.center,
-            style: Textstyle.subheader.copyWith(color: AppColors.white),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader(String title) {
-    return Text(title, textAlign: TextAlign.left, style: Textstyle.subheader);
-  }
-
-  Widget _buildSubmit() {
+  Widget _buildSubmitButton() {
     return SizedBox(
       width: double.infinity,
       child: TextButton(
-        onPressed: () async {
-          try {
-            DocumentSnapshot doc =
-                await _firestore.collection('patient').doc(widget.uid).get();
-            String fName = doc.get('firstName');
-            String lName = doc.get('lastName');
-            int age = doc.get('age');
-            String gender = doc.get('gender');
-            String patientName = '$fName $lName';
-
-            if (mounted) {
-              showToast('Submitting data...');
-            }
-
-            _identifySymptoms();
-
-            final timestamp = Timestamp.now();
-
-            debugPrint("Timestamp now at tracking: $timestamp");
-
-            // Prepare the data to be inserted
-            final trackingData = {
-              'age': age,
-              'gender': gender,
-              'timestamp': timestamp,
-              'Vitals': widget.inputs['Vitals'],
-              'Symptom Assessment': widget.inputs['Symptom Assessment'],
-            };
-
-            // Get reference to the patient's document in the 'tracking' collection
-            final trackingRef = FirebaseFirestore.instance
-                .collection('tracking')
-                .doc(widget.uid);
-
-            // Get the document snapshot to check if the 'tracking' data exists
-            final docSnapshot = await trackingRef.get();
-
-            if (docSnapshot.exists) {
-              // If the document exists, update the 'tracking' array
-              await trackingRef
-                  .update({
-                    'tracking': FieldValue.arrayUnion([trackingData]),
-                  })
-                  .catchError((e) {
-                    debugPrint("Error storing data: $e");
-                    if (mounted) {
-                      showToast('Error storing data: $e');
-                    }
-                  });
-            } else {
-              // If the document doesn't exist, create the document with the tracking data
-              await trackingRef
-                  .set({
-                    'tracking': [trackingData],
-                  })
-                  .catchError((e) {
-                    debugPrint("Error creating tracking document: $e");
-                    if (mounted) {
-                      showToast('Error creating tracking data: $e');
-                    }
-                  });
-            }
-
-            // Add log entry
-            await _logService.addLog(
-              userId: _auth.currentUser!.uid,
-              action: 'Submitted $patientName\'s tracking information',
-              relatedUsers: widget.uid,
-            );
-
-            DocumentSnapshot patientDoc =
-                await _firestore.collection('patient').doc(widget.uid).get();
-            String status = patientDoc.get('status') ?? 'uncertain';
-
-            if (status == 'unstable') {
-              // Send notification for unstable status
-              await notificationService.sendNotificationToTaggedUsers(
-                widget.uid,
-                "Tracking Update",
-                "Patient $patientName is unstable. Check it now.",
-              );
-            } else if (status == 'stable') {
-              // Send notification for stable status
-              await notificationService.sendNotificationToTaggedUsers(
-                widget.uid,
-                "Tracking Update",
-                "Patient $patientName is stable. View it now.",
-              );
-            } else if (status == 'uncertain') {
-              // Send notification for uncertain status
-              await notificationService.sendNotificationToTaggedUsers(
-                widget.uid,
-                "Tracking Update",
-                "Patient $patientName is uncertain. Check it now.",
-              );
-            } else {
-              debugPrint("Status is not stable, unstable, or uncertain.");
-            }
-
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(
-                builder: (context) => PatientTracking(patientId: widget.uid),
-              ),
-              (Route<dynamic> route) => route.isFirst,
-            );
-          } catch (e) {
-            // Handle any unexpected errors here
-            debugPrint("Unexpected error: $e");
-            if (mounted) {
-              showToast('An unexpected error occurred: $e');
-            }
-          }
-        },
-        style: Buttonstyle.neon,
+        onPressed: !_isLoading ? _showConfirmationDialog : null,
+        style: !_isLoading ? Buttonstyle.neon : Buttonstyle.gray,
         child: Text('Submit Final', style: Textstyle.largeButton),
       ),
     );
@@ -579,70 +646,76 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: _onWillPop, // Intercept the back navigation
-      child: Scaffold(
+    return Scaffold(
+      backgroundColor: AppColors.white,
+      appBar: AppBar(
+        title: Text('Tracking Summary', style: Textstyle.subheader),
         backgroundColor: AppColors.white,
-        appBar: AppBar(
-          title: Text('Summary', style: Textstyle.subheader),
-          backgroundColor: AppColors.white,
-          scrolledUnderElevation: 0.0,
-        ),
-        body: SingleChildScrollView(
-          child: Container(
-            color: AppColors.white,
-            padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildDeter(),
-                const SizedBox(height: 20),
-                _buildHeader("Your Assessment"),
-                const SizedBox(height: 20.0),
-                _buildHeader("Vitals:"),
-                if (widget.inputs['Vitals'] is Map)
-                  ...widget.inputs['Vitals'].entries.map((entry) {
-                    // Get the unit for the current vital
-                    final unit = vitalsUnits[entry.key] ?? '';
-                    final value =
-                        (entry.value == null || entry.value.toString().isEmpty)
-                            ? '0'
-                            : entry.value.toString();
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 5.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('${entry.key}:', style: Textstyle.body),
-                          Text(
-                            '$value$unit', // Append the unit
-                            style: Textstyle.body,
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                const SizedBox(height: 20.0),
-                _buildHeader("Symptom Assessment:"),
-                const SizedBox(height: 10.0),
-                if (widget.inputs['Symptom Assessment'] is Map)
-                  ...widget.inputs['Symptom Assessment'].entries.map((entry) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 5.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('${entry.key}:', style: Textstyle.body),
-                          Text('${entry.value}', style: Textstyle.body),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                Divider(),
-                SizedBox(height: 10),
-                _buildSubmit(),
-              ],
-            ),
+        scrolledUnderElevation: 0.0,
+        centerTitle: true,
+        leading:
+            _isLoading
+                ? null
+                : IconButton(
+                  icon: Icon(Icons.arrow_back),
+                  onPressed: _onWillPop,
+                ),
+        automaticallyImplyLeading: _isLoading ? false : true,
+      ),
+      body: SingleChildScrollView(
+        child: Container(
+          color: AppColors.white,
+          padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildDeter(),
+              const SizedBox(height: 20),
+              _buildHeader("Your Assessment"),
+              const SizedBox(height: 20.0),
+              _buildHeader("Vitals:"),
+              if (widget.inputs['Vitals'] is Map)
+                ...widget.inputs['Vitals'].entries.map((entry) {
+                  // Get the unit for the current vital
+                  final unit = vitalsUnits[entry.key] ?? '';
+                  final value =
+                      (entry.value == null || entry.value.toString().isEmpty)
+                          ? '0'
+                          : entry.value.toString();
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 5.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('${entry.key}:', style: Textstyle.body),
+                        Text(
+                          '$value$unit', // Append the unit
+                          style: Textstyle.body,
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              const SizedBox(height: 20.0),
+              _buildHeader("Symptom Assessment:"),
+              const SizedBox(height: 10.0),
+              if (widget.inputs['Symptom Assessment'] is Map)
+                ...widget.inputs['Symptom Assessment'].entries.map((entry) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 5.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('${entry.key}:', style: Textstyle.body),
+                        Text('${entry.value}', style: Textstyle.body),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              Divider(),
+              SizedBox(height: 10),
+              _buildSubmitButton(),
+            ],
           ),
         ),
       ),

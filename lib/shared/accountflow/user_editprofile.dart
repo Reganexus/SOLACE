@@ -11,12 +11,14 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:solace/screens/caregiver/caregiver_instructions.dart';
 import 'package:solace/screens/home/home.dart';
 import 'package:solace/screens/wrapper.dart';
 import 'package:solace/services/error_handler.dart';
 import 'package:solace/services/loader_screen.dart';
 import 'package:solace/services/validator.dart';
+import 'package:solace/shared/accountflow/rolechooser.dart';
 import 'package:solace/shared/widgets/select_profile_image.dart';
 import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
@@ -28,10 +30,16 @@ import 'package:solace/themes/loader.dart';
 import 'package:solace/themes/textformfield.dart';
 import 'package:solace/themes/textstyle.dart';
 
+/// Screen for editing user profile.
 class EditProfileScreen extends StatefulWidget {
   final Map<String, dynamic> userData;
+  final String userRole;
 
-  const EditProfileScreen({super.key, required this.userData});
+  const EditProfileScreen({
+    super.key,
+    required this.userData,
+    required this.userRole,
+  });
 
   @override
   State<EditProfileScreen> createState() => _EditProfileScreenState();
@@ -43,6 +51,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late final String userId;
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
+  bool _navigated = false;
 
   late List<FocusNode> _focusNodes;
   late TextEditingController firstNameController;
@@ -63,6 +72,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void initState() {
     super.initState();
     userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    if (userId.isEmpty) {
+      debugPrint("User ID is empty. User not logged in.");
+      return;
+    }
+    debugPrint("user id: $userId");
+    debugPrint("user role: ${widget.userRole}");
 
     _focusNodes = List.generate(8, (_) => FocusNode());
     firstNameController = TextEditingController();
@@ -74,6 +89,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     _initializeUserDetails(widget.userData);
     debugPrint("User Data in Edit Profile: ${widget.userData}");
+
+    if (widget.userData['newUser'] == true) {
+      loadFormData(userId);
+    } else {
+      _initializeUserDetails(widget.userData);
+    }
   }
 
   @override
@@ -90,43 +111,44 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.dispose();
   }
 
+  Future<void> loadFormData(String userId) async {
+    /// Loads form data from shared preferences.
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      firstNameController.text = prefs.getString('firstName_$userId') ?? '';
+      middleNameController.text = prefs.getString('middleName_$userId') ?? '';
+      lastNameController.text = prefs.getString('lastName_$userId') ?? '';
+      phoneNumberController.text = prefs.getString('phoneNumber_$userId') ?? '';
+      birthdayController.text = prefs.getString('birthday_$userId') ?? '';
+      gender = prefs.getString('gender_$userId') ?? '';
+      religion = prefs.getString('religion_$userId') ?? '';
+      addressController.text = prefs.getString('address_$userId') ?? '';
+      _profileImageUrl = prefs.getString('imagePath_$userId');
+      if (_profileImageUrl != null) {
+        _profileImage = File(_profileImageUrl!);
+      }
+    });
+    debugPrint("Form data loaded for userId: $userId from cache.");
+  }
+
   void _initializeUserDetails(Map<String, dynamic> userData) {
+    /// Initializes the user details from provided data.
     setState(() {
       firstNameController.text = userData['firstName'] ?? '';
       lastNameController.text = userData['lastName'] ?? '';
       middleNameController.text = userData['middleName'] ?? '';
       phoneNumberController.text = userData['phoneNumber'] ?? '';
       addressController.text = userData['address'] ?? '';
-
-      // Safely handle the birthday parsing
-      final rawBirthday = userData['birthday'];
-      if (rawBirthday != null) {
-        try {
-          birthday =
-              rawBirthday is Timestamp
-                  ? rawBirthday.toDate()
-                  : DateTime.parse(rawBirthday);
-
-          // Format birthday to "Month Day, Year"
-          birthdayController.text = DateFormat(
-            'MMMM d, yyyy',
-          ).format(birthday!);
-        } catch (e) {
-          birthday = null;
-          birthdayController.text = '';
-        }
-      } else {
-        birthday = null;
-        birthdayController.text = '';
-      }
-
+      birthday =
+          userData['birthday'] is Timestamp
+              ? (userData['birthday'] as Timestamp).toDate()
+              : DateTime.tryParse(userData['birthday'] ?? '');
+      birthdayController.text =
+          birthday != null ? DateFormat('MMMM d, yyyy').format(birthday!) : '';
       _profileImageUrl = userData['profileImageUrl'] ?? '';
       gender = userData['gender'] ?? '';
       religion = userData['religion'] ?? '';
-
-      // Safely handle userRole
-      final rawUserRole = userData['userRole'];
-      role = rawUserRole is String ? rawUserRole : rawUserRole?.toString();
+      role = widget.userRole;
     });
   }
 
@@ -138,6 +160,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   ];
 
   Future<File> getFileFromAsset(String assetPath) async {
+    /// Gets a file from the asset path.
     final byteData = await rootBundle.load(assetPath); // Load the asset
     final tempDir = await getTemporaryDirectory(); // Get temp directory
     final tempFile = File(
@@ -149,6 +172,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<String> uploadProfileImage({
+    /// Uploads profile image to Firebase Storage.
     required String userId,
     required File file,
   }) async {
@@ -175,22 +199,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _pickProfileImage() async {
+    /// Allows user to pick a profile image.
     try {
-      // Ensure userRole is cast or transformed into a String
-      final String role = widget.userData['userRole']?.toString() ?? '';
-
-      debugPrint("Pick Profile Image Role: $role");
-
-      if (role.isEmpty) {
-        throw Exception('User role is missing or invalid.');
-      }
-
       final selectedImage = await Navigator.push(
         context,
         MaterialPageRoute(
           builder:
               (context) => SelectProfileImageScreen(
-                role: role,
+                role: widget.userRole,
                 currentImage: _profileImageUrl,
               ),
         ),
@@ -203,7 +219,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 : File(selectedImage);
 
         setState(() {
-          _profileImageUrl = null;
+          _profileImageUrl = _profileImage!.path;
         });
 
         debugPrint("Selected image file path: ${_profileImage!.path}");
@@ -219,6 +235,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _selectDate(BuildContext context) async {
+    /// Opens date picker to select a date.
     final DateTime today = DateTime.now();
     final DateTime minDate = DateTime(
       today.year - 120,
@@ -256,6 +273,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   void _showError(List<String> errorMessages) {
+    /// Displays an error dialog with given messages.
     if (errorMessages.isEmpty || !mounted) return;
 
     showDialog(
@@ -267,6 +285,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   void showToast(String message) {
+    /// Shows a toast message.
     Fluttertoast.showToast(
       msg: message,
       toastLength: Toast.LENGTH_SHORT,
@@ -278,6 +297,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   int _calculateAge(DateTime birthDate) {
+    /// Calculates age based on birth date.
     final now = DateTime.now();
     int age = now.year - birthDate.year;
     if (now.isBefore(DateTime(now.year, birthDate.month, birthDate.day))) {
@@ -287,6 +307,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Widget divider() {
+    /// Returns a divider widget.
     return Column(
       children: [
         const SizedBox(height: 10),
@@ -296,16 +317,167 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
+  Future<bool> _showConfirmationDialog() async {
+    /// Shows a confirmation dialog.
+    return await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppColors.white,
+          title: Text('Confirm Update', style: Textstyle.subheader),
+          content: Text(
+            'Are you sure you want to update your profile?',
+            style: Textstyle.body,
+          ),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    style: Buttonstyle.buttonRed,
+                    child: Text('Cancel', style: Textstyle.smallButton),
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    style: Buttonstyle.buttonNeon,
+                    child: Text('Confirm', style: Textstyle.smallButton),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    ).then((value) => value ?? false);
+  }
+
+  void navigateToRoleChooser(Map<String, dynamic> userData) {
+    /// Navigates to the role chooser screen.
+    if (!_navigated) {
+      _navigated = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder:
+                (_) => RoleChooser(
+                  onRoleSelected: (role) {
+                    debugPrint("Selected role: $role");
+                    // Handle role selection logic.
+                  },
+                ),
+            settings: RouteSettings(arguments: userData),
+          ),
+        );
+      });
+    }
+  }
+
+  Future<void> _handleBackPress() async {
+    /// Handles back press action.
+    final isNewUser = widget.userData['newUser'] ?? false;
+
+    if (_hasUnsavedChanges()) {
+      final shouldDiscardChanges = await _showDiscardChangesDialog(isNewUser);
+      if (!shouldDiscardChanges) {
+        return;
+      }
+    }
+
+    if (isNewUser) {
+      debugPrint("imagepath: $_profileImageUrl");
+      await db.cacheFormData(
+        userId: userId,
+        firstName: firstNameController.text.trim(),
+        middleName: middleNameController.text.trim(),
+        lastName: lastNameController.text.trim(),
+        phoneNumber: phoneNumberController.text.trim(),
+        birthday: birthdayController.text.trim(),
+        gender: gender,
+        religion: religion,
+        address: addressController.text.trim(),
+        imagePath: _profileImageUrl ?? '',
+      );
+      navigateToRoleChooser(widget.userData);
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const Wrapper()),
+      );
+    }
+  }
+
+  bool _hasUnsavedChanges() {
+    /// Checks if there are any unsaved changes in the form.
+    return firstNameController.text.trim() !=
+            widget.userData['firstName']?.trim() ||
+        middleNameController.text.trim() !=
+            widget.userData['middleName']?.trim() ||
+        lastNameController.text.trim() != widget.userData['lastName']?.trim() ||
+        phoneNumberController.text.trim() !=
+            widget.userData['phoneNumber']?.trim() ||
+        gender != widget.userData['gender'] ||
+        religion != widget.userData['religion'] ||
+        addressController.text.trim() != widget.userData['address']?.trim() ||
+        _profileImage != null;
+  }
+
+  Future<bool> _showDiscardChangesDialog(bool newUser) async {
+    /// Shows a dialog to confirm discarding changes.
+    return await showDialog<bool>(
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                backgroundColor: AppColors.white,
+                title: Text(
+                  newUser ? 'Go Back?' : 'Discard Changes?',
+                  style: Textstyle.subheader,
+                ),
+                content: Text(
+                  newUser
+                      ? "Go back to role selection? Don't worry, your changes will be saved."
+                      : 'You have unsaved changes. Do you want to discard them and go back?',
+                  style: Textstyle.body,
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false), // Cancel
+                    style: Buttonstyle.buttonRed,
+                    child: Text('Cancel', style: Textstyle.smallButton),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(true), // Confirm
+                    style: Buttonstyle.buttonNeon,
+                    child: Text(
+                      newUser ? 'Confirm' : 'Discard',
+                      style: Textstyle.smallButton,
+                    ),
+                  ),
+                ],
+              ),
+        ) ??
+        false; // Default to false if dialog is dismissed
+  }
+
   Future<void> _submitForm() async {
+    /// Submits the form after validation.
     if (!_formKey.currentState!.validate()) return;
 
     if (!mounted) return;
     FocusScope.of(context).unfocus();
 
+    final shouldProceed = await _showConfirmationDialog();
+    if (!shouldProceed) return;
     setState(() => _isLoading = true);
 
     try {
       final userId = FirebaseAuth.instance.currentUser?.uid;
+      final firestore = FirebaseFirestore.instance;
       if (userId == null) throw Exception("User not logged in.");
 
       final userRole = widget.userData['userRole'] ?? '';
@@ -328,11 +500,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         );
       }
 
-      final userDocRef = FirebaseFirestore.instance
-          .collection(userRole) // Dynamically set collection
-          .doc(userId);
-
-      await userDocRef.update({
+      // Document Transfer for New Users
+      final isNewUser = widget.userData['newUser'] == true;
+      final userDocData = {
+        ...widget.userData,
         'firstName':
             StringExtensions(
               firstNameController.text.trim(),
@@ -355,19 +526,39 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         'profileImageUrl': profileImageUrl ?? '',
         'religion': religion,
         'age': age,
-        'newUser': widget.userData['newUser'] ?? false,
+        'newUser': false,
         'isVerified': true,
-      });
+        'userRole': widget.userRole,
+      };
 
-      // Determine navigation
-      final bool isNewUser = widget.userData['newUser'] == true;
+      db.cacheUserRole(userId, widget.userRole);
+
+      if (isNewUser) {
+        final unregisteredRef = firestore
+            .collection('unregistered')
+            .doc(userId);
+        final targetRef = firestore.collection(widget.userRole).doc(userId);
+
+        await firestore.runTransaction((transaction) async {
+          transaction.set(targetRef, userDocData);
+          transaction.delete(unregisteredRef);
+        });
+      } else {
+        // Update Document for Existing Users
+        final userDocRef = firestore.collection(widget.userRole).doc(userId);
+        await userDocRef.update(userDocData);
+      }
+
+      // Navigation Logic
       if (isNewUser) {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
             builder:
-                (context) =>
-                    CaregiverInstructions(userId: userId, userRole: userRole),
+                (context) => CaregiverInstructions(
+                  userId: userId,
+                  userRole: widget.userRole,
+                ),
           ),
           (route) => false,
         );
@@ -379,12 +570,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         );
       }
 
-      if (isNewUser) {
-        // Update newUser to false after navigating to CaregiverInstructions
-        await userDocRef.update({'newUser': false});
-        // enroll user in sms authentication here
-      }
-
+      // Logging and Feedback
       if (mounted) {
         await logService.addLog(userId: userId, action: 'Edited profile');
         showToast('Profile updated successfully');
@@ -396,256 +582,329 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
+  Widget _buildForm() {
+    /// Builds the form widget.
+
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Profile Image', style: Textstyle.subheader),
+              Text(
+                'Tap the camera icon to change your profile image',
+                style: Textstyle.body,
+              ),
+            ],
+          ),
+          SizedBox(height: 20),
+
+          FormField(
+            validator: (value) {
+              if (_profileImage == null &&
+                  (_profileImageUrl == null || _profileImageUrl!.isEmpty)) {
+                return 'Please select a profile image.';
+              }
+              return null;
+            },
+            builder: (FormFieldState state) {
+              return Center(
+                child: Column(
+                  children: [
+                    Stack(
+                      alignment: Alignment.bottomRight,
+                      children: [
+                        CircleAvatar(
+                          radius: 60,
+                          backgroundImage:
+                              _profileImage != null
+                                  ? FileImage(_profileImage!) // Picked image
+                                  : (_profileImageUrl != null &&
+                                          _profileImageUrl!.isNotEmpty
+                                      ? NetworkImage(_profileImageUrl!)
+                                      : AssetImage(
+                                            'lib/assets/images/shared/placeholder.png',
+                                          )
+                                          as ImageProvider),
+                          backgroundColor: Colors.transparent,
+                        ),
+                        Container(
+                          height: 40,
+                          width: 40,
+                          decoration: BoxDecoration(
+                            color: AppColors.blackTransparent,
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            onPressed:
+                                _isLoading
+                                    ? null
+                                    : () {
+                                      _pickProfileImage();
+                                    },
+                            icon: Icon(
+                              Icons.camera_alt,
+                              color: AppColors.white,
+                            ),
+                            iconSize: 18,
+                          ),
+                        ),
+                      ],
+                    ),
+                    // Display error message if validation fails
+                    if (state.hasError)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Text(
+                          state.errorText ?? '',
+                          style: TextStyle(
+                            color: Colors.red.shade900,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+          divider(),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Personal Information', style: Textstyle.subheader),
+            ],
+          ),
+          SizedBox(height: 10),
+          CustomTextField(
+            controller: firstNameController,
+            focusNode: _focusNodes[0],
+            labelText: 'First Name',
+            enabled: !_isLoading,
+            validator: (value) => Validator.name(value?.trim()),
+          ),
+
+          SizedBox(height: 10),
+          CustomTextField(
+            controller: middleNameController,
+            focusNode: _focusNodes[1],
+            labelText: 'Middle Name',
+            enabled: !_isLoading,
+            validator: (value) => Validator.name(value?.trim()),
+          ),
+
+          SizedBox(height: 10),
+          CustomTextField(
+            controller: lastNameController,
+            focusNode: _focusNodes[2],
+            labelText: 'Last Name',
+            enabled: !_isLoading,
+            validator: (value) => Validator.name(value?.trim()),
+          ),
+
+          SizedBox(height: 10),
+          CustomTextField(
+            controller: phoneNumberController,
+            focusNode: _focusNodes[3],
+            labelText: 'Mobile Number',
+            keyboardType: TextInputType.phone,
+            enabled: !_isLoading,
+            validator: (value) => Validator.phoneNumber(value?.trim()),
+          ),
+
+          // Birthday Field
+          SizedBox(height: 10),
+          TextFormField(
+            controller: birthdayController,
+            enabled: !_isLoading,
+            focusNode: _focusNodes[4],
+            style: TextStyle(
+              fontSize: 16,
+              fontFamily: 'Inter',
+              fontWeight: FontWeight.normal,
+              color: AppColors.black,
+            ),
+            decoration: InputDecoration(
+              labelText: 'Birthday',
+              filled: true,
+              fillColor: AppColors.gray,
+              suffixIcon: Icon(
+                Icons.calendar_today,
+                color:
+                    _focusNodes[4].hasFocus ? AppColors.neon : AppColors.black,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: AppColors.neon, width: 2),
+              ),
+              labelStyle: TextStyle(
+                fontSize: 16,
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.normal,
+                color:
+                    _focusNodes[4].hasFocus ? AppColors.neon : AppColors.black,
+              ),
+            ),
+            validator:
+                (val) => val!.isEmpty ? 'Birthday cannot be empty' : null,
+            readOnly: true,
+            onTap: () => _selectDate(context),
+          ),
+          SizedBox(height: 10),
+          CustomDropdownField<String>(
+            value:
+                gender.isNotEmpty &&
+                        ['Male', 'Female', 'Other'].contains(gender)
+                    ? gender
+                    : null,
+            focusNode: _focusNodes[5],
+            labelText: 'Gender',
+            items: ['Male', 'Female', 'Other'],
+            enabled: !_isLoading,
+            onChanged: (val) => setState(() => gender = val ?? ''),
+            validator: (val) => val!.isEmpty ? 'Gender cannot be empty' : null,
+            displayItem: (item) => item,
+          ),
+          SizedBox(height: 10),
+          CustomDropdownField<String>(
+            value:
+                religion.isNotEmpty && religions.contains(religion)
+                    ? religion
+                    : null,
+            focusNode: _focusNodes[6],
+            labelText: 'Religion',
+            enabled: !_isLoading,
+            items: religions,
+            onChanged: (val) => setState(() => religion = val ?? ''),
+            validator:
+                (val) => val!.isEmpty ? 'Religion cannot be empty' : null,
+            displayItem: (item) => item,
+          ),
+          SizedBox(height: 10),
+          CustomTextField(
+            controller: addressController,
+            focusNode: _focusNodes[7],
+            labelText: 'Address',
+            enabled: !_isLoading,
+            validator: (val) {
+              if (val == null || val.isEmpty) {
+                return 'Address cannot be empty';
+              }
+              return null;
+            },
+          ),
+          divider(),
+          SizedBox(
+            width: double.infinity,
+            child: TextButton(
+              onPressed:
+                  (!_isLoading &&
+                          _formKey.currentState?.validate() == true &&
+                          _hasUnsavedChanges())
+                      ? _submitForm
+                      : null,
+              style:
+                  (!_isLoading &&
+                          _formKey.currentState?.validate() == true &&
+                          _hasUnsavedChanges())
+                      ? Buttonstyle.neon
+                      : Buttonstyle.gray,
+              child: Text('Save Changes', style: Textstyle.largeButton),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.neon,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(Icons.info_outline_rounded, size: 40, color: AppColors.white),
+          SizedBox(height: 20),
+          Text(
+            'Fill in your personal information',
+            style: Textstyle.subheader.copyWith(color: AppColors.white),
+          ),
+          Text(
+            'Please answer all the following fields',
+            style: Textstyle.bodyWhite,
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: AppBar(
-        title: Text('Edit Profile', style: Textstyle.subheader),
+        title: Text(
+          _isLoading ? '' : 'Edit Profile',
+          style: Textstyle.subheader,
+        ),
         backgroundColor: AppColors.white,
         scrolledUnderElevation: 0.0,
+        centerTitle: true,
         automaticallyImplyLeading: _isLoading ? false : true,
+        leading:
+            _isLoading
+                ? null
+                : IconButton(
+                  icon: Icon(Icons.arrow_back, color: AppColors.black),
+                  onPressed: () {
+                    _handleBackPress();
+                  },
+                ),
       ),
       body:
           _isLoading
-              ? Center(child: Loader.loaderPurple)
+              ? Container(
+                color: AppColors.white,
+                alignment: Alignment.center,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Loader.loaderPurple,
+                    SizedBox(height: 20),
+                    Text(
+                      "Saving your data. Please wait.",
+                      style: Textstyle.body.copyWith(
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
+                  ],
+                ),
+              )
               : GestureDetector(
                 onTap: () => FocusScope.of(context).unfocus(),
                 child: SingleChildScrollView(
                   child: Container(
                     padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        children: [
-                          Center(
-                            child: Stack(
-                              alignment: Alignment.bottomRight,
-                              children: [
-                                CircleAvatar(
-                                  radius: 60,
-                                  backgroundImage:
-                                      _profileImage != null
-                                          ? FileImage(_profileImage!)
-                                          : (_profileImageUrl != null &&
-                                                  _profileImageUrl!.isNotEmpty
-                                              ? (_profileImageUrl!.startsWith(
-                                                    'http',
-                                                  )
-                                                  ? NetworkImage(
-                                                    _profileImageUrl!,
-                                                  )
-                                                  : AssetImage(
-                                                        _profileImageUrl!,
-                                                      )
-                                                      as ImageProvider)
-                                              : AssetImage(
-                                                'lib/assets/images/shared/placeholder.png',
-                                              )),
-                                ),
-                                Container(
-                                  height: 40,
-                                  width: 40,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.blackTransparent,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: IconButton(
-                                    onPressed:
-                                        _isLoading
-                                            ? null // Disable during loading
-                                            : () {
-                                              _pickProfileImage();
-                                            },
-
-                                    icon: Icon(
-                                      Icons.camera_alt,
-                                      color: AppColors.white,
-                                    ),
-                                    iconSize: 18,
-                                  ),
-                                ),
-
-                                const SizedBox(height: 10),
-                              ],
-                            ),
-                          ),
-
-                          divider(),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Personal Information',
-                                style: Textstyle.subheader,
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: 10),
-                          CustomTextField(
-                            controller: firstNameController,
-                            focusNode: _focusNodes[0],
-                            labelText: 'First Name',
-                            enabled: !_isLoading,
-                            validator: (value) => Validator.name(value?.trim()),
-                          ),
-
-                          SizedBox(height: 10),
-                          CustomTextField(
-                            controller: middleNameController,
-                            focusNode: _focusNodes[1],
-                            labelText: 'Middle Name',
-                            enabled: !_isLoading,
-                            validator: (value) => Validator.name(value?.trim()),
-                          ),
-
-                          SizedBox(height: 10),
-                          CustomTextField(
-                            controller: lastNameController,
-                            focusNode: _focusNodes[2],
-                            labelText: 'Last Name',
-                            enabled: !_isLoading,
-                            validator: (value) => Validator.name(value?.trim()),
-                          ),
-
-                          SizedBox(height: 10),
-                          CustomTextField(
-                            controller: phoneNumberController,
-                            focusNode: _focusNodes[3],
-                            labelText: 'Phone Number',
-                            keyboardType: TextInputType.phone,
-                            enabled: !_isLoading,
-                            validator:
-                                (value) => Validator.phoneNumber(value?.trim()),
-                          ),
-
-                          // Birthday Field
-                          SizedBox(height: 10),
-                          TextFormField(
-                            controller: birthdayController,
-                            enabled: !_isLoading,
-                            focusNode: _focusNodes[4],
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontFamily: 'Inter',
-                              fontWeight: FontWeight.normal,
-                              color: AppColors.black,
-                            ),
-                            decoration: InputDecoration(
-                              labelText: 'Birthday',
-                              filled: true,
-                              fillColor: AppColors.gray,
-                              suffixIcon: Icon(
-                                Icons.calendar_today,
-                                color:
-                                    _focusNodes[4].hasFocus
-                                        ? AppColors.neon
-                                        : AppColors.black,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide.none,
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide(
-                                  color: AppColors.neon,
-                                  width: 2,
-                                ),
-                              ),
-                              labelStyle: TextStyle(
-                                fontSize: 16,
-                                fontFamily: 'Inter',
-                                fontWeight: FontWeight.normal,
-                                color:
-                                    _focusNodes[4].hasFocus
-                                        ? AppColors.neon
-                                        : AppColors.black,
-                              ),
-                            ),
-                            validator:
-                                (val) =>
-                                    val!.isEmpty
-                                        ? 'Birthday cannot be empty'
-                                        : null,
-                            readOnly: true,
-                            onTap: () => _selectDate(context),
-                          ),
-                          SizedBox(height: 10),
-                          CustomDropdownField<String>(
-                            value:
-                                gender.isNotEmpty &&
-                                        [
-                                          'Male',
-                                          'Female',
-                                          'Other',
-                                        ].contains(gender)
-                                    ? gender
-                                    : null,
-                            focusNode: _focusNodes[5],
-                            labelText: 'Gender',
-                            items: ['Male', 'Female', 'Other'],
-                            enabled: !_isLoading,
-                            onChanged:
-                                (val) => setState(() => gender = val ?? ''),
-                            validator:
-                                (val) =>
-                                    val == null || val.isEmpty
-                                        ? 'Select Gender'
-                                        : null,
-                            displayItem: (item) => item,
-                          ),
-                          SizedBox(height: 10),
-                          CustomDropdownField<String>(
-                            value:
-                                religion.isNotEmpty &&
-                                        religions.contains(religion)
-                                    ? religion
-                                    : null,
-                            focusNode: _focusNodes[6],
-                            labelText: 'Religion',
-                            enabled: !_isLoading,
-                            items: religions,
-                            onChanged:
-                                (val) => setState(() => religion = val ?? ''),
-                            validator:
-                                (val) =>
-                                    val == null || val.isEmpty
-                                        ? 'Select Religion'
-                                        : null,
-                            displayItem: (item) => item,
-                          ),
-                          SizedBox(height: 10),
-                          CustomTextField(
-                            controller: addressController,
-                            focusNode: _focusNodes[7],
-                            labelText: 'Address',
-                            enabled: !_isLoading,
-                            validator: (val) {
-                              if (val == null || val.isEmpty) {
-                                return 'Address cannot be empty';
-                              }
-                              return null;
-                            },
-                          ),
-                          divider(),
-                          SizedBox(
-                            width: double.infinity,
-                            child: TextButton(
-                              onPressed: _submitForm,
-                              style:
-                                  _isLoading
-                                      ? Buttonstyle.gray
-                                      : Buttonstyle.neon,
-                              child: Text(
-                                'Update Profile',
-                                style: Textstyle.largeButton,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                        ],
-                      ),
+                    child: Column(
+                      children: [
+                        _buildHeader(),
+                        SizedBox(height: 20),
+                        _buildForm(),
+                      ],
                     ),
                   ),
                 ),
@@ -666,3 +925,5 @@ extension StringExtensions on String {
         .join(' ');
   }
 }
+
+/*******  1483c8f1-1839-47d8-890b-9767657849b7  *******/

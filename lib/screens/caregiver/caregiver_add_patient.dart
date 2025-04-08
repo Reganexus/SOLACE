@@ -17,6 +17,7 @@ import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/themes/dropdownfield.dart';
+import 'package:solace/themes/loader.dart';
 import 'package:solace/themes/textformfield.dart';
 import 'package:solace/themes/textstyle.dart';
 
@@ -41,6 +42,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
   String religion = '';
   bool _isLoading = false;
   bool hasError = false;
+  String patientName = '';
 
   final List<FocusNode> _focusNodes = List.generate(13, (_) => FocusNode());
   final TextEditingController firstNameController = TextEditingController();
@@ -215,17 +217,73 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
     return age;
   }
 
-  bool _areAllFieldsFilled() {
-    return firstNameController.text.trim().isNotEmpty &&
-        lastNameController.text.trim().isNotEmpty &&
-        caseDescriptionController.text.trim().isNotEmpty &&
-        addressController.text.trim().isNotEmpty &&
-        birthday != null &&
-        gender.isNotEmpty &&
-        religion.isNotEmpty;
+  Future<bool> _showConfirmationDialog(String name) async {
+    return await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppColors.white,
+          title: Text('Confirm Update', style: Textstyle.subheader),
+          content: Text(
+            'Are you sure you want to add $name as patient?',
+            style: Textstyle.body,
+          ),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    style: Buttonstyle.buttonRed,
+                    child: Text('Cancel', style: Textstyle.smallButton),
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    style: Buttonstyle.buttonNeon,
+                    child: Text('Confirm', style: Textstyle.smallButton),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    ).then((value) => value ?? false);
+  }
+
+  void _showError(List<String> errorMessages) {
+    if (errorMessages.isEmpty) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => ErrorDialog(title: 'Error', messages: errorMessages),
+    );
   }
 
   Future<void> _submitForm() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    if (!mounted) return;
+    FocusScope.of(context).unfocus();
+
+    final name =
+        '${firstNameController.text.trim().capitalizeEachWord()} ${middleNameController.text.trim().capitalizeEachWord()} ${lastNameController.text.trim().capitalizeEachWord()}';
+
+    setState(() {
+      patientName = name;
+      _isLoading = false;
+      debugPrint("Patient name: $patientName");
+    });
+
+    final shouldProceed = await _showConfirmationDialog(patientName);
+    if (!shouldProceed) return;
+
+    setState(() => _isLoading = true);
     final user = _auth.currentUserId;
 
     if (user == null) {
@@ -325,30 +383,19 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
             caseDescriptionController.text.trim().capitalizeEachWord(),
         status: 'stable',
         address: addressController.text.trim().capitalizeEachWord(),
-        tag: role == 'caregiver' ? [user.toString()] : <String>[],
+        currentUserId: user,
       );
 
-      final name =
-          '${firstNameController.text.trim().capitalizeEachWord()} ${lastNameController.text.trim().capitalizeEachWord()}';
-
-      await _logService.addLog(userId: user, action: "Added Patient $name");
+      await _logService.addLog(
+        userId: user,
+        action: "Added Patient $patientName",
+      );
 
       showToast('Patient data submitted successfully!');
       Navigator.of(context).pop();
     } catch (e) {
       _showError(['Error submitting patient data: $e']);
     }
-  }
-
-  void _showError(List<String> errorMessages) {
-    if (errorMessages.isEmpty) return;
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder:
-          (context) => ErrorDialog(title: 'Error', messages: errorMessages),
-    );
   }
 
   Widget divider() {
@@ -368,7 +415,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
           padding: const EdgeInsets.all(20),
           width: double.infinity,
           decoration: BoxDecoration(
-            color: AppColors.red,
+            color: AppColors.neon,
             borderRadius: BorderRadius.circular(10.0),
           ),
           child: Column(
@@ -404,6 +451,261 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
     );
   }
 
+  Widget _buildForm() {
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Profile Image', style: Textstyle.subheader),
+              Text(
+                "Tap the camera icon to change the patient's profile image",
+                style: Textstyle.body,
+              ),
+            ],
+          ),
+          SizedBox(height: 20),
+
+          // Profile Image Section with FormField for Validation
+          FormField(
+            validator: (value) {
+              if (_profileImage == null &&
+                  (_profileImageUrl == null || _profileImageUrl!.isEmpty)) {
+                return 'Please select a profile image.';
+              }
+              return null;
+            },
+            builder: (FormFieldState state) {
+              return Center(
+                child: Column(
+                  children: [
+                    Stack(
+                      alignment: Alignment.bottomRight,
+                      children: [
+                        CircleAvatar(
+                          radius: 60,
+                          backgroundImage:
+                              _profileImage != null
+                                  ? FileImage(_profileImage!) // Picked image
+                                  : (_profileImageUrl != null &&
+                                          _profileImageUrl!.isNotEmpty
+                                      ? NetworkImage(_profileImageUrl!)
+                                      : AssetImage(
+                                            'lib/assets/images/shared/placeholder.png',
+                                          )
+                                          as ImageProvider),
+                          backgroundColor: Colors.transparent,
+                        ),
+                        Container(
+                          height: 40,
+                          width: 40,
+                          decoration: BoxDecoration(
+                            color: AppColors.blackTransparent,
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            onPressed:
+                                _isLoading
+                                    ? null // Disable during loading
+                                    : () {
+                                      _pickProfileImage('patient');
+                                    },
+                            icon: Icon(
+                              Icons.camera_alt,
+                              color: AppColors.white,
+                            ),
+                            iconSize: 18,
+                          ),
+                        ),
+                      ],
+                    ),
+                    // Display error message if validation fails
+                    if (state.hasError)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Text(
+                          state.errorText ?? '',
+                          style: TextStyle(
+                            color: Colors.red.shade900,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+          divider(),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [Text('Current Case', style: Textstyle.subheader)],
+          ),
+          CasePickerWidget(
+            selectedCases: selectedCases,
+            onAddCase: _addCase,
+            onRemoveCase: _removeCase,
+            enabled: !_isLoading,
+            validator: (selectedCases) {
+              if (selectedCases == null || selectedCases.isEmpty) {
+                return 'Please select at least one case.';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 10),
+
+          CustomTextField(
+            controller: caseDescriptionController,
+            focusNode: _focusNodes[7],
+            labelText: 'Case Description',
+            enabled: !_isLoading,
+            validator:
+                (val) =>
+                    val!.isEmpty ? 'Case Description cannot be empty' : null,
+          ),
+          divider(),
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Personal Information', style: Textstyle.subheader),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          CustomTextField(
+            controller: firstNameController,
+            focusNode: _focusNodes[0],
+            labelText: 'First Name',
+            enabled: !_isLoading,
+            validator: (value) => Validator.name(value?.trim()),
+          ),
+          const SizedBox(height: 10),
+
+          CustomTextField(
+            controller: middleNameController,
+            focusNode: _focusNodes[1],
+            labelText: 'Middle Name',
+            enabled: !_isLoading,
+            validator: (value) => Validator.name(value?.trim()),
+          ),
+          const SizedBox(height: 10),
+
+          CustomTextField(
+            controller: lastNameController,
+            focusNode: _focusNodes[2],
+            labelText: 'Last Name',
+            enabled: !_isLoading,
+            validator: (value) => Validator.name(value?.trim()),
+          ),
+          const SizedBox(height: 10),
+
+          TextFormField(
+            controller: birthdayController,
+            enabled: !_isLoading,
+            focusNode: _focusNodes[3],
+            style: TextStyle(
+              fontSize: 16,
+              fontFamily: 'Inter',
+              fontWeight: FontWeight.normal,
+              color: AppColors.black,
+            ),
+            decoration: InputDecoration(
+              labelText: 'Birthday',
+              filled: true,
+              fillColor: AppColors.gray,
+              suffixIcon: Icon(
+                Icons.calendar_today,
+                color:
+                    _focusNodes[3].hasFocus ? AppColors.neon : AppColors.black,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: AppColors.neon, width: 2),
+              ),
+              labelStyle: TextStyle(
+                fontSize: 16,
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.normal,
+                color:
+                    _focusNodes[3].hasFocus ? AppColors.neon : AppColors.black,
+              ),
+            ),
+            validator:
+                (val) => val!.isEmpty ? 'Birthday cannot be empty' : null,
+            readOnly: true,
+            onTap: () => _selectDate(context),
+          ),
+
+          const SizedBox(height: 10),
+
+          CustomDropdownField<String>(
+            value: gender.isNotEmpty ? gender : null,
+            focusNode: _focusNodes[4],
+            labelText: 'Gender',
+            items: ['Male', 'Female', 'Other'],
+            onChanged: (val) => setState(() => gender = val ?? ''),
+            validator:
+                (val) => val == null || val.isEmpty ? 'Select Gender' : null,
+            displayItem: (value) => value,
+            enabled: !_isLoading,
+          ),
+          const SizedBox(height: 10),
+
+          CustomDropdownField<String>(
+            value: religion.isNotEmpty ? religion : null,
+            focusNode: _focusNodes[5],
+            labelText: 'Religion',
+            items: religions,
+            onChanged: (val) => setState(() => religion = val ?? ''),
+            validator:
+                (val) => val == null || val.isEmpty ? 'Select Religion' : null,
+            displayItem: (value) => value,
+            enabled: !_isLoading,
+          ),
+          const SizedBox(height: 10),
+
+          CustomTextField(
+            controller: addressController,
+            focusNode: _focusNodes[6],
+            labelText: 'Address',
+            enabled: !_isLoading,
+            validator: (val) => val!.isEmpty ? 'Address cannot be empty' : null,
+          ),
+          const SizedBox(height: 10),
+
+          divider(),
+
+          SizedBox(
+            width: double.infinity,
+            child: TextButton(
+              onPressed:
+                  (!_isLoading &&
+                          _formKey.currentState?.validate() == true &&
+                          _profileImage != null &&
+                          (selectedCases != null && selectedCases.isNotEmpty))
+                      ? _submitForm
+                      : null,
+              style:
+                  (_isLoading || _profileImage == null || selectedCases.isEmpty)
+                      ? Buttonstyle.gray
+                      : Buttonstyle.neon,
+              child: Text('Add Patient', style: Textstyle.largeButton),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -413,216 +715,31 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
         appBar: AppBar(
           backgroundColor: AppColors.white,
           scrolledUnderElevation: 0.0,
+          centerTitle: true,
           title: Text('Patient Info', style: Textstyle.subheader),
         ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              children: [
-                // Profile Image Section
-                Center(
-                  child: Stack(
-                    alignment: Alignment.bottomRight,
+        body:
+            _isLoading
+                ? Container(
+                  alignment: Alignment.center,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      CircleAvatar(
-                        radius: 60,
-                        backgroundImage:
-                            _profileImage != null
-                                ? FileImage(_profileImage!) // Picked image
-                                : (_profileImageUrl != null &&
-                                            _profileImageUrl!.isNotEmpty
-                                        ? AssetImage(_profileImageUrl!)
-                                        : AssetImage(
-                                          'lib/assets/images/shared/placeholder.png',
-                                        ))
-                                    as ImageProvider,
-                        backgroundColor: Colors.transparent,
-                      ),
-                      Container(
-                        height: 40,
-                        width: 40,
-                        decoration: BoxDecoration(
-                          color: AppColors.blackTransparent,
-                          shape: BoxShape.circle,
-                        ),
-                        child: IconButton(
-                          onPressed:
-                              _isLoading
-                                  ? null // Disable during loading
-                                  : () {
-                                    _pickProfileImage('patient');
-                                  },
-                          icon: Icon(Icons.camera_alt, color: AppColors.white),
-                          iconSize: 18,
+                      Loader.loaderPurple,
+                      SizedBox(height: 20),
+                      Text(
+                        "Adding Patient $patientName. Please wait.",
+                        style: Textstyle.body.copyWith(
+                          decoration: TextDecoration.none,
                         ),
                       ),
-                      const SizedBox(height: 10),
                     ],
                   ),
+                )
+                : SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16.0, 0, 16, 16),
+                  child: Column(children: [deter(), _buildForm()]),
                 ),
-                divider(),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [Text('Current Case', style: Textstyle.subheader)],
-                ),
-                CasePickerWidget(
-                  selectedCases: selectedCases,
-                  onAddCase: _addCase,
-                  onRemoveCase: _removeCase,
-                ),
-                const SizedBox(height: 10),
-
-                CustomTextField(
-                  controller: caseDescriptionController,
-                  focusNode: _focusNodes[7],
-                  labelText: 'Case Description',
-                  enabled: !_isLoading,
-                  validator:
-                      (val) =>
-                          val!.isEmpty
-                              ? 'Case Description cannot be empty'
-                              : null,
-                ),
-                divider(),
-
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Personal Information', style: Textstyle.subheader),
-                  ],
-                ),
-                const SizedBox(height: 10),
-
-                CustomTextField(
-                  controller: firstNameController,
-                  focusNode: _focusNodes[0],
-                  labelText: 'First Name',
-                  enabled: !_isLoading,
-                  validator: (value) => Validator.name(value?.trim()),
-                ),
-                const SizedBox(height: 10),
-
-                CustomTextField(
-                  controller: middleNameController,
-                  focusNode: _focusNodes[1],
-                  labelText: 'Middle Name',
-                  enabled: !_isLoading,
-                  validator: (value) => Validator.name(value?.trim()),
-                ),
-                const SizedBox(height: 10),
-
-                CustomTextField(
-                  controller: lastNameController,
-                  focusNode: _focusNodes[2],
-                  labelText: 'Last Name',
-                  enabled: !_isLoading,
-                  validator: (value) => Validator.name(value?.trim()),
-                ),
-                const SizedBox(height: 10),
-
-                TextFormField(
-                  controller: birthdayController,
-                  enabled: !_isLoading,
-                  focusNode: _focusNodes[3],
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.normal,
-                    color: AppColors.black,
-                  ),
-                  decoration: InputDecoration(
-                    labelText: 'Birthday',
-                    filled: true,
-                    fillColor: AppColors.gray,
-                    suffixIcon: Icon(
-                      Icons.calendar_today,
-                      color:
-                          _focusNodes[3].hasFocus
-                              ? AppColors.neon
-                              : AppColors.black,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none,
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(color: AppColors.neon, width: 2),
-                    ),
-                    labelStyle: TextStyle(
-                      fontSize: 16,
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.normal,
-                      color:
-                          _focusNodes[3].hasFocus
-                              ? AppColors.neon
-                              : AppColors.black,
-                    ),
-                  ),
-                  validator:
-                      (val) => val!.isEmpty ? 'Birthday cannot be empty' : null,
-                  readOnly: true,
-                  onTap: () => _selectDate(context),
-                ),
-
-                const SizedBox(height: 10),
-
-                CustomDropdownField<String>(
-                  value: gender.isNotEmpty ? gender : null,
-                  focusNode: _focusNodes[4],
-                  labelText: 'Gender',
-                  items: ['Male', 'Female', 'Other'],
-                  onChanged: (val) => setState(() => gender = val ?? ''),
-                  validator:
-                      (val) =>
-                          val == null || val.isEmpty ? 'Select Gender' : null,
-                  displayItem: (value) => value,
-                  enabled: !_isLoading,
-                ),
-                const SizedBox(height: 10),
-
-                CustomDropdownField<String>(
-                  value: religion.isNotEmpty ? religion : null,
-                  focusNode: _focusNodes[5],
-                  labelText: 'Religion',
-                  items: religions,
-                  onChanged: (val) => setState(() => religion = val ?? ''),
-                  validator:
-                      (val) =>
-                          val == null || val.isEmpty ? 'Select Religion' : null,
-                  displayItem: (value) => value,
-                  enabled: !_isLoading,
-                ),
-                const SizedBox(height: 10),
-
-                CustomTextField(
-                  controller: addressController,
-                  focusNode: _focusNodes[6],
-                  labelText: 'Address',
-                  enabled: !_isLoading,
-                  validator:
-                      (val) => val!.isEmpty ? 'Address cannot be empty' : null,
-                ),
-                const SizedBox(height: 10),
-
-                divider(),
-
-                _areAllFieldsFilled() ? deter() : const SizedBox.shrink(),
-
-                SizedBox(
-                  width: double.infinity,
-                  child: TextButton(
-                    onPressed: _submitForm,
-                    style: _isLoading ? Buttonstyle.gray : Buttonstyle.neon,
-                    child: Text('Add Patient', style: Textstyle.largeButton),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
