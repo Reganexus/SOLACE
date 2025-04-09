@@ -118,7 +118,7 @@ class BottomNavBar extends StatelessWidget {
               width: 26,
               height: 26,
             ),
-            label: 'Profile',
+            label: 'Settings',
           ),
         ];
       case 'Caregiver':

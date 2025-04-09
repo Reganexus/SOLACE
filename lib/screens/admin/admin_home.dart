@@ -6,13 +6,13 @@ import 'package:provider/provider.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/admin/admin_dashboard.dart';
 import 'package:solace/screens/admin/admin_logs.dart';
+import 'package:solace/screens/admin/admin_settings.dart';
 import 'package:solace/screens/admin/admin_users.dart';
 import 'package:solace/screens/authenticate/authenticate.dart';
 import 'package:solace/services/auth.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/shared/widgets/bottom_navbar.dart';
 import 'package:solace/shared/widgets/help_page.dart';
-import 'package:solace/shared/widgets/profile.dart';
 import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/themes/textstyle.dart';
@@ -38,7 +38,7 @@ class AdminHomeState extends State<AdminHome> {
       AdminDashboard(),
       AdminUsers(),
       AdminLogs(currentUserId: currentUserId),
-      Profile(),
+      AdminSettings(),
     ];
   }
 
@@ -67,8 +67,7 @@ class AdminHomeState extends State<AdminHome> {
               ? Text('Logs', style: Textstyle.subheader)
               : Row(
                 children: [
-                  Expanded(child: Text('Profile', style: Textstyle.subheader)),
-                  buildHelp(),
+                  Expanded(child: Text('Settings', style: Textstyle.subheader)),
                   const SizedBox(width: 8),
                   buildLogOut(),
                 ],
