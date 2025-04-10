@@ -70,17 +70,6 @@ class _AdminSettingsState extends State<AdminSettings> {
     );
   }
 
-  void showToast(String message) {
-    Fluttertoast.showToast(
-      msg: message,
-      toastLength: Toast.LENGTH_SHORT,
-      gravity: ToastGravity.BOTTOM,
-      backgroundColor: AppColors.neon,
-      textColor: AppColors.white,
-      fontSize: 16.0,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(

@@ -60,12 +60,13 @@ class _EditPatientState extends State<EditPatient> {
     'Other',
   ];
 
-  void showToast(String message) {
+  void showToast(String message, {Color? backgroundColor}) {
+    Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
       toastLength: Toast.LENGTH_SHORT,
       gravity: ToastGravity.BOTTOM,
-      backgroundColor: AppColors.neon,
+      backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
       fontSize: 16.0,
     );
@@ -185,7 +186,7 @@ class _EditPatientState extends State<EditPatient> {
       }
     } catch (e) {
       debugPrint('Error picking profile image: $e');
-      showToast('Failed to pick a profile image.');
+      showToast('Failed to pick a profile image.', backgroundColor: AppColors.red);
     }
   }
 
@@ -212,10 +213,12 @@ class _EditPatientState extends State<EditPatient> {
           _profileImageUrl = patientData.profileImageUrl;
         });
       } else {
-        showToast('No data found for this user.');
+        showToast('No data found for this user.', 
+            backgroundColor: AppColors.red);
       }
     } catch (e) {
-      showToast('Failed to load user data.');
+      showToast('Failed to load user data.', 
+          backgroundColor: AppColors.red);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -275,7 +278,7 @@ class _EditPatientState extends State<EditPatient> {
       try {
         final user = _auth.currentUserId;
         if (user == null) {
-          showToast('User is not authenticated');
+          showToast('User is not authenticated', backgroundColor: AppColors.red);
           return;
         }
         setState(() => _isLoading = true);
@@ -323,7 +326,7 @@ class _EditPatientState extends State<EditPatient> {
         // Close the current screen and return to the previous screen
         Navigator.pop(context);
       } catch (e) {
-        showToast('Failed to update user profile.');
+        showToast('Failed to update user profile.', backgroundColor: AppColors.red);
       } finally {
         setState(() => _isLoading = false);
       }

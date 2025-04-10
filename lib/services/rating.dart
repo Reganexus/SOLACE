@@ -59,7 +59,8 @@ class _RatingWidgetState extends State<RatingWidget> {
         });
       }
     } catch (error) {
-      showToast('Failed to fetch rating: $error');
+      showToast('Failed to fetch rating: $error', 
+          backgroundColor: AppColors.red);
     } finally {
       if (mounted) {
         // Ensure the widget is still mounted before calling setState
@@ -73,7 +74,8 @@ class _RatingWidgetState extends State<RatingWidget> {
   // Function to submit rating to Firebase
   Future<void> _submitRating() async {
     if (_selectedRating == 0) {
-      showToast('Please select a rating before submitting.');
+      showToast('Please select a rating before submitting.', 
+          backgroundColor: AppColors.red);
       return;
     }
 
@@ -110,7 +112,8 @@ class _RatingWidgetState extends State<RatingWidget> {
             ),
       );
     } catch (error) {
-      showToast('Failed to submit rating: $error');
+      showToast('Failed to submit rating: $error', 
+          backgroundColor: AppColors.red);
     } finally {
       setState(() {
         _isSubmitting = false;
@@ -118,12 +121,13 @@ class _RatingWidgetState extends State<RatingWidget> {
     }
   }
 
-  void showToast(String message) {
+  void showToast(String message, {Color? backgroundColor}) {
+    Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
       toastLength: Toast.LENGTH_SHORT,
       gravity: ToastGravity.BOTTOM,
-      backgroundColor: AppColors.neon,
+      backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
       fontSize: 16.0,
     );

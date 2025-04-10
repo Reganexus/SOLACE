@@ -50,12 +50,13 @@ class NotificationsListState extends State<NotificationsList> {
     fetchNotifications();
   }
 
-  void showToast(String message) {
+  void showToast(String message, {Color? backgroundColor}) {
+    Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
       toastLength: Toast.LENGTH_SHORT,
       gravity: ToastGravity.BOTTOM,
-      backgroundColor: AppColors.neon,
+      backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
       fontSize: 16.0,
     );
@@ -73,7 +74,8 @@ class NotificationsListState extends State<NotificationsList> {
         debugPrint(
           'User role could not be determined for userId: ${widget.userId}',
         );
-        showToast('Failed to determine user role.');
+        showToast('Failed to determine user role.',
+            backgroundColor: AppColors.red);
         return;
       }
 
@@ -102,7 +104,8 @@ class NotificationsListState extends State<NotificationsList> {
       debugPrint(
         'Error deleting all notifications for userId: ${widget.userId}: $e',
       );
-      showToast('Failed to delete notifications. Please try again.');
+      showToast('Failed to delete notifications. Please try again.',  
+          backgroundColor: AppColors.red);
     }
   }
 
@@ -141,7 +144,8 @@ class NotificationsListState extends State<NotificationsList> {
       debugPrint('Notification successfully deleted.');
     } catch (e) {
       debugPrint('Error deleting notification: $e');
-      showToast('Error deleting notification. Please try again.');
+      showToast('Error deleting notification. Please try again.', 
+          backgroundColor: AppColors.red);
     }
   }
 

@@ -58,7 +58,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
   late final PageController _pageController;
   late String patientName = '';
   late Map<String, dynamic> thresholds = {};
-  bool _isThresholdsLoading = true;
+  bool _isLoading = true;
 
   Timer? _timer;
   DateTime _currentTime = DateTime.now();
@@ -72,8 +72,6 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     _pageController = PageController(initialPage: 0);
     debugPrint("Patient Dashboard Patient ID: ${widget.patientId}");
     debugPrint("Patient Dashboard Caregiver ID: ${widget.caregiverId}");
-    _loadPatientName();
-    debugPrint("Patient Name: $patientName");
   }
 
   @override
@@ -83,14 +81,9 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     super.dispose();
   }
 
-  Future<void> _loadPatientName() async {
-    final name = await databaseService.fetchUserName(widget.patientId);
-    if (mounted) {
-      setState(() {
-        patientName = name ?? 'Unknown';
-      });
-    }
-    debugPrint("Patient Name: $patientName");
+  Future<String> _loadUserName(String userId) async {
+    final name = await databaseService.fetchUserName(userId);
+    return name ?? 'Unknown User';
   }
 
   void _startTimer() {
@@ -122,7 +115,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
             isLoading = false;
           });
         }
-        showToast("Patient data not found.");
+        showToast("Patient data not found.", backgroundColor: AppColors.red);
       }
     } catch (e) {
       if (mounted) {
@@ -130,14 +123,14 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
           isLoading = false;
         });
       }
-      showToast("Error fetching patient data: $e");
+      showToast("Error fetching patient data: $e", backgroundColor: AppColors.red);
     }
   }
 
   Future<void> _fetchThresholds() async {
     thresholds = await databaseService.fetchThresholds();
     setState(() {
-      _isThresholdsLoading = false;
+      _isLoading = false;
     });
   }
 
@@ -601,14 +594,14 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     String patientId,
   ) async {
     if (!mounted) return; // Ensure the widget is still mounted
-    final DateTime today = DateTime.now();
+    final DateTime now = DateTime.now();
 
     // Show the customized date picker
     final DateTime? selectedDate = await showDatePicker(
       context: context,
-      initialDate: today,
-      firstDate: today,
-      lastDate: DateTime(today.year, today.month + 3),
+      initialDate: now,
+      firstDate: now,
+      lastDate: DateTime(now.year, now.month + 3),
       builder: (BuildContext context, Widget? child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -661,6 +654,24 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
       selectedTime.hour,
       selectedTime.minute,
     );
+    
+    // Check if the selected time is in the past
+    if (scheduledDateTime.isBefore(now)) {
+      showToast(
+        "The selected schedule time is in the past. Please choose a valid time.",
+        backgroundColor: AppColors.red,
+      );
+      return; // Reject the schedule
+    }
+
+    // Check if the selected time is at least 15 minutes from now
+    if (scheduledDateTime.isBefore(now.add(Duration(minutes: 15)))) {
+      showToast(
+        "The selected schedule time must be at least 15 minutes from now.",
+        backgroundColor: AppColors.red,
+      );
+      return; // Reject the schedule
+    }
 
     // Generate a single scheduleId to use for both caregiver and patient
     final String scheduleId =
@@ -676,7 +687,8 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
 
       if (caregiverRole == null || patientRole == null) {
         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
-        showToast("Failed to schedule. Roles not found.");
+        showToast("Failed to schedule. Roles not found.",
+            backgroundColor: AppColors.red);
         return;
       }
 
@@ -697,20 +709,30 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
         extraData: {'caregiverId': caregiverId},
         collectionName: patientRole,
       );
+
+      String patientName = await _loadUserName(patientId);
+      String caregiverName = await _loadUserName(caregiverId);
+
       await _logService.addLog(
-        userId: widget.caregiverId,
-        action: "Scheduled patient $patientName on $scheduledDateTime",
+        userId: caregiverId,
+        action:
+            "Scheduled patient $patientName an appointment on $scheduledDateTime",
+      );
+      await _logService.addLog(
+        userId: patientId,
+        action:
+            "Scheduled by $caregiverName an appointment on $scheduledDateTime",
       );
 
       final formattedDateTime = DateFormat(
-        "MMMM d, yyyy",
+        "MMMM d, yyyy h:mm a",
       ).format(scheduledDateTime);
 
       debugPrint("Schedule saved for both caregiver and patient.");
       showToast("Appointment scheduled for $patientName at $formattedDateTime");
     } catch (e) {
       debugPrint("Failed to save schedule: $e");
-      showToast("Failed to schedule appointment.");
+      showToast("Failed to schedule appointment.", backgroundColor: AppColors.red);
     }
   }
 
@@ -1219,7 +1241,8 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     if (shouldTag) {
       try {
         if (userId.isEmpty) {
-          showToast('User is not authenticated');
+          showToast('User is not authenticated', 
+              backgroundColor: AppColors.red);
           return;
         }
 
@@ -1228,7 +1251,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
         );
 
         if (userRole == null) {
-          showToast('User has no role');
+          showToast('User has no role', backgroundColor: AppColors.red);
           return;
         }
 
@@ -1263,7 +1286,8 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
 
         showToast('Successfully tagged patient.');
       } catch (e) {
-        showToast('Error tagging patient: $e');
+        showToast('Error tagging patient: $e', 
+            backgroundColor: AppColors.red);
       } finally {
         if (mounted) {
           setState(() {
@@ -1290,7 +1314,8 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     if (shouldUntag) {
       try {
         if (userId.isEmpty) {
-          showToast('User is not authenticated');
+          showToast('User is not authenticated', 
+              backgroundColor: AppColors.red);
           return;
         }
 
@@ -1299,7 +1324,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
         );
 
         if (userRole == null) {
-          showToast('User has no role');
+          showToast('User has no role', backgroundColor: AppColors.red);
           return;
         }
 
@@ -1334,7 +1359,8 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
 
         showToast('Successfully untagged patient.');
       } catch (e) {
-        showToast('Error untagging patient: $e');
+        showToast('Error untagging patient: $e', 
+            backgroundColor: AppColors.red);
       } finally {
         if (mounted) {
           setState(() {
@@ -1398,12 +1424,13 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
         false;
   }
 
-  void showToast(String message) {
+  void showToast(String message, {Color? backgroundColor}) {
+    Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
       toastLength: Toast.LENGTH_SHORT,
       gravity: ToastGravity.BOTTOM,
-      backgroundColor: AppColors.neon,
+      backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
       fontSize: 16.0,
     );
@@ -1411,120 +1438,122 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isThresholdsLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: AppBar(
         title: Text('Patient Status', style: Textstyle.subheader),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap:
-                      () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder:
-                              (context) =>
-                                  Contacts(patientId: widget.patientId),
-                        ),
-                      ),
-                  child: Icon(
-                    Icons.perm_contact_cal_rounded,
-                    size: 24,
-                    color: AppColors.black,
-                  ),
-                ),
-                SizedBox(width: 5),
-                GestureDetector(
-                  onTap:
-                      () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder:
-                              (context) =>
-                                  EditPatient(patientId: widget.patientId),
-                        ),
-                      ),
-                  child: Icon(Icons.edit, size: 24, color: AppColors.black),
-                ),
-                if (widget.role != 'caregiver')
-                  FutureBuilder<bool>(
-                    future: _isUserTagged(widget.patientId, widget.caregiverId),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) {
-                        return CircularProgressIndicator();
-                      }
+            _isLoading
+                ? Center(child: CircularProgressIndicator())
+                : Padding(
+                    padding: const EdgeInsets.only(right: 16),
+                    child: Row(
+                            children: [
+                              GestureDetector(
+                                onTap:
+                                    () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            (context) =>
+                                                Contacts(patientId: widget.patientId),
+                                      ),
+                                    ),
+                                child: Icon(
+                                  Icons.perm_contact_cal_rounded,
+                                  size: 24,
+                                  color: AppColors.black,
+                                ),
+                              ),
+                              SizedBox(width: 5),
+                              GestureDetector(
+                                onTap:
+                                    () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            (context) =>
+                                                EditPatient(patientId: widget.patientId),
+                                      ),
+                                    ),
+                                child: Icon(Icons.edit, size: 24, color: AppColors.black),
+                              ),
+                              if (widget.role != 'caregiver')
+                                FutureBuilder<bool>(
+                                  future: _isUserTagged(widget.patientId, widget.caregiverId),
+                                  builder: (context, snapshot) {
+                                    if (!snapshot.hasData) {
+                                      return CircularProgressIndicator();
+                                    }
 
-                      final isTagged = snapshot.data!;
+                                    final isTagged = snapshot.data!;
 
-                      return Row(
-                        children: [
-                          SizedBox(width: 5),
-                          SizedBox(
-                            height: 30,
-                            child: TextButton(
-                              onPressed:
-                                  () =>
-                                      isTagged
-                                          ? _untagPatient(
-                                            patientId: widget.patientId,
-                                            userId: widget.caregiverId,
-                                          )
-                                          : _tagPatient(
-                                            patientId: widget.patientId,
-                                            userId: widget.caregiverId,
+                                    return Row(
+                                      children: [
+                                        SizedBox(width: 5),
+                                        SizedBox(
+                                          height: 30,
+                                          child: TextButton(
+                                            onPressed:
+                                                () =>
+                                                    isTagged
+                                                        ? _untagPatient(
+                                                          patientId: widget.patientId,
+                                                          userId: widget.caregiverId,
+                                                        )
+                                                        : _tagPatient(
+                                                          patientId: widget.patientId,
+                                                          userId: widget.caregiverId,
+                                                        ),
+                                            style: TextButton.styleFrom(
+                                              padding: EdgeInsets.symmetric(
+                                                vertical: 3,
+                                                horizontal: 8,
+                                              ),
+                                              backgroundColor:
+                                                  isTagged ? AppColors.red : AppColors.neon,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(10),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              isTagged ? 'Untag Patient' : 'Tag Patient',
+                                              style: Textstyle.bodySuperSmall.copyWith(
+                                                color: AppColors.white,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
                                           ),
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.symmetric(
-                                  vertical: 3,
-                                  horizontal: 8,
+                                        ),
+                                      ],
+                                    );
+                                  },
                                 ),
-                                backgroundColor:
-                                    isTagged ? AppColors.red : AppColors.neon,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                              child: Text(
-                                isTagged ? 'Untag Patient' : 'Tag Patient',
-                                style: Textstyle.bodySuperSmall.copyWith(
-                                  color: AppColors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
+                            ],
                           ),
-                        ],
-                      );
-                    },
                   ),
-              ],
-            ),
-          ),
         ],
         backgroundColor: AppColors.white,
         scrolledUnderElevation: 0.0,
         automaticallyImplyLeading: _isTagging ? false : true,
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildPatientStatus(),
-            _buildActions(widget.role),
-            const SizedBox(height: 20.0),
-            Divider(),
-            _buildInterventions(),
-            const SizedBox(height: 20.0),
-            _buildCarousel(),
-          ],
-        ),
-      ),
+      body:
+          _isLoading
+              ? Center(child: CircularProgressIndicator())
+              : SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildPatientStatus(),
+                      _buildActions(widget.role),
+                      const SizedBox(height: 20.0),
+                      Divider(),
+                      _buildInterventions(),
+                      const SizedBox(height: 20.0),
+                      _buildCarousel(),
+                    ],
+                  ),
+                ),
     );
   }
 }

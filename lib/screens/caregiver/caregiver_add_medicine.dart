@@ -74,12 +74,13 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
     });
   }
 
-  void showToast(String message) {
+  void showToast(String message, {Color? backgroundColor}) {
+    Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
       toastLength: Toast.LENGTH_SHORT,
       gravity: ToastGravity.BOTTOM,
-      backgroundColor: AppColors.neon,
+      backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
       fontSize: 16.0,
     );
@@ -163,10 +164,11 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
     try {
       // Get the caregiver ID (logged-in user)
       String caregiverId = FirebaseAuth.instance.currentUser?.uid ?? '';
-      debugPrint("Add medicine doctor id: $caregiverId");
+      debugPrint("Add prescription doctor id: $caregiverId");
 
       if (caregiverId.isEmpty) {
-        showToast("No doctor logged in.");
+        showToast("No doctor logged in.", 
+            backgroundColor: AppColors.red);
         return;
       }
 
@@ -198,7 +200,8 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
 
       if (caregiverRole == null || patientRole == null) {
         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
-        showToast("Failed to add task. Roles not found.");
+        showToast("Failed to add task. Roles not found.", 
+            backgroundColor: AppColors.red);
         return;
       }
 
@@ -235,7 +238,8 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
     } catch (e) {
       debugPrint("Error adding medicine: $e");
 
-      showToast("Failed to add medicine: $e");
+      showToast("Failed to add prescription: $e", 
+          backgroundColor: AppColors.red);
     }
   }
 
@@ -256,7 +260,8 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
       // Check if the roles were successfully fetched
       if (caregiverRole == null || patientRole == null) {
         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
-        showToast("Failed to remove medicine. Roles not found.");
+        showToast("Failed to remove medicine. Roles not found.", 
+            backgroundColor: AppColors.red);
         return;
       }
 
@@ -288,7 +293,8 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
     } catch (e) {
       debugPrint("Error removing medicine: $e");
 
-      showToast('Failed to delete medicine: $e');
+      showToast('Failed to delete medicine: $e', 
+          backgroundColor: AppColors.red);
     }
   }
 
@@ -339,7 +345,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("Add Medicine", style: Textstyle.subheader),
+                        Text("Add Prescription", style: Textstyle.subheader),
                         const SizedBox(height: 20),
 
                         // Medicine Name Dropdown/Search Field
@@ -436,12 +442,13 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
                                     );
                                     Navigator.pop(context);
                                   } else {
-                                    showToast("Please fill in all fields");
+                                    showToast("Please fill in all fields", 
+                                        backgroundColor: AppColors.red);
                                   }
                                 },
                                 style: Buttonstyle.buttonNeon,
                                 child: Text(
-                                  "Add Medicine",
+                                  "Prescribe",
                                   style: Textstyle.smallButton,
                                 ),
                               ),
@@ -465,7 +472,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: AppBar(
-        title: Text("View Medicines", style: Textstyle.subheader),
+        title: Text("View Prescriptions", style: Textstyle.subheader),
         backgroundColor: AppColors.white,
         scrolledUnderElevation: 0.0,
       ),
@@ -475,10 +482,12 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
               : medicines.isEmpty
               ? _buildNoMedicineState()
               : _buildMedicineList(),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.neon,
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddMedicineDialog,
-        child: Icon(Icons.add, color: AppColors.white),
+        backgroundColor: AppColors.neon,
+        foregroundColor: AppColors.white,
+        icon: const Icon(Icons.add),
+        label: const Text('Add Prescription'),
       ),
     );
   }
@@ -568,7 +577,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
           Icon(Icons.error_outline_outlined, color: AppColors.black, size: 80),
           SizedBox(height: 20.0),
           Text(
-            "No Medicine Yet",
+            "No Prescriptions Yet",
             style: TextStyle(
               fontFamily: 'Inter',
               fontSize: 18,

@@ -55,7 +55,8 @@ class EditUserRoleDialogState extends State<EditUserRoleDialog> {
         _isLoading = false;
       });
     } catch (e) {
-      showToast("Failed to fetch user name.");
+      showToast("Failed to fetch user name.", 
+          backgroundColor: AppColors.red);
       setState(() => _isLoading = false);
     }
   }
@@ -68,14 +69,16 @@ class EditUserRoleDialogState extends State<EditUserRoleDialog> {
         _isLoading = false;
       });
     } catch (e) {
-      showToast("Failed to fetch user role.");
+      showToast("Failed to fetch user role.", 
+          backgroundColor: AppColors.red);
       setState(() => _isLoading = false);
     }
   }
 
   void _changeUserRole() async {
     if (_selectedRole == null || _selectedRole!.isEmpty) {
-      showToast("Please select a new role before submitting.");
+      showToast("Please select a new role before submitting.", 
+          backgroundColor: AppColors.red);
       return;
     }
 
@@ -86,12 +89,14 @@ class EditUserRoleDialogState extends State<EditUserRoleDialog> {
 
       final currentRole = await db.fetchAndCacheUserRole(widget.uid);
       if (currentRole == null) {
-        showToast("Error: Unable to determine the current role.");
+        showToast("Error: Unable to determine the current role.", 
+            backgroundColor: AppColors.red);
         return;
       }
 
       if (currentRole == _selectedRole) {
-        showToast("The user is already assigned to the selected role.");
+        showToast("The user is already assigned to the selected role.", 
+            backgroundColor: AppColors.red);
         return;
       }
 
@@ -133,7 +138,8 @@ class EditUserRoleDialogState extends State<EditUserRoleDialog> {
       );
     } catch (e) {
       debugPrint("Error during role change: $e");
-      showToast("Failed to update role. Please try again.");
+      showToast("Failed to update role. Please try again.", 
+          backgroundColor: AppColors.red);
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);
@@ -141,12 +147,13 @@ class EditUserRoleDialogState extends State<EditUserRoleDialog> {
     }
   }
 
-  void showToast(String message) {
+  void showToast(String message, {Color? backgroundColor}) {
+    Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
       toastLength: Toast.LENGTH_SHORT,
       gravity: ToastGravity.BOTTOM,
-      backgroundColor: AppColors.neon,
+      backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
       fontSize: 16.0,
     );

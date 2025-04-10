@@ -3,6 +3,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
 import 'package:solace/services/database.dart';
@@ -97,10 +98,12 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
       final taskSnapshots = await tasksRef.get();
 
       if (taskSnapshots.docs.isEmpty) {
-        setState(() {
-          tasks = [];
-          isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            tasks = [];
+            isLoading = false;
+          });
+        }
         return;
       }
 
@@ -126,16 +129,20 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
 
       loadedTasks.sort((a, b) => a['startDate']!.compareTo(b['startDate']!));
 
-      setState(() {
-        tasks = loadedTasks;
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          tasks = loadedTasks;
+          isLoading = false;
+        });
+      }
     } catch (e) {
       print("Error loading tasks: $e");
-      setState(() {
-        tasks = [];
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          tasks = [];
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -148,12 +155,13 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
     taskEndDate = null;
   }
 
-  void showToast(String message) {
+  void showToast(String message, {Color? backgroundColor}) {
+    Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
       toastLength: Toast.LENGTH_SHORT,
       gravity: ToastGravity.BOTTOM,
-      backgroundColor: AppColors.neon,
+      backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
       fontSize: 16.0,
     );
@@ -184,7 +192,8 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
       // Check if the roles were successfully fetched
       if (caregiverRole == null || patientRole == null) {
         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
-        showToast("Failed to remove task. Roles not found.");
+        showToast("Failed to remove task. Roles not found.", 
+            backgroundColor: AppColors.red);
         return;
       }
 
@@ -214,7 +223,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
       _fetchPatientTasks();
     } catch (e) {
       debugPrint("Error removing task: $e");
-      showToast('Failed to delete task: $e');
+      showToast('Failed to delete task: $e', backgroundColor: AppColors.red);
     }
   }
 
@@ -230,7 +239,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
       debugPrint("Add task caregiver id: $caregiverId");
 
       if (caregiverId.isEmpty) {
-        showToast("No caregiver logged in.");
+        showToast("No caregiver logged in.", backgroundColor: AppColors.red);
         return;
       }
 
@@ -263,7 +272,8 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
 
       if (caregiverRole == null || patientRole == null) {
         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
-        showToast("Failed to add task. Roles not found.");
+        showToast("Failed to add task. Roles not found.", 
+            backgroundColor: AppColors.red);
         return;
       }
 
@@ -302,7 +312,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
     } catch (e) {
       debugPrint("Error adding task: $e");
 
-      showToast("Failed to add task: $e");
+      showToast("Failed to add task: $e", backgroundColor: AppColors.red);
     }
   }
 
@@ -310,89 +320,117 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
     return DateTime(date.year, date.month, date.day);
   }
 
+  Future<void> _selectDateTime(
+    BuildContext context,
+    bool isStartDate,
+    Function(String) setError, // Pass a callback to set error messages
+  ) async {
+    final DateTime now = DateTime.now();
+    final DateTime initialDate =
+        isStartDate ? (taskStartDate ?? now) : (taskEndDate ?? now);
+
+    // Date Picker
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: now,
+      lastDate: now.add(Duration(days: 30)),
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: AppColors.neon,
+              onPrimary: AppColors.white,
+              onSurface: AppColors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedDate != null) {
+      // Time Picker
+      final TimeOfDay? pickedTime = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(initialDate),
+        builder: (BuildContext context, Widget? child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: ColorScheme.light(
+                primary: AppColors.neon,
+                onPrimary: AppColors.white,
+                onSurface: AppColors.black,
+              ),
+            ),
+            child: child!,
+          );
+        },
+      );
+
+      if (pickedTime != null) {
+        // Combine date and time
+        final DateTime selectedDateTime = DateTime(
+          pickedDate.year,
+          pickedDate.month,
+          pickedDate.day,
+          pickedTime.hour,
+          pickedTime.minute,
+        );
+
+        // Validation for start date
+        if (isStartDate) {
+          if (selectedDateTime.isBefore(now.add(Duration(minutes: 15)))) {
+            setError("Start date and time must be at least 15 minutes from now.");
+            return;
+          }
+          if (mounted) {
+            setState(() {
+              taskStartDate = selectedDateTime;
+              _startDateController.text =
+                  '${DateFormat('MMMM dd, yyyy').format(taskStartDate!)} at ${DateFormat('h:mm a').format(taskStartDate!)}';
+              setError(""); // Clear error
+            });
+          }
+          debugPrint("Start Date Updated: $taskStartDate");
+        } else {
+          // Validation for end date
+          if (taskStartDate == null) {
+            setError("Please select a start date first.");
+            return;
+          }
+          if (selectedDateTime.isBefore(taskStartDate!.add(Duration(minutes: 30)))) {
+            setError("End date and time must be at least 30 minutes after the start date.");
+            return;
+          }
+          if (mounted) {
+            setState(() {
+              taskEndDate = selectedDateTime;
+              _endDateController.text =
+                  '${DateFormat('MMMM dd, yyyy').format(taskEndDate!)} at ${DateFormat('h:mm a').format(taskEndDate!)}';
+              setError(""); // Clear error
+            });
+          }
+          debugPrint("End Date Updated: $taskEndDate");
+        }
+      }
+    }
+  }
+
   void _showAddTaskDialog() {
     String taskTitle = '';
     String taskDescription = '';
-    DateTime taskStartDate = DateTime.now();
-    DateTime taskEndDate = DateTime.now().add(
-      Duration(hours: 1),
-    ); // Default to 1 hour after start date
+    String errorMessage = ""; // Track error messages
+
+    final FocusNode titleFocusNode = FocusNode();
+    final FocusNode descriptionFocusNode = FocusNode();
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            Future<void> _selectDateTime(
-              BuildContext context,
-              bool isStartDate,
-            ) async {
-              final DateTime initialDate =
-                  isStartDate ? taskStartDate : taskEndDate;
-
-              // Date Picker
-              final DateTime? pickedDate = await showDatePicker(
-                context: context,
-                initialDate: initialDate,
-                firstDate: DateTime.now(),
-                lastDate: DateTime.now().add(Duration(days: 30)),
-                builder: (BuildContext context, Widget? child) {
-                  return Theme(
-                    data: Theme.of(context).copyWith(
-                      colorScheme: ColorScheme.light(
-                        primary: AppColors.neon,
-                        onPrimary: AppColors.white,
-                        onSurface: AppColors.black,
-                      ),
-                    ),
-                    child: child!,
-                  );
-                },
-              );
-
-              if (pickedDate != null) {
-                // Time Picker
-                final TimeOfDay? pickedTime = await showTimePicker(
-                  context: context,
-                  initialTime: TimeOfDay.fromDateTime(initialDate),
-                  builder: (BuildContext context, Widget? child) {
-                    return Theme(
-                      data: Theme.of(context).copyWith(
-                        colorScheme: ColorScheme.light(
-                          primary: AppColors.neon,
-                          onPrimary: AppColors.white,
-                          onSurface: AppColors.black,
-                        ),
-                      ),
-                      child: child!,
-                    );
-                  },
-                );
-
-                // Combine date and time
-                final DateTime selectedDateTime = DateTime(
-                  pickedDate.year,
-                  pickedDate.month,
-                  pickedDate.day,
-                  pickedTime?.hour ??
-                      0, // Default to 00:00:00 if no time is picked
-                  pickedTime?.minute ?? 0,
-                );
-
-                setModalState(() {
-                  if (isStartDate) {
-                    taskStartDate = selectedDateTime;
-                    _startDateController.text =
-                        '${DateFormat('MMMM dd, yyyy').format(taskStartDate)} at ${DateFormat('h:mm a').format(taskStartDate)}';
-                  } else {
-                    taskEndDate = selectedDateTime;
-                    _endDateController.text =
-                        '${DateFormat('MMMM dd, yyyy').format(taskEndDate)} at ${DateFormat('h:mm a').format(taskEndDate)}';
-                  }
-                });
-              }
-            }
-
             return Dialog(
               child: Container(
                 padding: const EdgeInsets.all(20),
@@ -406,22 +444,32 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                   children: [
                     Text("Add Task", style: Textstyle.subheader),
                     const SizedBox(height: 20),
-
-                    // Task Title Field
-                    CustomTextField(
+                    TextFormField(
                       controller: _titleController,
-                      focusNode: _focusNodes[0],
-                      labelText: "Task Title",
-                      enabled: true,
+                      focusNode: titleFocusNode,
+                      maxLength: 50,
+                      inputFormatters: [
+                        LengthLimitingTextInputFormatter(50),
+                        FilteringTextInputFormatter.deny(RegExp(r'[\n]')),
+                      ],
+                      decoration: InputDecorationStyles.build(
+                        'Title',
+                        titleFocusNode,
+                      ),
                     ),
-                    const SizedBox(height: 20),
-
-                    // Task Description Field
-                    CustomTextField(
+                    const SizedBox(height: 10.0),
+                    TextFormField(
                       controller: _descriptionController,
-                      focusNode: _focusNodes[1],
-                      labelText: "Task Description",
-                      enabled: true,
+                      focusNode: descriptionFocusNode,
+                      maxLength: 200,
+                      maxLines: 3,
+                      inputFormatters: [
+                        LengthLimitingTextInputFormatter(200),
+                      ],
+                      decoration: InputDecorationStyles.build(
+                        'Task Description',
+                        descriptionFocusNode,
+                      ),
                     ),
                     const SizedBox(height: 20),
 
@@ -439,10 +487,18 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                             Icons.calendar_today,
                             color: AppColors.black,
                           ),
-                          onPressed: () => _selectDateTime(context, true),
+                          onPressed: () => _selectDateTime(
+                            context,
+                            true,
+                            (error) => setModalState(() => errorMessage = error),
+                          ),
                         ),
                       ),
-                      onTap: () => _selectDateTime(context, true),
+                      onTap: () => _selectDateTime(
+                        context,
+                        true,
+                        (error) => setModalState(() => errorMessage = error),
+                      ),
                     ),
                     const SizedBox(height: 20),
 
@@ -460,11 +516,28 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                             Icons.calendar_today,
                             color: AppColors.black,
                           ),
-                          onPressed: () => _selectDateTime(context, false),
+                          onPressed: () => _selectDateTime(
+                            context,
+                            false,
+                            (error) => setModalState(() => errorMessage = error),
+                          ),
                         ),
                       ),
-                      onTap: () => _selectDateTime(context, false),
+                      onTap: () => _selectDateTime(
+                        context,
+                        false,
+                        (error) => setModalState(() => errorMessage = error),
+                      ),
                     ),
+
+                    // Error Message Display
+                    if (errorMessage.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        errorMessage,
+                        style: Textstyle.bodySmall.copyWith(color: AppColors.red),
+                      ),
+                    ],
 
                     const SizedBox(height: 20),
                     Row(
@@ -481,32 +554,29 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                         Expanded(
                           child: TextButton(
                             onPressed: () {
-                              // Fetch the updated task title and description
                               taskTitle = _titleController.text.trim();
-                              taskDescription =
-                                  _descriptionController.text.trim();
+                              taskDescription = _descriptionController.text.trim();
 
-                              debugPrint("Task Title: $taskTitle");
-                              debugPrint("Task Description: $taskDescription");
-                              debugPrint("Start Date: $taskStartDate");
-                              debugPrint("End Date: $taskEndDate");
-
-                              if (taskTitle.isNotEmpty &&
-                                  taskDescription.isNotEmpty &&
-                                  taskStartDate != null &&
-                                  taskEndDate != null &&
-                                  taskStartDate.isBefore(taskEndDate)) {
+                              if (taskTitle.isEmpty) {
+                                showToast("Task title is required", backgroundColor: AppColors.red);
+                              } else if (taskDescription.isEmpty) {
+                                showToast("Task description is required", backgroundColor: AppColors.red);
+                              } else if (taskStartDate == null) {
+                                showToast("Start date is required", backgroundColor: AppColors.red);
+                              } else if (taskEndDate == null) {
+                                showToast("End date is required", backgroundColor: AppColors.red);
+                              } else if (taskStartDate!.isAfter(taskEndDate!)) {
+                                showToast("Start date must be before end date", backgroundColor: AppColors.red);
+                              } else {
                                 _addTask(
                                   taskTitle,
                                   taskDescription,
-                                  taskStartDate,
-                                  taskEndDate,
+                                  taskStartDate!,
+                                  taskEndDate!,
                                 );
                                 Navigator.pop(context);
                                 _fetchPatientTasks();
                                 _resetDateControllers();
-                              } else {
-                                showToast("Invalid inputs!");
                               }
                             },
                             style: Buttonstyle.buttonNeon,
@@ -556,10 +626,12 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
               : tasks.isEmpty
               ? _buildNoTaskState()
               : _buildTaskList(),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.neon,
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddTaskDialog,
-        child: const Icon(Icons.add, color: AppColors.white),
+        backgroundColor: AppColors.neon,
+        foregroundColor: AppColors.white,
+        icon: const Icon(Icons.add),
+        label: const Text('Add Task'),
       ),
     );
   }

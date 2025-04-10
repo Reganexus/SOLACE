@@ -286,7 +286,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           await ExportDataset.exportTrackingData();
           showToast("Export successful!");
         } catch (e) {
-          showToast("Export failed: $e");
+          showToast("Export failed: $e", backgroundColor: AppColors.red);
         }
       }
     }
@@ -333,12 +333,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  void showToast(String message) {
+  void showToast(String message, {Color? backgroundColor}) {
+    Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
       toastLength: Toast.LENGTH_SHORT,
       gravity: ToastGravity.BOTTOM,
-      backgroundColor: AppColors.neon,
+      backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
       fontSize: 16.0,
     );

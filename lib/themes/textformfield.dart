@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/src/services/text_formatter.dart';
 import 'package:solace/themes/colors.dart';
 
 class CustomTextField extends StatelessWidget {
@@ -11,6 +12,8 @@ class CustomTextField extends StatelessWidget {
   final bool enabled;
   final VoidCallback? onTap;
   final Function(String)? onChanged;
+  final int? maxLength;
+  final List<TextInputFormatter>? inputFormatters;
 
   const CustomTextField({
     super.key,
@@ -22,7 +25,9 @@ class CustomTextField extends StatelessWidget {
     this.keyboardType = TextInputType.text,
     this.readOnly = false,
     this.onTap,
-    this.onChanged
+    this.onChanged,
+    this.maxLength,
+    this.inputFormatters,
   });
 
   @override

@@ -102,13 +102,15 @@ class EditTagsState extends State<EditTags> {
   Future<void> _addTag(String taggedUserId) async {
     try {
       if (adminId.isEmpty) {
-        showToast('User is not authenticated');
+        showToast('User is not authenticated', 
+            backgroundColor: AppColors.red);
         return;
       }
 
       String? userRole = await _db.fetchAndCacheUserRole(widget.currentUserId);
       if (userRole == null) {
-        showToast('User has no role.');
+        showToast('User has no role.', 
+            backgroundColor: AppColors.red);
         return;
       }
 
@@ -120,7 +122,8 @@ class EditTagsState extends State<EditTags> {
 
       String? taggedUserRole = await _db.fetchAndCacheUserRole(taggedUserId);
       if (taggedUserRole == null) {
-        showToast('Selected user has no role.');
+        showToast('Selected user has no role.', 
+            backgroundColor: AppColors.red);
         return;
       }
 
@@ -150,7 +153,8 @@ class EditTagsState extends State<EditTags> {
 
       showToast('Successfully tagged user.');
     } catch (e) {
-      showToast('Error tagging user: $e');
+      showToast('Error tagging user: $e', 
+          backgroundColor: AppColors.red);
     } finally {
       if (mounted) {
         setState(() {
@@ -163,19 +167,22 @@ class EditTagsState extends State<EditTags> {
   Future<void> _removeTag(String taggedUserId) async {
     try {
       if (adminId.isEmpty) {
-        showToast('User is not authenticated');
+        showToast('User is not authenticated',
+            backgroundColor: AppColors.red);
         return;
       }
 
       String? userRole = await _db.fetchAndCacheUserRole(widget.currentUserId);
       if (userRole == null) {
-        showToast('User has no role.');
+        showToast('User has no role.', 
+            backgroundColor: AppColors.red);
         return;
       }
 
       String? taggedUserRole = await _db.fetchAndCacheUserRole(taggedUserId);
       if (taggedUserRole == null) {
-        showToast('Selected user has no role.');
+        showToast('Selected user has no role.', 
+            backgroundColor: AppColors.red);
         return;
       }
 
@@ -210,7 +217,8 @@ class EditTagsState extends State<EditTags> {
 
       showToast('Successfully untagged user.');
     } catch (e) {
-      showToast('Error untagging user: $e');
+      showToast('Error untagging user: $e', 
+          backgroundColor: AppColors.red);
     } finally {
       if (mounted) {
         setState(() {
@@ -220,12 +228,13 @@ class EditTagsState extends State<EditTags> {
     }
   }
 
-  void showToast(String message) {
+  void showToast(String message, {Color? backgroundColor}) {
+    Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
       toastLength: Toast.LENGTH_SHORT,
       gravity: ToastGravity.BOTTOM,
-      backgroundColor: AppColors.neon,
+      backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
       fontSize: 16.0,
     );

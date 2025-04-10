@@ -82,12 +82,13 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
     super.dispose();
   }
 
-  void showToast(String message) {
+  void showToast(String message, {Color? backgroundColor}) {
+    Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
       toastLength: Toast.LENGTH_SHORT,
       gravity: ToastGravity.BOTTOM,
-      backgroundColor: AppColors.neon,
+      backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
       fontSize: 16.0,
     );
@@ -287,14 +288,14 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
     final user = _auth.currentUserId;
 
     if (user == null) {
-      showToast("User not authenticated.");
+      showToast("User not authenticated.", backgroundColor: AppColors.red);
       return;
     }
 
     final role = await _database.fetchAndCacheUserRole(user); // Await here
 
     if (role == null) {
-      showToast("User role not found.");
+      showToast("User role not found.", backgroundColor: AppColors.red);
       return;
     }
 
@@ -309,13 +310,13 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
     try {
       final user = _auth.currentUserId;
       if (user == null) {
-        showToast('User is not authenticated');
+        showToast('User is not authenticated', backgroundColor: AppColors.red);
         return;
       }
 
       final userId = newPatientId;
       if (userId == null) {
-        showToast('Patient is null');
+        showToast('Patient is null', backgroundColor: AppColors.red);
         return;
       }
 

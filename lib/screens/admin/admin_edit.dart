@@ -182,10 +182,12 @@ class _AdminEditProfileScreenState extends State<AdminEditProfile> {
           userData = fetchedUser;
         });
       } else {
-        showToast('User data not found for userId: $userId');
+        showToast('User data not found for userId: $userId', 
+            backgroundColor: AppColors.red);
       }
     } catch (e) {
-      showToast('Error fetching user details: $e');
+      showToast('Error fetching user details: $e', 
+          backgroundColor: AppColors.red);
     } finally {
       setState(() {
         _isLoading = false;
@@ -332,12 +334,13 @@ class _AdminEditProfileScreenState extends State<AdminEditProfile> {
     );
   }
 
-  void showToast(String message) {
+  void showToast(String message, {Color? backgroundColor}) {
+    Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
       toastLength: Toast.LENGTH_SHORT,
       gravity: ToastGravity.BOTTOM,
-      backgroundColor: AppColors.neon,
+      backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
       fontSize: 16.0,
     );

@@ -79,7 +79,8 @@ class AdminUsersState extends State<AdminUsers> {
             }
           })
           .onError((error) {
-            showToast('Error fetching patients.');
+            showToast('Error fetching patients.', 
+                backgroundColor: AppColors.red);
           });
     } else if (_selectedRole == 'caregiver') {
       _fetchCaregivers()
@@ -93,7 +94,8 @@ class AdminUsersState extends State<AdminUsers> {
             }
           })
           .onError((error) {
-            showToast('Error fetching caregivers.');
+            showToast('Error fetching caregivers.', 
+                backgroundColor: AppColors.red);
           });
     } else if (_selectedRole == 'doctor') {
       _fetchDoctors()
@@ -107,7 +109,8 @@ class AdminUsersState extends State<AdminUsers> {
             }
           })
           .onError((error) {
-            showToast('Error fetching caregivers.');
+            showToast('Error fetching caregivers.',   
+                backgroundColor: AppColors.red);
           });
     } else if (_selectedRole == 'admin') {
       _fetchAdmins()
@@ -121,7 +124,8 @@ class AdminUsersState extends State<AdminUsers> {
             }
           })
           .onError((error) {
-            showToast('Error fetching caregivers.');
+            showToast('Error fetching caregivers.', 
+                backgroundColor: AppColors.red);
           });
     } else if (_selectedRole == 'nurse') {
       _fetchNurses()
@@ -135,7 +139,8 @@ class AdminUsersState extends State<AdminUsers> {
             }
           })
           .onError((error) {
-            showToast('Error fetching caregivers.');
+            showToast('Error fetching caregivers.', 
+                backgroundColor: AppColors.red);
           });
     }
   }
@@ -171,12 +176,13 @@ class AdminUsersState extends State<AdminUsers> {
     }
   }
 
-  void showToast(String message) {
+  void showToast(String message, {Color? backgroundColor}) {
+    Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
       toastLength: Toast.LENGTH_SHORT,
       gravity: ToastGravity.BOTTOM,
-      backgroundColor: AppColors.neon,
+      backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
       fontSize: 16.0,
     );

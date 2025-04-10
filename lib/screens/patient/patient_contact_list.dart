@@ -15,12 +15,13 @@ class ContactList extends StatelessWidget {
     required this.fetchContacts,
   });
 
-  void showToast(String message) {
+  void showToast(String message, {Color? backgroundColor}) {
+    Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
       toastLength: Toast.LENGTH_SHORT,
       gravity: ToastGravity.BOTTOM,
-      backgroundColor: AppColors.neon,
+      backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
       fontSize: 16.0,
     );
@@ -36,7 +37,7 @@ class ContactList extends StatelessWidget {
       }
     } else {
       debugPrint('Phone permission denied');
-      showToast('Phone permission denied');
+      showToast('Phone permission denied', backgroundColor: AppColors.red);
     }
   }
 

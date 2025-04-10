@@ -128,12 +128,13 @@ class PatientTasksState extends State<PatientTasks> {
     }
   }
 
-  void showToast(String message) {
+  void showToast(String message, {Color? backgroundColor}) {
+    Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
       toastLength: Toast.LENGTH_SHORT,
       gravity: ToastGravity.BOTTOM,
-      backgroundColor: AppColors.neon,
+      backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
       fontSize: 16.0,
     );
@@ -183,7 +184,8 @@ class PatientTasksState extends State<PatientTasks> {
 
       if (caregiverRole == null || patientRole == null) {
         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
-        showToast("Failed to mark task as complete. Roles not found.");
+        showToast("Failed to mark task as complete. Roles not found.", 
+            backgroundColor: AppColors.red);
         return;
       }
 
@@ -210,7 +212,8 @@ class PatientTasksState extends State<PatientTasks> {
     } catch (e) {
       debugPrint("Error updating task: $e");
 
-      showToast('Failed to mark task as complete.');
+      showToast('Failed to mark task as complete.', 
+          backgroundColor: AppColors.red);
     }
   }
 

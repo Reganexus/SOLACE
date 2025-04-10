@@ -95,7 +95,7 @@ class PatientTrackingState extends State<PatientTracking> {
 
   late Map<String, dynamic> _combinedInputs;
   late Map<String, dynamic> thresholds = {};
-  bool _isThresholdsLoading = true;
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -137,7 +137,7 @@ class PatientTrackingState extends State<PatientTracking> {
   Future<void> _fetchThresholds() async {
     thresholds = await databaseService.fetchThresholds();
     setState(() {
-      _isThresholdsLoading = false;
+      _isLoading = false;
     });
   }
 
@@ -973,8 +973,8 @@ class PatientTrackingState extends State<PatientTracking> {
                         });
                       }
                       : () {
-                        showToast('You need to fill up Vitals section first');
-                      },
+                          showToast('You need to fill up Vitals section first', backgroundColor: AppColors.red);
+                        },
               child: Container(
                 color: AppColors.white,
                 child: Column(
@@ -1103,12 +1103,13 @@ class PatientTrackingState extends State<PatientTracking> {
     );
   }
 
-  void showToast(String message) {
+  void showToast(String message, {Color? backgroundColor}) {
+    Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
       toastLength: Toast.LENGTH_SHORT,
       gravity: ToastGravity.BOTTOM,
-      backgroundColor: AppColors.black,
+      backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
       fontSize: 16.0,
     );
@@ -1116,9 +1117,6 @@ class PatientTrackingState extends State<PatientTracking> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isThresholdsLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
@@ -1129,39 +1127,42 @@ class PatientTrackingState extends State<PatientTracking> {
           backgroundColor: AppColors.white,
           scrolledUnderElevation: 0.0,
         ),
-        body: FormBuilder(
-          key: _formKey,
-          child: StreamBuilder<DocumentSnapshot>(
-            stream:
-                FirebaseFirestore.instance
-                    .collection('patient')
-                    .doc(widget.patientId)
-                    .snapshots(),
-            builder: (context, snapshot) {
-              final hasData = snapshot.hasData && snapshot.data!.exists;
+        body: 
+            _isLoading
+                ? const Center(child: CircularProgressIndicator(),)
+                : FormBuilder(
+                    key: _formKey,
+                    child: StreamBuilder<DocumentSnapshot>(
+                      stream:
+                          FirebaseFirestore.instance
+                              .collection('patient')
+                              .doc(widget.patientId)
+                              .snapshots(),
+                      builder: (context, snapshot) {
+                        final hasData = snapshot.hasData && snapshot.data!.exists;
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (isCooldownActive) _buildCooldownContainer(),
-                  if (!isCooldownActive)
-                    Expanded(
-                      child:
-                          hasData
-                              ? Column(
-                                children: [
-                                  _buildNavigationCircles(),
-                                  SizedBox(height: 20),
-                                  _buildTrackingForm(hasData),
-                                ],
-                              )
-                              : _buildPatientNotAvailable(),
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (isCooldownActive) _buildCooldownContainer(),
+                            if (!isCooldownActive)
+                              Expanded(
+                                child:
+                                    hasData
+                                        ? Column(
+                                          children: [
+                                            _buildNavigationCircles(),
+                                            SizedBox(height: 20),
+                                            _buildTrackingForm(hasData),
+                                          ],
+                                        )
+                                        : _buildPatientNotAvailable(),
+                              ),
+                          ],
+                        );
+                      },
                     ),
-                ],
-              );
-            },
-          ),
-        ),
+                  ),
       ),
     );
   }

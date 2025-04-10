@@ -42,7 +42,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   final AuthService _authService = AuthService();
   bool _isLoading = false;
   late Map<String, dynamic> thresholds = {};
-  bool _isThresholdsLoading = true;
 
   final vitalsUnits = {
     'Heart Rate': 'bpm',
@@ -62,7 +61,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
   Future<void> _fetchThresholds() async {
     thresholds = await databaseService.fetchThresholds();
     setState(() {
-      _isThresholdsLoading = false;
+      _isLoading = false;
     });
   }
 
@@ -152,12 +151,13 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     return Text(title, textAlign: TextAlign.left, style: Textstyle.subheader);
   }
 
-  void showToast(String message) {
+  void showToast(String message, {Color? backgroundColor}) {
+    Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
       toastLength: Toast.LENGTH_SHORT,
       gravity: ToastGravity.BOTTOM,
-      backgroundColor: AppColors.neon,
+      backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
       fontSize: 16.0,
     );
@@ -326,7 +326,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     if (patientData == null) {
       debugPrint('Submit Algo Input No User Data');
       if (mounted) {
-        showToast('No User Data');
+        showToast('No User Data', backgroundColor: AppColors.red);
       }
     } else {
       try {
@@ -345,7 +345,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         // Handle any unexpected errors
         debugPrint("Unexpected error: $e");
         if (mounted) {
-          showToast('An unexpected error occurred: $e');
+          showToast('An unexpected error occurred: $e', backgroundColor: AppColors.red);
         }
       }
     }
@@ -541,7 +541,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
             .catchError((e) {
               debugPrint("Error storing data: $e");
               if (mounted) {
-                showToast('Error storing data: $e');
+                showToast('Error storing data: $e', backgroundColor: AppColors.red);
               }
             });
       } else {
@@ -553,7 +553,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
             .catchError((e) {
               debugPrint("Error creating tracking document: $e");
               if (mounted) {
-                showToast('Error creating tracking data: $e');
+                showToast('Error creating tracking data: $e', backgroundColor: AppColors.red);
               }
             });
       }
@@ -605,7 +605,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       // Handle any unexpected errors here
       debugPrint("Unexpected error: $e");
       if (mounted) {
-        showToast('An unexpected error occurred: $e');
+        showToast('An unexpected error occurred: $e', backgroundColor: AppColors.red);
       }
     } finally {
       setState(() {
@@ -670,9 +670,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isThresholdsLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: AppBar(
@@ -689,63 +686,66 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                 ),
         automaticallyImplyLeading: _isLoading ? false : true,
       ),
-      body: SingleChildScrollView(
-        child: Container(
-          color: AppColors.white,
-          padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildDeter(),
-              const SizedBox(height: 20),
-              _buildHeader("Your Assessment"),
-              const SizedBox(height: 20.0),
-              _buildHeader("Vitals:"),
-              if (widget.inputs['Vitals'] is Map)
-                ...widget.inputs['Vitals'].entries.map((entry) {
-                  // Get the unit for the current vital
-                  final unit = vitalsUnits[entry.key] ?? '';
-                  final value =
-                      (entry.value == null || entry.value.toString().isEmpty)
-                          ? '0'
-                          : entry.value.toString();
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 5.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: 
+          _isLoading
+              ? Center(child: CircularProgressIndicator())
+              : SingleChildScrollView(
+                  child: Container(
+                    color: AppColors.white,
+                    padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('${entry.key}:', style: Textstyle.body),
-                        Text(
-                          '$value$unit', // Append the unit
-                          style: Textstyle.body,
-                        ),
+                        _buildDeter(),
+                        const SizedBox(height: 20),
+                        _buildHeader("Your Assessment"),
+                        const SizedBox(height: 20.0),
+                        _buildHeader("Vitals:"),
+                        if (widget.inputs['Vitals'] is Map)
+                          ...widget.inputs['Vitals'].entries.map((entry) {
+                            // Get the unit for the current vital
+                            final unit = vitalsUnits[entry.key] ?? '';
+                            final value =
+                                (entry.value == null || entry.value.toString().isEmpty)
+                                    ? '0'
+                                    : entry.value.toString();
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 5.0),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('${entry.key}:', style: Textstyle.body),
+                                  Text(
+                                    '$value$unit', // Append the unit
+                                    style: Textstyle.body,
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        const SizedBox(height: 20.0),
+                        _buildHeader("Symptom Assessment:"),
+                        const SizedBox(height: 10.0),
+                        if (widget.inputs['Symptom Assessment'] is Map)
+                          ...widget.inputs['Symptom Assessment'].entries.map((entry) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 5.0),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('${entry.key}:', style: Textstyle.body),
+                                  Text('${entry.value}', style: Textstyle.body),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        Divider(),
+                        SizedBox(height: 10),
+                        _buildSubmitButton(),
                       ],
                     ),
-                  );
-                }).toList(),
-              const SizedBox(height: 20.0),
-              _buildHeader("Symptom Assessment:"),
-              const SizedBox(height: 10.0),
-              if (widget.inputs['Symptom Assessment'] is Map)
-                ...widget.inputs['Symptom Assessment'].entries.map((entry) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 5.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('${entry.key}:', style: Textstyle.body),
-                        Text('${entry.value}', style: Textstyle.body),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              Divider(),
-              SizedBox(height: 10),
-              _buildSubmitButton(),
-            ],
-          ),
-        ),
-      ),
+                  ),
+                ),
     );
   }
 }

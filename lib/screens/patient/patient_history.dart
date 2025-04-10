@@ -130,12 +130,13 @@ class _PatientHistoryState extends State<PatientHistory> {
     }).toList();
   }
 
-  void showToast(String message) {
+  void showToast(String message, {Color? backgroundColor}) {
+    Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
       toastLength: Toast.LENGTH_SHORT,
       gravity: ToastGravity.BOTTOM,
-      backgroundColor: AppColors.neon,
+      backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
       fontSize: 16.0,
     );
@@ -149,12 +150,12 @@ class _PatientHistoryState extends State<PatientHistory> {
     final user = _auth.currentUser;
 
     if (user == null) {
-      showToast("User is not Authenticated");
+      showToast("User is not Authenticated", backgroundColor: AppColors.red);
       return;
     }
 
     if (user.uid == null) {
-      showToast("User is id Null");
+      showToast("User is id Null", backgroundColor: AppColors.red);
       return;
     }
 
@@ -187,7 +188,7 @@ class _PatientHistoryState extends State<PatientHistory> {
     final user = _auth.currentUser;
 
     if (user == null) {
-      showToast("User is not Authenticated");
+      showToast("User is not Authenticated", backgroundColor: AppColors.red);
       return;
     }
 
@@ -336,7 +337,8 @@ class _PatientHistoryState extends State<PatientHistory> {
                             Navigator.of(context).pop();
                             setState(() {});
                           } else {
-                            showToast('Please fill all fields correctly.');
+                            showToast('Please fill all fields correctly.', 
+                                backgroundColor: AppColors.red);
                           }
                         },
                         style: Buttonstyle.buttonNeon,
