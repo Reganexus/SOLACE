@@ -583,8 +583,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Widget _buildForm() {
-    /// Builds the form widget.
-
     return Form(
       key: _formKey,
       child: Column(

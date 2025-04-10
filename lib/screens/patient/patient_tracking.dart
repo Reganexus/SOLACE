@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:solace/controllers/notification_service.dart';
@@ -520,13 +521,7 @@ class PatientTrackingState extends State<PatientTracking> {
               ),
               child: Align(
                 alignment: Alignment.center,
-                child: Text(
-                  unitLabel,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppColors.blackTransparent,
-                  ),
-                ),
+                child: Text(unitLabel, style: Textstyle.bodySuperSmall),
               ),
             ),
           ],
@@ -977,7 +972,9 @@ class PatientTrackingState extends State<PatientTracking> {
                           _pageController.jumpToPage(_currentPage);
                         });
                       }
-                      : null,
+                      : () {
+                        showToast('You need to fill up Vitals section first');
+                      },
               child: Container(
                 color: AppColors.white,
                 child: Column(
@@ -1103,6 +1100,17 @@ class PatientTrackingState extends State<PatientTracking> {
           ),
         ],
       ),
+    );
+  }
+
+  void showToast(String message) {
+    Fluttertoast.showToast(
+      msg: message,
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+      backgroundColor: AppColors.black,
+      textColor: AppColors.white,
+      fontSize: 16.0,
     );
   }
 

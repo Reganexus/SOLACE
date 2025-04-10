@@ -11,6 +11,8 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:solace/services/auth.dart';
+import 'package:solace/services/database.dart';
 import 'package:solace/services/log_service.dart';
 import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
@@ -33,6 +35,8 @@ class ExportDataScreen extends StatefulWidget {
 
 class _ExportDataScreenState extends State<ExportDataScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final AuthService _authService = AuthService();
+  final DatabaseService _databaseService = DatabaseService();
   final LogService _logService = LogService();
   bool isSaving = false;
   String? _selectedFormat = 'CSV';
@@ -82,11 +86,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
                 .collection('patient')
                 .where('dateCreated', isGreaterThanOrEqualTo: startDate)
                 .get();
-      } else if ([
-        "caregiver",
-        "doctor",
-        "admin",
-      ].contains(widget.filterValue)) {
+      } else if (["caregiver", "doctor"].contains(widget.filterValue)) {
         querySnapshot =
             await FirebaseFirestore.instance
                 .collection(selectedValue)
@@ -101,11 +101,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
                 .where('dateCreated', isGreaterThanOrEqualTo: startDate)
                 .get();
       } else {
-        querySnapshot =
-            await FirebaseFirestore.instance
-                .collection('admin')
-                .where('dateCreated', isGreaterThanOrEqualTo: startDate)
-                .get();
+        return;
       }
 
       if (querySnapshot.docs.isEmpty) {
@@ -134,9 +130,17 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
             if (widget.filterValue == "patient") {
               documentData.remove('email');
               documentData.remove('phoneNumber');
+
+              // Process cases as comma-separated string
+              List<dynamic>? cases = documentData['cases'] as List<dynamic>?;
+              documentData['cases'] = cases != null ? cases.join(', ') : '';
+
+              // Add caseDescription
+              documentData['caseDescription'] =
+                  documentData['caseDescription'] ?? '';
             }
 
-            documentData['fullname'] = fullName;
+            documentData['name'] = fullName;
 
             return documentData;
           }).toList();
@@ -188,8 +192,36 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
     String selectedValue,
   ) async {
     try {
+      if (data.isEmpty) {
+        _showToast("No data available for export.");
+        return;
+      }
+
+      final user = _authService.currentUserId;
       final headers = _getHeaders(selectedValue);
-      List<List<String>> rows = [headers];
+      final filterName = widget.filterValue;
+      final capitalizedFilterName =
+          filterName[0].toUpperCase() + filterName.substring(1);
+      final exportDate = DateFormat(
+        'MMMM d, yyyy h:mm a',
+      ).format(DateTime.now());
+      final userName = await _databaseService.fetchUserName(user!) ?? 'Unknown';
+
+      final title =
+          filterName == 'stable' || filterName == 'unstable'
+              ? '$capitalizedFilterName Patients Data Summary'
+              : '${capitalizedFilterName}s Data Summary';
+      final numberOfFilterValue = data.length;
+
+      List<List<String>> rows = [
+        ['SOLACE - $title', ''],
+        ['Date exported:', exportDate],
+        ['Exported by:', userName],
+        ['', ''],
+        ['Number of ${filterName}s', '$numberOfFilterValue'],
+        ['', ''],
+        headers,
+      ];
 
       for (var docData in data) {
         rows.add(
@@ -220,39 +252,107 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       final pdf = pw.Document();
       final headers = _getHeaders(selectedValue);
 
-      pdf.addPage(
-        pw.Page(
-          orientation: pw.PageOrientation.landscape,
-          build: (pw.Context context) {
-            return pw.Table(
-              border: pw.TableBorder.all(),
-              columnWidths: {
-                for (int i = 0; i < headers.length; i++)
-                  i: const pw.FlexColumnWidth(1),
-              },
-              children: [
-                pw.TableRow(
-                  children:
-                      headers.map((header) => _pdfCell(header, true)).toList(),
-                ),
-                ...data.map(
-                  (docData) => pw.TableRow(
-                    children:
-                        headers
-                            .map(
-                              (header) => _pdfCell(
-                                _formatValue(docData[header], header),
-                              ),
-                            )
-                            .toList(),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-      );
+      // Load image as Uint8List
+      final ByteData imageData = await rootBundle.load(
+        'lib/assets/images/auth/solace.png',
+      ); // Replace with your image path
+      final Uint8List imageBytes = imageData.buffer.asUint8List();
+      final image = pw.MemoryImage(imageBytes);
 
+      // Ensure headers and data are not empty
+      if (headers.isEmpty || data.isEmpty) {
+        pdf.addPage(
+          pw.Page(
+            build:
+                (context) => pw.Center(
+                  child: pw.Text('No data available for the selected filters.'),
+                ),
+          ),
+        );
+      } else {
+        // Metadata and Table
+        final user = _auth.currentUser!;
+        final userName =
+            await _databaseService.fetchUserName(user.uid) ?? 'Unknown';
+        final filterName = widget.filterValue;
+        final capitalizedFilterName =
+            filterName[0].toUpperCase() + filterName.substring(1);
+        final exportDate = DateFormat(
+          'MMMM d, yyyy h:mm a',
+        ).format(DateTime.now());
+        final title =
+            filterName == 'stable' || filterName == 'unstable'
+                ? '$capitalizedFilterName Patients Data Summary'
+                : '${capitalizedFilterName}s Data Summary';
+        final numberOfFilterValue = data.length;
+
+        pdf.addPage(
+          pw.Page(
+            orientation: pw.PageOrientation.landscape,
+            build: (pw.Context context) {
+              return pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                children: [
+                  pw.Center(child: pw.Image(image, width: 40, height: 40)),
+                  pw.SizedBox(height: 10),
+                  pw.Text(
+                    'SOLACE - $title',
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold,
+                      fontSize: 10,
+                    ),
+                  ),
+                  pw.SizedBox(height: 10),
+                  pw.Text(
+                    'Date exported: $exportDate',
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(fontSize: 9),
+                  ),
+                  pw.Text(
+                    'Exported by: $userName',
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(fontSize: 9),
+                  ),
+                  pw.Text(
+                    'Number of ${filterName}s: $numberOfFilterValue',
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(fontSize: 9),
+                  ),
+                  pw.SizedBox(height: 10),
+                  pw.Table(
+                    border: pw.TableBorder.all(),
+                    children: [
+                      // Headers
+                      pw.TableRow(
+                        children:
+                            headers
+                                .map((header) => _pdfCell(header, true))
+                                .toList(),
+                      ),
+                      // Data Rows
+                      ...data.map((docData) {
+                        return pw.TableRow(
+                          children:
+                              headers.map((header) {
+                                final value = _formatValue(
+                                  docData[header],
+                                  header,
+                                );
+                                return _pdfCell(value);
+                              }).toList(),
+                        );
+                      }),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      }
+
+      // Save PDF
       _showToast("PDF data prepared, saving file...");
       final pdfBytes = Uint8List.fromList(await pdf.save());
       await _saveFile(pdfBytes, selectedValue, "pdf");
@@ -264,10 +364,25 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
     }
   }
 
+  // Create a PDF cell with text
+  pw.Widget _pdfCell(String text, [bool isHeader = false]) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(2),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          fontSize: isHeader ? 8 : 7,
+          fontWeight: isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
+        ),
+        textAlign: pw.TextAlign.left,
+      ),
+    );
+  }
+
   // Determine headers dynamically based on filter value
   List<String> _getHeaders(String filterValue) {
     List<String> headers = [
-      'fullname',
+      'name',
       'birthday',
       'age',
       'religion',
@@ -275,9 +390,11 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       'address',
     ];
 
-    if (!["patient", "stable", "unstable"].contains(filterValue)) {
-      headers.insert(3, 'email'); // Insert email after lastName
-      headers.insert(4, 'phoneNumber'); // Insert phoneNumber after email
+    if (filterValue == 'patient') {
+      headers.addAll(['cases', 'caseDescription']);
+    } else if (!["stable", "unstable"].contains(filterValue)) {
+      headers.insert(3, 'email');
+      headers.insert(4, 'phoneNumber');
     }
 
     return headers;
@@ -298,21 +415,6 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
     }
 
     return value.toString();
-  }
-
-  // Create a PDF cell with text
-  pw.Widget _pdfCell(String text, [bool isHeader = false]) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.all(2),
-      child: pw.Text(
-        text,
-        style: pw.TextStyle(
-          fontSize: isHeader ? 9 : 8,
-          fontWeight: isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
-        ),
-        textAlign: pw.TextAlign.left,
-      ),
-    );
   }
 
   // Save the file

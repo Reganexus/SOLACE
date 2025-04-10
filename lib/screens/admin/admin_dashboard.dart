@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:solace/screens/admin/admin_export_dataset.dart';
 import 'package:solace/screens/admin/export_data.dart';
+import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/themes/textstyle.dart';
 
@@ -114,8 +115,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Users Data', style: Textstyle.subheader),
-        const SizedBox(height: 10),
         GridView.count(
           crossAxisCount: 4,
           crossAxisSpacing: 10,
@@ -149,7 +148,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Widget _buildExport() {
     final List<Map<String, String>> exportOptions = [
-      {'filterValue': 'admin', 'title': 'Export Admin Data'},
       {'filterValue': 'caregiver', 'title': 'Export Caregiver Data'},
       {'filterValue': 'doctor', 'title': 'Export Doctor Data'},
       {'filterValue': 'nurse', 'title': 'Export Nurse Data'},
@@ -158,18 +156,61 @@ class _AdminDashboardState extends State<AdminDashboard> {
       {'filterValue': 'unstable', 'title': 'Export Unstable Patients'},
     ];
 
-    Widget buildExportOption(String filterValue, String title) {
-      return GestureDetector(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder:
-                  (context) =>
-                      ExportDataScreen(filterValue: filterValue, title: title),
+    Future<void> showConfirmationDialog(
+      BuildContext context,
+      String filterValue,
+      String title,
+    ) async {
+      final bool? confirmed = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext dialogContext) {
+          return AlertDialog(
+            backgroundColor: AppColors.white,
+            title: Text('Confirmation', style: Textstyle.subheader),
+            content: Text(
+              'Are you sure you want to proceed with $title?',
+              style: Textstyle.body,
             ),
+            actions: [
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(false),
+                      style: Buttonstyle.buttonRed,
+                      child: Text('Cancel', style: Textstyle.smallButton),
+                    ),
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(true),
+                      style: Buttonstyle.buttonNeon,
+                      child: Text('Proceed', style: Textstyle.smallButton),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           );
         },
+      );
+
+      if (confirmed == true) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder:
+                (context) =>
+                    ExportDataScreen(filterValue: filterValue, title: title),
+          ),
+        );
+      }
+    }
+
+    Widget buildExportOption(String filterValue, String title) {
+      return GestureDetector(
+        onTap: () => showConfirmationDialog(context, filterValue, title),
         child: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
@@ -179,7 +220,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           child: Row(
             children: [
               Expanded(child: Text(title, style: Textstyle.body)),
-              Icon(Icons.arrow_forward_ios_rounded, size: 16),
+              const Icon(Icons.arrow_forward_ios_rounded, size: 16),
             ],
           ),
         ),
@@ -190,7 +231,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Export Data', style: Textstyle.subheader),
-        const SizedBox(height: 10),
+        Text(
+          'Export Data by tapping the desired category to export.',
+          style: Textstyle.body,
+        ),
+        const SizedBox(height: 20),
         for (var option in exportOptions) ...[
           buildExportOption(option['filterValue']!, option['title']!),
           const SizedBox(height: 10),
@@ -200,32 +245,91 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   Widget _buildExportDataset() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Export Dataset', style: Textstyle.subheader),
-        const SizedBox(height: 10),
-
-        GestureDetector(
-          onTap: () async {
-            await ExportDataset.exportTrackingData();
-            showToast("Export successful!");
-          },
-          child: Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.gray,
-              borderRadius: BorderRadius.circular(10),
+    Future<void> showConfirmationDialog(BuildContext context) async {
+      final bool? confirmed = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext dialogContext) {
+          return AlertDialog(
+            backgroundColor: AppColors.white,
+            title: Text('Confirmation', style: Textstyle.subheader),
+            content: Text(
+              'Are you sure you want to export the dataset?',
+              style: Textstyle.body,
             ),
-            child: Row(
-              children: [
-                Expanded(child: Text('Export Dataset', style: Textstyle.body)),
-                Icon(Icons.arrow_forward_ios_rounded, size: 16),
-              ],
+            actions: [
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(false),
+                      style: Buttonstyle.buttonRed,
+                      child: Text('Cancel', style: Textstyle.smallButton),
+                    ),
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(true),
+                      style: Buttonstyle.buttonNeon,
+                      child: Text('Proceed', style: Textstyle.smallButton),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      );
+
+      if (confirmed == true) {
+        try {
+          await ExportDataset.exportTrackingData();
+          showToast("Export successful!");
+        } catch (e) {
+          showToast("Export failed: $e");
+        }
+      }
+    }
+
+    return Container(
+      color: AppColors.darkblue,
+      padding: EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Export Dataset',
+            style: Textstyle.subheader.copyWith(color: AppColors.white),
+          ),
+          Text(
+            'This function is to help future researchers and future developers. Export this dataset to help contribute improve the algorithm.',
+            style: Textstyle.bodyWhite,
+          ),
+          const SizedBox(height: 20),
+          GestureDetector(
+            onTap: () => showConfirmationDialog(context),
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.blackTransparent,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text('Export Dataset', style: Textstyle.bodyWhite),
+                  ),
+                  const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 16,
+                    color: AppColors.white,
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -245,20 +349,28 @@ class _AdminDashboardState extends State<AdminDashboard> {
     return Scaffold(
       backgroundColor: AppColors.white,
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            StatisticsRow(
-              total: patientCount,
-              stable: stableCount,
-              unstable: unstableCount,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                children: [
+                  StatisticsRow(
+                    total: patientCount,
+                    stable: stableCount,
+                    unstable: unstableCount,
+                  ),
+                  const SizedBox(height: 10),
+                  _buildCounter(),
+                  const SizedBox(height: 10),
+                  Divider(),
+                  const SizedBox(height: 10),
+                  _buildExport(),
+                  const SizedBox(height: 20),
+                ],
+              ),
             ),
-            const SizedBox(height: 20),
-            _buildCounter(),
-            const SizedBox(height: 20),
-            _buildExport(),
-            const SizedBox(height: 20),
             _buildExportDataset(),
           ],
         ),

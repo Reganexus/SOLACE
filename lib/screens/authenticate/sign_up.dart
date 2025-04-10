@@ -475,46 +475,45 @@ class _SignUpState extends State<SignUp> {
       backgroundColor: AppColors.white,
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              physics: NeverScrollableScrollPhysics(),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: IntrinsicHeight(
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: <Widget>[
-                        _buildSignUpHeader(),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Column(
-                            children: [
-                              _emailField(),
-                              const SizedBox(height: 20),
-                              _passwordField(),
-                              const SizedBox(height: 20),
-                              _buildTermsAndConditions(),
-                              const SizedBox(height: 20),
-                              _buildSignUpButton(),
-                              const SizedBox(height: 20),
-                              _buildDivider(),
-                              const SizedBox(height: 20),
-                              _buildGoogleButton(),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        _buildToggleViewButton(),
-                      ],
+        child: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: MediaQuery.of(context).size.height),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 30),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: <Widget>[
+                    _buildSignUpHeader(),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          _emailField(),
+                          const SizedBox(height: 20),
+                          _passwordField(),
+                          const SizedBox(height: 20),
+                          _buildTermsAndConditions(),
+                          const SizedBox(height: 20),
+                          _buildSignUpButton(),
+                          const SizedBox(height: 10),
+                          _buildDivider(),
+                          const SizedBox(height: 10),
+                          _buildGoogleButton(),
+                        ],
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 20),
+                    _buildToggleViewButton(),
+                  ],
                 ),
               ),
-            );
-          },
+            ),
+          ),
         ),
       ),
     );

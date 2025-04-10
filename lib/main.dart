@@ -41,6 +41,7 @@ Future<void> main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
+
   final Widget initialScreen = await _determineInitialScreen();
   runApp(MyApp(initialScreen: initialScreen));
 }
@@ -72,6 +73,7 @@ Future<Widget> _determineInitialScreen() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final bool isNewInstall = prefs.getBool(_isNewInstallKey) ?? true;
 
+    await authService.signOut();
     final user = authService.currentUser;
     if (user != null) {
       print("User already logged in: $user");
