@@ -122,7 +122,9 @@ class _SelectProfileImageScreenState extends State<SelectProfileImageScreen> {
                       },
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 10),
+                          horizontal: 20,
+                          vertical: 10,
+                        ),
                         backgroundColor: AppColors.red,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -139,19 +141,20 @@ class _SelectProfileImageScreenState extends State<SelectProfileImageScreen> {
                       ),
                     ),
                   ),
-                  SizedBox(
-                    width: 10.0,
-                  ),
+                  SizedBox(width: 10.0),
                   Expanded(
                     child: TextButton(
-                      onPressed: selectedImage != null
-                          ? () {
-                              Navigator.of(context).pop(selectedImage);
-                            }
-                          : null,
+                      onPressed:
+                          selectedImage != null
+                              ? () {
+                                Navigator.of(context).pop(selectedImage);
+                              }
+                              : null,
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 10),
+                          horizontal: 20,
+                          vertical: 10,
+                        ),
                         backgroundColor: AppColors.neon,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),

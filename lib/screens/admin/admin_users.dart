@@ -721,7 +721,7 @@ class AdminUsersState extends State<AdminUsers> {
           borderRadius: BorderRadius.circular(10),
           child: Container(
             width: double.infinity,
-            height: 200,
+            height: 120,
             decoration: BoxDecoration(
               image: DecorationImage(
                 image: AssetImage('lib/assets/images/auth/manage.jpg'),

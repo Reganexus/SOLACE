@@ -66,6 +66,7 @@ class CustomTextField extends StatelessWidget {
         ),
       ),
       validator: validator,
+      maxLength: maxLength, // Apply maxLength
     );
   }
 }

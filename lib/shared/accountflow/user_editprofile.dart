@@ -750,8 +750,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     _focusNodes[4].hasFocus ? AppColors.neon : AppColors.black,
               ),
             ),
-            validator:
-                (val) => val!.isEmpty ? 'Birthday cannot be empty' : null,
+            validator: (val) {
+              if (val == null || val.isEmpty) {
+                return 'Birthday cannot be empty';
+              }
+              return null;
+            },
             readOnly: true,
             onTap: () => _selectDate(context),
           ),
@@ -767,7 +771,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             items: ['Male', 'Female', 'Other'],
             enabled: !_isLoading,
             onChanged: (val) => setState(() => gender = val ?? ''),
-            validator: (val) => val!.isEmpty ? 'Gender cannot be empty' : null,
+            validator: (val) {
+              if (val == null || val.isEmpty) {
+                return 'Gender cannot be empty';
+              }
+              return null;
+            },
+
             displayItem: (item) => item,
           ),
           SizedBox(height: 10),
@@ -781,8 +791,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             enabled: !_isLoading,
             items: religions,
             onChanged: (val) => setState(() => religion = val ?? ''),
-            validator:
-                (val) => val!.isEmpty ? 'Religion cannot be empty' : null,
+            validator: (val) {
+              if (val == null || val.isEmpty) {
+                return 'Religion cannot be empty';
+              }
+              return null;
+            },
             displayItem: (item) => item,
           ),
           SizedBox(height: 10),
