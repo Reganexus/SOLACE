@@ -10,7 +10,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:solace/controllers/notification_service.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/screens/patient/patient_input_summary.dart';
-import 'package:solace/shared/globals.dart';
 import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
@@ -87,18 +86,22 @@ class PatientTrackingState extends State<PatientTracking> {
   int _poorAppetiteValue = 0;
   int _coughingValue = 0;
   int _nauseaValue = 0;
+  int _vomitingValue = 0;
   int _depressionValue = 0;
   int _anxietyValue = 0;
   int _confusionValue = 0;
   int _insomniaValue = 0;
 
   late Map<String, dynamic> _combinedInputs;
+  late Map<String, dynamic> thresholds = {};
+  bool _isThresholdsLoading = true;
 
   @override
   void initState() {
     super.initState();
     _initializeCooldown();
     _loadCachedData();
+    _fetchThresholds();
     _pageController = PageController(initialPage: _currentPage);
 
     // Add navigation listener
@@ -128,6 +131,13 @@ class PatientTrackingState extends State<PatientTracking> {
     }
     _pageController.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchThresholds() async {
+    thresholds = await databaseService.fetchThresholds();
+    setState(() {
+      _isThresholdsLoading = false;
+    });
   }
 
   Future<void> _loadCachedData() async {
@@ -160,6 +170,7 @@ class PatientTrackingState extends State<PatientTracking> {
           prefs.getInt('Poor Appetite_${widget.patientId}') ?? 0;
       _coughingValue = prefs.getInt('Coughing_${widget.patientId}') ?? 0;
       _nauseaValue = prefs.getInt('Nausea_${widget.patientId}') ?? 0;
+      _vomitingValue = prefs.getInt('Vomiting${widget.patientId}') ?? 0;
       _depressionValue = prefs.getInt('Depression_${widget.patientId}') ?? 0;
       _anxietyValue = prefs.getInt('Anxiety_${widget.patientId}') ?? 0;
       _confusionValue = prefs.getInt('Confusion_${widget.patientId}') ?? 0;
@@ -191,6 +202,7 @@ class PatientTrackingState extends State<PatientTracking> {
       _poorAppetiteValue = 0;
       _coughingValue = 0;
       _nauseaValue = 0;
+      _vomitingValue = 0;
       _depressionValue = 0;
       _anxietyValue = 0;
       _confusionValue = 0;
@@ -318,16 +330,8 @@ class PatientTrackingState extends State<PatientTracking> {
     return Column(
       children: [
         _buildVitalInputField('Heart Rate'),
-        Row(
-          children: [
-            Expanded(child: _buildVitalInputField('Systolic')),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 8.0),
-              child: Text(' / ', style: Textstyle.body),
-            ),
-            Expanded(child: _buildVitalInputField('Diastolic')),
-          ],
-        ),
+        _buildVitalInputField('Systolic'),
+        _buildVitalInputField('Diastolic'),
         _buildVitalInputField('Oxygen Saturation'),
         _buildVitalInputField('Respiration'),
         _buildVitalInputField('Temperature'),
@@ -353,72 +357,91 @@ class PatientTrackingState extends State<PatientTracking> {
         validators.addAll([
           FormBuilderValidators.numeric(),
           FormBuilderValidators.between(
-            minPossibleTemperature,
-            maxPossibleTemperature,
+            thresholds['minSevereTemperature'],
+            thresholds['maxSevereTemperature'],
           ),
           FormBuilderValidators.maxLength(5),
+          FormBuilderValidators.match(RegExp(r'^\d*\.?\d{0,2}$'), errorText: 'Max 2 decimal places allowed'),
         ]);
-        inputFormatters.add(
-          FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,1}$')),
-        );
+        inputFormatters.addAll([
+          FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*$')),
+          LengthLimitingTextInputFormatter(5),
+        ]);
         break;
       case 'Heart Rate':
         unitLabel = 'bpm';
         validators.addAll([
           FormBuilderValidators.integer(),
           FormBuilderValidators.between(
-            minPossibleHeartRate,
-            maxPossibleHeartRate,
+            thresholds['minSevereHeartRate'],
+            thresholds['maxSevereHeartRate'],
           ),
           FormBuilderValidators.maxLength(3),
         ]);
-        inputFormatters.add(FilteringTextInputFormatter.digitsOnly);
+        inputFormatters.addAll([
+          FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(3),
+        ]);
         break;
       case 'Systolic':
         unitLabel = 'mmHg';
         validators.addAll([
           FormBuilderValidators.integer(),
           FormBuilderValidators.between(
-            minPossibleBloodPressureSystolic,
-            maxPossibleBloodPressureSystolic,
+            thresholds['minSevereSystolic'],
+            thresholds['maxSevereSystolic'],
           ),
+          FormBuilderValidators.maxLength(3),
         ]);
-        inputFormatters.add(FilteringTextInputFormatter.digitsOnly);
+        inputFormatters.addAll([
+          FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(3),
+        ]);
         break;
       case 'Diastolic':
         unitLabel = 'mmHg';
         validators.addAll([
           FormBuilderValidators.integer(),
           FormBuilderValidators.between(
-            minPossibleBloodPressureDiastolic,
-            maxPossibleBloodPressureDiastolic,
+            thresholds['minSevereDiastolic'],
+            thresholds['maxSevereDiastolic'],
           ),
+          FormBuilderValidators.maxLength(3),
         ]);
-        inputFormatters.add(FilteringTextInputFormatter.digitsOnly);
+        inputFormatters.addAll([
+          FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(3),
+        ]);
         break;
       case 'Oxygen Saturation':
         unitLabel = '%';
         validators.addAll([
-          FormBuilderValidators.numeric(),
+          FormBuilderValidators.integer(),
           FormBuilderValidators.between(
-            minPossibleOxygenSaturation,
-            maxPossibleOxygenSaturation,
+            thresholds['minSevereOxygenSaturation'],
+            thresholds['maxNormalOxygenSaturation'],
           ),
-          FormBuilderValidators.maxLength(5),
+          FormBuilderValidators.maxLength(3),
         ]);
-        inputFormatters.add(FilteringTextInputFormatter.digitsOnly);
+        inputFormatters.addAll([
+          FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(3),
+        ]);
         break;
       case 'Respiration':
         unitLabel = 'b/min';
         validators.addAll([
           FormBuilderValidators.integer(),
           FormBuilderValidators.between(
-            minPossibleRespirationRate,
-            maxPossibleRespirationRate,
+            thresholds['minSevereRespirationRate'],
+            thresholds['maxSevereRespirationRate'],
           ),
           FormBuilderValidators.maxLength(3),
         ]);
-        inputFormatters.add(FilteringTextInputFormatter.digitsOnly);
+        inputFormatters.addAll([
+          FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(3),
+        ]);
         break;
       case 'Pain':
         int painValue = double.tryParse(_vitalInputs[key] ?? '0')?.round() ?? 0;
@@ -457,8 +480,11 @@ class PatientTrackingState extends State<PatientTracking> {
                 child: TextFormField(
                   controller: controller,
                   focusNode: focusNode,
+                  keyboardType: TextInputType.number,
                   decoration: InputDecorationStyles.build(
-                    key,
+                    (key == 'Systolic' || key == 'Diastolic')
+                        ? 'Blood Pressure ($key)'
+                        : key,
                     focusNode,
                   ).copyWith(
                     focusedBorder: OutlineInputBorder(
@@ -611,6 +637,9 @@ class PatientTrackingState extends State<PatientTracking> {
         _buildSlider('Nausea', _nauseaValue, (val) {
           setState(() => _nauseaValue = val);
         }),
+        _buildSlider('Vomiting', _vomitingValue, (val) {
+          setState(() => _vomitingValue = val);
+        }),
         const SizedBox(height: 10),
         const Divider(thickness: 1.0),
         const SizedBox(height: 10),
@@ -686,6 +715,7 @@ class PatientTrackingState extends State<PatientTracking> {
         'Poor Appetite': _poorAppetiteValue,
         'Coughing': _coughingValue,
         'Nausea': _nauseaValue,
+        'Vomiting': _vomitingValue,
         'Depression': _depressionValue,
         'Anxiety': _anxietyValue,
         'Confusion': _confusionValue,
@@ -705,6 +735,7 @@ class PatientTrackingState extends State<PatientTracking> {
         'Poor Appetite': _poorAppetiteValue,
         'Coughing': _coughingValue,
         'Nausea': _nauseaValue,
+        'Vomiting': _vomitingValue,
         'Depression': _depressionValue,
         'Anxiety': _anxietyValue,
         'Confusion': _confusionValue,
@@ -730,49 +761,6 @@ class PatientTrackingState extends State<PatientTracking> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('An error occurred: ${e.toString()}')),
       );
-    }
-  }
-
-  Future<void> _showConfirmationDialog() async {
-    bool shouldSubmit =
-        await showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              backgroundColor: AppColors.white,
-              title: Text('Confirm Submission', style: Textstyle.subheader),
-              content: Text(
-                'Are you sure you want to submit the data?',
-                style: Textstyle.body,
-              ),
-              actions: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () => Navigator.of(context).pop(false),
-                        style: Buttonstyle.buttonRed,
-                        child: Text('Cancel', style: Textstyle.smallButton),
-                      ),
-                    ),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () => Navigator.of(context).pop(true),
-                        style: Buttonstyle.buttonNeon,
-                        child: Text('Submit', style: Textstyle.smallButton),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            );
-          },
-        ) ??
-        false;
-
-    if (shouldSubmit) {
-      _submit(widget.patientId);
     }
   }
 
@@ -1092,7 +1080,7 @@ class PatientTrackingState extends State<PatientTracking> {
                   child: TextButton(
                     onPressed:
                         hasData && _hasValues()
-                            ? () => _showConfirmationDialog()
+                            ? () => _submit(widget.patientId)
                             : null,
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
@@ -1120,6 +1108,9 @@ class PatientTrackingState extends State<PatientTracking> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isThresholdsLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(

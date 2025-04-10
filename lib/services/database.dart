@@ -170,6 +170,7 @@ class DatabaseService {
       'Poor Appetite',
       'Coughing',
       'Nausea',
+      'Vomiting',
       'Depression',
       'Anxiety',
       'Confusion',
@@ -865,5 +866,56 @@ class DatabaseService {
       debugPrint("Error fetching user document: $e");
       return null;
     }
+  }
+
+  Future<Map<String, dynamic>> fetchThresholds() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('globals')
+          .doc('thresholds')
+          .get();
+
+      if (snapshot.exists) {
+        final data = snapshot.data() as Map<String, dynamic>;
+        Map<String, dynamic> thresholds = {};
+
+        data.forEach((vital, values) {
+          if (values is Map<String, dynamic>) {
+            if (values['maxSevere'] != null) {
+              thresholds['maxSevere${vital.capitalize()}'] = values['maxSevere'];
+            }
+            if (values['maxMild'] != null) {
+              thresholds['maxMild${vital.capitalize()}'] = values['maxMild'];
+            }
+            if (values['maxNormal'] != null) {
+              thresholds['maxNormal${vital.capitalize()}'] = values['maxNormal'];
+            }
+            if (values['minNormal'] != null) {
+              thresholds['minNormal${vital.capitalize()}'] = values['minNormal'];
+            }
+            if (values['minMild'] != null) {
+              thresholds['minMild${vital.capitalize()}'] = values['minMild'];
+            }
+            if (values['minSevere'] != null) {
+              thresholds['minSevere${vital.capitalize()}'] = values['minSevere'];
+            }
+          } else {
+            debugPrint('Unexpected format for $vital: $values');
+          }
+        });
+
+        return thresholds;
+      }
+    } catch (e) {
+      debugPrint('Error fetching thresholds: $e');
+    }
+    return {};
+  }
+}
+
+extension StringExtension on String {
+  String capitalize() {
+    if (isEmpty) return this;
+    return this[0].toUpperCase() + substring(1);
   }
 }

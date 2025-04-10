@@ -10,7 +10,6 @@ import 'package:solace/screens/home/home.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/services/error_handler.dart';
 import 'package:solace/shared/accountflow/rolechooser.dart';
-import 'package:solace/shared/globals.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/services/email_verification.dart';
 import 'package:solace/themes/loader.dart';
@@ -55,8 +54,6 @@ class _VerifyState extends State<Verify> {
     determineSignUpMethod();
     if (isGoogleSignUp) {
       await fetchAndNavigate(FirebaseAuth.instance.currentUser!.uid);
-    } else if (!emailVerificationEnabled) {
-      navigateToHome();
     } else {
       sendVerificationEmail();
       await verifyEmailAndRole();

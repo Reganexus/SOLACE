@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:solace/screens/patient/patient_contact_list.dart';
@@ -40,21 +41,21 @@ class PatientInterventionsState extends State<PatientInterventions> {
       setState(() {
         Map<String, List<String>> initialSections = {};
 
-        if (vitalsMapping.keys.any(
+        if (vitals.any(
           (symptom) => symptomInterventions.containsKey(symptom),
         )) {
-          initialSections['Vitals'] = vitalsMapping.keys.toList();
+          initialSections['Vitals'] = vitals;
         }
-        if (physicalMapping.keys.any(
+        if (physicalSymptoms.any(
           (symptom) => symptomInterventions.containsKey(symptom),
         )) {
-          initialSections['Physical Symptoms'] = physicalMapping.keys.toList();
+          initialSections['Physical Symptoms'] = physicalSymptoms;
         }
-        if (emotionalMapping.keys.any(
+        if (emotionalSymptoms.any(
           (symptom) => symptomInterventions.containsKey(symptom),
         )) {
           initialSections['Emotional Symptoms'] =
-              emotionalMapping.keys.toList();
+              emotionalSymptoms;
         }
 
         if (initialSections.isNotEmpty) {
@@ -104,82 +105,100 @@ class PatientInterventionsState extends State<PatientInterventions> {
     }
   }
 
-  final Map<String, String> vitalsMapping = {
-    'Low Heart Rate': 'lowHeartRate',
-    'High Heart Rate': 'highHeartRate',
-    'Low Blood Pressure': 'lowBloodPressure',
-    'High Blood Pressure': 'highBloodPressure',
-    'Low Oxygen Saturation': 'lowOxygenSaturation',
-    'Low Respiration Rate': 'lowRespirationRate',
-    'High Respiration Rate': 'highRespirationRate',
-    'Low Temperature': 'lowTemperature',
-    'High Temperature': 'highTemperature',
-    'Pain': 'pain',
-    'Extremely Low Heart Rate': 'extremelyLowHeartRate',
-    'Extremely High Heart Rate': 'extremelyHighHeartRate',
-    'Extremely Low Blood Pressure': 'extremelyLowBloodPressure',
-    'Extremely High Blood Pressure': 'extremelyHighBloodPressure',
-    'Extremely Low Oxygen Saturation': 'extremelyLowOxygenSaturation',
-    'Extremely Low Respiration Rate': 'extremelyLowRespirationRate',
-    'Extremely High Respiration Rate': 'extremelyHighRespirationRate',
-    'Extremely Low Temperature': 'extremelyLowTemperature',
-    'Extremely High Temperature': 'extremelyHighTemperature',
-    'Extreme Pain': 'extremePain',
-  };
+  String _toCamelCase(String input) {
+    return input.split(' ').mapIndexed((index, word) {
+      if (index == 0) {
+        return word.toLowerCase();
+      }
+      return word[0].toUpperCase() + word.substring(1).toLowerCase();
+    }).join();
+  }
 
-  final Map<String, String> physicalMapping = {
-    'Diarrhea': 'diarrhea',
-    'Constipation': 'constipation',
-    'Fatigue': 'fatigue',
-    'Shortness of Breath': 'dyspnea',
-    'Poor Appetite': 'appetite',
-    'Coughing': 'cough',
-    'Nausea': 'nausea',
-    'Vomiting': 'vomiting',
-  };
+  final List<String> vitals = [
+    'Low Heart Rate',
+    'High Heart Rate',
+    'Low Blood Pressure',
+    'High Blood Pressure',
+    'Low Oxygen Saturation',
+    'Low Respiration Rate',
+    'High Respiration Rate',
+    'Low Temperature',
+    'High Temperature',
+    'High Pain',
+    'Extremely Low Heart Rate',
+    'Extremely High Heart Rate',
+    'Extremely Low Blood Pressure',
+    'Extremely High Blood Pressure',
+    'Extremely Low Oxygen Saturation',
+    'Extremely Low Respiration Rate',
+    'Extremely High Respiration Rate',
+    'Extremely Low Temperature',
+    'Extremely High Temperature',
+    'Extremely High Pain',
+  ];
 
-  final Map<String, String> emotionalMapping = {
-    'Depression': 'depression',
-    'Anxiety': 'anxiety',
-    'Confusion': 'delirium',
-    'Insomnia': 'insomnia',
-  };
+  final List<String> physicalSymptoms = [
+    'Diarrhea',
+    'Constipation',
+    'Fatigue',
+    'Shortness of Breath',
+    'Poor Appetite',
+    'Coughing',
+    'Nausea',
+    'Vomiting'
+  ];
+
+  final List<String> emotionalSymptoms = [
+    'Depression',
+    'Anxiety',
+    'Confusion',
+    'Insomnia',
+  ];
 
   Future<Map<String, List<String>>> _fetchInterventions() async {
-    Map<String, List<String>> interventions = {};
-    try {
-      DocumentSnapshot userDoc =
-          await _firestore.collection('patient').doc(widget.patientId).get();
-      if (userDoc.exists && userDoc['symptoms'] != null) {
-        List<String> symptoms = List<String>.from(userDoc['symptoms']);
-        final allMappings = {
-          ...vitalsMapping,
-          ...physicalMapping,
-          ...emotionalMapping,
-        };
+  Map<String, List<String>> interventions = {};
+
+  try {
+    // Fetch the patient document
+    DocumentSnapshot userDoc =
+        await _firestore.collection('patient').doc(widget.patientId).get();
+
+    if (userDoc.exists && userDoc['symptoms'] != null) {
+      List<String> symptoms = List<String>.from(userDoc['symptoms']);
+
+      // Fetch the interventions document from the globals collection
+      DocumentSnapshot globalsInterventionsDoc = await _firestore
+          .collection('globals')
+          .doc('interventions')
+          .get();
+
+      if (globalsInterventionsDoc.exists) {
+        // Get the data from the interventions document
+        Map<String, dynamic> globalsInterventions =
+            globalsInterventionsDoc.data() as Map<String, dynamic>;
+
         for (String symptom in symptoms) {
-          String? mappedName = allMappings[symptom];
-          if (mappedName != null) {
-            DocumentSnapshot interventionDoc =
-                await _firestore
-                    .collection('interventions')
-                    .doc(mappedName)
-                    .get();
-            if (interventionDoc.exists) {
-              interventions[symptom] = List<String>.from(
-                interventionDoc['interventions'] ?? [],
-              );
-            } else {
-              interventions[symptom] = ['No interventions found'];
-            }
+          // Dynamically generate the mapped name by converting the symptom to camel case
+          String mappedName = _toCamelCase(symptom);
+
+          if (globalsInterventions.containsKey(mappedName)) {
+            // Retrieve the array of interventions for the mapped name
+            List<String> mappedInterventions =
+                List<String>.from(globalsInterventions[mappedName] ?? []);
+            interventions[symptom] = mappedInterventions;
+          } else {
+            // If no interventions are found, add a default message
+            interventions[symptom] = ['No interventions found'];
           }
         }
       }
-    } catch (e) {
-      debugPrint('Error fetching interventions: $e');
     }
-    return interventions;
+  } catch (e) {
+    debugPrint('Error fetching interventions: $e');
   }
+
+  return interventions;
+}
 
   Widget buildCallButtons() {
     return Padding(
@@ -331,20 +350,21 @@ class PatientInterventionsState extends State<PatientInterventions> {
     Map<String, List<String>> sections = {};
 
     // Populate sections based on available data
-    if (vitalsMapping.keys.any(
+    if (vitals.any(
       (symptom) => symptomInterventions.containsKey(symptom),
     )) {
-      sections['Vitals'] = vitalsMapping.keys.toList();
+      sections['Vitals'] = vitals;
     }
-    if (physicalMapping.keys.any(
+    if (physicalSymptoms.any(
       (symptom) => symptomInterventions.containsKey(symptom),
     )) {
-      sections['Physical Symptoms'] = physicalMapping.keys.toList();
+      sections['Physical Symptoms'] = physicalSymptoms;
     }
-    if (emotionalMapping.keys.any(
+    if (emotionalSymptoms.any(
       (symptom) => symptomInterventions.containsKey(symptom),
     )) {
-      sections['Emotional Symptoms'] = emotionalMapping.keys.toList();
+      sections['Emotional Symptoms'] =
+          emotionalSymptoms;
     }
 
     return isLoading

@@ -4,7 +4,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:solace/shared/widgets/configure_settings.dart';
+import 'package:solace/shared/widgets/edit_settings.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/themes/textstyle.dart';
 
@@ -37,7 +37,7 @@ class _AdminSettingsState extends State<AdminSettings> {
             MaterialPageRoute(
               builder:
                   (context) =>
-                      ConfigureSettings(docName: docName),
+                      EditSettings(docName: docName),
             ),
           );
         },
@@ -60,7 +60,7 @@ class _AdminSettingsState extends State<AdminSettings> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Configure System Variables', style: Textstyle.subheader),
+        Text('Edit System Variables', style: Textstyle.subheader),
         const SizedBox(height: 10),
         for (var option in exportOptions) ...[
           buildSettingOption(option),

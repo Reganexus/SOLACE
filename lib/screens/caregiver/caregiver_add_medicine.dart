@@ -293,117 +293,166 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
   }
 
   void _showAddMedicineDialog() {
+    List<String> allMedicines = []; // List to store fetched medicines
+    String selectedMedicine = ''; // Selected medicine from the dropdown
+
+    // Fetch medicines from Firestore
+    Future<void> _fetchGlobalMedicines() async {
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('globals')
+            .doc('medicines')
+            .get();
+
+        if (doc.exists) {
+          final data = doc.data();
+          if (data != null && data['medicines'] is List) {
+            allMedicines = List<String>.from(data['medicines']);
+            allMedicines.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+          }
+        }
+      } catch (e) {
+        debugPrint('Error fetching global medicines: $e');
+      }
+    }
+
     showDialog(
       context: context,
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Dialog(
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppColors.white,
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("Add Medicine", style: Textstyle.subheader),
-                    const SizedBox(height: 20),
+        return FutureBuilder(
+          future: _fetchGlobalMedicines(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-                    // Medicine Name Field
-                    CustomTextField(
-                      controller: _medicineNameController,
-                      focusNode: _focusNodes[0],
-                      labelText: "Medicine Name",
-                      enabled: true,
-                      onTap: () {}, // Optional: Add tap behavior if needed
+            return StatefulBuilder(
+              builder: (context, setModalState) {
+                return Dialog(
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(15),
                     ),
-                    const SizedBox(height: 10),
-
-                    // Dosage and Unit Fields
-                    Row(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          flex: 3,
-                          child: CustomTextField(
-                            controller: _dosageController,
-                            focusNode: _focusNodes[1],
-                            labelText: "Dosage",
-                            keyboardType: TextInputType.number,
-                            enabled: true,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          flex: 2,
-                          child: CustomDropdownField<String>(
-                            value: dosageUnit,
-                            focusNode: _focusNodes[2],
-                            labelText: "Unit",
-                            items: ["mg", "g", "mml", "l", "mcg"],
-                            onChanged:
-                                (value) => setModalState(() {
-                                  dosageUnit = value ?? dosageUnit;
-                                }),
-                            displayItem: (item) => item,
-                            enabled: true,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
+                        Text("Add Medicine", style: Textstyle.subheader),
+                        const SizedBox(height: 20),
 
-                    // Usage Field
-                    CustomTextField(
-                      controller: _usageController,
-                      focusNode: _focusNodes[3],
-                      labelText: "Usage",
-                      enabled: true,
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Buttons
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            style: Buttonstyle.buttonRed,
-                            child: Text("Cancel", style: Textstyle.smallButton),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: TextButton(
-                            onPressed: () {
-                              if (_medicineNameController.text.isNotEmpty &&
-                                  _dosageController.text.isNotEmpty &&
-                                  _usageController.text.isNotEmpty) {
-                                _addMedicine(
-                                  _medicineNameController.text,
-                                  "${_dosageController.text}$dosageUnit",
-                                  _usageController.text,
-                                );
-                                Navigator.pop(context);
-                              } else {
-                                showToast("Please fill in all fields");
-                              }
-                            },
-                            style: Buttonstyle.buttonNeon,
-                            child: Text(
-                              "Add Medicine",
-                              style: Textstyle.smallButton,
+                        // Medicine Name Dropdown/Search Field
+                        DropdownButtonFormField<String>(
+                          value: selectedMedicine.isNotEmpty ? selectedMedicine : null,
+                          decoration: InputDecoration(
+                            labelText: "Medicine Name",
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
                             ),
                           ),
+                          items: allMedicines.map((medicine) {
+                            return DropdownMenuItem<String>(
+                              value: medicine,
+                              child: Text(medicine),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            setModalState(() {
+                              selectedMedicine = value ?? '';
+                            });
+                          },
+                          onSaved: (value) {
+                            selectedMedicine = value ?? '';
+                          },
+                          isExpanded: true,
+                          dropdownColor: AppColors.white,
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Dosage and Unit Fields
+                        Row(
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: CustomTextField(
+                                controller: _dosageController,
+                                focusNode: _focusNodes[1],
+                                labelText: "Dosage",
+                                keyboardType: TextInputType.number,
+                                enabled: true,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              flex: 2,
+                              child: CustomDropdownField<String>(
+                                value: dosageUnit,
+                                focusNode: _focusNodes[2],
+                                labelText: "Unit",
+                                items: ["mg", "g", "mml", "l", "mcg"],
+                                onChanged: (value) => setModalState(() {
+                                  dosageUnit = value ?? dosageUnit;
+                                }),
+                                displayItem: (item) => item,
+                                enabled: true,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Usage Field
+                        CustomTextField(
+                          controller: _usageController,
+                          focusNode: _focusNodes[3],
+                          labelText: "Usage",
+                          enabled: true,
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Buttons
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                style: Buttonstyle.buttonRed,
+                                child: Text("Cancel", style: Textstyle.smallButton),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: TextButton(
+                                onPressed: () {
+                                  if (selectedMedicine.isNotEmpty &&
+                                      _dosageController.text.isNotEmpty &&
+                                      _usageController.text.isNotEmpty) {
+                                    _addMedicine(
+                                      selectedMedicine,
+                                      "${_dosageController.text}$dosageUnit",
+                                      _usageController.text,
+                                    );
+                                    Navigator.pop(context);
+                                  } else {
+                                    showToast("Please fill in all fields");
+                                  }
+                                },
+                                style: Buttonstyle.buttonNeon,
+                                child: Text(
+                                  "Add Medicine",
+                                  style: Textstyle.smallButton,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             );
           },
         );

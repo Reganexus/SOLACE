@@ -22,7 +22,6 @@ import 'package:solace/themes/colors.dart';
 import 'package:solace/themes/textstyle.dart';
 import 'package:solace/utility/schedule_utility.dart';
 import 'package:timeago/timeago.dart' as timeago;
-import 'package:solace/shared/globals.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 class PatientsDashboard extends StatefulWidget {
@@ -51,13 +50,15 @@ class VitalStatus {
 
 class _PatientsDashboardState extends State<PatientsDashboard> {
   final LogService _logService = LogService();
-  DatabaseService databaseService = DatabaseService();
+  final DatabaseService databaseService = DatabaseService();
   ScheduleUtility scheduleUtility = ScheduleUtility();
   Map<String, dynamic>? patientData;
   bool isLoading = true;
   bool _isTagging = false;
   late final PageController _pageController;
   late String patientName = '';
+  late Map<String, dynamic> thresholds = {};
+  bool _isThresholdsLoading = true;
 
   Timer? _timer;
   DateTime _currentTime = DateTime.now();
@@ -66,6 +67,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
   void initState() {
     super.initState();
     fetchPatientData();
+    _fetchThresholds();
     _startTimer();
     _pageController = PageController(initialPage: 0);
     debugPrint("Patient Dashboard Patient ID: ${widget.patientId}");
@@ -132,6 +134,13 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     }
   }
 
+  Future<void> _fetchThresholds() async {
+    thresholds = await databaseService.fetchThresholds();
+    setState(() {
+      _isThresholdsLoading = false;
+    });
+  }
+
   VitalStatus getVitalStatus(String key, dynamic value) {
     if (key == 'Blood Pressure' && value is String) {
       final parts = value.split('/');
@@ -168,28 +177,28 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
 
     switch (key) {
       case 'Heart Rate':
-        if (numValue < minExtremeHeartRate) {
+        if (numValue < thresholds['minMildHeartRate']) {
           return VitalStatus(
             color: AppColors.red,
             icon: LucideIcons.alertTriangle,
             label: "Very Low",
           );
         }
-        if (numValue < minNormalHeartRate) {
+        if (numValue < thresholds['minNormalHeartRate']) {
           return VitalStatus(
             color: AppColors.yellow,
             icon: LucideIcons.alertCircle,
             label: "Low",
           );
         }
-        if (numValue > maxExtremeHeartRate) {
+        if (numValue > thresholds['maxMildHeartRate']) {
           return VitalStatus(
             color: AppColors.red,
             icon: LucideIcons.alertTriangle,
             label: "Very High",
           );
         }
-        if (numValue > maxNormalHeartRate) {
+        if (numValue > thresholds['maxNormalHeartRate']) {
           return VitalStatus(
             color: AppColors.yellow,
             icon: LucideIcons.alertCircle,
@@ -199,28 +208,28 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
         break;
 
       case 'Blood Pressure (Systolic)':
-        if (numValue < minExtremeBloodPressureSystolic) {
+        if (numValue < thresholds['minMildSystolic']) {
           return VitalStatus(
             color: AppColors.red,
             icon: LucideIcons.alertTriangle,
             label: "Very Low",
           );
         }
-        if (numValue < minNormalBloodPressureSystolic) {
+        if (numValue < thresholds['minNormalSystolic']) {
           return VitalStatus(
             color: AppColors.yellow,
             icon: LucideIcons.alertCircle,
             label: "Low",
           );
         }
-        if (numValue > maxExtremeBloodPressureSystolic) {
+        if (numValue > thresholds['maxMildSystolic']) {
           return VitalStatus(
             color: AppColors.red,
             icon: LucideIcons.alertTriangle,
             label: "Very High",
           );
         }
-        if (numValue > maxNormalBloodPressureSystolic) {
+        if (numValue > thresholds['maxNormalSystolic']) {
           return VitalStatus(
             color: AppColors.yellow,
             icon: LucideIcons.alertCircle,
@@ -230,28 +239,28 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
         break;
 
       case 'Blood Pressure (Diastolic)':
-        if (numValue < minExtremeBloodPressureDiastolic) {
+        if (numValue < thresholds['minMildDiastolic']) {
           return VitalStatus(
             color: AppColors.red,
             icon: LucideIcons.alertTriangle,
             label: "Very Low",
           );
         }
-        if (numValue < minNormalBloodPressureDiastolic) {
+        if (numValue < thresholds['minNormalDiastolic']) {
           return VitalStatus(
             color: AppColors.yellow,
             icon: LucideIcons.alertCircle,
             label: "Low",
           );
         }
-        if (numValue > maxExtremeBloodPressureDiastolic) {
+        if (numValue > thresholds['maxMildDiastolic']) {
           return VitalStatus(
             color: AppColors.red,
             icon: LucideIcons.alertTriangle,
             label: "Very High",
           );
         }
-        if (numValue > maxNormalBloodPressureDiastolic) {
+        if (numValue > thresholds['maxNormalDiastolic']) {
           return VitalStatus(
             color: AppColors.yellow,
             icon: LucideIcons.alertCircle,
@@ -261,14 +270,14 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
         break;
 
       case 'Oxygen Saturation':
-        if (numValue < minExtremeOxygenSaturation) {
+        if (numValue < thresholds['minMildOxygenSaturation']) {
           return VitalStatus(
             color: AppColors.red,
             icon: LucideIcons.alertTriangle,
             label: "Very Low",
           );
         }
-        if (numValue < minNormalOxygenSaturation) {
+        if (numValue < thresholds['minNormalOxygenSaturation']) {
           return VitalStatus(
             color: AppColors.yellow,
             icon: LucideIcons.alertCircle,
@@ -278,28 +287,28 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
         break;
 
       case 'Respiration':
-        if (numValue < minExtremeRespirationRate) {
+        if (numValue < thresholds['minMildRespirationRate']) {
           return VitalStatus(
             color: AppColors.red,
             icon: LucideIcons.alertTriangle,
             label: "Very Low",
           );
         }
-        if (numValue < minNormalRespirationRate) {
+        if (numValue < thresholds['minNormalRespirationRate']) {
           return VitalStatus(
             color: AppColors.yellow,
             icon: LucideIcons.alertCircle,
             label: "Low",
           );
         }
-        if (numValue > maxExtremeRespirationRate) {
+        if (numValue > thresholds['maxMildRespirationRate']) {
           return VitalStatus(
             color: AppColors.red,
             icon: LucideIcons.alertTriangle,
             label: "Very High",
           );
         }
-        if (numValue > maxNormalRespirationRate) {
+        if (numValue > thresholds['maxNormalRespirationRate']) {
           return VitalStatus(
             color: AppColors.yellow,
             icon: LucideIcons.alertCircle,
@@ -309,28 +318,28 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
         break;
 
       case 'Temperature':
-        if (numValue < minExtremeTemperature) {
+        if (numValue < thresholds['minMildTemperature']) {
           return VitalStatus(
             color: AppColors.red,
             icon: LucideIcons.alertTriangle,
             label: "Very Low",
           );
         }
-        if (numValue < minNormalTemperature) {
+        if (numValue < thresholds['minNormalTemperature']) {
           return VitalStatus(
             color: AppColors.yellow,
             icon: LucideIcons.alertCircle,
             label: "Low",
           );
         }
-        if (numValue > maxExtremeTemperature) {
+        if (numValue > thresholds['maxMildTemperature']) {
           return VitalStatus(
             color: AppColors.red,
             icon: LucideIcons.alertTriangle,
             label: "Very High",
           );
         }
-        if (numValue > maxNormalTemperature) {
+        if (numValue > thresholds['maxNormalTemperature']) {
           return VitalStatus(
             color: AppColors.yellow,
             icon: LucideIcons.alertCircle,
@@ -340,14 +349,14 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
         break;
 
       case 'Pain':
-        if (numValue > maxExtremeScale) {
+        if (numValue > thresholds['maxMildScale']) {
           return VitalStatus(
             color: AppColors.red,
             icon: LucideIcons.alertTriangle,
             label: "Very High",
           );
         }
-        if (numValue > maxNormalScale) {
+        if (numValue > thresholds['maxNormalScale']) {
           return VitalStatus(
             color: AppColors.yellow,
             icon: LucideIcons.alertCircle,
@@ -852,6 +861,17 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
           return const Center(child: Text('Incomplete vitals data'));
         }
 
+        final modifiedVitals = Map<String, dynamic>.from(vitals);
+
+        // Remove Systolic and Diastolic keys
+        final systolic = modifiedVitals.remove('Systolic');
+        final diastolic = modifiedVitals.remove('Diastolic');
+
+        // Add Blood Pressure key with combined value
+        if (systolic != null && diastolic != null) {
+          modifiedVitals['Blood Pressure'] = '$systolic/$diastolic';
+        }
+
         final formattedTimestamp = timeago.format(timestamp.toDate());
 
         return FutureBuilder<DocumentSnapshot>(
@@ -951,7 +971,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
                 SizedBox(height: 10),
 
                 // Display current vitals
-                ...vitals.entries.map((entry) {
+                ...modifiedVitals.entries.map((entry) {
                   final unit = _getVitalUnit(entry.key);
                   final dynamic rawValue = entry.value;
                   final status =
@@ -1391,6 +1411,9 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isThresholdsLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: AppBar(

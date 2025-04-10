@@ -8,7 +8,6 @@ import 'package:solace/controllers/notification_service.dart';
 import 'package:solace/screens/patient/patient_tracking.dart';
 import 'package:solace/services/auth.dart';
 import 'package:solace/services/database.dart';
-import 'package:solace/shared/globals.dart';
 import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
 import 'dart:convert';
@@ -37,10 +36,13 @@ class ReceiptScreen extends StatefulWidget {
 class _ReceiptScreenState extends State<ReceiptScreen> {
   final notificationService = NotificationService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final DatabaseService databaseService = DatabaseService();
   final LogService _logService = LogService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final AuthService _authService = AuthService();
   bool _isLoading = false;
+  late Map<String, dynamic> thresholds = {};
+  bool _isThresholdsLoading = true;
 
   final vitalsUnits = {
     'Heart Rate': 'bpm',
@@ -50,6 +52,19 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     'Temperature': '°C',
     'Pain': '',
   };
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchThresholds();
+  }
+
+  Future<void> _fetchThresholds() async {
+    thresholds = await databaseService.fetchThresholds();
+    setState(() {
+      _isThresholdsLoading = false;
+    });
+  }
 
   Future<bool> _onWillPop() async {
     bool shouldPop =
@@ -91,7 +106,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                           );
                         },
                         style: Buttonstyle.buttonNeon,
-                        child: Text('Continue', style: Textstyle.smallButton),
+                        child: Text('Go Back', style: Textstyle.smallButton),
                       ),
                     ),
                   ],
@@ -165,7 +180,16 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     Map<String, String> vitals = Map<String, String>.from(
       widget.inputs['Vitals'],
     );
-    vitals.forEach((key, value) {
+    final modifiedVitals = Map<String, dynamic>.from(vitals);
+    // Remove Systolic and Diastolic keys
+    final systolic = modifiedVitals.remove('Systolic');
+    final diastolic = modifiedVitals.remove('Diastolic');
+
+    // Add Blood Pressure key with combined value
+    if (systolic != null && diastolic != null) {
+      modifiedVitals['Blood Pressure'] = '$systolic/$diastolic';
+    }
+    modifiedVitals.forEach((key, value) {
       if (value.isEmpty) return;
 
       double vitalValue = 0;
@@ -180,44 +204,44 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
       switch (key) {
         case 'Heart Rate':
-          if (vitalValue < minExtremeHeartRate) {
+          if (vitalValue < thresholds['minMildHeartRate']) {
             symptoms.add('Extremely Low Heart Rate');
-          } else if (vitalValue > maxExtremeHeartRate) {
+          } else if (vitalValue > thresholds['maxMildHeartRate']) {
             symptoms.add('Extremely High Heart Rate');
-          } else if (vitalValue < minNormalHeartRate) {
+          } else if (vitalValue < thresholds['minNormalHeartRate']) {
             symptoms.add('Low Heart Rate');
-          } else if (vitalValue > maxNormalHeartRate) {
+          } else if (vitalValue > thresholds['maxNormalHeartRate']) {
             symptoms.add('High Heart Rate');
           }
           break;
         case 'Oxygen Saturation':
-          if (vitalValue < minExtremeOxygenSaturation) {
+          if (vitalValue < thresholds['minMildOxygenSaturation']) {
             symptoms.add('Extremely Low Oxygen Saturation');
-          } else if (vitalValue < minNormalOxygenSaturation) {
+          } else if (vitalValue < thresholds['minNormalOxygenSaturation']) {
             symptoms.add('Low Oxygen Saturation');
           }
           break;
 
         case 'Respiration':
-          if (vitalValue < minExtremeRespirationRate) {
+          if (vitalValue < thresholds['minMildRespirationRate']) {
             symptoms.add('Extremely Low Respiration Rate');
-          } else if (vitalValue > maxExtremeRespirationRate) {
+          } else if (vitalValue > thresholds['maxMildRespirationRate']) {
             symptoms.add('Extremely High Respiration Rate');
-          } else if (vitalValue < minNormalRespirationRate) {
+          } else if (vitalValue < thresholds['minNormalRespirationRate']) {
             symptoms.add('Low Respiration Rate');
-          } else if (vitalValue > maxNormalRespirationRate) {
+          } else if (vitalValue > thresholds['maxNormalRespirationRate']) {
             symptoms.add('High Respiration Rate');
           }
           break;
 
         case 'Temperature':
-          if (vitalValue < minExtremeTemperature) {
+          if (vitalValue < thresholds['minMildTemperature']) {
             symptoms.add('Extremely Low Temperature');
-          } else if (vitalValue > maxExtremeTemperature) {
+          } else if (vitalValue > thresholds['maxMildTemperature']) {
             symptoms.add('Extremely High Temperature');
-          } else if (vitalValue < minNormalTemperature) {
+          } else if (vitalValue < thresholds['minNormalTemperature']) {
             symptoms.add('Low Temperature');
-          } else if (vitalValue > maxNormalTemperature) {
+          } else if (vitalValue > thresholds['maxNormalTemperature']) {
             symptoms.add('High Temperature');
           }
           break;
@@ -226,26 +250,26 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           final parts = value.split('/');
           final systolic = int.tryParse(parts[0]);
           final diastolic = int.tryParse(parts[1]);
-          if (systolic! > maxExtremeBloodPressureSystolic ||
-              diastolic! > maxExtremeBloodPressureDiastolic) {
+          if (systolic! > thresholds['maxMildSystolic'] ||
+              diastolic! > thresholds['maxMildDiastolic']) {
             symptoms.add('Extremely High Blood Pressure');
-          } else if (systolic < minExtremeBloodPressureSystolic &&
-              diastolic < minExtremeBloodPressureDiastolic) {
+          } else if (systolic < thresholds['minMildSystolic'] &&
+              diastolic < thresholds['minMildDiastolic']) {
             symptoms.add('Extremely Low Blood Pressure');
-          } else if (systolic > maxNormalBloodPressureSystolic ||
-              diastolic > maxNormalBloodPressureDiastolic) {
+          } else if (systolic > thresholds['maxNormalSystolic'] ||
+              diastolic > thresholds['maxNormalDiastolic']) {
             symptoms.add('High Blood Pressure');
-          } else if (systolic < minNormalBloodPressureSystolic &&
-              diastolic < minNormalBloodPressureDiastolic) {
+          } else if (systolic < thresholds['minNormalSystolic'] &&
+              diastolic < thresholds['minNormalDiastolic']) {
             symptoms.add('Low Blood Pressure');
           }
           break;
 
         case 'Pain':
-          if (vitalValue > maxExtremeScale) {
-            symptoms.add('Extreme Pain');
-          } else if (vitalValue > maxNormalScale) {
-            symptoms.add('Pain');
+          if (vitalValue > thresholds['maxMildScale']) {
+            symptoms.add('Extremely High Pain');
+          } else if (vitalValue > thresholds['maxNormalScale']) {
+            symptoms.add('High Pain');
           }
           break;
 
@@ -646,6 +670,9 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isThresholdsLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: AppBar(
