@@ -2,7 +2,9 @@ import 'dart:core';
 
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
+import 'package:solace/themes/textformfield.dart';
 import 'package:solace/themes/textstyle.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
@@ -20,7 +22,7 @@ class _EditSettingsState extends State<EditSettings> {
   String docName = '';
   String itemName = '';
   bool isLoading = true;
-  
+
   @override
   void initState() {
     super.initState();
@@ -40,25 +42,31 @@ class _EditSettingsState extends State<EditSettings> {
     }
   }
 
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
   Widget _buildSections() {
     return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance
-          .collection('globals')
-          .doc(docName)
-          .get(),
+      future:
+          FirebaseFirestore.instance.collection('globals').doc(docName).get(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return Center(child: Text('Error loading data', style: Textstyle.body));
+          return Center(
+            child: Text('Error loading data', style: Textstyle.body),
+          );
         }
         if (!snapshot.hasData || snapshot.data?.data() == null) {
           return Center(child: Text('No data found', style: Textstyle.body));
         }
 
-        Map<String, dynamic> data = snapshot.data!.data() as Map<String, dynamic>;
-        
+        Map<String, dynamic> data =
+            snapshot.data!.data() as Map<String, dynamic>;
+
         List<String> settingOptions = data.keys.toList();
 
         if (docName == 'thresholds') {
@@ -72,7 +80,6 @@ class _EditSettingsState extends State<EditSettings> {
             'scale',
           ];
 
-          // Sort according to custom order, push unknowns (e.g. "others") to the end
           settingOptions.sort((a, b) {
             final aIndex = customOrder.indexOf(a);
             final bIndex = customOrder.indexOf(b);
@@ -83,7 +90,9 @@ class _EditSettingsState extends State<EditSettings> {
           });
         } else {
           // Default alphabetical sort for other documents
-          settingOptions.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+          settingOptions.sort(
+            (a, b) => a.toLowerCase().compareTo(b.toLowerCase()),
+          );
           if (settingOptions.contains('others')) {
             settingOptions.remove('others');
             settingOptions.add('others');
@@ -92,237 +101,372 @@ class _EditSettingsState extends State<EditSettings> {
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: settingOptions.map((sectionName) {
-            final String camelCaseSectionName = sectionName;
-            final String displaySectionName = toProperLabel(sectionName);
+          children:
+              settingOptions.map((sectionName) {
+                final String camelCaseSectionName = sectionName;
+                final String displaySectionName = toProperLabel(sectionName);
 
-            return ExpansionTile(
-              title: Text(displaySectionName, style: Textstyle.subheader),
-              children: [
-                if (widget.docName == 'Vital Thresholds')
-                  _buildVitalThresholdEditor(data[camelCaseSectionName] as Map<String, dynamic>, camelCaseSectionName)
-                else
-                  FutureBuilder<DocumentSnapshot>(
-                    future: FirebaseFirestore.instance
-                        .collection('globals')
-                        .doc(docName)
-                        .get(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      if (snapshot.hasError) {
-                        return Center(child: Text('Error loading data', style: Textstyle.body));
-                      }
-                      if (!snapshot.hasData || snapshot.data?.data() == null) {
-                        return Center(child: Text('No data found', style: Textstyle.body));
-                      }
-
-                      Map<String, dynamic> sectionData = snapshot.data!.data() as Map<String, dynamic>;
-                      List<String> items = List<String>.from(sectionData[camelCaseSectionName] ?? []);
-
-                      if (items.isEmpty) {
-                        return Column(
-                          children: [
-                            ElevatedButton(
-                              onPressed: () => showAddItemDialog(camelCaseSectionName),
-                              child: Text('Add New $itemName', style: Textstyle.body),
-                            ),
-                            const SizedBox(height: 10),
-                            Center(
-                              child: Text('$displaySectionName list is empty', style: Textstyle.body),
-                            ),
-                          ],
-                        );
-                      }
-
-                      items.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-
-                      return Column(
-                        children: [
-                          ElevatedButton(
-                            onPressed: () => showAddItemDialog(camelCaseSectionName),
-                            child: Text('Add New $itemName', style: Textstyle.body),
-                          ),
-                          const SizedBox(height: 10),
-                          ...items.asMap().entries.map((entry) {
-                            int index = entry.key;
-                            String value = entry.value;
-                            return ListTile(
-                              title: Text(value, style: Textstyle.body),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: Icon(Icons.edit, color: AppColors.neon),
-                                    onPressed: () => showEditItemDialog(camelCaseSectionName, index, value),
-                                  ),
-                                  IconButton(
-                                    icon: Icon(Icons.delete, color: AppColors.red),
-                                    onPressed: () => deleteItem(camelCaseSectionName, index),
-                                  ),
-                                ],
+                return ExpansionTile(
+                  title: Text(
+                    displaySectionName,
+                    style: Textstyle.body.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  collapsedBackgroundColor: AppColors.white,
+                  collapsedIconColor: AppColors.black,
+                  shape: Border(),
+                  iconColor: AppColors.black,
+                  children: [
+                    if (widget.docName == 'Vital Thresholds')
+                      _buildVitalThresholdEditor(
+                        data[camelCaseSectionName] as Map<String, dynamic>,
+                        camelCaseSectionName,
+                      )
+                    else
+                      FutureBuilder<DocumentSnapshot>(
+                        future:
+                            FirebaseFirestore.instance
+                                .collection('globals')
+                                .doc(docName)
+                                .get(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
+                          if (snapshot.hasError) {
+                            return Center(
+                              child: Text(
+                                'Error loading data',
+                                style: Textstyle.body,
                               ),
                             );
-                          }),
-                        ],
-                      );
-                    },
-                  ),
-              ],
-            );
-          }).toList(),
+                          }
+                          if (!snapshot.hasData ||
+                              snapshot.data?.data() == null) {
+                            return Center(
+                              child: Text(
+                                'No data found',
+                                style: Textstyle.body,
+                              ),
+                            );
+                          }
+
+                          Map<String, dynamic> sectionData =
+                              snapshot.data!.data() as Map<String, dynamic>;
+                          List<String> items = List<String>.from(
+                            sectionData[camelCaseSectionName] ?? [],
+                          );
+
+                          if (items.isEmpty) {
+                            return Column(
+                              children: [
+                                ElevatedButton(
+                                  onPressed:
+                                      () => showAddItemDialog(
+                                        camelCaseSectionName,
+                                      ),
+                                  child: Text(
+                                    'Add New $itemName',
+                                    style: Textstyle.body,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Center(
+                                  child: Text(
+                                    '$displaySectionName list is empty',
+                                    style: Textstyle.body,
+                                  ),
+                                ),
+                              ],
+                            );
+                          }
+
+                          items.sort(
+                            (a, b) =>
+                                a.toLowerCase().compareTo(b.toLowerCase()),
+                          );
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ...items.asMap().entries.map((entry) {
+                                int index = entry.key;
+                                String value = entry.value;
+                                return ListTile(
+                                  title: Text(value, style: Textstyle.body),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      GestureDetector(
+                                        onTap:
+                                            () => showEditItemDialog(
+                                              camelCaseSectionName,
+                                              index,
+                                              value,
+                                            ),
+                                        child: Icon(
+                                          Icons.edit,
+                                          color: AppColors.black.withValues(
+                                            alpha: 0.8,
+                                          ),
+                                          size: 24,
+                                        ),
+                                      ),
+                                      SizedBox(width: 10),
+                                      GestureDetector(
+                                        onTap: () async {
+                                          final confirm =
+                                              await showConfirmationDialog(
+                                                context: context,
+                                                title: 'Delete Confirmation',
+                                                content:
+                                                    'Are you sure you want to delete this $itemName?',
+                                              );
+                                          if (confirm) {
+                                            deleteItem(
+                                              camelCaseSectionName,
+                                              index,
+                                            );
+                                          }
+                                        },
+                                        child: Icon(
+                                          Icons.delete,
+                                          color: AppColors.red,
+                                          size: 24,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
+
+                              const SizedBox(height: 10),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16.0,
+                                ),
+                                child: SizedBox(
+                                  width: double.infinity,
+                                  child: TextButton(
+                                    onPressed:
+                                        () => showAddItemDialog(
+                                          camelCaseSectionName,
+                                        ),
+                                    style: Buttonstyle.buttonNeon,
+                                    child: Text(
+                                      'Add New $displaySectionName',
+                                      style: Textstyle.smallButton,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                  ],
+                );
+              }).toList(),
         );
       },
     );
   }
 
-  Widget _buildVitalThresholdEditor(Map<String, dynamic> thresholdsMap, String vitalName) {
-    final orderedKeys = ['maxSevere', 'maxMild', 'maxNormal', 'minNormal', 'minMild', 'minSevere'];
+  Widget _buildVitalThresholdEditor(
+    Map<String, dynamic> thresholdsMap,
+    String vitalName,
+  ) {
+    final orderedKeys = [
+      'maxSevere',
+      'maxMild',
+      'maxNormal',
+      'minNormal',
+      'minMild',
+      'minSevere',
+    ];
 
     if (vitalName == 'scale') {
       return Column(
-        children: ['maxMild', 'maxNormal'].map((key) {
-          final int? current = (thresholdsMap[key] as num?)?.toInt();
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(key, style: Textstyle.body),
-                DropdownButton<int>(
-                  value: current,
-                  items: List.generate(10, (i) => i + 1)
-                      .map((val) => DropdownMenuItem(
-                            value: val,
-                            child: Text(val.toString(), style: Textstyle.body),
-                          ))
-                      .toList(),
-                  onChanged: (newValue) async {
-                    if (newValue == null) return;
-
-                    thresholdsMap[key] = newValue;
-                    final mild = thresholdsMap['maxMild'];
-                    final normal = thresholdsMap['maxNormal'];
-
-                    if (mild != null && normal != null && mild <= normal) {
-                      showToast('maxMild ($mild) must be greater than maxNormal ($normal)', backgroundColor: AppColors.red);
-                      return;
-                    }
-
-                    await FirebaseFirestore.instance
-                        .collection('globals')
-                        .doc('thresholds')
-                        .update({'$vitalName.$key': newValue});
-
-                    setState(() {});
-                    showToast('$key updated!');
-                  },
+        children:
+            ['maxMild', 'maxNormal'].map((key) {
+              final int? current = (thresholdsMap[key] as num?)?.toInt();
+              return Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
                 ),
-              ],
-            ),
-          );
-        }).toList(),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(key, style: Textstyle.body),
+                    DropdownButton<int>(
+                      value: current,
+                      items:
+                          List.generate(10, (i) => i + 1)
+                              .map(
+                                (val) => DropdownMenuItem(
+                                  value: val,
+                                  child: Text(
+                                    val.toString(),
+                                    style: Textstyle.body,
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                      onChanged: (newValue) async {
+                        if (newValue == null) return;
+
+                        thresholdsMap[key] = newValue;
+                        final mild = thresholdsMap['maxMild'];
+                        final normal = thresholdsMap['maxNormal'];
+
+                        if (mild != null && normal != null && mild <= normal) {
+                          showToast(
+                            'maxMild ($mild) must be greater than maxNormal ($normal)',
+                            backgroundColor: AppColors.red,
+                          );
+                          return;
+                        }
+
+                        await FirebaseFirestore.instance
+                            .collection('globals')
+                            .doc('thresholds')
+                            .update({'$vitalName.$key': newValue});
+
+                        setState(() {});
+                        showToast('$key updated!');
+                      },
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
       );
     }
 
     // Default: other vital thresholds with edit dialogs
     return Column(
-      children: orderedKeys.where((key) => thresholdsMap.containsKey(key)).map((key) {
-        final value = thresholdsMap[key];
+      children:
+          orderedKeys.where((key) => thresholdsMap.containsKey(key)).map((key) {
+            final value = thresholdsMap[key];
 
-        return ListTile(
-          title: Text(key, style: Textstyle.body),
-          subtitle: Text(value.toString(), style: Textstyle.body),
-          trailing: IconButton(
-            icon: Icon(Icons.edit, color: AppColors.neon),
-            onPressed: () => _showThresholdEditDialog(vitalName, key, thresholdsMap),
-          ),
-        );
-      }).toList(),
+            return ListTile(
+              title: Text(key, style: Textstyle.body),
+              subtitle: Text(value.toString(), style: Textstyle.body),
+              trailing: IconButton(
+                icon: Icon(Icons.edit, color: AppColors.neon),
+                onPressed:
+                    () =>
+                        _showThresholdEditDialog(vitalName, key, thresholdsMap),
+              ),
+            );
+          }).toList(),
     );
   }
 
-  void _showThresholdEditDialog(String vitalName, String key, Map<String, dynamic> thresholdsMap) {
-    final controller = TextEditingController(text: thresholdsMap[key].toString());
+  void _showThresholdEditDialog(
+    String vitalName,
+    String key,
+    Map<String, dynamic> thresholdsMap,
+  ) {
+    final controller = TextEditingController(
+      text: thresholdsMap[key].toString(),
+    );
     final sectionName = vitalName;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Edit $key', style: Textstyle.subheader),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.numberWithOptions(decimal: true),
-          inputFormatters: _getInputFormatters(sectionName),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: Textstyle.body),
-          ),
-          TextButton(
-            onPressed: () async {
-              try {
-                final num parsedValue = num.parse(controller.text);
+      builder:
+          (context) => AlertDialog(
+            title: Text('Edit $key', style: Textstyle.subheader),
+            content: TextField(
+              controller: controller,
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: _getInputFormatters(sectionName),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Cancel', style: Textstyle.body),
+              ),
+              TextButton(
+                onPressed: () async {
+                  try {
+                    final num parsedValue = num.parse(controller.text);
 
-                // Validate input for scale bounds
-                if (sectionName == 'scale') {
-                  if (parsedValue < 1 || parsedValue > 10) {
-                    showToast('$key must be between 1 and 10', backgroundColor: AppColors.red);
-                    return;
-                  }
-                }
-
-                // Apply value to local copy before checking logic
-                thresholdsMap[key] = parsedValue;
-
-                if (sectionName == 'scale') {
-                  final num mild = thresholdsMap['maxMild'];
-                  final num normal = thresholdsMap['maxNormal'];
-                  if (mild <= normal) {
-                    showToast('maxMild ($mild) must be greater than maxNormal ($normal)', backgroundColor: AppColors.red);
-                    return;
-                  }
-                } else {
-                  // Standard order validation for full thresholds
-                  final keys = ['maxSevere', 'maxMild', 'maxNormal', 'minNormal', 'minMild', 'minSevere'];
-                  final values = keys.map((k) => thresholdsMap[k] as num).toList();
-
-                  for (int i = 0; i < values.length - 1; i++) {
-                    if (values[i] <= values[i + 1]) {
-                      final errorMsg = '${keys[i]} (${values[i]}) must be greater than ${keys[i + 1]} (${values[i + 1]})';
-                      showToast(errorMsg, backgroundColor: AppColors.red);
-                      return;
+                    // Validate input for scale bounds
+                    if (sectionName == 'scale') {
+                      if (parsedValue < 1 || parsedValue > 10) {
+                        showToast(
+                          '$key must be between 1 and 10',
+                          backgroundColor: AppColors.red,
+                        );
+                        return;
+                      }
                     }
+
+                    // Apply value to local copy before checking logic
+                    thresholdsMap[key] = parsedValue;
+
+                    if (sectionName == 'scale') {
+                      final num mild = thresholdsMap['maxMild'];
+                      final num normal = thresholdsMap['maxNormal'];
+                      if (mild <= normal) {
+                        showToast(
+                          'maxMild ($mild) must be greater than maxNormal ($normal)',
+                          backgroundColor: AppColors.red,
+                        );
+                        return;
+                      }
+                    } else {
+                      // Standard order validation for full thresholds
+                      final keys = [
+                        'maxSevere',
+                        'maxMild',
+                        'maxNormal',
+                        'minNormal',
+                        'minMild',
+                        'minSevere',
+                      ];
+                      final values =
+                          keys.map((k) => thresholdsMap[k] as num).toList();
+
+                      for (int i = 0; i < values.length - 1; i++) {
+                        if (values[i] <= values[i + 1]) {
+                          final errorMsg =
+                              '${keys[i]} (${values[i]}) must be greater than ${keys[i + 1]} (${values[i + 1]})';
+                          showToast(errorMsg, backgroundColor: AppColors.red);
+                          return;
+                        }
+                      }
+                    }
+
+                    // If passed all validation, commit to Firestore
+                    await FirebaseFirestore.instance
+                        .collection('globals')
+                        .doc('thresholds')
+                        .update({'$vitalName.$key': parsedValue});
+
+                    setState(() {});
+                    Navigator.pop(context);
+                    showToast('$key updated!');
+                  } catch (e) {
+                    showToast('Invalid input!', backgroundColor: AppColors.red);
                   }
-                }
-
-                // If passed all validation, commit to Firestore
-                await FirebaseFirestore.instance
-                    .collection('globals')
-                    .doc('thresholds')
-                    .update({'$vitalName.$key': parsedValue});
-
-                setState(() {});
-                Navigator.pop(context);
-                showToast('$key updated!');
-              } catch (e) {
-                showToast('Invalid input!', backgroundColor: AppColors.red);
-              }
-            },
-            child: Text('Save', style: Textstyle.body),
+                },
+                child: Text('Save', style: Textstyle.body),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
   String toProperLabel(String camelCase) {
-    return camelCase.replaceAllMapped(
-      RegExp(r'[A-Z]'),
-      (match) => ' ${match.group(0)}',
-    ).capitalize();
+    return camelCase
+        .replaceAllMapped(RegExp(r'[A-Z]'), (match) => ' ${match.group(0)}')
+        .capitalize();
   }
 
   void showToast(String message, {Color? backgroundColor}) {
@@ -343,28 +487,64 @@ class _EditSettingsState extends State<EditSettings> {
       context: context,
       builder: (context) {
         return AlertDialog(
+          backgroundColor: AppColors.white,
           title: Text('Add New $itemName', style: Textstyle.subheader),
-          content: TextField(
-            controller: controller,
-            decoration: InputDecoration(hintText: 'Enter new $itemName'),
-            inputFormatters: _getInputFormatters(sectionName),
-            maxLength: _getCharacterLimit(sectionName),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CustomTextField(
+                  controller: controller,
+                  focusNode: FocusNode(),
+                  labelText: 'Enter new $itemName',
+                  enabled: true,
+                  validator: (value) {
+                    if (value?.isEmpty ?? true) {
+                      return 'Please enter some text';
+                    }
+                    return null;
+                  },
+                  maxLength: _getCharacterLimit(sectionName),
+                  keyboardType: TextInputType.text,
+                  readOnly: false,
+                ),
+              ],
+            ),
           ),
           actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: Text('Cancel', style: Textstyle.body),
-            ),
-            TextButton(
-              onPressed: () async {
-                if (controller.text.isNotEmpty) {
-                  await addItem(sectionName, controller.text);
-                  Navigator.pop(context);
-                }
-              },
-              child: Text('Add', style: Textstyle.body),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    style: Buttonstyle.buttonRed,
+                    child: Text('Cancel', style: Textstyle.smallButton),
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () async {
+                      if (controller.text.isNotEmpty) {
+                        final confirm = await showConfirmationDialog(
+                          context: context,
+                          title: 'Add Confirmation',
+                          content:
+                              'Are you sure you want to add this $itemName?',
+                        );
+                        if (confirm) {
+                          await addItem(sectionName, controller.text);
+                          Navigator.pop(context);
+                        }
+                      }
+                    },
+                    style: Buttonstyle.buttonNeon,
+                    child: Text('Add', style: Textstyle.smallButton),
+                  ),
+                ),
+              ],
             ),
           ],
         );
@@ -373,33 +553,71 @@ class _EditSettingsState extends State<EditSettings> {
   }
 
   void showEditItemDialog(String sectionName, int index, String currentValue) {
-    final TextEditingController controller =
-        TextEditingController(text: currentValue);
+    final TextEditingController controller = TextEditingController(
+      text: currentValue,
+    );
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
+          backgroundColor: AppColors.white,
           title: Text('Edit $itemName', style: Textstyle.subheader),
-          content: TextField(
-            controller: controller,
-            decoration: InputDecoration(hintText: 'Edit $itemName'),
-            inputFormatters: _getInputFormatters(sectionName),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CustomTextField(
+                  controller: controller,
+                  focusNode: FocusNode(),
+                  labelText: 'Edit $itemName',
+                  enabled: true,
+                  validator: (value) {
+                    if (value?.isEmpty ?? true) {
+                      return 'Please enter some text';
+                    }
+                    return null;
+                  },
+                  keyboardType: TextInputType.text,
+                  readOnly: false,
+                  maxLength: _getCharacterLimit(sectionName),
+                ),
+              ],
+            ),
           ),
           actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: Text('Cancel', style: Textstyle.body),
-            ),
-            TextButton(
-              onPressed: () async {
-                if (controller.text.isNotEmpty) {
-                  await editItem(sectionName, index, controller.text);
-                  Navigator.pop(context);
-                }
-              },
-              child: Text('Save', style: Textstyle.body),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    style: Buttonstyle.buttonRed,
+                    child: Text('Cancel', style: Textstyle.smallButton),
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () async {
+                      if (controller.text.isNotEmpty) {
+                        final confirm = await showConfirmationDialog(
+                          context: context,
+                          title: 'Edit Confirmation',
+                          content:
+                              'Are you sure you want to save changes to this $itemName?',
+                        );
+                        if (confirm) {
+                          await editItem(sectionName, index, controller.text);
+                          Navigator.pop(context);
+                        }
+                      }
+                    },
+                    style: Buttonstyle.buttonNeon,
+                    child: Text('Save', style: Textstyle.smallButton),
+                  ),
+                ),
+              ],
             ),
           ],
         );
@@ -407,13 +625,57 @@ class _EditSettingsState extends State<EditSettings> {
     );
   }
 
+  Future<bool> showConfirmationDialog({
+    required BuildContext context,
+    required String title,
+    required String content,
+  }) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              backgroundColor: AppColors.white,
+              title: Text(title, style: Textstyle.subheader),
+              content: Text(content, style: Textstyle.body),
+              actions: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.pop(context, false);
+                        },
+                        style: Buttonstyle.buttonRed,
+                        child: Text('Cancel', style: Textstyle.smallButton),
+                      ),
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.pop(context, true);
+                        },
+                        style: Buttonstyle.buttonNeon,
+                        child: Text('Confirm', style: Textstyle.smallButton),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+  }
+
   Future<void> addItem(String sectionName, String newItem) async {
     try {
       // Fetch the entire document from Firestore
-      final doc = await FirebaseFirestore.instance
-          .collection('globals')
-          .doc(docName)
-          .get();
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('globals')
+              .doc(docName)
+              .get();
 
       // Convert the new item to lowercase for comparison
       newItem = newItem.trim(); // Remove leading/trailing spaces
@@ -424,8 +686,13 @@ class _EditSettingsState extends State<EditSettings> {
       if (widget.docName == 'Cases' || widget.docName == 'Medicines') {
         for (final section in allSections.values) {
           final List<String> sectionItems = List<String>.from(section ?? []);
-          if (sectionItems.map((item) => item.toLowerCase()).contains(newItemLower)) {
-            showToast('$itemName already exists!', backgroundColor: AppColors.red);
+          if (sectionItems
+              .map((item) => item.toLowerCase())
+              .contains(newItemLower)) {
+            showToast(
+              '$itemName already exists!',
+              backgroundColor: AppColors.red,
+            );
             return;
           }
         }
@@ -451,13 +718,18 @@ class _EditSettingsState extends State<EditSettings> {
     }
   }
 
-  Future<void> editItem(String sectionName, int index, String updatedValue) async {
+  Future<void> editItem(
+    String sectionName,
+    int index,
+    String updatedValue,
+  ) async {
     try {
       // Fetch the entire document from Firestore
-      final doc = await FirebaseFirestore.instance
-          .collection('globals')
-          .doc(docName)
-          .get();
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('globals')
+              .doc(docName)
+              .get();
 
       // Convert the updated value to lowercase for comparison
       updatedValue = updatedValue.trim();
@@ -468,13 +740,20 @@ class _EditSettingsState extends State<EditSettings> {
       // Check for duplicates across all sections
       if (widget.docName == 'Cases' || widget.docName == 'Medicines') {
         for (final section in allSections.entries) {
-          final List<String> sectionItems = List<String>.from(section.value ?? []);
+          final List<String> sectionItems = List<String>.from(
+            section.value ?? [],
+          );
           if (section.key == sectionName) {
             // Exclude the current item from the duplicate check
             sectionItems.removeAt(index);
           }
-          if (sectionItems.map((item) => item.toLowerCase()).contains(updatedValueLower)) {
-            showToast('$itemName already exists!', backgroundColor: AppColors.red);
+          if (sectionItems
+              .map((item) => item.toLowerCase())
+              .contains(updatedValueLower)) {
+            showToast(
+              '$itemName already exists!',
+              backgroundColor: AppColors.red,
+            );
             return;
           }
         }
@@ -503,10 +782,11 @@ class _EditSettingsState extends State<EditSettings> {
   Future<void> deleteItem(String sectionName, int index) async {
     try {
       // Fetch the current list from Firestore
-      final doc = await FirebaseFirestore.instance
-          .collection('globals')
-          .doc(docName)
-          .get();
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('globals')
+              .doc(docName)
+              .get();
 
       // Initialize arrName with the current data
       arrName = List<String>.from(doc.data()?[sectionName] ?? []);
@@ -536,7 +816,10 @@ class _EditSettingsState extends State<EditSettings> {
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context, true), // Confirm
-                child: Text('Delete', style: Textstyle.body.copyWith(color: AppColors.red)),
+                child: Text(
+                  'Delete',
+                  style: Textstyle.body.copyWith(color: AppColors.red),
+                ),
               ),
             ],
           );
@@ -583,7 +866,7 @@ class _EditSettingsState extends State<EditSettings> {
       ];
     }
     return [
-      FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9\s\-\(\)\[\]\.,]'))
+      FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9\s\-\(\)\[\]\.,]')),
     ];
   }
 
@@ -603,19 +886,11 @@ class _EditSettingsState extends State<EditSettings> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Edit ${widget.docName}', style: Textstyle.subheader),
+        scrolledUnderElevation: 0.0,
         backgroundColor: AppColors.white,
       ),
       backgroundColor: AppColors.white,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 20),
-            _buildSections(),
-          ],
-        ),
-      ),
+      body: SingleChildScrollView(child: _buildSections()),
     );
   }
 }

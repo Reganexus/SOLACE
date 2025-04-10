@@ -203,13 +203,6 @@ class _RoleChooserState extends State<RoleChooser> {
                                   ),
                                   items: [
                                     DropdownMenuItem(
-                                      value: 'admin',
-                                      child: Text(
-                                        'Admin',
-                                        style: Textstyle.body,
-                                      ),
-                                    ),
-                                    DropdownMenuItem(
                                       value: 'caregiver',
                                       child: Text(
                                         'Caregiver (Bedside caregiver)',
