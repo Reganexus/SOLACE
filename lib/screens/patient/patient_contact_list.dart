@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:solace/themes/colors.dart';
+import 'package:solace/themes/loader.dart';
 import 'package:solace/themes/textstyle.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -41,6 +42,32 @@ class ContactList extends StatelessWidget {
     }
   }
 
+  Widget _buildNoContactsFound() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.close_rounded, color: AppColors.black, size: 70),
+          SizedBox(height: 20.0),
+          Text("No Contacts Found", style: Textstyle.body),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorContacts() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.close_rounded, color: AppColors.black, size: 70),
+          SizedBox(height: 20.0),
+          Text("Error Finding Contacts", style: Textstyle.body),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -48,6 +75,7 @@ class ContactList extends StatelessWidget {
       appBar: AppBar(
         title: Text(title, style: Textstyle.subheader),
         backgroundColor: AppColors.white,
+        centerTitle: true,
         scrolledUnderElevation: 0.0,
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
@@ -67,13 +95,13 @@ class ContactList extends StatelessWidget {
             }),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return Center(child: Loader.loaderPurple);
           } else if (snapshot.hasError) {
             debugPrint('Snapshot Error: ${snapshot.error}');
-            return const Center(child: Text('Error loading contacts'));
+            return _buildErrorContacts();
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
             debugPrint('No contacts found.');
-            return const Center(child: Text('No contacts found'));
+            return _buildNoContactsFound();
           }
 
           List<Map<String, dynamic>> contacts = snapshot.data!;

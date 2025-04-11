@@ -186,7 +186,10 @@ class _EditPatientState extends State<EditPatient> {
       }
     } catch (e) {
       debugPrint('Error picking profile image: $e');
-      showToast('Failed to pick a profile image.', backgroundColor: AppColors.red);
+      showToast(
+        'Failed to pick a profile image.',
+        backgroundColor: AppColors.red,
+      );
     }
   }
 
@@ -213,12 +216,13 @@ class _EditPatientState extends State<EditPatient> {
           _profileImageUrl = patientData.profileImageUrl;
         });
       } else {
-        showToast('No data found for this user.', 
-            backgroundColor: AppColors.red);
+        showToast(
+          'No data found for this user.',
+          backgroundColor: AppColors.red,
+        );
       }
     } catch (e) {
-      showToast('Failed to load user data.', 
-          backgroundColor: AppColors.red);
+      showToast('Failed to load user data.', backgroundColor: AppColors.red);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -278,7 +282,10 @@ class _EditPatientState extends State<EditPatient> {
       try {
         final user = _auth.currentUserId;
         if (user == null) {
-          showToast('User is not authenticated', backgroundColor: AppColors.red);
+          showToast(
+            'User is not authenticated',
+            backgroundColor: AppColors.red,
+          );
           return;
         }
         setState(() => _isLoading = true);
@@ -326,21 +333,14 @@ class _EditPatientState extends State<EditPatient> {
         // Close the current screen and return to the previous screen
         Navigator.pop(context);
       } catch (e) {
-        showToast('Failed to update user profile.', backgroundColor: AppColors.red);
+        showToast(
+          'Failed to update user profile.',
+          backgroundColor: AppColors.red,
+        );
       } finally {
         setState(() => _isLoading = false);
       }
     }
-  }
-
-  bool _areAllFieldsFilled() {
-    return firstNameController.text.trim().isNotEmpty &&
-        lastNameController.text.trim().isNotEmpty &&
-        caseDescriptionController.text.trim().isNotEmpty &&
-        addressController.text.trim().isNotEmpty &&
-        birthday != null &&
-        gender != null &&
-        religion != null;
   }
 
   Widget divider() {
@@ -360,7 +360,7 @@ class _EditPatientState extends State<EditPatient> {
           padding: const EdgeInsets.all(20),
           width: double.infinity,
           decoration: BoxDecoration(
-            color: AppColors.red,
+            color: AppColors.neon,
             borderRadius: BorderRadius.circular(10.0),
           ),
           child: Column(
@@ -401,6 +401,18 @@ class _EditPatientState extends State<EditPatient> {
       key: _formKey,
       child: Column(
         children: [
+          deter(),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Profile Image', style: Textstyle.subheader),
+              Text(
+                'Tap the camera icon to change your profile image',
+                style: Textstyle.body,
+              ),
+            ],
+          ),
+          SizedBox(height: 20),
           FormField(
             builder: (FormFieldState state) {
               return Center(
@@ -604,29 +616,20 @@ class _EditPatientState extends State<EditPatient> {
 
           divider(),
 
-          _areAllFieldsFilled() ? deter() : const SizedBox.shrink(),
-
           SizedBox(
             width: double.infinity,
             child: TextButton(
               onPressed:
                   (!_isLoading &&
                           _formKey.currentState?.validate() == true &&
-                          _profileImage !=
-                              null && // Check profile image is selected
-                          (selectedCases != null &&
-                              selectedCases
-                                  .isNotEmpty) // Check cases are selected
-                          )
+                          (selectedCases != null && selectedCases.isNotEmpty))
                       ? _submitForm
-                      : null, // Disable if any condition fails
+                      : null,
               style:
-                  (_isLoading || _profileImage == null || selectedCases.isEmpty)
-                      ? Buttonstyle
-                          .gray // Disable button style if any condition is not met
-                      : Buttonstyle
-                          .neon, // Enable neon style if everything is valid
-              child: Text('Save Changes', style: Textstyle.largeButton),
+                  (_isLoading || selectedCases.isEmpty)
+                      ? Buttonstyle.gray
+                      : Buttonstyle.neon,
+              child: Text('Add Patient', style: Textstyle.largeButton),
             ),
           ),
         ],
@@ -644,6 +647,7 @@ class _EditPatientState extends State<EditPatient> {
           title: Text('Edit Patient Info', style: Textstyle.subheader),
           backgroundColor: AppColors.white,
           scrolledUnderElevation: 0.0,
+          centerTitle: true,
           automaticallyImplyLeading: _isLoading ? false : true,
         ),
         body: Container(

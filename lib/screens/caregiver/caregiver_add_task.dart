@@ -191,8 +191,10 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
       // Check if the roles were successfully fetched
       if (caregiverRole == null || patientRole == null) {
         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
-        showToast("Failed to remove task. Roles not found.", 
-            backgroundColor: AppColors.red);
+        showToast(
+          "Failed to remove task. Roles not found.",
+          backgroundColor: AppColors.red,
+        );
         return;
       }
 
@@ -271,8 +273,10 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
 
       if (caregiverRole == null || patientRole == null) {
         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
-        showToast("Failed to add task. Roles not found.", 
-            backgroundColor: AppColors.red);
+        showToast(
+          "Failed to add task. Roles not found.",
+          backgroundColor: AppColors.red,
+        );
         return;
       }
 
@@ -380,7 +384,9 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
         // Validation for start date
         if (isStartDate) {
           if (selectedDateTime.isBefore(now.add(Duration(minutes: 15)))) {
-            setError("Start date and time must be at least 15 minutes from now.");
+            setError(
+              "Start date and time must be at least 15 minutes from now.",
+            );
             return;
           }
           if (mounted) {
@@ -398,8 +404,12 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
             setError("Please select a start date first.");
             return;
           }
-          if (selectedDateTime.isBefore(taskStartDate!.add(Duration(minutes: 30)))) {
-            setError("End date and time must be at least 30 minutes after the start date.");
+          if (selectedDateTime.isBefore(
+            taskStartDate!.add(Duration(minutes: 30)),
+          )) {
+            setError(
+              "End date and time must be at least 30 minutes after the start date.",
+            );
             return;
           }
           if (mounted) {
@@ -432,173 +442,215 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
         return StatefulBuilder(
           builder: (context, setModalState) {
             return Dialog(
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppColors.white,
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("Add Task", style: Textstyle.subheader),
-                    const SizedBox(height: 20),
-                    TextFormField(
-                      controller: _titleController,
-                      focusNode: titleFocusNode,
-                      inputFormatters: [
-                        LengthLimitingTextInputFormatter(50),
-                        FilteringTextInputFormatter.deny(RegExp(r'[\n]')),
+              child: SingleChildScrollView(
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Add Task", style: Textstyle.subheader),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: _titleController,
+                        focusNode: titleFocusNode,
+                        inputFormatters: [
+                          LengthLimitingTextInputFormatter(50),
+                          FilteringTextInputFormatter.deny(RegExp(r'[\n]')),
+                        ],
+                        decoration: InputDecorationStyles.build(
+                          'Title',
+                          titleFocusNode,
+                        ),
+                      ),
+                      const SizedBox(height: 10.0),
+                      TextFormField(
+                        controller: _descriptionController,
+                        focusNode: descriptionFocusNode,
+                        maxLines: 3,
+                        inputFormatters: [
+                          LengthLimitingTextInputFormatter(200),
+                        ],
+                        decoration: InputDecorationStyles.build(
+                          'Task Description',
+                          descriptionFocusNode,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Start Date Field
+                      TextFormField(
+                        controller: _startDateController,
+                        focusNode: _focusNodes[2],
+                        readOnly: true,
+                        decoration: InputDecorationStyles.build(
+                          "Start Date/Time",
+                          _focusNodes[2],
+                        ).copyWith(
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              Icons.calendar_today,
+                              color: AppColors.black,
+                            ),
+                            onPressed:
+                                () => _selectDateTime(
+                                  context,
+                                  true,
+                                  (error) =>
+                                      setModalState(() => errorMessage = error),
+                                ),
+                          ),
+                        ),
+                        onTap:
+                            () => _selectDateTime(
+                              context,
+                              true,
+                              (error) =>
+                                  setModalState(() => errorMessage = error),
+                            ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // End Date Field
+                      TextFormField(
+                        controller: _endDateController,
+                        focusNode: _focusNodes[3],
+                        readOnly: true,
+                        decoration: InputDecorationStyles.build(
+                          "End Date/Time",
+                          _focusNodes[3],
+                        ).copyWith(
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              Icons.calendar_today,
+                              color: AppColors.black,
+                            ),
+                            onPressed:
+                                () => _selectDateTime(
+                                  context,
+                                  false,
+                                  (error) =>
+                                      setModalState(() => errorMessage = error),
+                                ),
+                          ),
+                        ),
+                        onTap:
+                            () => _selectDateTime(
+                              context,
+                              false,
+                              (error) =>
+                                  setModalState(() => errorMessage = error),
+                            ),
+                      ),
+
+                      // Error Message Display
+                      if (errorMessage.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          errorMessage,
+                          style: Textstyle.bodySmall.copyWith(
+                            color: AppColors.red,
+                          ),
+                        ),
                       ],
-                      decoration: InputDecorationStyles.build(
-                        'Title',
-                        titleFocusNode,
-                      ),
-                    ),
-                    const SizedBox(height: 10.0),
-                    TextFormField(
-                      controller: _descriptionController,
-                      focusNode: descriptionFocusNode,
-                      maxLines: 3,
-                      inputFormatters: [
-                        LengthLimitingTextInputFormatter(200),
-                      ],
-                      decoration: InputDecorationStyles.build(
-                        'Task Description',
-                        descriptionFocusNode,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
 
-                    // Start Date Field
-                    TextFormField(
-                      controller: _startDateController,
-                      focusNode: _focusNodes[2],
-                      readOnly: true,
-                      decoration: InputDecorationStyles.build(
-                        "Start Date/Time",
-                        _focusNodes[2],
-                      ).copyWith(
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            Icons.calendar_today,
-                            color: AppColors.black,
-                          ),
-                          onPressed: () => _selectDateTime(
-                            context,
-                            true,
-                            (error) => setModalState(() => errorMessage = error),
-                          ),
-                        ),
-                      ),
-                      onTap: () => _selectDateTime(
-                        context,
-                        true,
-                        (error) => setModalState(() => errorMessage = error),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: TextButton(
+                              onPressed: () async {
+                                final titleText = _titleController.text.trim();
+                                final descriptionText =
+                                    _descriptionController.text.trim();
+                                final startText = _startDateController.text;
+                                final endText = _endDateController.text;
 
-                    // End Date Field
-                    TextFormField(
-                      controller: _endDateController,
-                      focusNode: _focusNodes[3],
-                      readOnly: true,
-                      decoration: InputDecorationStyles.build(
-                        "End Date/Time",
-                        _focusNodes[3],
-                      ).copyWith(
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            Icons.calendar_today,
-                            color: AppColors.black,
-                          ),
-                          onPressed: () => _selectDateTime(
-                            context,
-                            false,
-                            (error) => setModalState(() => errorMessage = error),
-                          ),
-                        ),
-                      ),
-                      onTap: () => _selectDateTime(
-                        context,
-                        false,
-                        (error) => setModalState(() => errorMessage = error),
-                      ),
-                    ),
-
-                    // Error Message Display
-                    if (errorMessage.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      Text(
-                        errorMessage,
-                        style: Textstyle.bodySmall.copyWith(color: AppColors.red),
-                      ),
-                    ],
-
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: TextButton(
-                            onPressed: () async {
-                              final titleText = _titleController.text.trim();
-                              final descriptionText = _descriptionController.text.trim();
-                              final startText = _startDateController.text;
-                              final endText = _endDateController.text;
-
-                              if (titleText.isEmpty && descriptionText.isEmpty && startText.isEmpty && endText.isEmpty) {
-                                Navigator.of(context).pop();
-                              } else {
-                                final shouldDiscard = await showDiscardConfirmationDialog(context);
-                                if (shouldDiscard) Navigator.of(context).pop();
-                              }
-                            },
-                            style: Buttonstyle.buttonRed,
-                            child: Text("Cancel", style: Textstyle.smallButton),
-                          ),
-                        ),
-                        const SizedBox(width: 10.0),
-                        Expanded(
-                          child: TextButton(
-                            onPressed: () {
-                              String taskTitle = _titleController.text.trim();
-                              String taskDescription = _descriptionController.text.trim();
-
-                              if (taskTitle.isEmpty) {
-                                showToast("Please provide a title for the task.", backgroundColor: AppColors.red);
-                              } else if (taskDescription.isEmpty) {
-                                showToast("Please provide the task description.", backgroundColor: AppColors.red);
-                              } else if (taskStartDate == null) {
-                                showToast("Please specify the starting date/time of the task.", backgroundColor: AppColors.red);
-                              } else if (taskEndDate == null) {
-                                showToast("Please specify the ending date/time of the task.", backgroundColor: AppColors.red);
-                              } else if (taskStartDate!.isAfter(taskEndDate!)) {
-                                showToast("The starting date/time must be set before ending date/time.", backgroundColor: AppColors.red);
-                              } else {
-                                _addTask(
-                                  taskTitle,
-                                  taskDescription,
-                                  taskStartDate!,
-                                  taskEndDate!,
-                                );
-                                Navigator.pop(context);
-                                _fetchPatientTasks();
-                                _resetDateControllers();
-                              }
-                            },
-                            style: Buttonstyle.buttonNeon,
-                            child: Text(
-                              "Add Task",
-                              style: Textstyle.smallButton,
+                                if (titleText.isEmpty &&
+                                    descriptionText.isEmpty &&
+                                    startText.isEmpty &&
+                                    endText.isEmpty) {
+                                  Navigator.of(context).pop();
+                                } else {
+                                  final shouldDiscard =
+                                      await showDiscardConfirmationDialog(
+                                        context,
+                                      );
+                                  if (shouldDiscard) {
+                                    Navigator.of(context).pop();
+                                  }
+                                }
+                              },
+                              style: Buttonstyle.buttonRed,
+                              child: Text(
+                                "Cancel",
+                                style: Textstyle.smallButton,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                          const SizedBox(width: 10.0),
+                          Expanded(
+                            child: TextButton(
+                              onPressed: () {
+                                String taskTitle = _titleController.text.trim();
+                                String taskDescription =
+                                    _descriptionController.text.trim();
+
+                                if (taskTitle.isEmpty) {
+                                  showToast(
+                                    "Please provide a title for the task.",
+                                    backgroundColor: AppColors.red,
+                                  );
+                                } else if (taskDescription.isEmpty) {
+                                  showToast(
+                                    "Please provide the task description.",
+                                    backgroundColor: AppColors.red,
+                                  );
+                                } else if (taskStartDate == null) {
+                                  showToast(
+                                    "Please specify the starting date/time of the task.",
+                                    backgroundColor: AppColors.red,
+                                  );
+                                } else if (taskEndDate == null) {
+                                  showToast(
+                                    "Please specify the ending date/time of the task.",
+                                    backgroundColor: AppColors.red,
+                                  );
+                                } else if (taskStartDate!.isAfter(
+                                  taskEndDate!,
+                                )) {
+                                  showToast(
+                                    "The starting date/time must be set before ending date/time.",
+                                    backgroundColor: AppColors.red,
+                                  );
+                                } else {
+                                  _addTask(
+                                    taskTitle,
+                                    taskDescription,
+                                    taskStartDate!,
+                                    taskEndDate!,
+                                  );
+                                  Navigator.pop(context);
+                                  _fetchPatientTasks();
+                                  _resetDateControllers();
+                                }
+                              },
+                              style: Buttonstyle.buttonNeon,
+                              child: Text(
+                                "Add Task",
+                                style: Textstyle.smallButton,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -667,6 +719,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
       appBar: AppBar(
         title: Text("View Tasks", style: Textstyle.subheader),
         backgroundColor: AppColors.white,
+        centerTitle: true,
         scrolledUnderElevation: 0.0,
       ),
       body:

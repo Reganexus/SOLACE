@@ -362,7 +362,10 @@ class PatientTrackingState extends State<PatientTracking> {
             thresholds['maxSevereTemperature'],
           ),
           FormBuilderValidators.maxLength(5),
-          FormBuilderValidators.match(RegExp(r'^\d*\.?\d{0,2}$'), errorText: 'Max 2 decimal places allowed'),
+          FormBuilderValidators.match(
+            RegExp(r'^\d*\.?\d{0,2}$'),
+            errorText: 'Max 2 decimal places allowed',
+          ),
         ]);
         inputFormatters.addAll([
           FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*$')),
@@ -770,26 +773,29 @@ class PatientTrackingState extends State<PatientTracking> {
   }
 
   Widget _buildCooldownContainer() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10.0),
-        color: AppColors.gray,
-      ),
-      child: Column(
-        children: [
-          Text(
-            'You cannot input vitals and assessment at the moment.',
-            textAlign: TextAlign.center,
-            style: Textstyle.body.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            _formatCooldownTime(remainingCooldownTime),
-            textAlign: TextAlign.center,
-            style: Textstyle.body,
-          ),
-        ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10.0),
+          color: AppColors.gray,
+        ),
+        child: Column(
+          children: [
+            Text(
+              'You cannot input vitals and assessment at the moment.',
+              textAlign: TextAlign.center,
+              style: Textstyle.body.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              _formatCooldownTime(remainingCooldownTime),
+              textAlign: TextAlign.center,
+              style: Textstyle.body,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -973,8 +979,11 @@ class PatientTrackingState extends State<PatientTracking> {
                         });
                       }
                       : () {
-                          showToast('You need to fill up Vitals section first', backgroundColor: AppColors.red);
-                        },
+                        showToast(
+                          'You need to fill up Vitals section first',
+                          backgroundColor: AppColors.red,
+                        );
+                      },
               child: Container(
                 color: AppColors.white,
                 child: Column(
@@ -1127,42 +1136,42 @@ class PatientTrackingState extends State<PatientTracking> {
           backgroundColor: AppColors.white,
           scrolledUnderElevation: 0.0,
         ),
-        body: 
+        body:
             _isLoading
-                ? const Center(child: CircularProgressIndicator(),)
+                ? const Center(child: CircularProgressIndicator())
                 : FormBuilder(
-                    key: _formKey,
-                    child: StreamBuilder<DocumentSnapshot>(
-                      stream:
-                          FirebaseFirestore.instance
-                              .collection('patient')
-                              .doc(widget.patientId)
-                              .snapshots(),
-                      builder: (context, snapshot) {
-                        final hasData = snapshot.hasData && snapshot.data!.exists;
+                  key: _formKey,
+                  child: StreamBuilder<DocumentSnapshot>(
+                    stream:
+                        FirebaseFirestore.instance
+                            .collection('patient')
+                            .doc(widget.patientId)
+                            .snapshots(),
+                    builder: (context, snapshot) {
+                      final hasData = snapshot.hasData && snapshot.data!.exists;
 
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (isCooldownActive) _buildCooldownContainer(),
-                            if (!isCooldownActive)
-                              Expanded(
-                                child:
-                                    hasData
-                                        ? Column(
-                                          children: [
-                                            _buildNavigationCircles(),
-                                            SizedBox(height: 20),
-                                            _buildTrackingForm(hasData),
-                                          ],
-                                        )
-                                        : _buildPatientNotAvailable(),
-                              ),
-                          ],
-                        );
-                      },
-                    ),
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (isCooldownActive) _buildCooldownContainer(),
+                          if (!isCooldownActive)
+                            Expanded(
+                              child:
+                                  hasData
+                                      ? Column(
+                                        children: [
+                                          _buildNavigationCircles(),
+                                          SizedBox(height: 20),
+                                          _buildTrackingForm(hasData),
+                                        ],
+                                      )
+                                      : _buildPatientNotAvailable(),
+                            ),
+                        ],
+                      );
+                    },
                   ),
+                ),
       ),
     );
   }

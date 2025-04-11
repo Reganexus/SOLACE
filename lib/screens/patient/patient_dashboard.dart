@@ -123,7 +123,10 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
           isLoading = false;
         });
       }
-      showToast("Error fetching patient data: $e", backgroundColor: AppColors.red);
+      showToast(
+        "Error fetching patient data: $e",
+        backgroundColor: AppColors.red,
+      );
     }
   }
 
@@ -654,7 +657,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
       selectedTime.hour,
       selectedTime.minute,
     );
-    
+
     // Check if the selected time is in the past
     if (scheduledDateTime.isBefore(now)) {
       showToast(
@@ -673,11 +676,56 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
       return; // Reject the schedule
     }
 
-    // Generate a single scheduleId to use for both caregiver and patient
-    final String scheduleId =
-        FirebaseFirestore.instance.collection('_').doc().id;
+    // Show confirmation dialog
+    final String formattedDateTime = DateFormat(
+      "MMMM d, yyyy h:mm a",
+    ).format(scheduledDateTime);
+
+    final bool confirmed =
+        await showDialog<bool>(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              backgroundColor: AppColors.white,
+              title: Text('Confirm Appointment', style: Textstyle.subheader),
+              content: Text(
+                'You are scheduling an appointment for $formattedDateTime. Is this correct?',
+                style: Textstyle.body,
+              ),
+              actions: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        style: Buttonstyle.buttonRed,
+                        child: Text('Cancel', style: Textstyle.smallButton),
+                      ),
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        style: Buttonstyle.buttonNeon,
+                        child: Text('Confirm', style: Textstyle.smallButton),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+
+    if (!confirmed) {
+      return;
+    }
 
     try {
+      final String scheduleId =
+          FirebaseFirestore.instance.collection('_').doc().id;
+
       final caregiverRole = await databaseService.fetchAndCacheUserRole(
         caregiverId,
       );
@@ -687,8 +735,10 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
 
       if (caregiverRole == null || patientRole == null) {
         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
-        showToast("Failed to schedule. Roles not found.",
-            backgroundColor: AppColors.red);
+        showToast(
+          "Failed to schedule. Roles not found.",
+          backgroundColor: AppColors.red,
+        );
         return;
       }
 
@@ -724,15 +774,14 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
             "Scheduled by $caregiverName an appointment on $scheduledDateTime",
       );
 
-      final formattedDateTime = DateFormat(
-        "MMMM d, yyyy h:mm a",
-      ).format(scheduledDateTime);
-
       debugPrint("Schedule saved for both caregiver and patient.");
       showToast("Appointment scheduled for $patientName at $formattedDateTime");
     } catch (e) {
       debugPrint("Failed to save schedule: $e");
-      showToast("Failed to schedule appointment.", backgroundColor: AppColors.red);
+      showToast(
+        "Failed to schedule appointment.",
+        backgroundColor: AppColors.red,
+      );
     }
   }
 
@@ -1241,8 +1290,10 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     if (shouldTag) {
       try {
         if (userId.isEmpty) {
-          showToast('User is not authenticated', 
-              backgroundColor: AppColors.red);
+          showToast(
+            'User is not authenticated',
+            backgroundColor: AppColors.red,
+          );
           return;
         }
 
@@ -1286,8 +1337,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
 
         showToast('Successfully tagged patient.');
       } catch (e) {
-        showToast('Error tagging patient: $e', 
-            backgroundColor: AppColors.red);
+        showToast('Error tagging patient: $e', backgroundColor: AppColors.red);
       } finally {
         if (mounted) {
           setState(() {
@@ -1314,8 +1364,10 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     if (shouldUntag) {
       try {
         if (userId.isEmpty) {
-          showToast('User is not authenticated', 
-              backgroundColor: AppColors.red);
+          showToast(
+            'User is not authenticated',
+            backgroundColor: AppColors.red,
+          );
           return;
         }
 
@@ -1359,8 +1411,10 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
 
         showToast('Successfully untagged patient.');
       } catch (e) {
-        showToast('Error untagging patient: $e', 
-            backgroundColor: AppColors.red);
+        showToast(
+          'Error untagging patient: $e',
+          backgroundColor: AppColors.red,
+        );
       } finally {
         if (mounted) {
           setState(() {
@@ -1443,95 +1497,100 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
       appBar: AppBar(
         title: Text('Patient Status', style: Textstyle.subheader),
         actions: [
-            _isLoading
-                ? Center(child: CircularProgressIndicator())
-                : Padding(
-                    padding: const EdgeInsets.only(right: 16),
-                    child: Row(
-                            children: [
-                              GestureDetector(
-                                onTap:
-                                    () => Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder:
-                                            (context) =>
-                                                Contacts(patientId: widget.patientId),
-                                      ),
-                                    ),
-                                child: Icon(
-                                  Icons.perm_contact_cal_rounded,
-                                  size: 24,
-                                  color: AppColors.black,
-                                ),
-                              ),
-                              SizedBox(width: 5),
-                              GestureDetector(
-                                onTap:
-                                    () => Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder:
-                                            (context) =>
-                                                EditPatient(patientId: widget.patientId),
-                                      ),
-                                    ),
-                                child: Icon(Icons.edit, size: 24, color: AppColors.black),
-                              ),
-                              if (widget.role != 'caregiver')
-                                FutureBuilder<bool>(
-                                  future: _isUserTagged(widget.patientId, widget.caregiverId),
-                                  builder: (context, snapshot) {
-                                    if (!snapshot.hasData) {
-                                      return CircularProgressIndicator();
-                                    }
-
-                                    final isTagged = snapshot.data!;
-
-                                    return Row(
-                                      children: [
-                                        SizedBox(width: 5),
-                                        SizedBox(
-                                          height: 30,
-                                          child: TextButton(
-                                            onPressed:
-                                                () =>
-                                                    isTagged
-                                                        ? _untagPatient(
-                                                          patientId: widget.patientId,
-                                                          userId: widget.caregiverId,
-                                                        )
-                                                        : _tagPatient(
-                                                          patientId: widget.patientId,
-                                                          userId: widget.caregiverId,
-                                                        ),
-                                            style: TextButton.styleFrom(
-                                              padding: EdgeInsets.symmetric(
-                                                vertical: 3,
-                                                horizontal: 8,
-                                              ),
-                                              backgroundColor:
-                                                  isTagged ? AppColors.red : AppColors.neon,
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.circular(10),
-                                              ),
-                                            ),
-                                            child: Text(
-                                              isTagged ? 'Untag Patient' : 'Tag Patient',
-                                              style: Textstyle.bodySuperSmall.copyWith(
-                                                color: AppColors.white,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                ),
-                            ],
+          _isLoading
+              ? Center(child: CircularProgressIndicator())
+              : Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap:
+                          () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (context) =>
+                                      Contacts(patientId: widget.patientId),
+                            ),
                           ),
-                  ),
+                      child: Icon(
+                        Icons.perm_contact_cal_rounded,
+                        size: 24,
+                        color: AppColors.black,
+                      ),
+                    ),
+                    SizedBox(width: 5),
+                    GestureDetector(
+                      onTap:
+                          () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (context) =>
+                                      EditPatient(patientId: widget.patientId),
+                            ),
+                          ),
+                      child: Icon(Icons.edit, size: 24, color: AppColors.black),
+                    ),
+                    if (widget.role != 'caregiver')
+                      FutureBuilder<bool>(
+                        future: _isUserTagged(
+                          widget.patientId,
+                          widget.caregiverId,
+                        ),
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData) {
+                            return CircularProgressIndicator();
+                          }
+
+                          final isTagged = snapshot.data!;
+
+                          return Row(
+                            children: [
+                              SizedBox(width: 5),
+                              SizedBox(
+                                height: 30,
+                                child: TextButton(
+                                  onPressed:
+                                      () =>
+                                          isTagged
+                                              ? _untagPatient(
+                                                patientId: widget.patientId,
+                                                userId: widget.caregiverId,
+                                              )
+                                              : _tagPatient(
+                                                patientId: widget.patientId,
+                                                userId: widget.caregiverId,
+                                              ),
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.symmetric(
+                                      vertical: 3,
+                                      horizontal: 8,
+                                    ),
+                                    backgroundColor:
+                                        isTagged
+                                            ? AppColors.red
+                                            : AppColors.neon,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    isTagged ? 'Untag Patient' : 'Tag Patient',
+                                    style: Textstyle.bodySuperSmall.copyWith(
+                                      color: AppColors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                  ],
+                ),
+              ),
         ],
         backgroundColor: AppColors.white,
         scrolledUnderElevation: 0.0,
@@ -1541,19 +1600,19 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
           _isLoading
               ? Center(child: CircularProgressIndicator())
               : SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildPatientStatus(),
-                      _buildActions(widget.role),
-                      const SizedBox(height: 20.0),
-                      Divider(),
-                      _buildInterventions(),
-                      const SizedBox(height: 20.0),
-                      _buildCarousel(),
-                    ],
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildPatientStatus(),
+                    _buildActions(widget.role),
+                    const SizedBox(height: 20.0),
+                    Divider(),
+                    _buildInterventions(),
+                    const SizedBox(height: 20.0),
+                    _buildCarousel(),
+                  ],
                 ),
+              ),
     );
   }
 }

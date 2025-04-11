@@ -247,9 +247,7 @@ class _PatientHistoryState extends State<PatientHistory> {
                                 val == null || val.isEmpty
                                     ? 'Diagnosis is required'
                                     : null,
-                        inputFormatters: [
-                          LengthLimitingTextInputFormatter(50)
-                        ],
+                        inputFormatters: [LengthLimitingTextInputFormatter(50)],
                       ),
                       const SizedBox(height: 10),
                       CustomTextField(
@@ -258,7 +256,7 @@ class _PatientHistoryState extends State<PatientHistory> {
                         labelText: 'Diagnosis Description',
                         enabled: true,
                         inputFormatters: [
-                          LengthLimitingTextInputFormatter(200)
+                          LengthLimitingTextInputFormatter(200),
                         ],
                       ),
                       const SizedBox(height: 10),
@@ -317,14 +315,18 @@ class _PatientHistoryState extends State<PatientHistory> {
                       child: TextButton(
                         onPressed: () async {
                           final diagnosisText = diagnosisController.text.trim();
-                          final descriptionText = descriptionController.text.trim();
+                          final descriptionText =
+                              descriptionController.text.trim();
                           final dateText = dateController.text;
 
-                          if (diagnosisText.isEmpty && descriptionText.isEmpty && dateText.isEmpty) {
+                          if (diagnosisText.isEmpty &&
+                              descriptionText.isEmpty &&
+                              dateText.isEmpty) {
                             _resetDateControllers();
                             Navigator.of(context).pop();
                           } else {
-                            final shouldDiscard = await showDiscardConfirmationDialog(context);
+                            final shouldDiscard =
+                                await showDiscardConfirmationDialog(context);
                             if (shouldDiscard) Navigator.of(context).pop();
                           }
                         },
@@ -340,9 +342,15 @@ class _PatientHistoryState extends State<PatientHistory> {
                           final description = descriptionController.text.trim();
 
                           if (diagnosis.isEmpty) {
-                            showToast('Please specify the diagnosis.', backgroundColor: AppColors.red);
+                            showToast(
+                              'Please specify the diagnosis.',
+                              backgroundColor: AppColors.red,
+                            );
                           } else if (_selectedDate == null) {
-                            showToast('Please specify the diagnosis date.', backgroundColor: AppColors.red);
+                            showToast(
+                              'Please specify the diagnosis date.',
+                              backgroundColor: AppColors.red,
+                            );
                           } else {
                             await _addDiagnosis(
                               diagnosis,
@@ -480,6 +488,7 @@ class _PatientHistoryState extends State<PatientHistory> {
         title: Text("Patient History", style: Textstyle.subheader),
         backgroundColor: AppColors.white,
         scrolledUnderElevation: 0.0,
+        centerTitle: true,
         automaticallyImplyLeading: true,
         elevation: 0.0,
         actions: [
@@ -611,7 +620,10 @@ class _PatientHistoryState extends State<PatientHistory> {
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
-                                        Text(description, style: Textstyle.body),
+                                        Text(
+                                          description,
+                                          style: Textstyle.body,
+                                        ),
                                       ],
                                     ],
                                   ),

@@ -8,7 +8,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:solace/screens/authenticate/authenticate.dart';
-import 'package:solace/screens/wrapper.dart';
 import 'package:solace/themes/colors.dart';
 import 'firebase_options.dart';
 import 'package:solace/controllers/messaging_service.dart';
@@ -72,14 +71,7 @@ Future<Widget> _determineInitialScreen() async {
     final AuthService authService = AuthService();
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final bool isNewInstall = prefs.getBool(_isNewInstallKey) ?? true;
-
     await authService.signOut();
-    final user = authService.currentUser;
-    if (user != null) {
-      print("User already logged in: $user");
-      return const Wrapper();
-    }
-
     if (isNewInstall) {
       await prefs.setBool(_isNewInstallKey, false);
       print("App is newly installed");

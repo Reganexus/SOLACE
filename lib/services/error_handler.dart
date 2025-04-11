@@ -22,7 +22,7 @@ class ErrorDialog extends StatelessWidget {
                 .map(
                   (message) => Padding(
                     padding: const EdgeInsets.only(bottom: 8.0),
-                    child: Text(message, style: Textstyle.error),
+                    child: Text(message, style: Textstyle.body),
                   ),
                 )
                 .toList(),

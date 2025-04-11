@@ -141,7 +141,8 @@ class PatientNoteState extends State<PatientNote> {
 
       final String userId = widget.patientId;
       final DateTime selectedDate = selectedDay;
-      final String noteId = '${selectedDate.millisecondsSinceEpoch}_${DateTime.now().millisecondsSinceEpoch}';
+      final String noteId =
+          '${selectedDate.millisecondsSinceEpoch}_${DateTime.now().millisecondsSinceEpoch}';
 
       final newNote = {
         'timestamp': Timestamp.fromDate(selectedDate),
@@ -215,8 +216,7 @@ class PatientNoteState extends State<PatientNote> {
               backgroundColor: AppColors.white,
               title: Text('Note Details', style: Textstyle.subheader),
               content: SizedBox(
-                width:
-                    constraints.maxWidth * 0.9, // Applied 90% width constraint
+                width: constraints.maxWidth * 0.9,
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -269,7 +269,8 @@ class PatientNoteState extends State<PatientNote> {
                     const SizedBox(width: 10.0),
                     Expanded(
                       child: TextButton(
-                        onPressed: () => showDeleteConfirmationDialog(context, note),
+                        onPressed:
+                            () => showDeleteConfirmationDialog(context, note),
                         style: Buttonstyle.buttonRed,
                         child: Text('Delete', style: Textstyle.smallButton),
                       ),
@@ -300,8 +301,7 @@ class PatientNoteState extends State<PatientNote> {
               backgroundColor: AppColors.white,
               title: Text('Add Note for Today', style: Textstyle.subheader),
               content: SizedBox(
-                width:
-                    constraints.maxWidth * 0.9, // Applied 90% width constraint
+                width: constraints.maxWidth * 0.9,
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -316,7 +316,10 @@ class PatientNoteState extends State<PatientNote> {
                         ],
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
-                            showToast('Title is required', backgroundColor: AppColors.red);
+                            showToast(
+                              'Title is required',
+                              backgroundColor: AppColors.red,
+                            );
                           }
                           return null;
                         },
@@ -336,7 +339,10 @@ class PatientNoteState extends State<PatientNote> {
                         ],
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
-                            showToast('Note content is required', backgroundColor: AppColors.red);
+                            showToast(
+                              'Note content is required',
+                              backgroundColor: AppColors.red,
+                            );
                           }
                           return null;
                         },
@@ -361,7 +367,8 @@ class PatientNoteState extends State<PatientNote> {
                           if (titleText.isEmpty && noteText.isEmpty) {
                             Navigator.of(context).pop();
                           } else {
-                            final shouldDiscard = await showDiscardConfirmationDialog(context);
+                            final shouldDiscard =
+                                await showDiscardConfirmationDialog(context);
                             if (shouldDiscard) Navigator.of(context).pop();
                           }
                         },
@@ -377,7 +384,10 @@ class PatientNoteState extends State<PatientNote> {
                           final titleText = titleController.text.trim();
 
                           if (titleText.isEmpty) {
-                            showToast('Please provide a title for your note.', backgroundColor: AppColors.red);
+                            showToast(
+                              'Please provide a title for your note.',
+                              backgroundColor: AppColors.red,
+                            );
                           } else {
                             await addNoteForToday(titleText, noteText);
                             Navigator.of(context).pop();
@@ -398,10 +408,12 @@ class PatientNoteState extends State<PatientNote> {
   }
 
   void _showEditNoteDialog(Map<String, dynamic> note) {
-    final TextEditingController titleController =
-        TextEditingController(text: note['title']);
-    final TextEditingController noteController =
-        TextEditingController(text: note['note']);
+    final TextEditingController titleController = TextEditingController(
+      text: note['title'],
+    );
+    final TextEditingController noteController = TextEditingController(
+      text: note['note'],
+    );
     final FocusNode titleFocusNode = FocusNode();
     final FocusNode noteFocusNode = FocusNode();
 
@@ -415,7 +427,7 @@ class PatientNoteState extends State<PatientNote> {
               backgroundColor: AppColors.white,
               title: Text('Edit Note', style: Textstyle.subheader),
               content: SizedBox(
-                width: constraints.maxWidth * 0.9, // Applied 90% width constraint
+                width: constraints.maxWidth * 0.9,
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -472,8 +484,11 @@ class PatientNoteState extends State<PatientNote> {
 
                           if (updatedTitle.isNotEmpty &&
                               updatedNote.isNotEmpty) {
-                            await _updateNote(note['noteId'], updatedTitle,
-                                updatedNote); // Update the note in Firestore
+                            await _updateNote(
+                              note['noteId'],
+                              updatedTitle,
+                              updatedNote,
+                            ); // Update the note in Firestore
                             Navigator.of(context).pop(); // Close the dialog
                           } else {
                             showToast(
@@ -497,7 +512,10 @@ class PatientNoteState extends State<PatientNote> {
   }
 
   Future<void> _updateNote(
-      String noteId, String updatedTitle, String updatedNote) async {
+    String noteId,
+    String updatedTitle,
+    String updatedNote,
+  ) async {
     try {
       final noteRef = FirebaseFirestore.instance
           .collection('patient')
@@ -505,10 +523,7 @@ class PatientNoteState extends State<PatientNote> {
           .collection('notes')
           .doc(noteId);
 
-      await noteRef.update({
-        'title': updatedTitle,
-        'note': updatedNote,
-      });
+      await noteRef.update({'title': updatedTitle, 'note': updatedNote});
 
       final user = _auth.currentUser;
 
@@ -670,6 +685,7 @@ class PatientNoteState extends State<PatientNote> {
       appBar: AppBar(
         title: Text('Notes', style: Textstyle.subheader),
         backgroundColor: AppColors.white,
+        centerTitle: true,
         scrolledUnderElevation: 0.0,
       ),
       body: SingleChildScrollView(
@@ -799,7 +815,9 @@ class PatientNoteState extends State<PatientNote> {
                           itemBuilder: (context, index) {
                             final note = notes[index];
                             final timestamp = note['timestamp'];
-                            final formattedTime = DateFormat('h:mm a').format(timestamp);
+                            final formattedTime = DateFormat(
+                              'h:mm a',
+                            ).format(timestamp);
 
                             return Container(
                               margin: const EdgeInsets.only(bottom: 10.0),
@@ -812,7 +830,8 @@ class PatientNoteState extends State<PatientNote> {
                                 children: [
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           note['title'] ?? 'No Title',
@@ -822,7 +841,8 @@ class PatientNoteState extends State<PatientNote> {
                                         ),
                                         const SizedBox(height: 5.0),
                                         Text(
-                                          note['note'] ?? 'No content available',
+                                          note['note'] ??
+                                              'No content available',
                                           style: Textstyle.body,
                                         ),
                                       ],
@@ -830,7 +850,10 @@ class PatientNoteState extends State<PatientNote> {
                                   ),
                                   GestureDetector(
                                     onTap: () {
-                                      _showNoteDetailsDialog(note, formattedTime);
+                                      _showNoteDetailsDialog(
+                                        note,
+                                        formattedTime,
+                                      );
                                     },
                                     child: Icon(Icons.more_vert, size: 24),
                                   ),

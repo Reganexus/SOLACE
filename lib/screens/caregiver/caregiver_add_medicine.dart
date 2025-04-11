@@ -168,8 +168,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
       debugPrint("Add prescription doctor id: $caregiverId");
 
       if (caregiverId.isEmpty) {
-        showToast("No doctor logged in.", 
-            backgroundColor: AppColors.red);
+        showToast("No doctor logged in.", backgroundColor: AppColors.red);
         return;
       }
 
@@ -201,8 +200,10 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
 
       if (caregiverRole == null || patientRole == null) {
         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
-        showToast("Failed to add task. Roles not found.", 
-            backgroundColor: AppColors.red);
+        showToast(
+          "Failed to add task. Roles not found.",
+          backgroundColor: AppColors.red,
+        );
         return;
       }
 
@@ -239,8 +240,10 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
     } catch (e) {
       debugPrint("Error adding medicine: $e");
 
-      showToast("Failed to add prescription: $e", 
-          backgroundColor: AppColors.red);
+      showToast(
+        "Failed to add prescription: $e",
+        backgroundColor: AppColors.red,
+      );
     }
   }
 
@@ -261,8 +264,10 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
       // Check if the roles were successfully fetched
       if (caregiverRole == null || patientRole == null) {
         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
-        showToast("Failed to remove medicine. Roles not found.", 
-            backgroundColor: AppColors.red);
+        showToast(
+          "Failed to remove medicine. Roles not found.",
+          backgroundColor: AppColors.red,
+        );
         return;
       }
 
@@ -294,8 +299,10 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
     } catch (e) {
       debugPrint("Error removing medicine: $e");
 
-      showToast('Failed to delete medicine: $e', 
-          backgroundColor: AppColors.red);
+      showToast(
+        'Failed to delete medicine: $e',
+        backgroundColor: AppColors.red,
+      );
     }
   }
 
@@ -306,16 +313,19 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
     // Fetch medicines from Firestore
     Future<void> _fetchGlobalMedicines() async {
       try {
-        final doc = await FirebaseFirestore.instance
-            .collection('globals')
-            .doc('medicines')
-            .get();
+        final doc =
+            await FirebaseFirestore.instance
+                .collection('globals')
+                .doc('medicines')
+                .get();
 
         if (doc.exists) {
           final data = doc.data();
           if (data != null && data['medicines'] is List) {
             allMedicines = List<String>.from(data['medicines']);
-            allMedicines.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+            allMedicines.sort(
+              (a, b) => a.toLowerCase().compareTo(b.toLowerCase()),
+            );
           }
         }
       } catch (e) {
@@ -337,141 +347,168 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
             return StatefulBuilder(
               builder: (context, setModalState) {
                 return Dialog(
-                  child: Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: AppColors.white,
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("Add Prescription", style: Textstyle.subheader),
-                        const SizedBox(height: 20),
+                  child: SingleChildScrollView(
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: AppColors.white,
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Add Prescription", style: Textstyle.subheader),
+                          const SizedBox(height: 20),
 
-                        // Medicine Name Dropdown/Search Field
-                        DropdownButtonFormField<String>(
-                          value: selectedMedicine.isNotEmpty ? selectedMedicine : null,
-                          decoration: InputDecoration(
+                          // Medicine Name Dropdown/Search Field
+                          CustomDropdownField<String>(
+                            enabled: true,
+                            value:
+                                selectedMedicine.isNotEmpty
+                                    ? selectedMedicine
+                                    : null,
+                            focusNode:
+                                FocusNode(), // Replace with your desired focus node if applicable
                             labelText: "Medicine Name",
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
+                            items: allMedicines,
+                            onChanged: (value) {
+                              setModalState(() {
+                                selectedMedicine = value ?? '';
+                              });
+                            },
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return "Please select a medicine";
+                              }
+                              return null;
+                            },
+                            displayItem:
+                                (medicine) =>
+                                    medicine, // Assuming medicines are strings
                           ),
-                          items: allMedicines.map((medicine) {
-                            return DropdownMenuItem<String>(
-                              value: medicine,
-                              child: Text(medicine),
-                            );
-                          }).toList(),
-                          onChanged: (value) {
-                            setModalState(() {
-                              selectedMedicine = value ?? '';
-                            });
-                          },
-                          onSaved: (value) {
-                            selectedMedicine = value ?? '';
-                          },
-                          isExpanded: true,
-                          dropdownColor: AppColors.white,
-                        ),
-                        const SizedBox(height: 10),
 
-                        // Dosage and Unit Fields
-                        Row(
-                          children: [
-                            Expanded(
-                              flex: 2,
-                              child: CustomTextField(
-                                controller: _dosageController,
-                                focusNode: _focusNodes[1],
-                                labelText: "Dosage",
-                                keyboardType: TextInputType.number,
-                                enabled: true,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*$')),
-                                  LengthLimitingTextInputFormatter(6)
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              flex: 2,
-                              child: CustomDropdownField<String>(
-                                value: dosageUnit,
-                                focusNode: _focusNodes[2],
-                                labelText: "Unit",
-                                items: ["milligrams", "grams", "milliliters", "micrograms"],
-                                onChanged: (value) => setModalState(() {
-                                  dosageUnit = value ?? dosageUnit;
-                                }),
-                                displayItem: (item) => item,
-                                enabled: true,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
+                          const SizedBox(height: 10),
 
-                        // Usage Field
-                        CustomTextField(
-                          controller: _usageController,
-                          focusNode: _focusNodes[3],
-                          maxLines: 3,
-                          labelText: "Usage",
-                          enabled: true,
-                          inputFormatters: [
-                            LengthLimitingTextInputFormatter(200)
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Buttons
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                style: Buttonstyle.buttonRed,
-                                child: Text("Cancel", style: Textstyle.smallButton),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: TextButton(
-                                onPressed: () {
-                                  String dosage = _dosageController.text.trim();
-                                  String usage = _usageController.text.trim();
-
-                                  if (selectedMedicine.isEmpty) {
-                                    showToast("Please provide the name of the medicine.", backgroundColor: AppColors.red);
-                                  } else if (dosage.isEmpty) {
-                                    showToast("Please provide the dosage amount.", backgroundColor: AppColors.red);
-                                  } else if (num.parse(dosage) > 100000) {
-                                    showToast("The dosage you entered is too high!", backgroundColor: AppColors.red);
-                                  } else if (usage.isEmpty) {
-                                    showToast("Please provide your instructed prescription usage.", backgroundColor: AppColors.red);
-                                  } else {
-                                    _addMedicine(
-                                      selectedMedicine,
-                                      "${_dosageController.text} $dosageUnit",
-                                      _usageController.text,
-                                    );
-                                    Navigator.pop(context);
-                                  }
-                                },
-                                style: Buttonstyle.buttonNeon,
-                                child: Text(
-                                  "Prescribe",
-                                  style: Textstyle.smallButton,
+                          // Dosage and Unit Fields
+                          Row(
+                            children: [
+                              Expanded(
+                                flex: 2,
+                                child: CustomTextField(
+                                  controller: _dosageController,
+                                  focusNode: _focusNodes[1],
+                                  labelText: "Dosage",
+                                  keyboardType: TextInputType.number,
+                                  enabled: true,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.allow(
+                                      RegExp(r'^\d*\.?\d*$'),
+                                    ),
+                                    LengthLimitingTextInputFormatter(6),
+                                  ],
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
+                              const SizedBox(width: 10),
+                              Expanded(
+                                flex: 2,
+                                child: CustomDropdownField<String>(
+                                  value: dosageUnit,
+                                  focusNode: _focusNodes[2],
+                                  labelText: "Unit",
+                                  items: [
+                                    "milligrams",
+                                    "grams",
+                                    "milliliters",
+                                    "micrograms",
+                                  ],
+                                  onChanged:
+                                      (value) => setModalState(() {
+                                        dosageUnit = value ?? dosageUnit;
+                                      }),
+                                  displayItem: (item) => item,
+                                  enabled: true,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+
+                          // Usage Field
+                          CustomTextField(
+                            controller: _usageController,
+                            focusNode: _focusNodes[3],
+                            maxLines: 3,
+                            labelText: "Usage",
+                            enabled: true,
+                            inputFormatters: [
+                              LengthLimitingTextInputFormatter(200),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Buttons
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  style: Buttonstyle.buttonRed,
+                                  child: Text(
+                                    "Cancel",
+                                    style: Textstyle.smallButton,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: TextButton(
+                                  onPressed: () {
+                                    String dosage =
+                                        _dosageController.text.trim();
+                                    String usage = _usageController.text.trim();
+
+                                    if (selectedMedicine.isEmpty) {
+                                      showToast(
+                                        "Please provide the name of the medicine.",
+                                        backgroundColor: AppColors.red,
+                                      );
+                                    } else if (dosage.isEmpty) {
+                                      showToast(
+                                        "Please provide the dosage amount.",
+                                        backgroundColor: AppColors.red,
+                                      );
+                                    } else if (num.parse(dosage) > 100000) {
+                                      showToast(
+                                        "The dosage you entered is too high!",
+                                        backgroundColor: AppColors.red,
+                                      );
+                                    } else if (usage.isEmpty) {
+                                      showToast(
+                                        "Please provide your instructed prescription usage.",
+                                        backgroundColor: AppColors.red,
+                                      );
+                                    } else {
+                                      _addMedicine(
+                                        selectedMedicine,
+                                        "${_dosageController.text} $dosageUnit",
+                                        _usageController.text,
+                                      );
+                                      Navigator.pop(context);
+                                    }
+                                  },
+                                  style: Buttonstyle.buttonNeon,
+                                  child: Text(
+                                    "Prescribe",
+                                    style: Textstyle.smallButton,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );
@@ -490,6 +527,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
       appBar: AppBar(
         title: Text("View Prescriptions", style: Textstyle.subheader),
         backgroundColor: AppColors.white,
+        centerTitle: true,
         scrolledUnderElevation: 0.0,
       ),
       body:
@@ -626,29 +664,15 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  medicineName,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.black,
-                  ),
-                ),
+                Text(medicineName, style: Textstyle.subheader),
                 const SizedBox(height: 10.0),
                 Text(
                   "Do you want to delete this medicine?",
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.normal,
-                    color: AppColors.black,
-                  ),
+                  style: Textstyle.body,
                 ),
                 SizedBox(height: 20),
                 Row(
                   children: [
-                    
                     Expanded(
                       child: TextButton(
                         onPressed: () {
