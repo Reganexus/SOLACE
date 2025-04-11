@@ -273,7 +273,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
     FocusScope.of(context).unfocus();
 
     final name =
-        '${firstNameController.text.trim().capitalizeEachWord()} ${middleNameController.text.trim().capitalizeEachWord()} ${lastNameController.text.trim().capitalizeEachWord()}';
+        '${firstNameController.text.trim().capitalizeEachWord()} ${middleNameController.text.isNotEmpty ? '${middleNameController.text.trim().capitalizeEachWord()} ' : ''}${lastNameController.text.trim().capitalizeEachWord()}';
 
     setState(() {
       patientName = name;
@@ -558,9 +558,6 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
             focusNode: _focusNodes[7],
             labelText: 'Case Description',
             enabled: !_isLoading,
-            validator:
-                (val) =>
-                    val!.isEmpty ? 'Case Description cannot be empty' : null,
           ),
           divider(),
 
@@ -586,12 +583,6 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
             focusNode: _focusNodes[1],
             labelText: 'Middle Name',
             enabled: !_isLoading,
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return null;
-              }
-              return Validator.name(value.trim());
-            },
           ),
           const SizedBox(height: 10),
 

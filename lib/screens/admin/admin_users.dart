@@ -112,21 +112,6 @@ class AdminUsersState extends State<AdminUsers> {
             showToast('Error fetching caregivers.',   
                 backgroundColor: AppColors.red);
           });
-    } else if (_selectedRole == 'admin') {
-      _fetchAdmins()
-          .listen((admins) {
-            if (mounted) {
-              setState(() {
-                allUsers = admins;
-                filteredUsers = List.from(allUsers);
-                _sortUsers(); // Sort the list after fetching
-              });
-            }
-          })
-          .onError((error) {
-            showToast('Error fetching caregivers.', 
-                backgroundColor: AppColors.red);
-          });
     } else if (_selectedRole == 'nurse') {
       _fetchNurses()
           .listen((nurses) {
@@ -223,19 +208,6 @@ class AdminUsersState extends State<AdminUsers> {
               snapshot.docs
                   .map((doc) => UserData.fromDocument(doc))
                   .where((doctor) => doctor != null)
-                  .toList(),
-        );
-  }
-
-  Stream<List<UserData>> _fetchAdmins() {
-    return FirebaseFirestore.instance
-        .collection('admin')
-        .snapshots()
-        .map(
-          (snapshot) =>
-              snapshot.docs
-                  .map((doc) => UserData.fromDocument(doc))
-                  .where((admin) => admin != null)
                   .toList(),
         );
   }
@@ -543,7 +515,7 @@ class AdminUsersState extends State<AdminUsers> {
                   }
                 },
                 items:
-                    ['admin', 'caregiver', 'doctor', 'nurse', 'patient']
+                    ['caregiver', 'doctor', 'nurse', 'patient']
                         .map(
                           (role) => DropdownMenuItem(
                             value: role,

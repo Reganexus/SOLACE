@@ -259,7 +259,7 @@ class _ProfileState extends State<Profile> {
                           children: [
                             // User name
                             Text(
-                              '${userData.firstName} ${userData.middleName} ${userData.lastName}',
+                              '${userData.firstName} ${{userData.middleName}.isNotEmpty ? '${userData.middleName} ' : ''}${userData.lastName}',
                               style: Textstyle.heading.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: AppColors.white,

@@ -402,13 +402,6 @@ class _EditPatientState extends State<EditPatient> {
       child: Column(
         children: [
           FormField(
-            validator: (value) {
-              if (_profileImage == null &&
-                  (_profileImageUrl == null || _profileImageUrl!.isEmpty)) {
-                return 'Please select a profile image.';
-              }
-              return null;
-            },
             builder: (FormFieldState state) {
               return Center(
                 child: Column(
@@ -493,9 +486,6 @@ class _EditPatientState extends State<EditPatient> {
             focusNode: _focusNodes[7],
             labelText: 'Case Description',
             enabled: !_isLoading,
-            validator:
-                (val) =>
-                    val!.isEmpty ? 'Case Description cannot be empty' : null,
           ),
           divider(),
           Row(

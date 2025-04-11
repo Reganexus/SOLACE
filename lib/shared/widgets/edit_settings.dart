@@ -572,8 +572,8 @@ class _EditSettingsState extends State<EditSettings> {
                   labelText: 'Edit $itemName',
                   enabled: true,
                   validator: (value) {
-                    if (value?.isEmpty ?? true) {
-                      return 'Please enter some text';
+                    if (controller.text.isEmpty) {
+                       showToast('This cannot be empty.', backgroundColor: AppColors.red);
                     }
                     return null;
                   },

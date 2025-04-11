@@ -1,6 +1,5 @@
 // ignore_for_file: avoid_print
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:solace/shared/widgets/edit_settings.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/themes/textstyle.dart';
