@@ -5,7 +5,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:intl/intl.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/services/log_service.dart';
@@ -376,11 +375,12 @@ class PatientNoteState extends State<PatientNote> {
                         onPressed: () async {
                           final noteText = noteController.text.trim();
                           final titleText = titleController.text.trim();
-                          if (noteText.isNotEmpty && titleText.isNotEmpty) {
+
+                          if (titleText.isEmpty) {
+                            showToast('Please provide a title for your note.', backgroundColor: AppColors.red);
+                          } else {
                             await addNoteForToday(titleText, noteText);
                             Navigator.of(context).pop();
-                          } else {
-                              showToast('Both fields are required!', backgroundColor: AppColors.red);
                           }
                         },
                         style: Buttonstyle.buttonNeon,
@@ -457,15 +457,7 @@ class PatientNoteState extends State<PatientNote> {
                     Expanded(
                       child: TextButton(
                         onPressed: () async {
-                          final titleText = titleController.text.trim();
-                          final noteText = noteController.text.trim();
-
-                          if (titleText.isEmpty && noteText.isEmpty) {
-                            Navigator.of(context).pop();
-                          } else {
-                            final shouldDiscard = await showDiscardConfirmationDialog(context);
-                            if (shouldDiscard) Navigator.of(context).pop();
-                          }
+                          Navigator.of(context).pop();
                         },
                         style: Buttonstyle.buttonRed,
                         child: Text('Cancel', style: Textstyle.smallButton),

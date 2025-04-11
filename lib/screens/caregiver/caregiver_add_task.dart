@@ -12,7 +12,6 @@ import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/themes/inputdecoration.dart';
 import 'package:solace/themes/loader.dart';
-import 'package:solace/themes/textformfield.dart';
 import 'package:solace/themes/textstyle.dart';
 import 'package:solace/utility/task_utility.dart';
 
@@ -48,8 +47,8 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
     _focusNodes = List.generate(5, (index) => FocusNode());
     _titleController.text = '';
     _descriptionController.text = '';
-    _startDateController.text = 'Select Start Date';
-    _endDateController.text = 'Select End Date';
+    _startDateController.text = 'Select Start Date/Time';
+    _endDateController.text = 'Select End Date/Time';
 
     _fetchPatientTasks();
     _resetDateControllers();
@@ -149,8 +148,8 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
   void _resetDateControllers() {
     _titleController.text = '';
     _descriptionController.text = '';
-    _startDateController.text = 'Select Start Date';
-    _endDateController.text = 'Select End Date';
+    _startDateController.text = 'Select Start Date/Time';
+    _endDateController.text = 'Select End Date/Time';
     taskStartDate = null;
     taskEndDate = null;
   }
@@ -418,10 +417,11 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
   }
 
   void _showAddTaskDialog() {
-    String taskTitle = '';
-    String taskDescription = '';
+    _titleController.clear();
+    _descriptionController.clear();
+    _startDateController.clear();
+    _endDateController.clear();
     String errorMessage = ""; // Track error messages
-
     final FocusNode titleFocusNode = FocusNode();
     final FocusNode descriptionFocusNode = FocusNode();
 
@@ -447,7 +447,6 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                     TextFormField(
                       controller: _titleController,
                       focusNode: titleFocusNode,
-                      maxLength: 50,
                       inputFormatters: [
                         LengthLimitingTextInputFormatter(50),
                         FilteringTextInputFormatter.deny(RegExp(r'[\n]')),
@@ -461,7 +460,6 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                     TextFormField(
                       controller: _descriptionController,
                       focusNode: descriptionFocusNode,
-                      maxLength: 200,
                       maxLines: 3,
                       inputFormatters: [
                         LengthLimitingTextInputFormatter(200),
@@ -479,7 +477,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                       focusNode: _focusNodes[2],
                       readOnly: true,
                       decoration: InputDecorationStyles.build(
-                        "Start Date",
+                        "Start Date/Time",
                         _focusNodes[2],
                       ).copyWith(
                         suffixIcon: IconButton(
@@ -508,7 +506,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                       focusNode: _focusNodes[3],
                       readOnly: true,
                       decoration: InputDecorationStyles.build(
-                        "End Date",
+                        "End Date/Time",
                         _focusNodes[3],
                       ).copyWith(
                         suffixIcon: IconButton(
@@ -545,7 +543,19 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                       children: [
                         Expanded(
                           child: TextButton(
-                            onPressed: () => Navigator.pop(context),
+                            onPressed: () async {
+                              final titleText = _titleController.text.trim();
+                              final descriptionText = _descriptionController.text.trim();
+                              final startText = _startDateController.text;
+                              final endText = _endDateController.text;
+
+                              if (titleText.isEmpty && descriptionText.isEmpty && startText.isEmpty && endText.isEmpty) {
+                                Navigator.of(context).pop();
+                              } else {
+                                final shouldDiscard = await showDiscardConfirmationDialog(context);
+                                if (shouldDiscard) Navigator.of(context).pop();
+                              }
+                            },
                             style: Buttonstyle.buttonRed,
                             child: Text("Cancel", style: Textstyle.smallButton),
                           ),
@@ -554,19 +564,19 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                         Expanded(
                           child: TextButton(
                             onPressed: () {
-                              taskTitle = _titleController.text.trim();
-                              taskDescription = _descriptionController.text.trim();
+                              String taskTitle = _titleController.text.trim();
+                              String taskDescription = _descriptionController.text.trim();
 
                               if (taskTitle.isEmpty) {
-                                showToast("Task title is required", backgroundColor: AppColors.red);
+                                showToast("Please provide a title for the task.", backgroundColor: AppColors.red);
                               } else if (taskDescription.isEmpty) {
-                                showToast("Task description is required", backgroundColor: AppColors.red);
+                                showToast("Please provide the task description.", backgroundColor: AppColors.red);
                               } else if (taskStartDate == null) {
-                                showToast("Start date is required", backgroundColor: AppColors.red);
+                                showToast("Please specify the starting date/time of the task.", backgroundColor: AppColors.red);
                               } else if (taskEndDate == null) {
-                                showToast("End date is required", backgroundColor: AppColors.red);
+                                showToast("Please specify the ending date/time of the task.", backgroundColor: AppColors.red);
                               } else if (taskStartDate!.isAfter(taskEndDate!)) {
-                                showToast("Start date must be before end date", backgroundColor: AppColors.red);
+                                showToast("The starting date/time must be set before ending date/time.", backgroundColor: AppColors.red);
                               } else {
                                 _addTask(
                                   taskTitle,
@@ -596,6 +606,45 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
         );
       },
     );
+  }
+
+  Future<bool> showDiscardConfirmationDialog(BuildContext context) async {
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: AppColors.white,
+          title: Text('Discard Changes?', style: Textstyle.subheader),
+          content: Text(
+            'You have unsaved changes. Do you want to discard them?',
+            style: Textstyle.body,
+          ),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(false),
+                    style: Buttonstyle.buttonNeon,
+                    child: Text('Cancel', style: Textstyle.smallButton),
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(true),
+                    style: Buttonstyle.buttonRed,
+                    child: Text('Discard', style: Textstyle.smallButton),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+
+    return confirmed == true;
   }
 
   Widget _buildNoTaskState() {
@@ -767,6 +816,18 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                   children: [
                     Expanded(
                       child: TextButton(
+                        onPressed: () {
+                          Navigator.of(
+                            context,
+                          ).pop(); // Close dialog without doing anything
+                        },
+                        style: Buttonstyle.buttonNeon,
+                        child: Text('Cancel', style: Textstyle.smallButton),
+                      ),
+                    ),
+                    const SizedBox(width: 10.0),
+                    Expanded(
+                      child: TextButton(
                         onPressed: () async {
                           if (taskId.isNotEmpty) {
                             String caregiverId =
@@ -781,21 +842,9 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                         },
                         style: Buttonstyle.buttonRed,
                         child: Text(
-                          'Remove Task',
+                          'Delete Task',
                           style: Textstyle.smallButton,
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 10.0),
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () {
-                          Navigator.of(
-                            context,
-                          ).pop(); // Close dialog without doing anything
-                        },
-                        style: Buttonstyle.buttonNeon,
-                        child: Text('Close', style: Textstyle.smallButton),
                       ),
                     ),
                   ],

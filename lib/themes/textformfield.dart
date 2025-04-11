@@ -12,6 +12,7 @@ class CustomTextField extends StatelessWidget {
   final bool enabled;
   final VoidCallback? onTap;
   final Function(String)? onChanged;
+  final int? maxLines;
   final int? maxLength;
   final List<TextInputFormatter>? inputFormatters;
 
@@ -26,6 +27,7 @@ class CustomTextField extends StatelessWidget {
     this.readOnly = false,
     this.onTap,
     this.onChanged,
+    this.maxLines,
     this.maxLength,
     this.inputFormatters,
   });
@@ -66,7 +68,8 @@ class CustomTextField extends StatelessWidget {
         ),
       ),
       validator: validator,
-      maxLength: maxLength, // Apply maxLength
+      maxLength: maxLength,
+      inputFormatters: inputFormatters,
     );
   }
 }

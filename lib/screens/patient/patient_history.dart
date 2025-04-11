@@ -3,6 +3,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
 import 'package:solace/services/database.dart';
@@ -218,8 +219,12 @@ class _PatientHistoryState extends State<PatientHistory> {
   }
 
   void _showAddDiagnosisDialog() {
+    diagnosisController.clear();
+    descriptionController.clear();
+    dateController.clear();
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) {
         return LayoutBuilder(
           builder: (context, constraints) {
@@ -242,18 +247,19 @@ class _PatientHistoryState extends State<PatientHistory> {
                                 val == null || val.isEmpty
                                     ? 'Diagnosis is required'
                                     : null,
+                        inputFormatters: [
+                          LengthLimitingTextInputFormatter(50)
+                        ],
                       ),
                       const SizedBox(height: 10),
                       CustomTextField(
                         controller: descriptionController,
                         focusNode: descriptionFocusNode,
-                        labelText: 'Description',
+                        labelText: 'Diagnosis Description',
                         enabled: true,
-                        validator:
-                            (val) =>
-                                val == null || val.isEmpty
-                                    ? 'Description is required'
-                                    : null,
+                        inputFormatters: [
+                          LengthLimitingTextInputFormatter(200)
+                        ],
                       ),
                       const SizedBox(height: 10),
                       TextFormField(
@@ -309,9 +315,18 @@ class _PatientHistoryState extends State<PatientHistory> {
                   children: [
                     Expanded(
                       child: TextButton(
-                        onPressed: () {
-                          _resetDateControllers();
-                          Navigator.of(context).pop();
+                        onPressed: () async {
+                          final diagnosisText = diagnosisController.text.trim();
+                          final descriptionText = descriptionController.text.trim();
+                          final dateText = dateController.text;
+
+                          if (diagnosisText.isEmpty && descriptionText.isEmpty && dateText.isEmpty) {
+                            _resetDateControllers();
+                            Navigator.of(context).pop();
+                          } else {
+                            final shouldDiscard = await showDiscardConfirmationDialog(context);
+                            if (shouldDiscard) Navigator.of(context).pop();
+                          }
                         },
                         style: Buttonstyle.buttonRed,
                         child: Text('Cancel', style: Textstyle.smallButton),
@@ -324,9 +339,11 @@ class _PatientHistoryState extends State<PatientHistory> {
                           final diagnosis = diagnosisController.text.trim();
                           final description = descriptionController.text.trim();
 
-                          if (diagnosis.isNotEmpty &&
-                              description.isNotEmpty &&
-                              _selectedDate != null) {
+                          if (diagnosis.isEmpty) {
+                            showToast('Please specify the diagnosis.', backgroundColor: AppColors.red);
+                          } else if (_selectedDate == null) {
+                            showToast('Please specify the diagnosis date.', backgroundColor: AppColors.red);
+                          } else {
                             await _addDiagnosis(
                               diagnosis,
                               description,
@@ -336,9 +353,6 @@ class _PatientHistoryState extends State<PatientHistory> {
                             _resetDateControllers();
                             Navigator.of(context).pop();
                             setState(() {});
-                          } else {
-                            showToast('Please fill all fields correctly.', 
-                                backgroundColor: AppColors.red);
                           }
                         },
                         style: Buttonstyle.buttonNeon,
@@ -404,6 +418,45 @@ class _PatientHistoryState extends State<PatientHistory> {
         );
       },
     );
+  }
+
+  Future<bool> showDiscardConfirmationDialog(BuildContext context) async {
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: AppColors.white,
+          title: Text('Discard Changes?', style: Textstyle.subheader),
+          content: Text(
+            'You have unsaved changes. Do you want to discard them?',
+            style: Textstyle.body,
+          ),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(false),
+                    style: Buttonstyle.buttonNeon,
+                    child: Text('Cancel', style: Textstyle.smallButton),
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(true),
+                    style: Buttonstyle.buttonRed,
+                    child: Text('Discard', style: Textstyle.smallButton),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+
+    return confirmed == true;
   }
 
   Widget _buildNoHistoryState() {
@@ -550,14 +603,16 @@ class _PatientHistoryState extends State<PatientHistory> {
                                         diagnosisText,
                                         style: Textstyle.body,
                                       ),
-                                      SizedBox(height: 10),
-                                      Text(
-                                        "Description",
-                                        style: Textstyle.body.copyWith(
-                                          fontWeight: FontWeight.bold,
+                                      if (description.isNotEmpty) ...[
+                                        SizedBox(height: 10),
+                                        Text(
+                                          "Description",
+                                          style: Textstyle.body.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
-                                      ),
-                                      Text(description, style: Textstyle.body),
+                                        Text(description, style: Textstyle.body),
+                                      ],
                                     ],
                                   ),
                                 ),
@@ -574,10 +629,12 @@ class _PatientHistoryState extends State<PatientHistory> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.neon,
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddDiagnosisDialog,
-        child: const Icon(Icons.add, color: AppColors.white),
+        backgroundColor: AppColors.neon,
+        foregroundColor: AppColors.white,
+        icon: const Icon(Icons.add),
+        label: const Text('Add Previous Diagnosis'),
       ),
     );
   }

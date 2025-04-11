@@ -3,6 +3,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/services/log_service.dart';
@@ -33,7 +34,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
   TextEditingController _medicineNameController = TextEditingController();
   TextEditingController _dosageController = TextEditingController();
   TextEditingController _usageController = TextEditingController();
-  String dosageUnit = "mg";
+  String dosageUnit = "milligrams";
   late String patientName = '';
 
   @override
@@ -70,7 +71,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
       _medicineNameController.clear();
       _dosageController.clear();
       _usageController.clear();
-      dosageUnit = "mg"; // Reset dosage unit to default
+      dosageUnit = "milligrams"; // Reset dosage unit to default
     });
   }
 
@@ -324,6 +325,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) {
         return FutureBuilder(
           future: _fetchGlobalMedicines(),
@@ -380,13 +382,17 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
                         Row(
                           children: [
                             Expanded(
-                              flex: 3,
+                              flex: 2,
                               child: CustomTextField(
                                 controller: _dosageController,
                                 focusNode: _focusNodes[1],
                                 labelText: "Dosage",
                                 keyboardType: TextInputType.number,
                                 enabled: true,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*$')),
+                                  LengthLimitingTextInputFormatter(6)
+                                ],
                               ),
                             ),
                             const SizedBox(width: 10),
@@ -396,7 +402,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
                                 value: dosageUnit,
                                 focusNode: _focusNodes[2],
                                 labelText: "Unit",
-                                items: ["mg", "g", "mml", "l", "mcg"],
+                                items: ["milligrams", "grams", "milliliters", "micrograms"],
                                 onChanged: (value) => setModalState(() {
                                   dosageUnit = value ?? dosageUnit;
                                 }),
@@ -412,8 +418,12 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
                         CustomTextField(
                           controller: _usageController,
                           focusNode: _focusNodes[3],
+                          maxLines: 3,
                           labelText: "Usage",
                           enabled: true,
+                          inputFormatters: [
+                            LengthLimitingTextInputFormatter(200)
+                          ],
                         ),
                         const SizedBox(height: 20),
 
@@ -432,18 +442,24 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
                             Expanded(
                               child: TextButton(
                                 onPressed: () {
-                                  if (selectedMedicine.isNotEmpty &&
-                                      _dosageController.text.isNotEmpty &&
-                                      _usageController.text.isNotEmpty) {
+                                  String dosage = _dosageController.text.trim();
+                                  String usage = _usageController.text.trim();
+
+                                  if (selectedMedicine.isEmpty) {
+                                    showToast("Please provide the name of the medicine.", backgroundColor: AppColors.red);
+                                  } else if (dosage.isEmpty) {
+                                    showToast("Please provide the dosage amount.", backgroundColor: AppColors.red);
+                                  } else if (num.parse(dosage) > 100000) {
+                                    showToast("The dosage you entered is too high!", backgroundColor: AppColors.red);
+                                  } else if (usage.isEmpty) {
+                                    showToast("Please provide your instructed prescription usage.", backgroundColor: AppColors.red);
+                                  } else {
                                     _addMedicine(
                                       selectedMedicine,
-                                      "${_dosageController.text}$dosageUnit",
+                                      "${_dosageController.text} $dosageUnit",
                                       _usageController.text,
                                     );
                                     Navigator.pop(context);
-                                  } else {
-                                    showToast("Please fill in all fields", 
-                                        backgroundColor: AppColors.red);
                                   }
                                 },
                                 style: Buttonstyle.buttonNeon,
@@ -632,6 +648,36 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
                 SizedBox(height: 20),
                 Row(
                   children: [
+                    
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.of(
+                            context,
+                          ).pop(); // Close dialog without doing anything
+                        },
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 15,
+                            vertical: 5,
+                          ),
+                          backgroundColor: AppColors.neon,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(
+                            fontSize: 16.0,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Inter',
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10.0),
                     Expanded(
                       child: TextButton(
                         onPressed: () async {
@@ -658,36 +704,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
                           ),
                         ),
                         child: const Text(
-                          'Remove',
-                          style: TextStyle(
-                            fontSize: 16.0,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Inter',
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10.0),
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () {
-                          Navigator.of(
-                            context,
-                          ).pop(); // Close dialog without doing anything
-                        },
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 15,
-                            vertical: 5,
-                          ),
-                          backgroundColor: AppColors.neon,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: const Text(
-                          'Close',
+                          'Delete',
                           style: TextStyle(
                             fontSize: 16.0,
                             fontWeight: FontWeight.bold,
