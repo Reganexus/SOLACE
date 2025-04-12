@@ -74,7 +74,7 @@ class AdminEditScreenState extends State<AdminEdit> {
 
   Widget getEditScreen() {
     if (userRole == 'patient') {
-      return EditPatient(patientId: widget.currentUserId);
+      return EditPatient(patientId: widget.currentUserId, role: 'admin');
     } else if (userData != null) {
       return AdminEditProfile(userId: widget.currentUserId);
     } else {

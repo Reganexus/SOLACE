@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:solace/models/my_patient.dart';
 import 'package:solace/services/auth.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/shared/widgets/case_picker.dart';
@@ -23,8 +24,9 @@ import 'package:solace/themes/textstyle.dart';
 
 class EditPatient extends StatefulWidget {
   final String patientId;
+  final String role;
 
-  const EditPatient({super.key, required this.patientId});
+  const EditPatient({super.key, required this.patientId, required this.role});
 
   @override
   State<EditPatient> createState() => _EditPatientState();
@@ -35,7 +37,7 @@ class _EditPatientState extends State<EditPatient> {
   final LogService _logService = LogService();
   final DatabaseService db = DatabaseService();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  Map<String, dynamic> patientData = {};
+  late PatientData patientData;
   List<String> selectedCases = [];
   File? _profileImage;
   String? _profileImageUrl;
@@ -84,9 +86,11 @@ class _EditPatientState extends State<EditPatient> {
         setState(() {
           selectedCases = List<String>.from(patientDoc.data()?['cases'] ?? []);
         });
+        debugPrint('bibibi Selected cases: $selectedCases');
         for (var caseItem in selectedCases) {
-          debugPrint('Case item: $caseItem');
+          debugPrint('bibibi Case item: $caseItem');
           if (!selectedCases.contains(caseItem)) {
+            debugPrint('bibibi Case item $caseItem added');
             _addCase(caseItem);
           }
         }
@@ -196,7 +200,7 @@ class _EditPatientState extends State<EditPatient> {
   Future<void> _loadUserData() async {
     setState(() => _isLoading = true);
     try {
-      final patientData = await db.getPatientData(widget.patientId);
+      patientData = await db.getPatientData(widget.patientId) as PatientData;
 
       if (patientData != null) {
         setState(() {
@@ -213,7 +217,7 @@ class _EditPatientState extends State<EditPatient> {
                   ? DateFormat('MMMM d, yyyy').format(birthday!)
                   : '';
 
-          _profileImageUrl = patientData.profileImageUrl;
+          _profileImageUrl = patientData!.profileImageUrl;
         });
       } else {
         showToast(
@@ -305,6 +309,57 @@ class _EditPatientState extends State<EditPatient> {
         final caseDescription = caseDescriptionController.text.sentenceCase();
         final address = addressController.text.capitalizeEachWord();
 
+        // Log changes
+        final List<String> caregiverLogs = [];
+        final List<String> patientLogs = [];
+        final caregiverName = await _loadCaregiverName(user, widget.role); // Fetch caregiver's name
+        final patientName = '$firstName $lastName';
+
+        void logChange(String field, dynamic oldValue, dynamic newValue) {
+          if (oldValue != newValue) {
+            caregiverLogs.add(
+                "Edited $patientName's $field from '$oldValue' to '$newValue'.");
+            patientLogs.add(
+                "$caregiverName changed $patientName's $field from '$oldValue' to '$newValue'.");
+          }
+        }
+
+        // Log individual field changes
+        logChange('First Name', patientData.firstName, firstName);
+        logChange('Middle Name', patientData.middleName, middleName);
+        logChange('Last Name', patientData.lastName, lastName);
+        logChange('Case Description', patientData.caseDescription, caseDescription);
+        logChange('Address', patientData.address, address);
+        logChange('Gender', patientData.gender, gender);
+        logChange('Religion', patientData.religion, religion);
+        logChange(
+          'Birthday',
+          patientData.birthday is Timestamp
+              ? DateFormat('yyyy-MM-dd')
+                  .format((patientData.birthday as Timestamp).toDate())
+              : patientData.birthday.toString().split(' ')[0],
+          birthday != null ? DateFormat('yyyy-MM-dd').format(birthday!) : null,
+        );
+
+        // Log case changes
+        final oldCases = List<String>.from(patientData.cases);
+        final addedCases = selectedCases.where((c) => !oldCases.contains(c)).toList();
+        final removedCases = oldCases.where((c) => !selectedCases.contains(c)).toList();
+
+        if (addedCases.isNotEmpty) {
+          caregiverLogs.add(
+              "Added cases ${addedCases.join(', ')} to $patientName's profile.");
+          patientLogs.add(
+              "$caregiverName added cases ${addedCases.join(', ')} to $patientName's profile.");
+        }
+
+        if (removedCases.isNotEmpty) {
+          caregiverLogs.add(
+              "Removed cases ${removedCases.join(', ')} from $patientName's profile.");
+          patientLogs.add(
+              "$caregiverName removed cases ${removedCases.join(', ')} from $patientName's profile.");
+        }
+        
         // Update Firestore with formatted data
         await FirebaseFirestore.instance
             .collection('patient')
@@ -323,11 +378,17 @@ class _EditPatientState extends State<EditPatient> {
               'profileImageUrl': _profileImageUrl,
             });
 
-        final name =
-            '${firstNameController.text.trim().capitalizeEachWord()} ${lastNameController.text.trim().capitalizeEachWord()}';
-
-        await _logService.addLog(userId: user, action: "Edited Patient $name");
-
+        debugPrint('bibibi Caregiver id: $user');
+        debugPrint('bibibi Patient id: ${widget.patientId}');
+        
+        // Add logs to Firestore
+        for (final log in caregiverLogs) {
+          await _logService.addLog(userId: user, action: log, relatedUsers: widget.patientId); // Caregiver logs
+        }
+        for (final log in patientLogs) {
+          await _logService.addLog(userId: widget.patientId, action: log, relatedUsers: user); // Patient logs
+        }
+        
         showToast('User profile updated successfully.');
 
         // Close the current screen and return to the previous screen
@@ -340,6 +401,28 @@ class _EditPatientState extends State<EditPatient> {
       } finally {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  Future<String> _loadCaregiverName(String userId, String role) async {
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection(role) // Replace with your actual Firestore collection name
+          .doc(userId)
+          .get();
+
+      if (userDoc.exists) {
+        final data = userDoc.data();
+        final firstName = data?['firstName'] ?? '';
+        final lastName = data?['lastName'] ?? '';
+        return '$firstName $lastName'.trim();
+      } else {
+        debugPrint('User document does not exist for userId: $userId');
+        return 'Unknown User';
+      }
+    } catch (e) {
+      debugPrint('Error fetching user name for userId $userId: $e');
+      return 'Unknown User';
     }
   }
 
@@ -498,6 +581,9 @@ class _EditPatientState extends State<EditPatient> {
             focusNode: _focusNodes[7],
             labelText: 'Case Description',
             enabled: !_isLoading,
+            inputFormatters: [
+              LengthLimitingTextInputFormatter(100)
+            ],
           ),
           divider(),
           Row(
@@ -629,7 +715,7 @@ class _EditPatientState extends State<EditPatient> {
                   (_isLoading || selectedCases.isEmpty)
                       ? Buttonstyle.gray
                       : Buttonstyle.neon,
-              child: Text('Add Patient', style: Textstyle.largeButton),
+              child: Text('Save changes', style: Textstyle.largeButton),
             ),
           ),
         ],

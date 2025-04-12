@@ -382,7 +382,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       // Send HTTP request
       final response = await http
           .post(url, headers: headers, body: jsonEncode(requestBody))
-          .timeout(Duration(seconds: 10));
+          .timeout(Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
@@ -558,7 +558,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
             });
       }
 
-      // Add log entry
+      // Add log entries
       await _logService.addLog(
         userId: _auth.currentUser!.uid,
         action: 'Submitted $patientName\'s tracking information',

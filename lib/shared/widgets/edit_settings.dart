@@ -708,7 +708,7 @@ class _EditSettingsState extends State<EditSettings> {
       // Update Firestore
       await FirebaseFirestore.instance
           .collection('globals')
-          .doc(widget.docName)
+          .doc(docName)
           .update({sectionName: arrName});
 
       setState(() {});

@@ -95,6 +95,7 @@ class CaregiverInstructionsState extends State<CaregiverInstructions> {
       }
 
       await userDocRef.update({'newUser': false});
+      showToast('Account successfully created!');
 
       Navigator.pushAndRemoveUntil(
         context,

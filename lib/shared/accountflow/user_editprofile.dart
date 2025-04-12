@@ -61,12 +61,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController addressController;
   late TextEditingController birthdayController;
 
+  late Map<String, dynamic> originalUserData;
+
   File? _profileImage;
   String? _profileImageUrl;
   String? role;
   String gender = '';
   String religion = '';
   DateTime? birthday;
+
+  static const List<String> religions = [
+    'Roman Catholic',
+    'Islam',
+    'Iglesia ni Cristo',
+    'Other', // Add 'Other' option
+  ];
 
   @override
   void initState() {
@@ -86,6 +95,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     phoneNumberController = TextEditingController();
     addressController = TextEditingController();
     birthdayController = TextEditingController();
+
+    originalUserData = Map<String, dynamic>.from(widget.userData);
 
     _initializeUserDetails(widget.userData);
     debugPrint("User Data in Edit Profile: ${widget.userData}");
@@ -151,13 +162,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       role = widget.userRole;
     });
   }
-
-  static const List<String> religions = [
-    'Roman Catholic',
-    'Islam',
-    'Iglesia ni Cristo',
-    'Other', // Add 'Other' option
-  ];
 
   Future<File> getFileFromAsset(String assetPath) async {
     /// Gets a file from the asset path.
@@ -421,10 +425,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         lastNameController.text.trim() != widget.userData['lastName']?.trim() ||
         phoneNumberController.text.trim() !=
             widget.userData['phoneNumber']?.trim() ||
+        birthdayController.text.trim() != 
+            (widget.userData['birthday'] != null
+                ? DateFormat('MMMM d, yyyy').format(
+                    widget.userData['birthday'] is Timestamp
+                        ? widget.userData['birthday'].toDate()
+                        : DateTime.parse(widget.userData['birthday']))
+                : '') ||
         gender != widget.userData['gender'] ||
         religion != widget.userData['religion'] ||
         addressController.text.trim() != widget.userData['address']?.trim() ||
-        _profileImage != null;
+        _profileImageUrl != originalUserData['profileImageUrl'];
   }
 
   Future<bool> _showDiscardChangesDialog(bool newUser) async {
@@ -563,6 +574,39 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           (route) => false,
         );
       } else {
+        
+        // Log changes
+        final List<String> changeLogs = [];
+        void logChange(String field, dynamic oldValue, dynamic newValue) {
+          if (oldValue != newValue) {
+            changeLogs.add("Changed $field from '$oldValue' to '$newValue'.");
+          }
+        }
+
+        logChange('First Name', originalUserData['firstName'], firstNameController.text.trim());
+        logChange('Middle Name', originalUserData['middleName'], middleNameController.text.trim());
+        logChange('Last Name', originalUserData['lastName'], lastNameController.text.trim());
+        logChange('Phone Number', originalUserData['phoneNumber'], phoneNumberController.text.trim());
+        logChange(
+          'Birthday',
+          originalUserData['birthday'] is Timestamp
+              ? DateFormat('yyyy-MM-dd').format((originalUserData['birthday'] as Timestamp).toDate())
+              : originalUserData['birthday']?.toString().split(' ')[0], // Fallback if not a Timestamp
+          birthday != null ? DateFormat('yyyy-MM-dd').format(birthday!) : null,
+        );
+        logChange('Gender', originalUserData['gender'], gender);
+        logChange('Religion', originalUserData['religion'], religion);
+        logChange('Address', originalUserData['address'], addressController.text.trim());
+
+        if (_profileImage != null || _profileImageUrl != originalUserData['profileImageUrl']) {
+          changeLogs.add("Changed Profile Image.");
+        }
+
+        // Log individual changes
+        for (final log in changeLogs) {
+          await logService.addLog(userId: userId, action: log);
+        }
+
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const Wrapper()),
@@ -762,7 +806,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             labelText: 'Gender',
             items: ['Male', 'Female', 'Other'],
             enabled: !_isLoading,
-            onChanged: (val) => setState(() => gender = val ?? ''),
+            onChanged: (val) {
+              setState(() => gender = val ?? '');
+            },
             validator: (val) {
               if (val == null || val.isEmpty) {
                 return 'Gender cannot be empty';
@@ -782,7 +828,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             labelText: 'Religion',
             enabled: !_isLoading,
             items: religions,
-            onChanged: (val) => setState(() => religion = val ?? ''),
+            onChanged: (val) {
+              setState(() => religion = val ?? '');
+            },
             validator: (val) {
               if (val == null || val.isEmpty) {
                 return 'Religion cannot be empty';
@@ -797,12 +845,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             focusNode: _focusNodes[7],
             labelText: 'Address',
             enabled: !_isLoading,
-            validator: (val) {
-              if (val == null || val.isEmpty) {
-                return 'Address cannot be empty';
-              }
-              return null;
-            },
+            validator: (val) => Validator.address(val?.trim()),
           ),
           divider(),
           SizedBox(

@@ -1527,7 +1527,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
                             MaterialPageRoute(
                               builder:
                                   (context) =>
-                                      EditPatient(patientId: widget.patientId),
+                                      EditPatient(patientId: widget.patientId, role: widget.role),
                             ),
                           ),
                       child: Icon(Icons.edit, size: 24, color: AppColors.black),
