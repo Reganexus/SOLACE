@@ -148,7 +148,7 @@ class PatientNoteState extends State<PatientNote> {
         'timestamp': Timestamp.fromDate(selectedDate),
         'date': DateFormat('yyyy-MM-dd').format(selectedDate),
         'title': title.isNotEmpty ? title : 'Untitled',
-        'note': noteText.isNotEmpty ? noteText : 'No content provided',
+        'note': noteText.isNotEmpty ? noteText : '',
       };
 
       final noteRef = FirebaseFirestore.instance
@@ -388,6 +388,11 @@ class PatientNoteState extends State<PatientNote> {
                               'Please provide a title for your note.',
                               backgroundColor: AppColors.red,
                             );
+                          } else if (noteText.isEmpty) {
+                            showToast(
+                              'Please provide the content for your note.',
+                              backgroundColor: AppColors.red,
+                            );
                           } else {
                             await addNoteForToday(titleText, noteText);
                             Navigator.of(context).pop();
@@ -479,22 +484,22 @@ class PatientNoteState extends State<PatientNote> {
                     Expanded(
                       child: TextButton(
                         onPressed: () async {
-                          final updatedTitle = titleController.text.trim();
-                          final updatedNote = noteController.text.trim();
+                          final noteText = noteController.text.trim();
+                          final titleText = titleController.text.trim();
 
-                          if (updatedTitle.isNotEmpty &&
-                              updatedNote.isNotEmpty) {
-                            await _updateNote(
-                              note['noteId'],
-                              updatedTitle,
-                              updatedNote,
-                            ); // Update the note in Firestore
-                            Navigator.of(context).pop(); // Close the dialog
-                          } else {
+                          if (titleText.isEmpty) {
                             showToast(
-                              'Both fields are required!',
+                              'Please provide a title for your note.',
                               backgroundColor: AppColors.red,
                             );
+                          } else if (noteText.isEmpty) {
+                            showToast(
+                              'Please provide the content for your note.',
+                              backgroundColor: AppColors.red,
+                            );
+                          } else {
+                            await addNoteForToday(titleText, noteText);
+                            Navigator.of(context).pop();
                           }
                         },
                         style: Buttonstyle.buttonNeon,
@@ -818,46 +823,43 @@ class PatientNoteState extends State<PatientNote> {
                             final formattedTime = DateFormat(
                               'h:mm a',
                             ).format(timestamp);
-
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 10.0),
-                              padding: const EdgeInsets.all(10.0),
-                              decoration: BoxDecoration(
-                                color: AppColors.gray,
-                                borderRadius: BorderRadius.circular(10.0),
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          note['title'] ?? 'No Title',
-                                          style: Textstyle.body.copyWith(
-                                            fontWeight: FontWeight.bold,
+                            return GestureDetector(
+                              onTap: () {
+                                _showNoteDetailsDialog(
+                                  note,
+                                  formattedTime,
+                                );
+                              },
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 10.0),
+                                padding: const EdgeInsets.all(10.0),
+                                decoration: BoxDecoration(
+                                  color: AppColors.gray,
+                                  borderRadius: BorderRadius.circular(10.0),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            note['title'] ?? 'No Title',
+                                            style: Textstyle.body.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(height: 5.0),
-                                        Text(
-                                          note['note'] ??
-                                              'No content available',
-                                          style: Textstyle.body,
-                                        ),
-                                      ],
+                                          const SizedBox(height: 5.0),
+                                          Text(
+                                            note['note'] ?? '',
+                                            style: Textstyle.body,
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                  GestureDetector(
-                                    onTap: () {
-                                      _showNoteDetailsDialog(
-                                        note,
-                                        formattedTime,
-                                      );
-                                    },
-                                    child: Icon(Icons.more_vert, size: 24),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             );
                           },

@@ -156,7 +156,7 @@ class _PatientHistoryState extends State<PatientHistory> {
     }
 
     if (user.uid == null) {
-      showToast("User is id Null", backgroundColor: AppColors.red);
+      showToast("User ID is null", backgroundColor: AppColors.red);
       return;
     }
 
@@ -167,22 +167,33 @@ class _PatientHistoryState extends State<PatientHistory> {
       return toBeginningOfSentenceCase(input.toLowerCase()) ?? input;
     }
 
-    await FirebaseFirestore.instance
-        .collection('patient')
-        .doc(widget.patientId)
-        .collection('diagnoses')
-        .add({
-          'diagnosis': capitalize(diagnosis), // Capitalized diagnosis
-          'description': capitalize(description), // Capitalized description
-          'date': date,
-        });
+    try {
+      await FirebaseFirestore.instance
+          .collection('patient')
+          .doc(widget.patientId)
+          .collection('diagnoses')
+          .add({
+            'diagnosis': capitalize(diagnosis), // Capitalized diagnosis
+            'description': capitalize(description), // Capitalized description
+            'date': date,
+          });
 
-    await _logService.addLog(
-      userId: userId,
-      action: "Added Diagnosis $diagnosis to patient $patientName",
-    );
+      await _logService.addLog(
+        userId: userId,
+        action: "Added Diagnosis $diagnosis to patient $patientName",
+      );
 
-    showToast('Diagnosis added successfully');
+      if (mounted) {
+        showToast('Diagnosis added successfully');
+      }
+    } catch (e) {
+      if (mounted) {
+        showToast(
+          'Failed to add diagnosis: $e',
+          backgroundColor: AppColors.red,
+        );
+      }
+    }
   }
 
   Future<void> _deleteDiagnosis(String diagnosisId) async {
@@ -242,11 +253,9 @@ class _PatientHistoryState extends State<PatientHistory> {
                         focusNode: diagnosisFocusNode,
                         labelText: 'Previous Diagnosis',
                         enabled: true,
-                        validator:
-                            (val) =>
-                                val == null || val.isEmpty
-                                    ? 'Diagnosis is required'
-                                    : null,
+                        validator: (val) => val == null || val.isEmpty
+                            ? 'Diagnosis is required'
+                            : null,
                         inputFormatters: [LengthLimitingTextInputFormatter(50)],
                       ),
                       const SizedBox(height: 10),
@@ -270,10 +279,9 @@ class _PatientHistoryState extends State<PatientHistory> {
                           fillColor: AppColors.gray,
                           suffixIcon: Icon(
                             Icons.calendar_today,
-                            color:
-                                dateFocusNode.hasFocus
-                                    ? AppColors.neon
-                                    : AppColors.black,
+                            color: dateFocusNode.hasFocus
+                                ? AppColors.neon
+                                : AppColors.black,
                           ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
@@ -290,17 +298,14 @@ class _PatientHistoryState extends State<PatientHistory> {
                             fontSize: 16,
                             fontFamily: 'Inter',
                             fontWeight: FontWeight.normal,
-                            color:
-                                dateFocusNode.hasFocus
-                                    ? AppColors.neon
-                                    : AppColors.black,
+                            color: dateFocusNode.hasFocus
+                                ? AppColors.neon
+                                : AppColors.black,
                           ),
                         ),
-                        validator:
-                            (val) =>
-                                _selectedDate == null
-                                    ? 'Please select a date'
-                                    : null,
+                        validator: (val) => _selectedDate == null
+                            ? 'Please select a date'
+                            : null,
                         readOnly: true,
                         onTap: () => _selectDate(context),
                       ),
@@ -358,9 +363,11 @@ class _PatientHistoryState extends State<PatientHistory> {
                               _selectedDate!,
                             );
 
-                            _resetDateControllers();
-                            Navigator.of(context).pop();
-                            setState(() {});
+                            if (mounted) {
+                              _resetDateControllers();
+                              Navigator.of(context).pop();
+                              setState(() {}); // Refresh the diagnoses list
+                            }
                           }
                         },
                         style: Buttonstyle.buttonNeon,

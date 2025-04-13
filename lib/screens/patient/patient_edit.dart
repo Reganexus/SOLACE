@@ -86,11 +86,8 @@ class _EditPatientState extends State<EditPatient> {
         setState(() {
           selectedCases = List<String>.from(patientDoc.data()?['cases'] ?? []);
         });
-        debugPrint('bibibi Selected cases: $selectedCases');
         for (var caseItem in selectedCases) {
-          debugPrint('bibibi Case item: $caseItem');
           if (!selectedCases.contains(caseItem)) {
-            debugPrint('bibibi Case item $caseItem added');
             _addCase(caseItem);
           }
         }
@@ -217,7 +214,7 @@ class _EditPatientState extends State<EditPatient> {
                   ? DateFormat('MMMM d, yyyy').format(birthday!)
                   : '';
 
-          _profileImageUrl = patientData!.profileImageUrl;
+          _profileImageUrl = patientData.profileImageUrl;
         });
       } else {
         showToast(
@@ -377,9 +374,6 @@ class _EditPatientState extends State<EditPatient> {
                   birthday != null ? Timestamp.fromDate(birthday!) : null,
               'profileImageUrl': _profileImageUrl,
             });
-
-        debugPrint('bibibi Caregiver id: $user');
-        debugPrint('bibibi Patient id: ${widget.patientId}');
         
         // Add logs to Firestore
         for (final log in caregiverLogs) {

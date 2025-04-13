@@ -106,25 +106,24 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
         return;
       }
 
-      final List<Map<String, dynamic>> loadedTasks =
-          taskSnapshots.docs
-              .map((doc) {
-                final data = doc.data();
-                final startDate = (data['startDate'] as Timestamp?)?.toDate();
-                final endDate = (data['endDate'] as Timestamp?)?.toDate();
-                final isCompleted = data['isCompleted'] ?? false;
+      final List<Map<String, dynamic>> loadedTasks = taskSnapshots.docs
+          .map((doc) {
+            final data = doc.data();
+            final startDate = (data['startDate'] as Timestamp?)?.toDate();
+            final endDate = (data['endDate'] as Timestamp?)?.toDate();
+            final isCompleted = data['isCompleted'] ?? false;
 
-                return {
-                  'taskId': doc.id,
-                  'title': data['title'],
-                  'description': data['description'],
-                  'startDate': startDate,
-                  'endDate': endDate,
-                  'isCompleted': isCompleted,
-                };
-              })
-              .where((task) => task['startDate'] != null)
-              .toList();
+            return {
+              'taskId': doc.id,
+              'title': data['title'],
+              'description': data['description'],
+              'startDate': startDate,
+              'endDate': endDate,
+              'isCompleted': isCompleted,
+            };
+          })
+          .where((task) => task['startDate'] != null)
+          .toList();
 
       loadedTasks.sort((a, b) => a['startDate']!.compareTo(b['startDate']!));
 
@@ -217,14 +216,18 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
       await _logService.addLog(
         userId: caregiverId,
         action:
-            "Removed Medicine ${getTaskNameById(taskId)} from patient $patientName",
+            "Removed Task ${getTaskNameById(taskId)} from patient $patientName",
       );
 
-      showToast('Task deleted successfully');
-      _fetchPatientTasks();
+      if (mounted) {
+        showToast('Task deleted successfully');
+        _fetchPatientTasks();
+      }
     } catch (e) {
       debugPrint("Error removing task: $e");
-      showToast('Failed to delete task: $e', backgroundColor: AppColors.red);
+      if (mounted) {
+        showToast('Failed to delete task: $e', backgroundColor: AppColors.red);
+      }
     }
   }
 
