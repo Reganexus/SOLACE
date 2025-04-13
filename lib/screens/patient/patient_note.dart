@@ -498,7 +498,11 @@ class PatientNoteState extends State<PatientNote> {
                               backgroundColor: AppColors.red,
                             );
                           } else {
-                            await addNoteForToday(titleText, noteText);
+                            await _updateNote(
+                              note['noteId'],
+                              titleText,
+                              noteText,
+                            ); // Update the note in Firestore
                             Navigator.of(context).pop();
                           }
                         },
