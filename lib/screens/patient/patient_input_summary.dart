@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:intl/intl.dart';
 import 'package:solace/controllers/notification_service.dart';
 import 'package:solace/screens/patient/patient_tracking.dart';
 import 'package:solace/services/auth.dart';
@@ -382,7 +383,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       // Send HTTP request
       final response = await http
           .post(url, headers: headers, body: jsonEncode(requestBody))
-          .timeout(Duration(seconds: 15));
+          .timeout(Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
@@ -403,14 +404,17 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
               } else if (key.startsWith("systemicsystolic")) {
                 // Extract time part
                 String timeSuffix = key.split("_t+")[1];
-                String bpKey = "bloodpressure_t+$timeSuffix";
 
-                // If diastolic exists, merge it
-                if (predictions.containsKey(
-                  "systemicdiastolic_t+$timeSuffix",
-                )) {
-                  formattedPredictions[bpKey] =
-                      "${value.round()}/${predictions["systemicdiastolic_t+$timeSuffix"].round()}";
+                // Save systolic and diastolic separately
+                String systolicKey = "systolic_t+$timeSuffix";
+                String diastolicKey = "diastolic_t+$timeSuffix";
+
+                formattedPredictions[systolicKey] = value.round();
+
+                // If diastolic exists, save it separately
+                if (predictions.containsKey("systemicdiastolic_t+$timeSuffix")) {
+                  formattedPredictions[diastolicKey] =
+                      predictions["systemicdiastolic_t+$timeSuffix"].round();
                 }
               } else if (!key.startsWith("systemicdiastolic")) {
                 // Convert other values to integer
@@ -420,9 +424,67 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
             // Add formattedPredictions to Firestore
             try {
-              // Add a timestamp to the formattedPredictions map
-              formattedPredictions['timestamp'] = Timestamp.now();
+              // Get the current timestamp
+              final currentTimestamp = Timestamp.now();
 
+              // Calculate future timestamps for t+1, t+2, and t+3
+              final tPlus1Timestamp = currentTimestamp.toDate().add(Duration(hours: 1));
+              final tPlus2Timestamp = currentTimestamp.toDate().add(Duration(hours: 6));
+              final tPlus3Timestamp = currentTimestamp.toDate().add(Duration(hours: 12));
+
+              // Format the timestamps to include only up to minutes
+              final tPlus1DocumentId = "${DateFormat('yyyy-MM-dd_HH:mm').format(tPlus1Timestamp)}_t+1";
+              final tPlus2DocumentId = "${DateFormat('yyyy-MM-dd_HH:mm').format(tPlus2Timestamp)}_t+2";
+              final tPlus3DocumentId = "${DateFormat('yyyy-MM-dd_HH:mm').format(tPlus3Timestamp)}_t+3";
+
+              // Split predictions into three maps: t+1, t+2, and t+3
+              Map<String, dynamic> tPlus1 = {};
+              Map<String, dynamic> tPlus2 = {};
+              Map<String, dynamic> tPlus3 = {};
+
+              formattedPredictions.forEach((key, value) {
+                if (key.contains("_t+1")) {
+                  tPlus1[key.replaceAll("_t+1", "")] = value;
+                } else if (key.contains("_t+2")) {
+                  tPlus2[key.replaceAll("_t+2", "")] = value;
+                } else if (key.contains("_t+3")) {
+                  tPlus3[key.replaceAll("_t+3", "")] = value;
+                }
+              });
+
+              // Save each prediction group as a separate document in the subcollection
+              await FirebaseFirestore.instance
+                  .collection('patient')
+                  .doc(widget.uid)
+                  .collection('predictions')
+                  .doc(tPlus1DocumentId)
+                  .set({
+                    'predictedAt': currentTimestamp,
+                    ...tPlus1, // Add all fields for t+1
+                  });
+
+              await FirebaseFirestore.instance
+                  .collection('patient')
+                  .doc(widget.uid)
+                  .collection('predictions')
+                  .doc(tPlus2DocumentId)
+                  .set({
+                    'predictedAt': currentTimestamp,
+                    ...tPlus2, // Add all fields for t+2
+                  });
+
+              await FirebaseFirestore.instance
+                  .collection('patient')
+                  .doc(widget.uid)
+                  .collection('predictions')
+                  .doc(tPlus3DocumentId)
+                  .set({
+                    'predictedAt': currentTimestamp,
+                    ...tPlus3, // Add all fields for t+3
+                  });
+
+              // Update the latest predictions array in the patient document
+              formattedPredictions['timestamp'] = currentTimestamp;
               await FirebaseFirestore.instance
                   .collection('patient')
                   .doc(widget.uid)
@@ -431,41 +493,11 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                       formattedPredictions,
                     ], // Replace the entire array
                   });
+
               debugPrint('Predictions successfully added to Firestore.');
             } catch (e) {
               debugPrint('Error adding predictions to Firestore: $e');
             }
-
-            // Now print the formatted predictions
-            formattedPredictions.forEach((key, value) {
-              // Skip timestamp key
-              if (key == "timestamp") {
-                return;
-              }
-
-              String label = "";
-              if (key.startsWith("temperature")) {
-                label = "Predicted temperature after ";
-              } else if (key.startsWith("sao2")) {
-                label = "Predicted oxygen saturation after ";
-              } else if (key.startsWith("heartrate")) {
-                label = "Predicted heart rate after ";
-              } else if (key.startsWith("respiration")) {
-                label = "Predicted respiration rate after ";
-              } else if (key.startsWith("bloodpressure")) {
-                label = "Predicted blood pressure after ";
-              }
-
-              // Extract time (e.g., "t+1" → "1 hour", "t+2" → "6 hours", "t+3" → "24 hours")
-              String time =
-                  key.split("_t+")[1] == "1"
-                      ? "1 hour"
-                      : key.split("_t+")[1] == "2"
-                      ? "6 hours"
-                      : "24 hours";
-
-              debugPrint("$label$time: $value");
-            });
           } else {
             debugPrint("API returned empty predictions.");
           }
@@ -479,9 +511,11 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       }
     } on TimeoutException catch (e) {
       debugPrint("API Timeout: $e");
+      showToast("API Timeout: $e", backgroundColor: AppColors.red);
       // Show a UI message to the user
     } on SocketException catch (e) {
       debugPrint("Network Error: $e");
+      showToast("Network Error: $e", backgroundColor: AppColors.red);
       // Handle no internet or server unreachable case
     } on FormatException catch (e) {
       debugPrint("Invalid Response Format: $e");
@@ -557,6 +591,9 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
               }
             });
       }
+
+      // Save the vitals to the nearest prediction documents
+      await saveVitalsToNearestPrediction(reformatVitals(widget.inputs['Vitals']));
 
       // Add log entries
       await _logService.addLog(
@@ -656,6 +693,129 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       _submitData();
     }
   }
+
+  Future<void> saveVitalsToNearestPrediction(Map<String, dynamic> submittedVitals) async {
+  try {
+    debugPrint('Entered saveVitalsToNearestPrediction');
+    final currentTimestamp = DateTime.now();
+
+    // Query the predictions subcollection
+    final predictionsSnapshot = await FirebaseFirestore.instance
+        .collection('patient')
+        .doc(widget.uid)
+        .collection('predictions')
+        .get();
+
+    debugPrint('Predictions Snapshot: ${predictionsSnapshot.docs.length} documents found.');
+
+    // Group documents by their suffix (_t+1, _t+2, _t+3)
+    Map<String, Map<String, dynamic>> nearestDocuments = {};
+    for (var doc in predictionsSnapshot.docs) {
+      final docId = doc.id;
+      debugPrint('Processing Document ID: $docId');
+
+      // Extract the suffix (e.g., _t+1, _t+2, _t+3)
+      final suffix = docId.substring(docId.lastIndexOf('_'));
+      if (!['_t+1', '_t+2', '_t+3'].contains(suffix)) {
+        debugPrint('Skipping Document ID (Invalid Suffix): $docId');
+        continue;
+      }
+      debugPrint('Suffix: $suffix');
+
+      // Extract the timestamp from the document ID
+      final timestampString = '${docId.split('_')[0]}_${docId.split('_')[1]}';
+      debugPrint('Extracted Timestamp String: $timestampString');
+
+      // Parse the timestamp
+      DateTime? docTimestamp;
+      try {
+        docTimestamp = DateFormat('yyyy-MM-dd_HH:mm').parse(timestampString);
+      } catch (e) {
+        debugPrint('Error parsing timestamp for Document ID $docId: $e');
+        continue;
+      }
+      debugPrint('Parsed Document Timestamp: $docTimestamp');
+
+      // Calculate the time difference in seconds
+      final timeDifference = docTimestamp.difference(currentTimestamp).inSeconds;
+      debugPrint('Time Difference: $timeDifference seconds');
+
+      // Only consider documents within 15 minutes (±900 seconds)
+      if (timeDifference.abs() <= 900) {
+        // Check if the document already has a timeDifference field
+        final existingTimeDifference = doc.data().containsKey('timeDifference')
+            ? doc.get('timeDifference') as int
+            : null;
+
+        if (existingTimeDifference != null) {
+          // If the current timeDifference is farther from 0, skip this document
+          if (timeDifference.abs() >= existingTimeDifference.abs()) {
+            debugPrint(
+                'Skipping Document $docId because existing timeDifference ($existingTimeDifference) is closer to 0.');
+            continue;
+          }
+        }
+
+        // Update the nearest document if the current timeDifference is closer to 0
+        nearestDocuments[suffix] = {
+          'doc': doc,
+          'timeDifference': timeDifference,
+        };
+        debugPrint('Nearest Document Updated: $docId with time difference: $timeDifference seconds');
+      }
+    }
+
+    debugPrint('Nearest Documents: $nearestDocuments');
+
+    // Save the submitted vitals to the nearest documents
+    for (var entry in nearestDocuments.entries) {
+      final doc = entry.value['doc'] as QueryDocumentSnapshot;
+      final timeDifference = entry.value['timeDifference'] as int;
+
+      // Prepare the data to save
+      final Map<String, dynamic> actualVitals = {};
+      submittedVitals.forEach((key, value) {
+        actualVitals['actual_$key'] = value;
+      });
+
+      // Add the time difference field
+      actualVitals['timeDifference'] = timeDifference;
+
+      // Update the document with the actual vitals
+      await FirebaseFirestore.instance
+          .collection('patient')
+          .doc(widget.uid)
+          .collection('predictions')
+          .doc(doc.id)
+          .update(actualVitals);
+
+      debugPrint('Saved actual vitals to ${doc.id}: $actualVitals');
+    }
+  } catch (e) {
+    debugPrint('Error saving vitals to nearest prediction: $e');
+  }
+}
+
+Map<String, dynamic> reformatVitals(Map<String, dynamic> submittedVitals) {
+  final Map<String, dynamic> reformattedVitals = {};
+
+  submittedVitals.forEach((key, value) {
+    // Ignore the "Pain" key
+    if (key.toLowerCase() == 'pain') return;
+
+    // Handle "Oxygen Saturation" as "sao2"
+    if (key.toLowerCase() == 'oxygen saturation') {
+      reformattedVitals['sao2'] = value;
+      return;
+    }
+
+    // Reformat other keys: remove spaces and convert to lowercase
+    final formattedKey = key.toLowerCase().replaceAll(' ', '');
+    reformattedVitals[formattedKey] = value;
+  });
+
+  return reformattedVitals;
+}
 
   Widget _buildSubmitButton() {
     return SizedBox(
