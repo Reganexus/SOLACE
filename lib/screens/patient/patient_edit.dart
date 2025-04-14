@@ -92,10 +92,10 @@ class _EditPatientState extends State<EditPatient> {
           }
         }
       } else {
-        debugPrint("Patient document does not exist.");
+//         debugPrint("Patient document does not exist.");
       }
     } catch (e) {
-      debugPrint("Error loading patient cases: $e");
+//       debugPrint("Error loading patient cases: $e");
     }
   }
 
@@ -181,12 +181,12 @@ class _EditPatientState extends State<EditPatient> {
           _profileImageUrl = null; // Clear old URLs
         });
 
-        debugPrint("Selected image file path: ${_profileImage!.path}");
+//         debugPrint("Selected image file path: ${_profileImage!.path}");
       } else {
-        debugPrint('No image selected.');
+//         debugPrint('No image selected.');
       }
     } catch (e) {
-      debugPrint('Error picking profile image: $e');
+//       debugPrint('Error picking profile image: $e');
       showToast(
         'Failed to pick a profile image.',
         backgroundColor: AppColors.red,
@@ -438,11 +438,11 @@ class _EditPatientState extends State<EditPatient> {
         final lastName = data?['lastName'] ?? '';
         return '$firstName $lastName'.trim();
       } else {
-        debugPrint('User document does not exist for userId: $userId');
+//         debugPrint('User document does not exist for userId: $userId');
         return 'Unknown User';
       }
     } catch (e) {
-      debugPrint('Error fetching user name for userId $userId: $e');
+//       debugPrint('Error fetching user name for userId $userId: $e');
       return 'Unknown User';
     }
   }

@@ -34,10 +34,10 @@ class ContactList extends StatelessWidget {
       if (await canLaunchUrl(launchUri)) {
         await launchUrl(launchUri);
       } else {
-        debugPrint('Could not launch $launchUri');
+        //         debugPrint('Could not launch $launchUri');
       }
     } else {
-      debugPrint('Phone permission denied');
+      //       debugPrint('Phone permission denied');
       showToast('Phone permission denied', backgroundColor: AppColors.red);
     }
   }
@@ -82,25 +82,22 @@ class ContactList extends StatelessWidget {
         future: fetchContacts()
             .then((contacts) {
               // Debugging: Log the fetched contacts
-              debugPrint('Fetched Contacts: ${contacts.length}');
-              for (var contact in contacts) {
-                debugPrint('Contact: $contact');
-              }
+              //               debugPrint('Fetched Contacts: ${contacts.length}');
               return contacts;
             })
             .catchError((error) {
               // Debugging: Log any error
-              debugPrint('Error fetching contacts: $error');
+              //               debugPrint('Error fetching contacts: $error');
               throw error;
             }),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Center(child: Loader.loaderPurple);
           } else if (snapshot.hasError) {
-            debugPrint('Snapshot Error: ${snapshot.error}');
+            //             debugPrint('Snapshot Error: ${snapshot.error}');
             return _buildErrorContacts();
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            debugPrint('No contacts found.');
+            //             debugPrint('No contacts found.');
             return _buildNoContactsFound();
           }
 

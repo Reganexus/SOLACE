@@ -5,7 +5,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
-import 'package:flutter/foundation.dart';
 import 'package:solace/controllers/messaging_service.dart';
 import 'package:solace/services/log_service.dart';
 
@@ -29,13 +28,13 @@ class AuthService {
   String? get currentUserId => _auth.currentUser?.uid;
 
   void displayValues() {
-    debugPrint('Current User: ${_auth.currentUser}');
-    debugPrint('Display name: ${_auth.currentUser?.displayName}');
-    debugPrint('Email: ${_auth.currentUser?.email}');
-    debugPrint('Email verified: ${_auth.currentUser?.emailVerified}');
-    debugPrint('Is anonymous: ${_auth.currentUser?.isAnonymous}');
-    debugPrint('Photo URL: ${_auth.currentUser?.photoURL}');
-    debugPrint('Provider data: ${_auth.currentUser?.providerData}');
+    //     debugPrint('Current User: ${_auth.currentUser}');
+    //     debugPrint('Display name: ${_auth.currentUser?.displayName}');
+    //     debugPrint('Email: ${_auth.currentUser?.email}');
+    //     debugPrint('Email verified: ${_auth.currentUser?.emailVerified}');
+    //     debugPrint('Is anonymous: ${_auth.currentUser?.isAnonymous}');
+    //     debugPrint('Photo URL: ${_auth.currentUser?.photoURL}');
+    //     debugPrint('Provider data: ${_auth.currentUser?.providerData}');
   }
 
   Future<bool> userExists(String email) async {
@@ -63,10 +62,10 @@ class AuthService {
         );
         return _cachedUser;
       } else {
-        debugPrint("No user data found for UID: ${user.uid}");
+        //         debugPrint("No user data found for UID: ${user.uid}");
       }
     } catch (e) {
-      debugPrint("Error fetching user data from Firestore: $e");
+      //       debugPrint("Error fetching user data from Firestore: $e");
     }
 
     return null;
@@ -102,7 +101,7 @@ class AuthService {
     try {
       return await _firestore.collection(collectionName).doc(uid).get();
     } catch (e) {
-      debugPrint('Failed to fetch user document: $e');
+      //       debugPrint('Failed to fetch user document: $e');
       throw Exception('Failed to fetch user document: $e');
     }
   }
@@ -133,7 +132,7 @@ class AuthService {
       );
       return results.contains(true);
     } catch (e) {
-      debugPrint("Error checking email existence: $e");
+      //       debugPrint("Error checking email existence: $e");
       return false;
     }
   }
@@ -156,7 +155,7 @@ class AuthService {
 
       return user != null ? await _userFromFirebaseUser(user) : null;
     } catch (e) {
-      debugPrint("Log in error: ${e.toString()}");
+      //       debugPrint("Log in error: ${e.toString()}");
       return null;
     }
   }
@@ -172,7 +171,7 @@ class AuthService {
     final userDocRef = _firestore.collection('unregistered').doc(uid);
 
     try {
-      debugPrint("Initializing user document for UID: $uid");
+      //       debugPrint("Initializing user document for UID: $uid");
       // Check existence and create in one atomic Firestore operation
       await userDocRef.set({
         'email': email,
@@ -182,11 +181,11 @@ class AuthService {
         'userRole': userRole.name,
         'dateCreated': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-      debugPrint("User document successfully created for UID: $uid");
+      //       debugPrint("User document successfully created for UID: $uid");
 
       await MessagingService.fetchAndSaveToken();
     } catch (e) {
-      debugPrint("Error initializing user document for UID $uid: $e");
+      //       debugPrint("Error initializing user document for UID $uid: $e");
       throw Exception("Failed to initialize user document for UID: $uid");
     }
   }
@@ -197,11 +196,11 @@ class AuthService {
     String? profileImageUrl,
   }) async {
     try {
-      debugPrint("Starting signUpWithEmailAndPassword for email: $email");
+      //       debugPrint("Starting signUpWithEmailAndPassword for email: $email");
 
       // Check if email exists in the deleted collection
       if (await emailExistsInDeletedCollection(email)) {
-        debugPrint("Sign-up blocked: Email exists in the deleted collection.");
+        //         debugPrint("Sign-up blocked: Email exists in the deleted collection.");
         throw FirebaseAuthException(
           code: 'email-deleted',
           message: 'This account was previously deleted by an admin.',
@@ -215,11 +214,11 @@ class AuthService {
       User? user = result.user;
 
       if (user == null) {
-        debugPrint("Sign-up failed: user is null for email: $email");
+        //         debugPrint("Sign-up failed: user is null for email: $email");
         return false; // Indicate failure
       }
 
-      debugPrint("Sign-up successful for UID: ${user.uid}");
+      //       debugPrint("Sign-up successful for UID: ${user.uid}");
 
       // Clear the cache after successful sign-up
       _cachedUser = null;
@@ -234,9 +233,9 @@ class AuthService {
         profileImageUrl: profileImageUrl,
       );
 
-      debugPrint(
-        "User document initialized and custom claim set for UID: ${user.uid}",
-      );
+      //       debugPrint(
+      //      "User document initialized and custom claim set for UID: ${user.uid}",
+      //    );
 
       await _logService.addLog(
         userId: user.uid,
@@ -251,17 +250,17 @@ class AuthService {
         newUser: true,
       );
 
-      debugPrint("Cached user data set for UID: ${user.uid}");
+      //       debugPrint("Cached user data set for UID: ${user.uid}");
       return true; // Indicate success
     } catch (e) {
-      debugPrint("Sign-up error for email: $email. Error: ${e.toString()}");
+      //       debugPrint("Sign-up error for email: $email. Error: ${e.toString()}");
       return false; // Indicate failure
     }
   }
 
   Future<MyUser?> signInWithGoogle() async {
     try {
-      debugPrint("Starting Google sign-in");
+      //       debugPrint("Starting Google sign-in");
 
       // Sign out the current user to ensure fresh login
       await _googleSignIn.signOut();
@@ -270,14 +269,14 @@ class AuthService {
       final googleUser = await retryOperation(() => _googleSignIn.signIn());
 
       if (googleUser == null) {
-        debugPrint("Google sign-in canceled by user.");
+        //         debugPrint("Google sign-in canceled by user.");
         return null;
       }
 
       // Authenticate and fetch credentials
       final googleAuth = await googleUser.authentication;
       if (googleAuth.accessToken == null || googleAuth.idToken == null) {
-        debugPrint("Google authentication failed: Missing tokens.");
+        //         debugPrint("Google authentication failed: Missing tokens.");
         return null;
       }
 
@@ -290,18 +289,18 @@ class AuthService {
       final user = result.user;
 
       if (user == null) {
-        debugPrint("Google sign-in failed: User is null.");
+        //         debugPrint("Google sign-in failed: User is null.");
         return null;
       }
 
-      debugPrint("Google sign-in successful for UID: ${user.uid}");
+      //       debugPrint("Google sign-in successful for UID: ${user.uid}");
 
       // Check if email exists in the deleted collection
       final email = user.email;
       if (email != null && await emailExistsInDeletedCollection(email)) {
-        debugPrint(
-          "Google sign-in blocked: Email exists in the deleted collection.",
-        );
+        //         debugPrint(
+        //     "Google sign-in blocked: Email exists in the deleted collection.",
+        //     );
         throw FirebaseAuthException(
           code: 'email-deleted',
           message: 'This account was previously deleted by an admin.',
@@ -338,7 +337,7 @@ class AuthService {
         }
       }
     } catch (e) {
-      debugPrint("Google sign-in error: $e");
+      //       debugPrint("Google sign-in error: $e");
     }
     return null;
   }
@@ -357,7 +356,7 @@ class AuthService {
       try {
         return await operation();
       } catch (e) {
-        debugPrint("Retrying operation due to error: $e");
+        //         debugPrint("Retrying operation due to error: $e");
         if (i == retries - 1) rethrow; // Rethrow if retries exhausted
         await Future.delayed(delay);
       }
@@ -377,7 +376,7 @@ class AuthService {
         'isVerified': isVerified,
       });
     } catch (e) {
-      debugPrint('Failed to update verification status: $e');
+      //       debugPrint('Failed to update verification status: $e');
       throw Exception('Failed to update verification status: $e');
     }
   }
@@ -392,17 +391,17 @@ class AuthService {
         await _logService.addLog(userId: currentUserId!, action: 'Logged out');
       }
     } catch (e) {
-      debugPrint("Error signing out: $e");
+      //       debugPrint("Error signing out: $e");
     }
   }
 
   Future<bool?> resetPassword(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email);
-      debugPrint('Password reset email sent to $email');
+      //       debugPrint('Password reset email sent to $email');
       return true;
     } catch (e) {
-      debugPrint("Reset password error: ${e.toString()}");
+      //       debugPrint("Reset password error: ${e.toString()}");
       return null;
     }
   }

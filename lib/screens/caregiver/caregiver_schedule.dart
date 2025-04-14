@@ -50,7 +50,7 @@ class CaregiverScheduleState extends State<CaregiverSchedule> {
   }
 
   Future<void> removePastSchedules() async {
-    debugPrint("Removing Past Schedules");
+    //     debugPrint("Removing Past Schedules");
     await scheduleUtility.removePastSchedules(caregiverId);
   }
 
@@ -93,9 +93,9 @@ class CaregiverScheduleState extends State<CaregiverSchedule> {
               .collection('schedules') // Caregiver's schedules collection
               .get();
 
-      debugPrint(
-        'Schedules fetched: ${scheduleSnapshots.docs.map((doc) => doc.data()).toList()}',
-      );
+      //       debugPrint(
+      //        'Schedules fetched: ${scheduleSnapshots.docs.map((doc) => doc.data()).toList()}',
+      //      );
 
       if (scheduleSnapshots.docs.isEmpty) {
         if (mounted) {
@@ -161,7 +161,7 @@ class CaregiverScheduleState extends State<CaregiverSchedule> {
         });
       }
     } catch (e) {
-      debugPrint('Error fetching schedules: $e');
+      //       debugPrint('Error fetching schedules: $e');
       if (mounted) {
         setState(() {
           isLoading = false;
@@ -247,10 +247,10 @@ class CaregiverScheduleState extends State<CaregiverSchedule> {
           },
         );
       } else {
-        debugPrint('Patient data not found');
+        //         debugPrint('Patient data not found');
       }
     } catch (e) {
-      debugPrint('Error fetching patient data: $e');
+      //       debugPrint('Error fetching patient data: $e');
     }
   }
 

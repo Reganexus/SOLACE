@@ -75,9 +75,9 @@ class PatientTasksState extends State<PatientTasks> {
         final startDate = (taskData['startDate'] as Timestamp?)?.toDate();
         final endDate = (taskData['endDate'] as Timestamp?)?.toDate();
 
-        debugPrint("taskData: $taskData");
-        debugPrint("startDate: $startDate");
-        debugPrint("endDate: $endDate");
+//         debugPrint("taskData: $taskData");
+//         debugPrint("startDate: $startDate");
+//         debugPrint("endDate: $endDate");
 
         if (startDate == null || endDate == null) {
           print("Skipping invalid task: ${taskDoc.id}");
@@ -170,9 +170,9 @@ class PatientTasksState extends State<PatientTasks> {
     String patientId,
   ) async {
     try {
-      debugPrint("Task Id: $taskId");
-      debugPrint("Caregiver Id: $caregiverId");
-      debugPrint("Patient Id: $patientId");
+//       debugPrint("Task Id: $taskId");
+//       debugPrint("Caregiver Id: $caregiverId");
+//       debugPrint("Patient Id: $patientId");
 
       // Fetch the roles for both caregiver and patient
       final caregiverRole = await databaseService.fetchAndCacheUserRole(
@@ -183,7 +183,7 @@ class PatientTasksState extends State<PatientTasks> {
       );
 
       if (caregiverRole == null || patientRole == null) {
-        debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
+//         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
         showToast(
           "Failed to mark task as complete. Roles not found.",
           backgroundColor: AppColors.red,
@@ -212,7 +212,7 @@ class PatientTasksState extends State<PatientTasks> {
 
       fetchPatientTasks(); // Refresh the task list
     } catch (e) {
-      debugPrint("Error updating task: $e");
+//       debugPrint("Error updating task: $e");
 
       showToast(
         'Failed to mark task as complete.',
@@ -438,7 +438,7 @@ class PatientTasksState extends State<PatientTasks> {
                                 caregiverId,
                                 patientId,
                               );
-                              debugPrint("Completing Task");
+//                               debugPrint("Completing Task");
                               Navigator.of(context).pop();
                             }
                           },

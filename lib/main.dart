@@ -33,7 +33,7 @@ Future<void> main() async {
   await _initializeMessaging();
 
   FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-    print("🚀 Notification Clicked! Data: ${message.data}");
+    print("Notification Clicked! Data: ${message.data}");
   });
 
   await SystemChrome.setPreferredOrientations([

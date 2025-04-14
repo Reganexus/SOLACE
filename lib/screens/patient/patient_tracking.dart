@@ -114,11 +114,11 @@ class PatientTrackingState extends State<PatientTracking> {
         });
 
         // Log or handle page change
-        debugPrint('Navigated to page: $_currentPage');
+        //         debugPrint('Navigated to page: $_currentPage');
       }
     });
 
-    debugPrint('Tracking patient id: ${widget.patientId}');
+    //     debugPrint('Tracking patient id: ${widget.patientId}');
   }
 
   @override
@@ -184,10 +184,10 @@ class PatientTrackingState extends State<PatientTracking> {
 
     FocusScope.of(context).unfocus();
 
-    debugPrint("Loaded cached vitals: $_vitalInputs");
-    debugPrint(
-      "Loaded cached symptoms: $_diarrheaValue, $_constipationValue, $_fatigueValue",
-    );
+    //     debugPrint("Loaded cached vitals: $_vitalInputs");
+    //     debugPrint(
+    //     "Loaded cached symptoms: $_diarrheaValue, $_constipationValue, $_fatigueValue",
+    //    );
   }
 
   void checkAndResetOptions() {
@@ -213,7 +213,7 @@ class PatientTrackingState extends State<PatientTracking> {
 
   Future<void> _initializeCooldown() async {
     final lastSubmitted = await getLastSubmittedTime(widget.patientId);
-    debugPrint("Last submitted: $lastSubmitted");
+    //     debugPrint("Last submitted: $lastSubmitted");
 
     if (!mounted) return;
 
@@ -235,7 +235,7 @@ class PatientTrackingState extends State<PatientTracking> {
               (cooldownDuration / 1000).round() -
               (timeDifference / 1000).round(); // Remaining time in seconds
         });
-        debugPrint("Remaining Cooldown: $remainingCooldownTime");
+        //         debugPrint("Remaining Cooldown: $remainingCooldownTime");
         _startCountdown();
 
         // Call the async method outside setState
@@ -270,7 +270,7 @@ class PatientTrackingState extends State<PatientTracking> {
               .doc(userId)
               .get();
 
-      debugPrint("Last Submitted uid: $userId");
+      //       debugPrint("Last Submitted uid: $userId");
 
       if (userDoc.exists) {
         final lastTracking = userDoc.data()?['tracking'] as List?;
@@ -278,13 +278,13 @@ class PatientTrackingState extends State<PatientTracking> {
           final lastEntry = lastTracking.last;
           final lastSubmittedTimestamp =
               (lastEntry['timestamp'] as Timestamp).millisecondsSinceEpoch;
-          debugPrint("Last Submitted: $lastSubmittedTimestamp");
+          //           debugPrint("Last Submitted: $lastSubmittedTimestamp");
           return lastSubmittedTimestamp;
         }
       }
       return 0;
     } catch (e) {
-      debugPrint("Error fetching last submission time: $e");
+      //       debugPrint("Error fetching last submission time: $e");
       return 0;
     }
   }
@@ -297,7 +297,7 @@ class PatientTrackingState extends State<PatientTracking> {
   }
 
   void _sendCooldownLiftedNotification() async {
-    debugPrint("Running send cooldown lifted notification");
+    //     debugPrint("Running send cooldown lifted notification");
     try {
       final String? targetToken = await FirebaseMessaging.instance.getToken();
 
@@ -320,10 +320,10 @@ class PatientTrackingState extends State<PatientTracking> {
         "You can track patient $patientName now.",
       );
 
-      debugPrint("Cooldown lifted notification sent successfully.");
-    } catch (e, stackTrace) {
+      //       debugPrint("Cooldown lifted notification sent successfully.");
+    } catch (e) {
       print('Failed to send notification: $e');
-      debugPrint('Stack trace: $stackTrace');
+      //       debugPrint('Stack trace: $stackTrace');
     }
   }
 
@@ -455,8 +455,8 @@ class PatientTrackingState extends State<PatientTracking> {
             _buildSlider('Pain', painValue, (newValue) {
               setState(() {
                 _vitalInputs[key] = newValue.round().toString();
-                debugPrint("Updated Pain value: ${_vitalInputs[key]}");
-                debugPrint("Current _vitalInputs: $_vitalInputs");
+                //                 debugPrint("Updated Pain value: ${_vitalInputs[key]}");
+                //                 debugPrint("Current _vitalInputs: $_vitalInputs");
               });
             }),
           ],
@@ -675,7 +675,7 @@ class PatientTrackingState extends State<PatientTracking> {
       widget.patientId,
     );
     if (patientData == null) {
-      debugPrint('Submit Algo Input No User Data');
+      //       debugPrint('Submit Algo Input No User Data');
       return;
     }
 
@@ -683,13 +683,13 @@ class PatientTrackingState extends State<PatientTracking> {
     final systolic = int.tryParse(_vitalInputs['Systolic'] ?? '');
     final diastolic = int.tryParse(_vitalInputs['Diastolic'] ?? '');
 
-    debugPrint('Systolic value: ${_vitalInputs['Systolic']}');
-    debugPrint('Diastolic value: ${_vitalInputs['Diastolic']}');
-    debugPrint('Parsed systolic: $systolic');
-    debugPrint('Parsed diastolic: $diastolic');
+    //     debugPrint('Systolic value: ${_vitalInputs['Systolic']}');
+    //     debugPrint('Diastolic value: ${_vitalInputs['Diastolic']}');
+    //     debugPrint('Parsed systolic: $systolic');
+    //     debugPrint('Parsed diastolic: $diastolic');
 
     if (systolic == null || diastolic == null) {
-      debugPrint("Invalid blood pressure inputs.");
+      //       debugPrint("Invalid blood pressure inputs.");
       return;
     }
 

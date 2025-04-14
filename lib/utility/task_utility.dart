@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
 import 'package:solace/services/database.dart';
 
 class TaskUtility {
@@ -66,7 +65,7 @@ class TaskUtility {
         type: "task",
       );
     } catch (e) {
-      debugPrint("Error updating task: $e");
+      //       debugPrint("Error updating task: $e");
     }
   }
 }

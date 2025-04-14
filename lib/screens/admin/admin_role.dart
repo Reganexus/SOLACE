@@ -38,7 +38,7 @@ class EditUserRoleDialogState extends State<EditUserRoleDialog> {
     super.initState();
     _fetchUserRole();
     _fetchUserName();
-    debugPrint("User ID: ${widget.uid}");
+//     debugPrint("User ID: ${widget.uid}");
   }
 
   @override
@@ -123,7 +123,7 @@ class EditUserRoleDialogState extends State<EditUserRoleDialog> {
 
       final user = _auth.currentUser;
       if (user?.uid == null) {
-        debugPrint("Warning: Authenticated user not found.");
+//         debugPrint("Warning: Authenticated user not found.");
       } else {
         await _logService.addLog(
           userId: user!.uid,
@@ -137,7 +137,7 @@ class EditUserRoleDialogState extends State<EditUserRoleDialog> {
         MaterialPageRoute(builder: (context) => AdminHome()),
       );
     } catch (e) {
-      debugPrint("Error during role change: $e");
+//       debugPrint("Error during role change: $e");
       showToast("Failed to update role. Please try again.", 
           backgroundColor: AppColors.red);
     } finally {

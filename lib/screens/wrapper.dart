@@ -19,7 +19,7 @@ class Wrapper extends StatelessWidget {
     final MyUser? user = Provider.of<MyUser?>(context);
 
     if (user == null) {
-      debugPrint("No user found, navigating to Authenticate screen.");
+//       debugPrint("No user found, navigating to Authenticate screen.");
       return const Authenticate();
     }
 
@@ -49,39 +49,39 @@ class Wrapper extends StatelessWidget {
         }
 
         if (snapshot.hasError) {
-          debugPrint('Error loading user data: ${snapshot.error}');
+//           debugPrint('Error loading user data: ${snapshot.error}');
           return _errorScreen("Failed to load user data. Please try again.");
         }
 
         final userData = snapshot.data;
         if (userData != null) {
-          debugPrint("User data fetched: $userData");
+//           debugPrint("User data fetched: $userData");
           final isVerified = userData['isVerified'] ?? false;
           final newUser =
               userData['newUser'] ?? true; // Default to true for safety.
           final role = userData['userRole'];
 
           if (newUser && !isVerified) {
-            debugPrint("Wrapper: Directing to Verify()");
+//             debugPrint("Wrapper: Directing to Verify()");
             return const Verify();
           } else if (newUser && isVerified) {
-            debugPrint("Wrapper: Directing to Home() with role: $role");
+//             debugPrint("Wrapper: Directing to Home() with role: $role");
             return RoleChooser(
               onRoleSelected: (role) {
-                debugPrint("User role: $role");
+//                 debugPrint("User role: $role");
               },
             );
           } else if (!newUser && isVerified) {
-            debugPrint("Wrapper: Directing to Home() with role: $role");
+//             debugPrint("Wrapper: Directing to Home() with role: $role");
             return Home(uid: user.uid, role: role);
           } else {
-            debugPrint("Wrapper: Verification failed for UID: ${user.uid}");
+//             debugPrint("Wrapper: Verification failed for UID: ${user.uid}");
             return _errorScreen(
               "User verification failed. Please contact support.",
             );
           }
         } else {
-          debugPrint("No user data found after retries.");
+//           debugPrint("No user data found after retries.");
           return Authenticate();
         }
       },
@@ -91,7 +91,7 @@ class Wrapper extends StatelessWidget {
   Future<void> clearFieldsCache(String uid) async {
     final DatabaseService databaseService = DatabaseService();
     await databaseService.clearFormCache(uid);
-    debugPrint("Cleared fields cache for UID: $uid");
+//     debugPrint("Cleared fields cache for UID: $uid");
   }
 
   Future<Map<String, dynamic>?> _fetchUserDataWithRetries(String uid) async {
@@ -100,12 +100,12 @@ class Wrapper extends StatelessWidget {
 
     for (int attempt = 0; attempt < maxRetries; attempt++) {
       try {
-        debugPrint("Fetching user data (attempt ${attempt + 1}) for UID: $uid");
+//         debugPrint("Fetching user data (attempt ${attempt + 1}) for UID: $uid");
 
         // Use fetchAndCacheUserRole instead of getTargetUserRole
         final String? role = await DatabaseService().fetchAndCacheUserRole(uid);
         if (role == null) {
-          debugPrint("Role not found. Retrying...");
+//           debugPrint("Role not found. Retrying...");
           await Future.delayed(retryDelay);
           continue;
         }
@@ -114,19 +114,19 @@ class Wrapper extends StatelessWidget {
             await FirebaseFirestore.instance.collection(role).doc(uid).get();
 
         if (docSnapshot.exists) {
-          debugPrint("User document found for UID: $uid");
+//           debugPrint("User document found for UID: $uid");
           return docSnapshot.data() as Map<String, dynamic>;
         } else {
-          debugPrint("User document not found. Retrying...");
+//           debugPrint("User document not found. Retrying...");
         }
       } catch (e) {
-        debugPrint("Error fetching user data: $e");
+//         debugPrint("Error fetching user data: $e");
       }
 
       await Future.delayed(retryDelay);
     }
 
-    debugPrint("Max retries reached. User document not found.");
+//     debugPrint("Max retries reached. User document not found.");
     return null;
   }
 

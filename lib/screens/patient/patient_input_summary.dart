@@ -172,9 +172,9 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       await _firestore.collection('patient').doc(widget.uid).update({
         'symptoms': [],
       });
-      debugPrint('Symptoms list cleared successfully.');
+      //       debugPrint('Symptoms list cleared successfully.');
     } catch (e) {
-      debugPrint('Error clearing symptoms list: $e');
+      //       debugPrint('Error clearing symptoms list: $e');
     }
 
     // Analyze vital inputs
@@ -199,7 +199,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           vitalValue = double.parse(value);
         } else {}
       } catch (e) {
-        debugPrint('$key value is invalid');
+        //         debugPrint('$key value is invalid');
         return;
       }
 
@@ -275,7 +275,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           break;
 
         default:
-          debugPrint('$key: Unable to determine status');
+        //           debugPrint('$key: Unable to determine status');
       }
     });
 
@@ -304,28 +304,28 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       await _firestore.collection('patient').doc(widget.uid).update({
         'symptoms': FieldValue.arrayUnion(symptoms),
       });
-      debugPrint('Identified symptoms successfully updated in Firestore');
+      //       debugPrint('Identified symptoms successfully updated in Firestore');
 
       String status = '';
       if (symptoms.isEmpty) {
         status = 'stable';
-        debugPrint('Status set to stable');
+        //         debugPrint('Status set to stable');
       } else {
         status = 'unstable';
-        debugPrint('Status set to unstable');
+        //         debugPrint('Status set to unstable');
       }
       await _firestore.collection('patient').doc(widget.uid).update({
         'status': status,
       });
     } catch (e) {
-      debugPrint('Error updating Firestore: $e');
+      //       debugPrint('Error updating Firestore: $e');
     }
   }
 
   void _submitAlgoInputs(String uid) async {
     final patientData = await DatabaseService(uid: uid).getPatientData(uid);
     if (patientData == null) {
-      debugPrint('Submit Algo Input No User Data');
+      //       debugPrint('Submit Algo Input No User Data');
       if (mounted) {
         showToast('No User Data', backgroundColor: AppColors.red);
       }
@@ -333,7 +333,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       try {
         // Convert mapped algo inputs to a list
         List<dynamic> algoInputs = widget.algoInputs.values.toList();
-        debugPrint('Tracking algo inputs: $algoInputs');
+        //         debugPrint('Tracking algo inputs: $algoInputs');
 
         // Send the inputs for prediction
         await getPrediction(algoInputs);
@@ -344,7 +344,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         }
       } catch (e) {
         // Handle any unexpected errors
-        debugPrint("Unexpected error: $e");
+        //         debugPrint("Unexpected error: $e");
         if (mounted) {
           showToast(
             'An unexpected error occurred: $e',
@@ -364,7 +364,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       "Content-Type": "application/json",
       "Authorization": "Bearer $token",
     };
-    debugPrint("Token: $token");
+    //     debugPrint("Token: $token");
 
     try {
       final Map<String, dynamic> requestBody = {
@@ -381,7 +381,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         "systemicdiastolic": int.tryParse(algoInputs[7].toString()) ?? 0,
       };
 
-      debugPrint("Sending JSON: ${jsonEncode(requestBody)}");
+      //       debugPrint("Sending JSON: ${jsonEncode(requestBody)}");
 
       // Send HTTP request
       final response = await http
@@ -393,7 +393,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
         if (responseData.containsKey('predictions')) {
           Map<String, dynamic> predictions = responseData['predictions'];
-          debugPrint("Raw Response: ${response.body}");
+          //           debugPrint("Raw Response: ${response.body}");
 
           if (predictions.isNotEmpty) {
             // Store processed values
@@ -508,33 +508,34 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                     ], // Replace the entire array
                   });
 
-              debugPrint('Predictions successfully added to Firestore.');
+              //               debugPrint('Predictions successfully added to Firestore.');
             } catch (e) {
-              debugPrint('Error adding predictions to Firestore: $e');
+              //               debugPrint('Error adding predictions to Firestore: $e');
             }
           } else {
-            debugPrint("API returned empty predictions.");
+            //             debugPrint("API returned empty predictions.");
           }
         } else {
-          debugPrint("Unexpected response format: ${response.body}");
+          //           debugPrint("Unexpected response format: ${response.body}");
         }
       } else {
-        debugPrint(
-          "API Error: ${response.statusCode}, Response: ${response.body}",
-        );
+        //         debugPrint(
+        //          "API Error: ${response.statusCode}, Response: ${response.body}",
+        //        );
       }
     } on TimeoutException catch (e) {
-      debugPrint("API Timeout: $e");
+      //       debugPrint("API Timeout: $e");
       showToast("API Timeout: $e", backgroundColor: AppColors.red);
       // Show a UI message to the user
     } on SocketException catch (e) {
-      debugPrint("Network Error: $e");
+      //       debugPrint("Network Error: $e");
       showToast("Network Error: $e", backgroundColor: AppColors.red);
       // Handle no internet or server unreachable case
     } on FormatException catch (e) {
-      debugPrint("Invalid Response Format: $e");
+      showToast("Format Exception Error: $e", backgroundColor: AppColors.red);
+      //       debugPrint("Invalid Response Format: $e");
     } catch (e) {
-      debugPrint("Unexpected Error: $e");
+      //       debugPrint("Unexpected Error: $e");
     }
   }
 
@@ -559,7 +560,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
       final timestamp = Timestamp.now();
 
-      debugPrint("Timestamp now at tracking: $timestamp");
+      //       debugPrint("Timestamp now at tracking: $timestamp");
 
       // Prepare the data to be inserted
       final trackingData = {
@@ -585,7 +586,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
               'tracking': FieldValue.arrayUnion([trackingData]),
             })
             .catchError((e) {
-              debugPrint("Error storing data: $e");
+              //               debugPrint("Error storing data: $e");
               if (mounted) {
                 showToast(
                   'Error storing data: $e',
@@ -600,7 +601,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
               'tracking': [trackingData],
             })
             .catchError((e) {
-              debugPrint("Error creating tracking document: $e");
+              //               debugPrint("Error creating tracking document: $e");
               if (mounted) {
                 showToast(
                   'Error creating tracking data: $e',
@@ -648,7 +649,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           "Patient $patientName is uncertain. Check it now.",
         );
       } else {
-        debugPrint("Status is not stable, unstable, or uncertain.");
+        //         debugPrint("Status is not stable, unstable, or uncertain.");
       }
 
       Navigator.pushAndRemoveUntil(
@@ -660,7 +661,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       );
     } catch (e) {
       // Handle any unexpected errors here
-      debugPrint("Unexpected error: $e");
+      //       debugPrint("Unexpected error: $e");
       if (mounted) {
         showToast(
           'An unexpected error occurred: $e',
@@ -721,7 +722,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     Map<String, dynamic> submittedVitals,
   ) async {
     try {
-      debugPrint('Entered saveVitalsToNearestPrediction');
+      //       debugPrint('Entered saveVitalsToNearestPrediction');
       final currentTimestamp = DateTime.now();
 
       // Query the predictions subcollection
@@ -732,42 +733,42 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
               .collection('predictions')
               .get();
 
-      debugPrint(
-        'Predictions Snapshot: ${predictionsSnapshot.docs.length} documents found.',
-      );
+      //       debugPrint(
+      //        'Predictions Snapshot: ${predictionsSnapshot.docs.length} documents found.',
+      //      );
 
       // Group documents by their suffix (_t+1, _t+2, _t+3)
       Map<String, Map<String, dynamic>> nearestDocuments = {};
       for (var doc in predictionsSnapshot.docs) {
         final docId = doc.id;
-        debugPrint('Processing Document ID: $docId');
+        //         debugPrint('Processing Document ID: $docId');
 
         // Extract the suffix (e.g., _t+1, _t+2, _t+3)
         final suffix = docId.substring(docId.lastIndexOf('_'));
         if (!['_t+1', '_t+2', '_t+3'].contains(suffix)) {
-          debugPrint('Skipping Document ID (Invalid Suffix): $docId');
+          //           debugPrint('Skipping Document ID (Invalid Suffix): $docId');
           continue;
         }
-        debugPrint('Suffix: $suffix');
+        //         debugPrint('Suffix: $suffix');
 
         // Extract the timestamp from the document ID
         final timestampString = '${docId.split('_')[0]}_${docId.split('_')[1]}';
-        debugPrint('Extracted Timestamp String: $timestampString');
+        //         debugPrint('Extracted Timestamp String: $timestampString');
 
         // Parse the timestamp
         DateTime? docTimestamp;
         try {
           docTimestamp = DateFormat('yyyy-MM-dd_HH:mm').parse(timestampString);
         } catch (e) {
-          debugPrint('Error parsing timestamp for Document ID $docId: $e');
+          //           debugPrint('Error parsing timestamp for Document ID $docId: $e');
           continue;
         }
-        debugPrint('Parsed Document Timestamp: $docTimestamp');
+        //         debugPrint('Parsed Document Timestamp: $docTimestamp');
 
         // Calculate the time difference in seconds
         final timeDifference =
             docTimestamp.difference(currentTimestamp).inSeconds;
-        debugPrint('Time Difference: $timeDifference seconds');
+        //         debugPrint('Time Difference: $timeDifference seconds');
 
         // Only consider documents within 15 minutes (±900 seconds)
         if (timeDifference.abs() <= 900) {
@@ -780,9 +781,9 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           if (existingTimeDifference != null) {
             // If the current timeDifference is farther from 0, skip this document
             if (timeDifference.abs() >= existingTimeDifference.abs()) {
-              debugPrint(
-                'Skipping Document $docId because existing timeDifference ($existingTimeDifference) is closer to 0.',
-              );
+              //               debugPrint(
+              //                'Skipping Document $docId because existing timeDifference ($existingTimeDifference) is closer to 0.',
+              //              );
               continue;
             }
           }
@@ -792,13 +793,13 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
             'doc': doc,
             'timeDifference': timeDifference,
           };
-          debugPrint(
-            'Nearest Document Updated: $docId with time difference: $timeDifference seconds',
-          );
+          //           debugPrint(
+          //            'Nearest Document Updated: $docId with time difference: $timeDifference seconds',
+          //          );
         }
       }
 
-      debugPrint('Nearest Documents: $nearestDocuments');
+      //       debugPrint('Nearest Documents: $nearestDocuments');
 
       // Save the submitted vitals to the nearest documents
       for (var entry in nearestDocuments.entries) {
@@ -822,10 +823,10 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
             .doc(doc.id)
             .update(actualVitals);
 
-        debugPrint('Saved actual vitals to ${doc.id}: $actualVitals');
+        //         debugPrint('Saved actual vitals to ${doc.id}: $actualVitals');
       }
     } catch (e) {
-      debugPrint('Error saving vitals to nearest prediction: $e');
+      //       debugPrint('Error saving vitals to nearest prediction: $e');
     }
   }
 

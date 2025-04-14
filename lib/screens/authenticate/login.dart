@@ -387,7 +387,7 @@ class _LogInState extends State<LogIn> {
           .timeout(const Duration(seconds: 5));
       return doc.exists;
     } catch (e) {
-      debugPrint('Failed to fetch document: $e');
+//       debugPrint('Failed to fetch document: $e');
       return false;
     }
   }

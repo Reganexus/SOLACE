@@ -230,7 +230,7 @@ class _AdminEditProfileScreenState extends State<AdminEditProfile> {
 
       final snapshot = await uploadTask.whenComplete(() {});
       final downloadUrl = await snapshot.ref.getDownloadURL();
-      debugPrint("Image uploaded successfully: $downloadUrl");
+//       debugPrint("Image uploaded successfully: $downloadUrl");
       return downloadUrl;
     } on FirebaseException catch (e) {
       throw Exception("Firebase Storage Error: ${e.message}");
@@ -245,7 +245,7 @@ class _AdminEditProfileScreenState extends State<AdminEditProfile> {
       final String role =
           userData?.userRole.name ?? ''; // Adjust for your setup
 
-      debugPrint("Pick Profile Image Role: $role");
+//       debugPrint("Pick Profile Image Role: $role");
 
       if (role.isEmpty) {
         throw Exception('User role is missing or invalid.');
@@ -274,12 +274,12 @@ class _AdminEditProfileScreenState extends State<AdminEditProfile> {
           _profileImageUrl = null; // Reset URL since a new file is set
         });
 
-        debugPrint("Selected image file path: ${_profileImage!.path}");
+//         debugPrint("Selected image file path: ${_profileImage!.path}");
       } else {
-        debugPrint('No image selected.');
+//         debugPrint('No image selected.');
       }
     } catch (e) {
-      debugPrint('Error picking profile image: $e');
+//       debugPrint('Error picking profile image: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Failed to pick a profile image.')),
       );

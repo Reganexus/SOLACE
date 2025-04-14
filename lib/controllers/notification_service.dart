@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import 'package:solace/controllers/messaging_service.dart';
 import 'package:solace/services/database.dart';
 
@@ -17,17 +16,17 @@ class NotificationService {
       final taggedUserIds = await _getTaggedUserIds(patientId);
 
       if (taggedUserIds.isEmpty) {
-        debugPrint("No tagged users found for patient $patientId.");
+        //         debugPrint("No tagged users found for patient $patientId.");
         return;
       }
 
-      debugPrint("Tagged user IDs: $taggedUserIds");
+      //       debugPrint("Tagged user IDs: $taggedUserIds");
 
       for (String token in taggedUserIds) {
         await db.addNotification(token, title, category);
       }
     } catch (e) {
-      debugPrint("Error in sendNotificationToTaggedUsers: $e");
+      //       debugPrint("Error in sendNotificationToTaggedUsers: $e");
     }
   }
 
@@ -41,28 +40,28 @@ class NotificationService {
       final taggedUserIds = await _getTaggedUserIds(patientId);
 
       if (taggedUserIds.isEmpty) {
-        debugPrint("No tagged users found for patient $patientId.");
+        //         debugPrint("No tagged users found for patient $patientId.");
         return;
       }
 
-      debugPrint("Tagged user IDs: $taggedUserIds");
+      //       debugPrint("Tagged user IDs: $taggedUserIds");
 
       // Step 2: Fetch FCM tokens of each tagged user
       final fcmTokens = await _getFcmTokens(taggedUserIds);
 
       if (fcmTokens.isEmpty) {
-        debugPrint("No FCM tokens found for tagged users.");
+        //         debugPrint("No FCM tokens found for tagged users.");
         return;
       }
 
-      debugPrint("FCM Tokens: $fcmTokens");
+      //       debugPrint("FCM Tokens: $fcmTokens");
 
       // Step 3: Send notifications
       for (String token in fcmTokens) {
         await MessagingService.sendDataMessage(token, title, body);
       }
     } catch (e) {
-      debugPrint("Error in sendNotificationToTaggedUsers: $e");
+      //       debugPrint("Error in sendNotificationToTaggedUsers: $e");
     }
   }
 
@@ -78,7 +77,7 @@ class NotificationService {
 
       return snapshot.docs.map((doc) => doc.id).toList();
     } catch (e) {
-      debugPrint("Error fetching tagged user IDs: $e");
+      //       debugPrint("Error fetching tagged user IDs: $e");
       return [];
     }
   }
@@ -102,7 +101,7 @@ class NotificationService {
           }
         }
       } catch (e) {
-        debugPrint("Error fetching FCM token for user $userId: $e");
+        //         debugPrint("Error fetching FCM token for user $userId: $e");
       }
     }
 

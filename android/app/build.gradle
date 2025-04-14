@@ -5,6 +5,12 @@ plugins {
     id("com.google.gms.google-services")
 }
 
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace = "com.res.solace"
     compileSdk = 36
@@ -14,10 +20,9 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.0"
         multiDexEnabled = true
 
-        // Enable vector drawable support
         vectorDrawables {
             useSupportLibrary = true
         }
@@ -33,37 +38,49 @@ android {
         jvmTarget = "11"
     }
 
-    buildTypes {
-        release {
-            signingConfig signingConfigs.debug
-            minifyEnabled false
-            shrinkResources false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
-    }
-
     packaging {
         resources {
             excludes += "META-INF/*"
         }
     }
+
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+            } else {
+                println("Warning: key.properties file is missing or not configured.")
+            }
+        }
+    }
+
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release 
+            minifyEnabled true
+            shrinkResources false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            ndk {
+                debugSymbolLevel 'FULL'
+            }
+        }
+    }
 }
 
 dependencies {
-    implementation(platform("com.google.firebase:firebase-bom:33.10.0"))
-    implementation("com.google.firebase:firebase-appcheck-playintegrity:18.0.0")
-    implementation("com.google.android.gms:play-services-auth:21.3.0")
-    implementation("com.google.android.gms:play-services-base:18.6.0")
-    implementation("com.google.android.gms:play-services-basement:18.6.0")
-    implementation("com.google.firebase:firebase-firestore:25.1.2")
-    implementation("com.google.firebase:firebase-inappmessaging:21.0.1")
-    implementation("com.google.firebase:firebase-inappmessaging-display:21.0.1")
-    implementation("com.google.firebase:firebase-messaging:24.1.0")
-    implementation("com.google.firebase:firebase-analytics:22.3.0")
-    implementation("androidx.core:core-ktx")
+    implementation(platform("com.google.firebase:firebase-bom:33.11.0"))
+    implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-messaging")
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.multidex:multidex:2.0.1")
     implementation("org.jetbrains.kotlin:kotlin-stdlib:2.1.0")
-    coreLibraryDesugaring('com.android.tools:desugar_jdk_libs:2.1.4')
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    implementation("com.google.android.gms:play-services-auth:21.3.0")
 }
 
 flutter {

@@ -42,10 +42,10 @@ class ContactsScreenState extends State<Contacts> {
     super.initState();
     patientId = widget.patientId;
 
-    debugPrint("Current user id is: $patientId");
+//     debugPrint("Current user id is: $patientId");
     _initializeContacts();
     _loadPatientName();
-    debugPrint("Patient Name: $patientName");
+//     debugPrint("Patient Name: $patientName");
   }
 
   Future<void> _loadPatientName() async {
@@ -55,7 +55,7 @@ class ContactsScreenState extends State<Contacts> {
         patientName = name ?? 'Unknown';
       });
     }
-    debugPrint("Patient Name: $patientName");
+//     debugPrint("Patient Name: $patientName");
   }
 
   Future<void> _initializeContacts() async {
@@ -65,7 +65,7 @@ class ContactsScreenState extends State<Contacts> {
 
     try {
       final contacts = await contactUtil.getContacts(widget.patientId);
-      debugPrint("Contacts: $contacts");
+//       debugPrint("Contacts: $contacts");
 
       setState(() {
         nurseContacts = contacts['nurse'] ?? [];
@@ -73,7 +73,7 @@ class ContactsScreenState extends State<Contacts> {
         isLoading = false;
       });
     } catch (e) {
-      debugPrint("Error initializing contacts: $e");
+//       debugPrint("Error initializing contacts: $e");
       setState(() {
         isLoading = false;
       });
@@ -86,10 +86,10 @@ class ContactsScreenState extends State<Contacts> {
       if (await canLaunchUrl(launchUri)) {
         await launchUrl(launchUri);
       } else {
-        debugPrint('Could not launch $launchUri');
+//         debugPrint('Could not launch $launchUri');
       }
     } else {
-      debugPrint('Phone permission denied');
+//       debugPrint('Phone permission denied');
     }
   }
 
@@ -185,7 +185,7 @@ class ContactsScreenState extends State<Contacts> {
   }
 
   void _showContactDialog(Map<String, dynamic> contactData) {
-    debugPrint("Contact data: $contactData");
+//     debugPrint("Contact data: $contactData");
     showDialog(
       context: context,
       builder: (context) {
@@ -623,7 +623,7 @@ class ContactsScreenState extends State<Contacts> {
                             );
                             _initializeContacts();
                           } catch (e) {
-                            debugPrint("Error updating contact: $e");
+//                             debugPrint("Error updating contact: $e");
                             showToast(
                               "Failed to update contact.",
                               backgroundColor: AppColors.red,
@@ -698,7 +698,7 @@ class ContactsScreenState extends State<Contacts> {
                   showToast("$name deleted successfully.");
                   _initializeContacts();
                 } catch (e) {
-                  debugPrint("Error deleting contact: $e");
+//                   debugPrint("Error deleting contact: $e");
                   showToast(
                     "Failed to delete contact.",
                     backgroundColor: AppColors.red,

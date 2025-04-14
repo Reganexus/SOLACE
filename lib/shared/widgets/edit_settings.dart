@@ -714,7 +714,7 @@ class _EditSettingsState extends State<EditSettings> {
       setState(() {});
       showToast('$itemName added!');
     } catch (e) {
-      debugPrint('Error adding item: $e');
+//       debugPrint('Error adding item: $e');
     }
   }
 
@@ -775,7 +775,7 @@ class _EditSettingsState extends State<EditSettings> {
       setState(() {});
       showToast('$itemName successfully edited!');
     } catch (e) {
-      debugPrint('Error editing item: $e');
+//       debugPrint('Error editing item: $e');
     }
   }
 
@@ -841,7 +841,7 @@ class _EditSettingsState extends State<EditSettings> {
         showToast('$itemName deleted!');
       }
     } catch (e) {
-      debugPrint('Error deleting item: $e');
+//       debugPrint('Error deleting item: $e');
     }
   }
 

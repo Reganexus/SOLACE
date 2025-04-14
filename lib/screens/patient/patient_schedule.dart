@@ -27,7 +27,7 @@ class PatientScheduleState extends State<PatientSchedule> {
   @override
   void initState() {
     super.initState();
-    debugPrint("Patient Dashboard Patient ID: ${widget.patientId}");
+//     debugPrint("Patient Dashboard Patient ID: ${widget.patientId}");
     refreshSchedules();
   }
 
@@ -56,7 +56,7 @@ class PatientScheduleState extends State<PatientSchedule> {
   }
 
   Future<void> removePastSchedules() async {
-    debugPrint("Removing Past Schedules");
+//     debugPrint("Removing Past Schedules");
     await scheduleUtility.removePastSchedules(widget.patientId);
   }
 
@@ -134,8 +134,8 @@ class PatientScheduleState extends State<PatientSchedule> {
     final caregiverRole = await databaseService.fetchAndCacheUserRole(
       caregiverId,
     );
-    debugPrint("Schedule CaregiverId: $caregiverId");
-    debugPrint("Schedule CaregiverRole: $caregiverRole");
+//     debugPrint("Schedule CaregiverId: $caregiverId");
+//     debugPrint("Schedule CaregiverRole: $caregiverRole");
     if (caregiverRole == null) return 'Unknown';
 
     final caregiverSnapshot =
@@ -147,8 +147,8 @@ class PatientScheduleState extends State<PatientSchedule> {
     if (caregiverSnapshot.exists) {
       final firstName = caregiverSnapshot['firstName'] as String?;
       final lastName = caregiverSnapshot['lastName'] as String?;
-      debugPrint("Schedule firstName: $firstName");
-      debugPrint("Schedule lastName: $lastName");
+//       debugPrint("Schedule firstName: $firstName");
+//       debugPrint("Schedule lastName: $lastName");
 
       if (firstName != null && lastName != null) {
         return '$firstName $lastName';

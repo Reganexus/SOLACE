@@ -83,11 +83,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.initState();
     userId = FirebaseAuth.instance.currentUser?.uid ?? '';
     if (userId.isEmpty) {
-      debugPrint("User ID is empty. User not logged in.");
+//       debugPrint("User ID is empty. User not logged in.");
       return;
     }
-    debugPrint("user id: $userId");
-    debugPrint("user role: ${widget.userRole}");
+//     debugPrint("user id: $userId");
+//     debugPrint("user role: ${widget.userRole}");
 
     _focusNodes = List.generate(8, (_) => FocusNode());
     firstNameController = TextEditingController();
@@ -100,7 +100,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     originalUserData = Map<String, dynamic>.from(widget.userData);
 
     _initializeUserDetails(widget.userData);
-    debugPrint("User Data in Edit Profile: ${widget.userData}");
+//     debugPrint("User Data in Edit Profile: ${widget.userData}");
 
     if (widget.userData['newUser'] == true) {
       _checkAndLoadFormData();
@@ -108,7 +108,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _initializeUserDetails(widget.userData);
     }
 
-    debugPrint("_autoValidate = $_autoValidate");
+//     debugPrint("_autoValidate = $_autoValidate");
   }
 
   @override
@@ -143,7 +143,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       // Load the form data if any preference exists for the user
       await loadFormData(userId);
     } else {
-      debugPrint("No form data found for userId: $userId.");
+//       debugPrint("No form data found for userId: $userId.");
     }
   }
 
@@ -165,7 +165,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _profileImage = File(_profileImageUrl!);
       }
     });
-    debugPrint("Form data loaded for userId: $userId from cache.");
+//     debugPrint("Form data loaded for userId: $userId from cache.");
   }
 
   void _initializeUserDetails(Map<String, dynamic> userData) {
@@ -219,7 +219,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       final snapshot = await uploadTask.whenComplete(() {});
       final downloadUrl = await snapshot.ref.getDownloadURL();
-      debugPrint("Image uploaded successfully: $downloadUrl");
+//       debugPrint("Image uploaded successfully: $downloadUrl");
       return downloadUrl;
     } on FirebaseException catch (e) {
       throw Exception("Firebase Storage Error: ${e.message}");
@@ -252,12 +252,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           _profileImageUrl = _profileImage!.path;
         });
 
-        debugPrint("Selected image file path: ${_profileImage!.path}");
+//         debugPrint("Selected image file path: ${_profileImage!.path}");
       } else {
-        debugPrint('No image selected.');
+//         debugPrint('No image selected.');
       }
     } catch (e) {
-      debugPrint('Error picking profile image: $e');
+//       debugPrint('Error picking profile image: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to pick a profile image.')),
       );
@@ -397,7 +397,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             builder:
                 (_) => RoleChooser(
                   onRoleSelected: (role) {
-                    debugPrint("Selected role: $role");
+//                     debugPrint("Selected role: $role");
                     // Handle role selection logic.
                   },
                 ),
@@ -420,7 +420,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
 
     if (isNewUser) {
-      debugPrint("imagepath: $_profileImageUrl");
+//       debugPrint("imagepath: $_profileImageUrl");
       await db.cacheFormData(
         userId: userId,
         firstName: firstNameController.text.trim(),

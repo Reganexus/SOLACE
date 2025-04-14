@@ -37,8 +37,8 @@ class EditTagsState extends State<EditTags> {
     _loadUserData();
     _loadPatientName();
     _getAdminId();
-    debugPrint("Patient Name: $userName");
-    debugPrint("Admin ID: $adminId");
+//     debugPrint("Patient Name: $userName");
+//     debugPrint("Admin ID: $adminId");
   }
 
   Future<void> _loadPatientName() async {
@@ -48,7 +48,7 @@ class EditTagsState extends State<EditTags> {
         userName = name ?? 'Unknown';
       });
     }
-    debugPrint("Patient Name: $userName");
+//     debugPrint("Patient Name: $userName");
   }
 
   Future<void> _getAdminId() async {
@@ -58,7 +58,7 @@ class EditTagsState extends State<EditTags> {
         adminId = admin ?? 'Unknown';
       });
     }
-    debugPrint("Admin ID: $adminId");
+//     debugPrint("Admin ID: $adminId");
   }
 
   Future<void> _loadUserData() async {
@@ -70,7 +70,7 @@ class EditTagsState extends State<EditTags> {
       String? userRole = await _db.fetchAndCacheUserRole(widget.currentUserId);
 
       if (userRole == null) {
-        debugPrint("User role is null");
+//         debugPrint("User role is null");
         return;
       }
 
@@ -82,7 +82,7 @@ class EditTagsState extends State<EditTags> {
         availableUserIds = availableUsers;
       });
     } catch (e) {
-      debugPrint("Error loading user data: $e");
+//       debugPrint("Error loading user data: $e");
     } finally {
       setState(() {
         isFetching = false;

@@ -70,7 +70,7 @@ class CasePickerWidgetState extends State<CasePickerWidget> {
         });
       }
     } catch (e) {
-      debugPrint('Error fetching cases: $e');
+//       debugPrint('Error fetching cases: $e');
     }
   }
 

@@ -41,7 +41,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
     super.initState();
     _fetchPatientMedicines();
     _loadPatientName();
-    debugPrint("Patient Name: $patientName");
+//     debugPrint("Patient Name: $patientName");
     _focusNodes = List.generate(5, (index) => FocusNode());
   }
 
@@ -62,7 +62,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
         patientName = name ?? 'Unknown';
       });
     }
-    debugPrint("Patient Name: $patientName");
+//     debugPrint("Patient Name: $patientName");
   }
 
   void refreshValues() {
@@ -163,7 +163,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
     try {
       // Get the caregiver ID (logged-in user)
       String caregiverId = FirebaseAuth.instance.currentUser?.uid ?? '';
-      debugPrint("Add prescription doctor id: $caregiverId");
+//       debugPrint("Add prescription doctor id: $caregiverId");
 
       if (caregiverId.isEmpty) {
         showToast("No doctor logged in.", backgroundColor: AppColors.red);
@@ -197,7 +197,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
       );
 
       if (caregiverRole == null || patientRole == null) {
-        debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
+//         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
         showToast(
           "Failed to add task. Roles not found.",
           backgroundColor: AppColors.red,
@@ -225,7 +225,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
 
       showToast("Medicine added successfully");
     } catch (e) {
-      debugPrint("Error adding medicine: $e");
+//       debugPrint("Error adding medicine: $e");
 
       showToast(
         "Failed to add prescription: $e",
@@ -250,7 +250,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
 
       // Check if the roles were successfully fetched
       if (caregiverRole == null || patientRole == null) {
-        debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
+//         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
         showToast(
           "Failed to remove medicine. Roles not found.",
           backgroundColor: AppColors.red,
@@ -276,7 +276,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
       refreshValues();
       _fetchPatientMedicines();
     } catch (e) {
-      debugPrint("Error removing medicine: $e");
+//       debugPrint("Error removing medicine: $e");
 
       showToast(
         'Failed to delete medicine: $e',
@@ -320,7 +320,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
           }
         }
       } catch (e) {
-        debugPrint('Error fetching global medicines: $e');
+//         debugPrint('Error fetching global medicines: $e');
       }
     }
 
@@ -721,11 +721,11 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
   }
 
   void _showMedicineDetailsDialog(Map<String, dynamic> medicine) {
-    debugPrint("Medicine $medicine");
+//     debugPrint("Medicine $medicine");
     final String medicineName = medicine['medicineName'] ?? 'Untitled Medicine';
     final String medicineId = medicine['medicineId'] ?? '';
-    debugPrint("MedicineName: $medicineName");
-    debugPrint("Medicine ID: $medicineId");
+//     debugPrint("MedicineName: $medicineName");
+//     debugPrint("Medicine ID: $medicineId");
     showDialog(
       context: context,
       builder: (context) {

@@ -27,7 +27,7 @@ class _RoleChooserState extends State<RoleChooser> {
   void initState() {
     super.initState();
     if (_userData == null) _fetchUserDocument();
-    debugPrint("User data: $_userData");
+//     debugPrint("User data: $_userData");
   }
 
   @override
@@ -49,8 +49,8 @@ class _RoleChooserState extends State<RoleChooser> {
 
   void _navigateToEditProfile() {
     if (mounted) {
-      debugPrint("Selected role: $_selectedRole");
-      debugPrint("User data: $_userData");
+//       debugPrint("Selected role: $_selectedRole");
+//       debugPrint("User data: $_userData");
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(

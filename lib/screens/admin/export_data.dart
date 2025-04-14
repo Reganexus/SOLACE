@@ -66,7 +66,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
         return;
       }
 
-      debugPrint("User ID: $user");
+//       debugPrint("User ID: $user");
       QuerySnapshot querySnapshot;
       DateTime startDate;
 

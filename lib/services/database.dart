@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/material.dart';
 import 'package:solace/models/my_patient.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/services/log_service.dart';
@@ -44,22 +43,22 @@ class DatabaseService {
     for (var key in keys) {
       if (key.startsWith('userRole_')) {
         await prefs.remove(key);
-        debugPrint("Cleared cached role for: $key");
+        //         debugPrint("Cleared cached role for: $key");
       }
     }
-    debugPrint("All user role cache cleared.");
+    //     debugPrint("All user role cache cleared.");
   }
 
   Future<void> clearAllCache() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear(); // This clears all SharedPreferences data
-    debugPrint("All cache cleared.");
+    //     debugPrint("All cache cleared.");
   }
 
   Future<void> cacheUserRole(String userId, String role) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('userRole_$userId', role);
-    debugPrint("Cached role updated to: $role for userId: $userId");
+    //     debugPrint("Cached role updated to: $role for userId: $userId");
   }
 
   Future<void> cacheFormData({
@@ -87,7 +86,7 @@ class DatabaseService {
     if (imagePath != null) {
       await prefs.setString('imagePath_$userId', imagePath);
     }
-    debugPrint("Form data cached for userId: $userId");
+    //     debugPrint("Form data cached for userId: $userId");
   }
 
   Future<void> clearFormCache(String userId) async {
@@ -102,7 +101,7 @@ class DatabaseService {
     await prefs.remove('religion_$userId');
     await prefs.remove('address_$userId');
 
-    debugPrint("Form cache cleared for userId: $userId");
+    //     debugPrint("Form cache cleared for userId: $userId");
   }
 
   Future<void> cacheTrackingData({
@@ -122,7 +121,7 @@ class DatabaseService {
       await prefs.setInt('${key}_${userId}', value);
     });
 
-    debugPrint("Form data cached for userId: $userId");
+    //     debugPrint("Form data cached for userId: $userId");
   }
 
   Future<void> clearTrackingCache(String userId) async {
@@ -135,7 +134,7 @@ class DatabaseService {
       }
     }
 
-    debugPrint("Form cache cleared for userId: $userId");
+    //     debugPrint("Form cache cleared for userId: $userId");
   }
 
   Future<Map<String, String>> getVitalInputs(String userId) async {
@@ -188,7 +187,7 @@ class DatabaseService {
       // Check cached role
       final cachedRole = prefs.getString('userRole_$userId');
       if (cachedRole != null) {
-        debugPrint("Returning cached role: $cachedRole for userId: $userId");
+        //         debugPrint("Returning cached role: $cachedRole for userId: $userId");
         return cachedRole;
       }
 
@@ -212,16 +211,16 @@ class DatabaseService {
             if (doc.exists) {
               // Cache the found role
               await prefs.setString('userRole_$userId', collection);
-              debugPrint("Cached role: $collection for userId: $userId");
+              //               debugPrint("Cached role: $collection for userId: $userId");
               return collection;
             }
             break; // Exit retry loop if successful
           } catch (e) {
             retries++;
             if (retries >= maxRetries) {
-              debugPrint(
-                "Failed to fetch role from collection $collection after $retries retries: $e",
-              );
+              //               debugPrint(
+              //             "Failed to fetch role from collection $collection after $retries retries: $e",
+              //         );
             } else {
               await Future.delayed(
                 baseDelay * (2 << retries),
@@ -231,10 +230,10 @@ class DatabaseService {
         }
       }
 
-      debugPrint("No role found for userId: $userId");
+      //       debugPrint("No role found for userId: $userId");
       return null;
     } catch (e) {
-      debugPrint("Error fetching and caching user role for $userId: $e");
+      //       debugPrint("Error fetching and caching user role for $userId: $e");
       return null;
     }
   }
@@ -278,7 +277,7 @@ class DatabaseService {
       return query.docs.isEmpty ||
           query.docs.any((doc) => doc.id == currentUser.uid);
     } catch (e) {
-      debugPrint("Error checking phone number uniqueness: $e");
+      //       debugPrint("Error checking phone number uniqueness: $e");
       return false;
     }
   }
@@ -317,7 +316,7 @@ class DatabaseService {
         }
       }
     } catch (e) {
-      debugPrint("Error fetching user data by email: $e");
+      //       debugPrint("Error fetching user data by email: $e");
     }
     return null;
   }
@@ -374,9 +373,9 @@ class DatabaseService {
           .doc(notificationId)
           .set(notificationData);
 
-      debugPrint("Notification added for userId: $userId");
+      //       debugPrint("Notification added for userId: $userId");
     } catch (e) {
-      debugPrint("Error adding notification: $e");
+      //       debugPrint("Error adding notification: $e");
       throw Exception("Failed to add notification.");
     }
   }
@@ -423,9 +422,9 @@ class DatabaseService {
       }
 
       // Ensure the role is cached after the update
-      debugPrint("Updated user role for $userId to $newRoleName");
+      //       debugPrint("Updated user role for $userId to $newRoleName");
     } catch (e) {
-      debugPrint("Error updating user role: $e");
+      //       debugPrint("Error updating user role: $e");
       throw Exception("Failed to update user role.");
     }
   }
@@ -464,7 +463,7 @@ class DatabaseService {
 
       await addNotification(uid, "Profile updated successfully.", "update");
     } catch (e) {
-      debugPrint('Error updating user data: $e');
+      //       debugPrint('Error updating user data: $e');
       throw Exception('Failed to update user data.');
     }
   }
@@ -481,11 +480,11 @@ class DatabaseService {
           .doc(uid)
           .update({'isVerified': isVerified, 'newUser': true});
 
-      debugPrint(
-        "Verification status updated successfully for $uid in $collectionName.",
-      );
+      //       debugPrint(
+      //      "Verification status updated successfully for $uid in $collectionName.",
+      //      );
     } catch (e) {
-      debugPrint("Failed to update verification status: $e");
+      //       debugPrint("Failed to update verification status: $e");
       throw Exception("Failed to update verification status.");
     }
   }
@@ -700,7 +699,7 @@ class DatabaseService {
     final String? userRole = await fetchAndCacheUserRole(userId);
 
     if (userRole == null) {
-      debugPrint("User role is null");
+      //       debugPrint("User role is null");
       return;
     }
     // Subcollection names you want to delete
@@ -770,14 +769,14 @@ class DatabaseService {
               .get();
 
       if (doc.exists) {
-        debugPrint('Document found for patientId: $patientId');
+        //         debugPrint('Document found for patientId: $patientId');
         return PatientData.fromDocument(doc); // No casting needed now
       } else {
-        debugPrint('No document exists for patientId: $patientId');
+        //         debugPrint('No document exists for patientId: $patientId');
         return null;
       }
     } catch (e) {
-      debugPrint("Error fetching patient data for Patient ID $patientId: $e");
+      //       debugPrint("Error fetching patient data for Patient ID $patientId: $e");
       return null;
     }
   }
@@ -950,11 +949,11 @@ class DatabaseService {
       if (doc.exists) {
         return doc;
       } else {
-        debugPrint("No document found for userId: $userId");
+        //         debugPrint("No document found for userId: $userId");
         return null;
       }
     } catch (e) {
-      debugPrint("Error fetching user document: $e");
+      //       debugPrint("Error fetching user document: $e");
       return null;
     }
   }
@@ -996,14 +995,14 @@ class DatabaseService {
                   values['minSevere'];
             }
           } else {
-            debugPrint('Unexpected format for $vital: $values');
+            //             debugPrint('Unexpected format for $vital: $values');
           }
         });
 
         return thresholds;
       }
     } catch (e) {
-      debugPrint('Error fetching thresholds: $e');
+      //       debugPrint('Error fetching thresholds: $e');
     }
     return {};
   }

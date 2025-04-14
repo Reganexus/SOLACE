@@ -63,7 +63,7 @@ class NotificationsListState extends State<NotificationsList> {
   }
 
   Future<void> deleteAllNotifications() async {
-    debugPrint("deleteAllNotifications function called!");
+    //     debugPrint("deleteAllNotifications function called!");
     try {
       // Initialize the DatabaseService
       DatabaseService db = DatabaseService();
@@ -71,9 +71,9 @@ class NotificationsListState extends State<NotificationsList> {
       // Fetch the user's role
       String? userRole = await db.fetchAndCacheUserRole(widget.userId);
       if (userRole == null) {
-        debugPrint(
-          'User role could not be determined for userId: ${widget.userId}',
-        );
+        //         debugPrint(
+        //      'User role could not be determined for userId: ${widget.userId}',
+        //     );
         showToast(
           'Failed to determine user role.',
           backgroundColor: AppColors.red,
@@ -101,11 +101,11 @@ class NotificationsListState extends State<NotificationsList> {
         notifications.clear();
       });
 
-      debugPrint('All notifications cleared for userId: ${widget.userId}');
+      //       debugPrint('All notifications cleared for userId: ${widget.userId}');
     } catch (e) {
-      debugPrint(
-        'Error deleting all notifications for userId: ${widget.userId}: $e',
-      );
+      //       debugPrint(
+      //      'Error deleting all notifications for userId: ${widget.userId}: $e',
+      //     );
       showToast(
         'Failed to delete notifications. Please try again.',
         backgroundColor: AppColors.red,
@@ -123,7 +123,7 @@ class NotificationsListState extends State<NotificationsList> {
       String? userRole = await db.fetchAndCacheUserRole(widget.userId);
 
       if (userRole == null) {
-        debugPrint('User role could not be determined.');
+        //         debugPrint('User role could not be determined.');
         return;
       }
 
@@ -145,9 +145,9 @@ class NotificationsListState extends State<NotificationsList> {
         );
       });
 
-      debugPrint('Notification successfully deleted.');
+      //       debugPrint('Notification successfully deleted.');
     } catch (e) {
-      debugPrint('Error deleting notification: $e');
+      //       debugPrint('Error deleting notification: $e');
       showToast(
         'Error deleting notification. Please try again.',
         backgroundColor: AppColors.red,
@@ -213,7 +213,7 @@ class NotificationsListState extends State<NotificationsList> {
         _errorMessage = null; // Clear error message
       });
     } catch (e) {
-      debugPrint('Error fetching notifications: $e');
+      //       debugPrint('Error fetching notifications: $e');
       setState(() {
         _errorMessage = e.toString().replaceFirst(RegExp(r'^Exception: '), '');
       });
@@ -252,7 +252,7 @@ class NotificationsListState extends State<NotificationsList> {
         }
       });
 
-      debugPrint('Notification marked as read.');
+      //       debugPrint('Notification marked as read.');
     } catch (e) {
       print('Error marking notification as read: $e');
     }
@@ -464,7 +464,7 @@ class NotificationsListState extends State<NotificationsList> {
                           widget.userId,
                         );
                         if (userRole == null) {
-                          debugPrint('User role could not be determined.');
+                          //                           debugPrint('User role could not be determined.');
                           return;
                         }
                         await markNotificationAsRead(

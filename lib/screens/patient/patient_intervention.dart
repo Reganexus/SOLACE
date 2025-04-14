@@ -94,7 +94,7 @@ class PatientInterventionsState extends State<PatientInterventions> {
         });
       }
     } catch (e) {
-      debugPrint('Error loading persistent states: $e');
+      //       debugPrint('Error loading persistent states: $e');
     }
   }
 
@@ -105,7 +105,7 @@ class PatientInterventionsState extends State<PatientInterventions> {
           .doc(widget.patientId)
           .set(persistentCheckedStates);
     } catch (e) {
-      debugPrint('Error saving persistent states: $e');
+      //       debugPrint('Error saving persistent states: $e');
     }
   }
 
@@ -197,7 +197,7 @@ class PatientInterventionsState extends State<PatientInterventions> {
         }
       }
     } catch (e) {
-      debugPrint('Error fetching interventions: $e');
+      //       debugPrint('Error fetching interventions: $e');
     }
 
     return interventions;
@@ -220,11 +220,6 @@ class PatientInterventionsState extends State<PatientInterventions> {
                         .doc(widget.patientId)
                         .collection('contacts')
                         .get();
-
-                // Debug: Log each document
-                for (var doc in contactSnapshot.docs) {
-                  debugPrint("Relative Document (${doc.id}): ${doc.data()}");
-                }
 
                 var relativeDocs =
                     contactSnapshot.docs
@@ -268,12 +263,6 @@ class PatientInterventionsState extends State<PatientInterventions> {
                         .doc(widget.patientId)
                         .collection('contacts')
                         .get();
-
-                // Debug: Log each document
-                for (var doc in contactSnapshot.docs) {
-                  debugPrint("Nurse Document (${doc.id}): ${doc.data()}");
-                }
-
                 var nurseDocs =
                     contactSnapshot.docs
                         .where((doc) => doc.id == 'nurse')
@@ -312,11 +301,6 @@ class PatientInterventionsState extends State<PatientInterventions> {
               fetchContacts: () async {
                 QuerySnapshot doctorSnapshot =
                     await FirebaseFirestore.instance.collection('doctor').get();
-
-                // Debug: Log each document
-                for (var doc in doctorSnapshot.docs) {
-                  debugPrint("Doctor Document (${doc.id}): ${doc.data()}");
-                }
 
                 // Get current user ID
                 String currentUserId = await _getCurrentUserId();

@@ -70,8 +70,8 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     _fetchThresholds();
     _startTimer();
     _pageController = PageController(initialPage: 0);
-    debugPrint("Patient Dashboard Patient ID: ${widget.patientId}");
-    debugPrint("Patient Dashboard Caregiver ID: ${widget.caregiverId}");
+//     debugPrint("Patient Dashboard Patient ID: ${widget.patientId}");
+//     debugPrint("Patient Dashboard Caregiver ID: ${widget.caregiverId}");
   }
 
   @override
@@ -734,7 +734,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
       );
 
       if (caregiverRole == null || patientRole == null) {
-        debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
+//         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
         showToast(
           "Failed to schedule. Roles not found.",
           backgroundColor: AppColors.red,
@@ -774,10 +774,10 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
             "Scheduled by $caregiverName an appointment on $scheduledDateTime",
       );
 
-      debugPrint("Schedule saved for both caregiver and patient.");
+//       debugPrint("Schedule saved for both caregiver and patient.");
       showToast("Appointment scheduled for $patientName at $formattedDateTime");
     } catch (e) {
-      debugPrint("Failed to save schedule: $e");
+//       debugPrint("Failed to save schedule: $e");
       showToast(
         "Failed to schedule appointment.",
         backgroundColor: AppColors.red,

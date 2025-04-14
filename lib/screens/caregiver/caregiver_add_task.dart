@@ -53,7 +53,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
     _fetchPatientTasks();
     _resetDateControllers();
     _loadPatientName();
-    debugPrint("Patient Name: $patientName");
+//     debugPrint("Patient Name: $patientName");
   }
 
   @override
@@ -76,7 +76,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
         patientName = name ?? 'Unknown';
       });
     }
-    debugPrint("Patient Name: $patientName");
+//     debugPrint("Patient Name: $patientName");
   }
 
   Future<void> _fetchPatientTasks() async {
@@ -190,7 +190,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
 
       // Check if the roles were successfully fetched
       if (caregiverRole == null || patientRole == null) {
-        debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
+//         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
         showToast(
           "Failed to remove task. Roles not found.",
           backgroundColor: AppColors.red,
@@ -217,7 +217,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
         _fetchPatientTasks();
       }
     } catch (e) {
-      debugPrint("Error removing task: $e");
+//       debugPrint("Error removing task: $e");
       if (mounted) {
         showToast('Failed to delete task: $e', backgroundColor: AppColors.red);
       }
@@ -233,7 +233,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
     try {
       // Get the caregiver ID (logged-in user)
       String caregiverId = FirebaseAuth.instance.currentUser?.uid ?? '';
-      debugPrint("Add task caregiver id: $caregiverId");
+//       debugPrint("Add task caregiver id: $caregiverId");
 
       if (caregiverId.isEmpty) {
         showToast("No caregiver logged in.", backgroundColor: AppColors.red);
@@ -268,7 +268,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
       );
 
       if (caregiverRole == null || patientRole == null) {
-        debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
+//         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
         showToast(
           "Failed to add task. Roles not found.",
           backgroundColor: AppColors.red,
@@ -297,7 +297,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
 
       showToast("Task added successfully");
     } catch (e) {
-      debugPrint("Error adding task: $e");
+//       debugPrint("Error adding task: $e");
 
       showToast("Failed to add task: $e", backgroundColor: AppColors.red);
     }
@@ -381,7 +381,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
               setError(""); // Clear error
             });
           }
-          debugPrint("Start Date Updated: $taskStartDate");
+//           debugPrint("Start Date Updated: $taskStartDate");
         } else {
           // Validation for end date
           if (taskStartDate == null) {
@@ -404,7 +404,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
               setError(""); // Clear error
             });
           }
-          debugPrint("End Date Updated: $taskEndDate");
+//           debugPrint("End Date Updated: $taskEndDate");
         }
       }
     }
@@ -947,11 +947,11 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
   }
 
   void _showTaskDetailsDialog(Map<String, dynamic> task) {
-    debugPrint("Task $task");
+//     debugPrint("Task $task");
     final String title = task['title'] ?? 'Untitled Task';
     final String taskId = task['taskId'] ?? '';
-    debugPrint("Task Title: $title");
-    debugPrint("Task ID: $taskId");
+//     debugPrint("Task Title: $title");
+//     debugPrint("Task ID: $taskId");
     showDialog(
       context: context,
       builder: (context) {

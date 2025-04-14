@@ -71,7 +71,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
   void initState() {
     super.initState();
     newPatientId = FirebaseFirestore.instance.collection('patient').doc().id;
-    debugPrint("Add patient id: $newPatientId");
+//     debugPrint("Add patient id: $newPatientId");
   }
 
   @override
@@ -163,12 +163,12 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
           _profileImageUrl = null;
         });
 
-        debugPrint("Selected image file path: ${_profileImage!.path}");
+//         debugPrint("Selected image file path: ${_profileImage!.path}");
       } else {
-        debugPrint('No image selected.');
+//         debugPrint('No image selected.');
       }
     } catch (e) {
-      debugPrint('Error picking profile image: $e');
+//       debugPrint('Error picking profile image: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to pick a profile image.')),
       );
@@ -278,7 +278,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
     setState(() {
       patientName = name;
       _isLoading = false;
-      debugPrint("Patient name: $patientName");
+//       debugPrint("Patient name: $patientName");
     });
 
     final shouldProceed = await _showConfirmationDialog(patientName);

@@ -40,7 +40,7 @@ class _PatientHistoryState extends State<PatientHistory> {
             : '';
     _resetDateControllers();
     _loadPatientName();
-    debugPrint("Patient Name: $patientName");
+//     debugPrint("Patient Name: $patientName");
   }
 
   @override
@@ -61,7 +61,7 @@ class _PatientHistoryState extends State<PatientHistory> {
         patientName = name ?? 'Unknown';
       });
     }
-    debugPrint("Patient Name: $patientName");
+//     debugPrint("Patient Name: $patientName");
   }
 
   // Controller for the dialog input fields

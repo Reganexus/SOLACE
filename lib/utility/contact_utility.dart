@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
 
 class ContactUtility {
   Future<void> manageContactSubcollection({
@@ -131,7 +130,7 @@ class ContactUtility {
       for (final doc in snapshot.docs) {
         final category = doc.id; // 'nurse' or 'relative'
         final data = doc.data();
-        debugPrint("Category: $category, Data: $data");
+        //         debugPrint("Category: $category, Data: $data");
 
         if (data.isNotEmpty) {
           final List<Map<String, dynamic>> categoryContacts =
@@ -146,11 +145,11 @@ class ContactUtility {
         }
       }
 
-      debugPrint("Categorized Contacts: $categorizedContacts");
+      //       debugPrint("Categorized Contacts: $categorizedContacts");
 
       return categorizedContacts;
     } catch (e) {
-      debugPrint("Error fetching contacts: $e");
+      //       debugPrint("Error fetching contacts: $e");
       return {'nurse': [], 'relative': []};
     }
   }

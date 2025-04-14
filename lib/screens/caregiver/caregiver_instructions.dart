@@ -49,8 +49,8 @@ class CaregiverInstructionsState extends State<CaregiverInstructions> {
     super.initState();
     _pageController = PageController(initialPage: 0);
     _loadContent();
-    debugPrint("user id: ${widget.userId}");
-    debugPrint("user role: ${widget.userRole}");
+//     debugPrint("user id: ${widget.userId}");
+//     debugPrint("user role: ${widget.userRole}");
   }
 
   Future<void> _loadContent() async {

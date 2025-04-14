@@ -42,12 +42,12 @@ class PatientMedicineState extends State<PatientMedicine> {
               .collection('medicines')
               .get();
 
-      debugPrint(
-        "Fetched ${medicinesSnapshot.docs.length} medicine documents.",
-      );
+      //       debugPrint(
+      //       "Fetched ${medicinesSnapshot.docs.length} medicine documents.",
+      //      );
 
       if (medicinesSnapshot.docs.isEmpty) {
-        debugPrint("No medicines found under patient ${widget.patientId}.");
+        //         debugPrint("No medicines found under patient ${widget.patientId}.");
         if (mounted) {
           setState(() {
             patientMedicines = [];
@@ -79,7 +79,7 @@ class PatientMedicineState extends State<PatientMedicine> {
         });
       }
     } catch (e) {
-      debugPrint("Error fetching medicines: $e");
+      //       debugPrint("Error fetching medicines: $e");
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -93,8 +93,8 @@ class PatientMedicineState extends State<PatientMedicine> {
     final String medicineName = medicine['medicineName'] ?? 'Untitled Medicine';
     final String dosage = medicine['dosage'] ?? '';
     final String usage = medicine['usage'] ?? '';
-    debugPrint("Medicine $medicine");
-    debugPrint("MedicineName: $medicineName");
+    //     debugPrint("Medicine $medicine");
+    //     debugPrint("MedicineName: $medicineName");
     showDialog(
       context: context,
       builder: (context) {
