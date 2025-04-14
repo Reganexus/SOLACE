@@ -23,7 +23,7 @@
 		<key>CFBundleVersion</key>
 		<string>$(FLUTTER_BUILD_NUMBER)</string>
 		<key>LSRequiresIPhoneOS</key>
-		<true />
+		<true/>
 		<key>UILaunchStoryboardName</key>
 		<string>LaunchScreen</string>
 		<key>UIMainStoryboardFile</key>
@@ -42,9 +42,9 @@
 			<string>UIInterfaceOrientationLandscapeRight</string>
 		</array>
 		<key>CADisableMinimumFrameDurationOnPhone</key>
-		<true />
+		<true/>
 		<key>UIApplicationSupportsIndirectInputEvents</key>
-		<true />
+		<true/>
 		<key>NSPhotoLibraryUsageDescription</key>
 		<string>Your message to explain why you need access to the photo library.</string>
 		<key>NSContactsUsageDescription</key>
@@ -55,17 +55,19 @@
 		<string>This app requires access to your photo library.</string>
 		<key>NSMicrophoneUsageDescription</key>
 		<string>This app requires access to your microphone.</string>
-        <key>NSContactsUsageDescription</key>
-        <string>We need access to your contacts to send SMS.</string>
-        <key>NSMicrophoneUsageDescription</key>
-        <string>We need access to the microphone to make calls.</string>
-        <key>NSPhotoLibraryUsageDescription</key>
-        <string>We need access to your photo library.</string>
-        <key>NSCameraUsageDescription</key>
-        <string>We need access to your camera for scanning QR codes</string>
-        <key>NSDocumentsFolderUsageDescription</key>
-        <string>Your custom description here.</string>
-        <key>NSPhotoLibraryUsageDescription</key>
-        <string>We need access to your photo library to attach files to your email.</string>
+		<key>NSContactsUsageDescription</key>
+		<string>We need access to your contacts to send SMS.</string>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>We need access to the microphone to make calls.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>We need access to your photo library.</string>
+		<key>NSCameraUsageDescription</key>
+		<string>We need access to your camera for scanning QR codes</string>
+		<key>NSDocumentsFolderUsageDescription</key>
+		<string>Your custom description here.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>We need access to your photo library to attach files to your email.</string>
+		<key>UIStatusBarHidden</key>
+		<false/>
 	</dict>
 </plist>

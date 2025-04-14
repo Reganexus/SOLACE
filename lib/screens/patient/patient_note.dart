@@ -55,7 +55,7 @@ class PatientNoteState extends State<PatientNote> {
     Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
-      toastLength: Toast.LENGTH_SHORT,
+      toastLength: Toast.LENGTH_LONG,
       gravity: ToastGravity.BOTTOM,
       backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
@@ -829,10 +829,7 @@ class PatientNoteState extends State<PatientNote> {
                             ).format(timestamp);
                             return GestureDetector(
                               onTap: () {
-                                _showNoteDetailsDialog(
-                                  note,
-                                  formattedTime,
-                                );
+                                _showNoteDetailsDialog(note, formattedTime);
                               },
                               child: Container(
                                 margin: const EdgeInsets.only(bottom: 10.0),

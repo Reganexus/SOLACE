@@ -28,10 +28,9 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
   DatabaseService databaseService = DatabaseService();
   MedicineUtility medicineUtility = MedicineUtility();
   List<Map<String, dynamic>> medicines = [];
-  List<FocusNode> _focusNodes = List.generate(4, (_) => FocusNode());
+  List<FocusNode> _focusNodes = [];
   bool isLoading = true;
 
-  TextEditingController _medicineNameController = TextEditingController();
   TextEditingController _dosageController = TextEditingController();
   TextEditingController _usageController = TextEditingController();
   String dosageUnit = "milligrams";
@@ -43,11 +42,11 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
     _fetchPatientMedicines();
     _loadPatientName();
     debugPrint("Patient Name: $patientName");
+    _focusNodes = List.generate(5, (index) => FocusNode());
   }
 
   @override
   void dispose() {
-    _medicineNameController.dispose();
     _dosageController.dispose();
     _usageController.dispose();
     for (var focusNode in _focusNodes) {
@@ -68,7 +67,6 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
 
   void refreshValues() {
     setState(() {
-      _medicineNameController.clear();
       _dosageController.clear();
       _usageController.clear();
       dosageUnit = "milligrams"; // Reset dosage unit to default
@@ -79,7 +77,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
     Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
-      toastLength: Toast.LENGTH_SHORT,
+      toastLength: Toast.LENGTH_LONG,
       gravity: ToastGravity.BOTTOM,
       backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
@@ -218,17 +216,6 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
         usage: frequency,
       );
 
-      // Save the medicine for the caregiver
-      await medicineUtility.saveMedicine(
-        userId: caregiverId,
-        medicineId: medicineId,
-        collectionName: caregiverRole,
-        subCollectionName: 'medicines',
-        medicineTitle: medicineName,
-        dosage: dosage,
-        usage: frequency,
-      );
-
       await _logService.addLog(
         userId: caregiverId,
         action: "Added Medicine $medicineName to patient $patientName",
@@ -279,14 +266,6 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
         subCollectionName: 'medicines',
       );
 
-      // Remove the task for the caregiver
-      await medicineUtility.removeMedicine(
-        userId: caregiverId,
-        medicineId: medicineId,
-        collectionName: caregiverRole,
-        subCollectionName: 'medicines',
-      );
-
       await _logService.addLog(
         userId: caregiverId,
         action:
@@ -304,6 +283,18 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
         backgroundColor: AppColors.red,
       );
     }
+  }
+
+  // Helper function to capitalize sentences
+  String _capitalizeSentences(String text) {
+    return text
+        .split('. ')
+        .map((sentence) {
+          return sentence.isNotEmpty
+              ? sentence[0].toUpperCase() + sentence.substring(1)
+              : sentence;
+        })
+        .join('. ');
   }
 
   void _showAddMedicineDialog() {
@@ -333,6 +324,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
       }
     }
 
+    // Show dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -368,8 +360,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
                                 selectedMedicine.isNotEmpty
                                     ? selectedMedicine
                                     : null,
-                            focusNode:
-                                FocusNode(), // Replace with your desired focus node if applicable
+                            focusNode: _focusNodes[0],
                             labelText: "Medicine Name",
                             items: allMedicines,
                             onChanged: (value) {
@@ -383,9 +374,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
                               }
                               return null;
                             },
-                            displayItem:
-                                (medicine) =>
-                                    medicine, // Assuming medicines are strings
+                            displayItem: (medicine) => medicine,
                           ),
 
                           const SizedBox(height: 10),
@@ -439,7 +428,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
                             controller: _usageController,
                             focusNode: _focusNodes[3],
                             maxLines: 3,
-                            labelText: "Usage",
+                            labelText: "Instructions",
                             enabled: true,
                             inputFormatters: [
                               LengthLimitingTextInputFormatter(200),
@@ -464,7 +453,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
                               const SizedBox(width: 10),
                               Expanded(
                                 child: TextButton(
-                                  onPressed: () {
+                                  onPressed: () async {
                                     String dosage =
                                         _dosageController.text.trim();
                                     String usage = _usageController.text.trim();
@@ -486,16 +475,32 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
                                       );
                                     } else if (usage.isEmpty) {
                                       showToast(
-                                        "Please provide your instructed prescription usage.",
+                                        "Please provide your instructed prescription.",
                                         backgroundColor: AppColors.red,
                                       );
                                     } else {
-                                      _addMedicine(
-                                        selectedMedicine,
-                                        "${_dosageController.text} $dosageUnit",
-                                        _usageController.text,
-                                      );
-                                      Navigator.pop(context);
+                                      // Confirm before adding the medicine
+                                      bool confirmAdd =
+                                          await _showMedicineConfirmationDialog(
+                                            selectedMedicine,
+                                            dosage,
+                                            dosageUnit,
+                                            usage,
+                                          );
+
+                                      if (confirmAdd) {
+                                        selectedMedicine = _capitalizeSentences(
+                                          selectedMedicine,
+                                        );
+                                        usage = _capitalizeSentences(usage);
+
+                                        _addMedicine(
+                                          selectedMedicine,
+                                          "$dosage $dosageUnit",
+                                          usage,
+                                        );
+                                        Navigator.pop(context);
+                                      }
                                     }
                                   },
                                   style: Buttonstyle.buttonNeon,
@@ -520,6 +525,74 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
     );
   }
 
+  // Confirmation dialog for adding the medicine
+  Future<bool> _showMedicineConfirmationDialog(
+    String medicineName,
+    String dosage,
+    String dosageUnit,
+    String usage,
+  ) {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: AppColors.white,
+          title: Text("Confirm Medicine Addition", style: Textstyle.subheader),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Are you sure you want to submit the following information for this prescription?",
+                style: Textstyle.body,
+              ),
+              SizedBox(height: 20),
+              Text(
+                "Medicine",
+                style: Textstyle.body.copyWith(fontWeight: FontWeight.bold),
+              ),
+              Text(medicineName, style: Textstyle.body),
+              SizedBox(height: 10),
+              Text(
+                "Dosage",
+                style: Textstyle.body.copyWith(fontWeight: FontWeight.bold),
+              ),
+              Text('$dosage $dosageUnit', style: Textstyle.body),
+              SizedBox(height: 10),
+              Text(
+                "Instructions",
+                style: Textstyle.body.copyWith(fontWeight: FontWeight.bold),
+              ),
+              Text(usage, style: Textstyle.body),
+            ],
+          ),
+          actions: <Widget>[
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    style: Buttonstyle.buttonRed,
+                    child: Text("Cancel", style: Textstyle.smallButton),
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    style: Buttonstyle.buttonNeon,
+                    child: Text("Confirm", style: Textstyle.smallButton),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    ).then((result) => result ?? false);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -541,7 +614,10 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
         backgroundColor: AppColors.neon,
         foregroundColor: AppColors.white,
         icon: const Icon(Icons.add),
-        label: const Text('Add Prescription'),
+        label: Text(
+          'Add Prescription',
+          style: Textstyle.smallButton.copyWith(fontWeight: FontWeight.bold),
+        ),
       ),
     );
   }
@@ -566,7 +642,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
   Widget _buildMedicineCard(Map<String, dynamic> medicine) {
     final String medicineName = medicine['medicineName'] ?? 'Untitled Medicine';
     final String dosage = medicine['dosage'] ?? 'No Dosage';
-    final String usage = medicine['usage'] ?? 'No Usage';
+    final String usage = medicine['usage'] ?? 'No Instruction';
 
     return GestureDetector(
       onTap: () => _showMedicineDetailsDialog(medicine),

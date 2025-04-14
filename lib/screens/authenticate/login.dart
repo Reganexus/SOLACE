@@ -7,7 +7,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/authenticate/forgot.dart';
-import 'package:solace/screens/authenticate/verify.dart';
 import 'package:solace/screens/home/home.dart';
 import 'package:solace/services/auth.dart';
 import 'package:flutter/material.dart';
@@ -117,10 +116,10 @@ class _LogInState extends State<LogIn> {
         if (myUser != null) {
           String? userRole = await _db.fetchAndCacheUserRole(myUser.uid);
 
-          if (userRole != null) {
+          if (userRole != null && userRole != 'unregistered') {
             await _navigateBasedOnVerification(myUser.uid, userRole);
           } else {
-            _showError(["User role not found. Please contact support."]);
+            _showError(["User not authenticated. Please sign up."]);
           }
         }
       });
@@ -259,7 +258,7 @@ class _LogInState extends State<LogIn> {
     Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
-      toastLength: Toast.LENGTH_SHORT,
+      toastLength: Toast.LENGTH_LONG,
       gravity: ToastGravity.BOTTOM,
       backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
@@ -276,7 +275,6 @@ class _LogInState extends State<LogIn> {
           .timeout(const Duration(seconds: 5));
 
       if (userDoc.exists && userDoc.data()?['isVerified'] == true) {
-        showToast('Login successful. Redirecting to home...');
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -284,13 +282,11 @@ class _LogInState extends State<LogIn> {
           ),
         );
       } else {
-        showToast('Account not verified. Redirecting to verification page...', 
-            backgroundColor: AppColors.red);
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const Verify()),
+        showToast(
+          'Account not verified. Redirecting to verification page...',
+          backgroundColor: AppColors.red,
         );
+        return;
       }
     } catch (e) {
       _showError(["Failed to verify user. Please try again later."]);
@@ -402,7 +398,7 @@ class _LogInState extends State<LogIn> {
     return Column(
       children: [
         Image.asset('lib/assets/images/auth/solace.png', width: 100),
-        const SizedBox(height: 40),
+        const SizedBox(height: 30),
         Text('Login', style: Textstyle.title),
         const SizedBox(height: 20),
       ],
@@ -457,29 +453,24 @@ class _LogInState extends State<LogIn> {
   );
 
   Widget _buildForgotPassword() {
-    return SizedBox(
-      height: 40,
-      child: Center(
-        child: GestureDetector(
-          onTap:
-              _isLoading
-                  ? null
-                  : () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder:
-                            (context) =>
-                                const Forgot(), // Navigate to Forgot screen
-                      ),
-                    );
-                  },
-          child: Text(
-            'Forgot Password?',
-            style: Textstyle.body.copyWith(
-              decoration: TextDecoration.underline,
-            ),
-          ),
+    return Center(
+      child: GestureDetector(
+        onTap:
+            _isLoading
+                ? null
+                : () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (context) =>
+                              const Forgot(), // Navigate to Forgot screen
+                    ),
+                  );
+                },
+        child: Text(
+          'Forgot Password?',
+          style: Textstyle.body.copyWith(decoration: TextDecoration.underline),
         ),
       ),
     );
@@ -546,6 +537,7 @@ class _LogInState extends State<LogIn> {
       ],
     );
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -553,8 +545,11 @@ class _LogInState extends State<LogIn> {
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         child: SingleChildScrollView(
-          child: ConstrainedBox( // Add ConstrainedBox
-            constraints: BoxConstraints(minHeight: MediaQuery.of(context).size.height),
+          child: ConstrainedBox(
+            // Add ConstrainedBox
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height,
+            ),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 30),
               child: Form(

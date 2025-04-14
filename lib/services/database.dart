@@ -40,7 +40,6 @@ class DatabaseService {
 
   Future<void> clearUserRoleCache() async {
     final prefs = await SharedPreferences.getInstance();
-    // Clear all keys that match 'userRole_' prefix
     final keys = prefs.getKeys();
     for (var key in keys) {
       if (key.startsWith('userRole_')) {
@@ -585,7 +584,6 @@ class DatabaseService {
     try {
       final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
-      // Get the collection name dynamically using fetchAndCacheUserRole
       final collectionName = await fetchAndCacheUserRole(userId);
       if (collectionName == null) {
         throw Exception("Unable to determine the user's role.");
@@ -608,7 +606,7 @@ class DatabaseService {
         final userDocData = userDocSnapshot.data();
 
         // Reference to the 'deleted' collection document
-        final deletedDocRef = firestore.collection('deleted').doc(userId);
+        final deletedDocRef = firestore.collection('arhived').doc(userId);
 
         // Add the document to the 'deleted' collection
         transaction.set(deletedDocRef, {
@@ -619,8 +617,20 @@ class DatabaseService {
         // Delete the document from the original collection
         transaction.delete(userDocRef);
       });
+
+      // Now delete the subcollections for the user
+      await _deleteUserSubcollections(userId);
+
+      // Add a log entry for document movement (without subcollections)
+      await _logService.addLog(
+        userId: userId,
+        action: 'Deleted user $userId and moved to "deleted" collection',
+        relatedUsers: userId,
+      );
+
+      print("User document and subcollections successfully deleted.");
     } catch (e) {
-      print("Error moving user data: $e");
+      print("Error deleting user and subcollections: $e");
       rethrow;
     }
   }
@@ -651,23 +661,104 @@ class DatabaseService {
         // Get user document data
         final userDocData = userDocSnapshot.data();
 
-        // Reference to the 'deleted' collection document
-        final deletedDocRef = firestore.collection('deceased').doc(userId);
+        // Reference to the 'deceased' collection document
+        final deceasedDocRef = firestore.collection('deceased').doc(userId);
 
-        // Add the document to the 'deleted' collection
-        transaction.set(deletedDocRef, {
+        // Add the document to the 'deceased' collection
+        transaction.set(deceasedDocRef, {
           ...userDocData!,
           'deceasedAt':
-              FieldValue.serverTimestamp(), // Add a deletion timestamp
+              FieldValue.serverTimestamp(), // Add a deceased timestamp
         });
 
         // Delete the document from the original collection
         transaction.delete(userDocRef);
       });
+
+      // Now delete the subcollections for the user
+      await _deleteUserSubcollections(userId);
+
+      // Add a log entry for marking user as deceased and deleting subcollections
+      await _logService.addLog(
+        userId: userId,
+        action:
+            'Marked user $userId as deceased and moved to "deceased" collection',
+        relatedUsers: userId,
+      );
+
+      print(
+        "User document and subcollections successfully moved to 'deceased' collection.",
+      );
     } catch (e) {
-      print("Error moving user data: $e");
+      print("Error marking user as deceased and deleting subcollections: $e");
       rethrow;
     }
+  }
+
+  Future<void> _deleteUserSubcollections(String userId) async {
+    final FirebaseFirestore firestore = FirebaseFirestore.instance;
+    final String? userRole = await fetchAndCacheUserRole(userId);
+
+    if (userRole == null) {
+      debugPrint("User role is null");
+      return;
+    }
+    // Subcollection names you want to delete
+    final List<String> subcollectionNames = [
+      'diagnoses',
+      'medicines',
+      'tasks',
+      'schedules',
+      'notes',
+      'contacts',
+      'notifications',
+      'predictions',
+      'tags',
+    ];
+
+    // Loop through each subcollection
+    for (final subcollectionName in subcollectionNames) {
+      try {
+        // Reference to the subcollection
+        final subcollectionRef = firestore
+            .collection(userRole)
+            .doc(userId)
+            .collection(subcollectionName);
+
+        // Fetch all documents in the subcollection
+        final snapshot = await subcollectionRef.get();
+
+        // Create a batch to delete documents
+        final batch = firestore.batch();
+
+        for (final doc in snapshot.docs) {
+          batch.delete(doc.reference);
+        }
+
+        // Commit the batch operation to delete all documents in the subcollection
+        await batch.commit();
+
+        print(
+          "Subcollection '$subcollectionName' for user $userId successfully deleted.",
+        );
+      } catch (e) {
+        print(
+          "Error deleting subcollection '$subcollectionName' for user $userId: $e",
+        );
+      }
+    }
+  }
+
+  Future<DocumentSnapshot?> getDeletedUserByEmail(String email) async {
+    final querySnapshot =
+        await FirebaseFirestore.instance
+            .collection('deleted')
+            .where('email', isEqualTo: email) // Filters documents by email
+            .limit(1) // Retrieves only the first match (if any)
+            .get();
+
+    // Return the first document if it exists, otherwise null
+    return querySnapshot.docs.isNotEmpty ? querySnapshot.docs.first : null;
   }
 
   Future<PatientData?> getPatientData(String patientId) async {
@@ -870,10 +961,11 @@ class DatabaseService {
 
   Future<Map<String, dynamic>> fetchThresholds() async {
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('globals')
-          .doc('thresholds')
-          .get();
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('globals')
+              .doc('thresholds')
+              .get();
 
       if (snapshot.exists) {
         final data = snapshot.data() as Map<String, dynamic>;
@@ -882,22 +974,26 @@ class DatabaseService {
         data.forEach((vital, values) {
           if (values is Map<String, dynamic>) {
             if (values['maxSevere'] != null) {
-              thresholds['maxSevere${vital.capitalize()}'] = values['maxSevere'];
+              thresholds['maxSevere${vital.capitalize()}'] =
+                  values['maxSevere'];
             }
             if (values['maxMild'] != null) {
               thresholds['maxMild${vital.capitalize()}'] = values['maxMild'];
             }
             if (values['maxNormal'] != null) {
-              thresholds['maxNormal${vital.capitalize()}'] = values['maxNormal'];
+              thresholds['maxNormal${vital.capitalize()}'] =
+                  values['maxNormal'];
             }
             if (values['minNormal'] != null) {
-              thresholds['minNormal${vital.capitalize()}'] = values['minNormal'];
+              thresholds['minNormal${vital.capitalize()}'] =
+                  values['minNormal'];
             }
             if (values['minMild'] != null) {
               thresholds['minMild${vital.capitalize()}'] = values['minMild'];
             }
             if (values['minSevere'] != null) {
-              thresholds['minSevere${vital.capitalize()}'] = values['minSevere'];
+              thresholds['minSevere${vital.capitalize()}'] =
+                  values['minSevere'];
             }
           } else {
             debugPrint('Unexpected format for $vital: $values');

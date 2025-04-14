@@ -7,6 +7,30 @@ class NotificationService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final DatabaseService db = DatabaseService();
 
+  Future<void> sendInAppNotificationToTaggedUsers(
+    String patientId,
+    String title,
+    String category,
+  ) async {
+    try {
+      // Step 1: Fetch all tagged user IDs
+      final taggedUserIds = await _getTaggedUserIds(patientId);
+
+      if (taggedUserIds.isEmpty) {
+        debugPrint("No tagged users found for patient $patientId.");
+        return;
+      }
+
+      debugPrint("Tagged user IDs: $taggedUserIds");
+
+      for (String token in taggedUserIds) {
+        await db.addNotification(token, title, category);
+      }
+    } catch (e) {
+      debugPrint("Error in sendNotificationToTaggedUsers: $e");
+    }
+  }
+
   Future<void> sendNotificationToTaggedUsers(
     String patientId,
     String title,

@@ -135,7 +135,7 @@ class _PatientHistoryState extends State<PatientHistory> {
     Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
-      toastLength: Toast.LENGTH_SHORT,
+      toastLength: Toast.LENGTH_LONG,
       gravity: ToastGravity.BOTTOM,
       backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
@@ -253,9 +253,11 @@ class _PatientHistoryState extends State<PatientHistory> {
                         focusNode: diagnosisFocusNode,
                         labelText: 'Previous Diagnosis',
                         enabled: true,
-                        validator: (val) => val == null || val.isEmpty
-                            ? 'Diagnosis is required'
-                            : null,
+                        validator:
+                            (val) =>
+                                val == null || val.isEmpty
+                                    ? 'Diagnosis is required'
+                                    : null,
                         inputFormatters: [LengthLimitingTextInputFormatter(50)],
                       ),
                       const SizedBox(height: 10),
@@ -279,9 +281,10 @@ class _PatientHistoryState extends State<PatientHistory> {
                           fillColor: AppColors.gray,
                           suffixIcon: Icon(
                             Icons.calendar_today,
-                            color: dateFocusNode.hasFocus
-                                ? AppColors.neon
-                                : AppColors.black,
+                            color:
+                                dateFocusNode.hasFocus
+                                    ? AppColors.neon
+                                    : AppColors.black,
                           ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
@@ -298,14 +301,17 @@ class _PatientHistoryState extends State<PatientHistory> {
                             fontSize: 16,
                             fontFamily: 'Inter',
                             fontWeight: FontWeight.normal,
-                            color: dateFocusNode.hasFocus
-                                ? AppColors.neon
-                                : AppColors.black,
+                            color:
+                                dateFocusNode.hasFocus
+                                    ? AppColors.neon
+                                    : AppColors.black,
                           ),
                         ),
-                        validator: (val) => _selectedDate == null
-                            ? 'Please select a date'
-                            : null,
+                        validator:
+                            (val) =>
+                                _selectedDate == null
+                                    ? 'Please select a date'
+                                    : null,
                         readOnly: true,
                         onTap: () => _selectDate(context),
                       ),

@@ -106,24 +106,25 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
         return;
       }
 
-      final List<Map<String, dynamic>> loadedTasks = taskSnapshots.docs
-          .map((doc) {
-            final data = doc.data();
-            final startDate = (data['startDate'] as Timestamp?)?.toDate();
-            final endDate = (data['endDate'] as Timestamp?)?.toDate();
-            final isCompleted = data['isCompleted'] ?? false;
+      final List<Map<String, dynamic>> loadedTasks =
+          taskSnapshots.docs
+              .map((doc) {
+                final data = doc.data();
+                final startDate = (data['startDate'] as Timestamp?)?.toDate();
+                final endDate = (data['endDate'] as Timestamp?)?.toDate();
+                final isCompleted = data['isCompleted'] ?? false;
 
-            return {
-              'taskId': doc.id,
-              'title': data['title'],
-              'description': data['description'],
-              'startDate': startDate,
-              'endDate': endDate,
-              'isCompleted': isCompleted,
-            };
-          })
-          .where((task) => task['startDate'] != null)
-          .toList();
+                return {
+                  'taskId': doc.id,
+                  'title': data['title'],
+                  'description': data['description'],
+                  'startDate': startDate,
+                  'endDate': endDate,
+                  'isCompleted': isCompleted,
+                };
+              })
+              .where((task) => task['startDate'] != null)
+              .toList();
 
       loadedTasks.sort((a, b) => a['startDate']!.compareTo(b['startDate']!));
 
@@ -157,7 +158,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
     Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
-      toastLength: Toast.LENGTH_SHORT,
+      toastLength: Toast.LENGTH_LONG,
       gravity: ToastGravity.BOTTOM,
       backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
@@ -202,14 +203,6 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
         userId: patientId,
         taskId: taskId,
         collectionName: patientRole,
-        subCollectionName: 'tasks',
-      );
-
-      // Remove the task for the caregiver
-      await taskUtility.removeTask(
-        userId: caregiverId,
-        taskId: taskId,
-        collectionName: caregiverRole,
         subCollectionName: 'tasks',
       );
 
@@ -288,18 +281,6 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
         userId: widget.patientId,
         taskId: taskId,
         collectionName: patientRole,
-        subCollectionName: 'tasks',
-        taskTitle: title,
-        taskDescription: description,
-        startDate: startDate,
-        endDate: endDate,
-      );
-
-      // Save the task for the caregiver
-      await taskUtility.saveTask(
-        userId: caregiverId,
-        taskId: taskId,
-        collectionName: caregiverRole,
         subCollectionName: 'tasks',
         taskTitle: title,
         taskDescription: description,
@@ -434,7 +415,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
     _descriptionController.clear();
     _startDateController.clear();
     _endDateController.clear();
-    String errorMessage = ""; // Track error messages
+    String errorMessage = "";
     final FocusNode titleFocusNode = FocusNode();
     final FocusNode descriptionFocusNode = FocusNode();
 
@@ -461,6 +442,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                       TextFormField(
                         controller: _titleController,
                         focusNode: titleFocusNode,
+                        textCapitalization: TextCapitalization.sentences,
                         inputFormatters: [
                           LengthLimitingTextInputFormatter(50),
                           FilteringTextInputFormatter.deny(RegExp(r'[\n]')),
@@ -474,6 +456,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                       TextFormField(
                         controller: _descriptionController,
                         focusNode: descriptionFocusNode,
+                        textCapitalization: TextCapitalization.sentences,
                         maxLines: 3,
                         inputFormatters: [
                           LengthLimitingTextInputFormatter(200),
@@ -489,6 +472,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                       TextFormField(
                         controller: _startDateController,
                         focusNode: _focusNodes[2],
+                        textCapitalization: TextCapitalization.sentences,
                         readOnly: true,
                         decoration: InputDecorationStyles.build(
                           "Start Date/Time",
@@ -522,6 +506,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                       TextFormField(
                         controller: _endDateController,
                         focusNode: _focusNodes[3],
+                        textCapitalization: TextCapitalization.sentences,
                         readOnly: true,
                         decoration: InputDecorationStyles.build(
                           "End Date/Time",
@@ -599,7 +584,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                           const SizedBox(width: 10.0),
                           Expanded(
                             child: TextButton(
-                              onPressed: () {
+                              onPressed: () async {
                                 String taskTitle = _titleController.text.trim();
                                 String taskDescription =
                                     _descriptionController.text.trim();
@@ -632,15 +617,31 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                                     backgroundColor: AppColors.red,
                                   );
                                 } else {
-                                  _addTask(
-                                    taskTitle,
+                                  // Show confirmation dialog before adding task
+                                  bool confirmAdd =
+                                      await _showTaskConfirmationDialog(
+                                        taskTitle,
+                                        taskDescription,
+                                        taskStartDate!,
+                                        taskEndDate!,
+                                      );
+
+                                  taskTitle = _capitalizeSentences(taskTitle);
+                                  taskDescription = _capitalizeSentences(
                                     taskDescription,
-                                    taskStartDate!,
-                                    taskEndDate!,
                                   );
-                                  Navigator.pop(context);
-                                  _fetchPatientTasks();
-                                  _resetDateControllers();
+
+                                  if (confirmAdd) {
+                                    _addTask(
+                                      taskTitle,
+                                      taskDescription,
+                                      taskStartDate!,
+                                      taskEndDate!,
+                                    );
+                                    Navigator.pop(context);
+                                    _fetchPatientTasks();
+                                    _resetDateControllers();
+                                  }
                                 }
                               },
                               style: Buttonstyle.buttonNeon,
@@ -661,6 +662,93 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
         );
       },
     );
+  }
+
+  Future<bool> _showTaskConfirmationDialog(
+    String taskTitle,
+    String taskDescription,
+    DateTime startDate,
+    DateTime endDate,
+  ) {
+    // Create a DateFormat instance for the desired format
+    final DateFormat dateFormat = DateFormat('MMMM d, yyyy h:mm a');
+
+    // Format the start and end dates
+    final String formattedStartDate = dateFormat.format(startDate);
+    final String formattedEndDate = dateFormat.format(endDate);
+
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppColors.white,
+          title: Text("Confirm Task", style: Textstyle.subheader),
+          content: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "Are you sure you want to submit the following information for this task?",
+                style: Textstyle.body,
+              ),
+
+              SizedBox(height: 20),
+              Text(
+                "Title",
+                style: Textstyle.body.copyWith(fontWeight: FontWeight.bold),
+              ),
+              Text(taskTitle, style: Textstyle.body),
+              SizedBox(height: 10),
+              Text(
+                "Description",
+                style: Textstyle.body.copyWith(fontWeight: FontWeight.bold),
+              ),
+              Text(taskDescription, style: Textstyle.body),
+
+              SizedBox(height: 10),
+              Text(
+                "Start Date",
+                style: Textstyle.body.copyWith(fontWeight: FontWeight.bold),
+              ),
+              Text(formattedStartDate, style: Textstyle.body),
+
+              SizedBox(height: 10),
+              Text(
+                "End Date",
+                style: Textstyle.body.copyWith(fontWeight: FontWeight.bold),
+              ),
+              Text(formattedEndDate, style: Textstyle.body),
+            ],
+          ),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop(false);
+                    },
+                    style: Buttonstyle.buttonRed,
+                    child: Text("Cancel", style: Textstyle.smallButton),
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop(true);
+                    },
+                    style: Buttonstyle.buttonNeon,
+                    child: Text("Confirm", style: Textstyle.smallButton),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    ).then((result) => result ?? false);
   }
 
   Future<bool> showDiscardConfirmationDialog(BuildContext context) async {
@@ -715,6 +803,17 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
     );
   }
 
+  String _capitalizeSentences(String text) {
+    return text
+        .split('. ')
+        .map((sentence) {
+          return sentence.isNotEmpty
+              ? sentence[0].toUpperCase() + sentence.substring(1)
+              : sentence;
+        })
+        .join('. ');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -736,7 +835,10 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
         backgroundColor: AppColors.neon,
         foregroundColor: AppColors.white,
         icon: const Icon(Icons.add),
-        label: const Text('Add Task'),
+        label: Text(
+          'Add Task',
+          style: Textstyle.smallButton.copyWith(fontWeight: FontWeight.bold),
+        ),
       ),
     );
   }

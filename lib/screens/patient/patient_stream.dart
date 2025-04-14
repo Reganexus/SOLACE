@@ -96,14 +96,11 @@ class _CarouselWidgetState extends State<CarouselWidget> {
         style:
             _currentPage == pageIndex
                 ? Buttonstyle.buttonNeon
-                : Buttonstyle.buttonDarkGray,
+                : Buttonstyle.buttonGray,
         child: Text(
           title,
           style: Textstyle.bodySmall.copyWith(
-            color:
-                _currentPage == pageIndex
-                    ? AppColors.white
-                    : AppColors.whiteTransparent,
+            color: AppColors.white,
             fontWeight:
                 _currentPage == pageIndex ? FontWeight.bold : FontWeight.normal,
           ),

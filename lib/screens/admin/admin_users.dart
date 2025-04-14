@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:solace/controllers/notification_service.dart';
 import 'package:solace/models/my_patient.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/admin/admin_edit.dart';
@@ -28,6 +29,7 @@ class AdminUsersState extends State<AdminUsers> {
   final DatabaseService db = DatabaseService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final LogService _logService = LogService();
+  final notificationService = NotificationService();
   bool _isAscending = true;
   String _selectedRole = 'caregiver';
   final TextEditingController _searchController = TextEditingController();
@@ -44,12 +46,16 @@ class AdminUsersState extends State<AdminUsers> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await db.clearAllCache();
     });
-    final user = _auth.currentUser;
 
-    if (user == null) {
+    final currentUser = _auth.currentUser;
+
+    if (currentUser == null) {
       print("Error: No authenticated user found.");
       return;
     }
+
+    user = currentUser;
+    debugPrint("User Id: ${user.uid}");
   }
 
   @override
@@ -79,8 +85,10 @@ class AdminUsersState extends State<AdminUsers> {
             }
           })
           .onError((error) {
-            showToast('Error fetching patients.', 
-                backgroundColor: AppColors.red);
+            showToast(
+              'Error fetching patients.',
+              backgroundColor: AppColors.red,
+            );
           });
     } else if (_selectedRole == 'caregiver') {
       _fetchCaregivers()
@@ -94,8 +102,10 @@ class AdminUsersState extends State<AdminUsers> {
             }
           })
           .onError((error) {
-            showToast('Error fetching caregivers.', 
-                backgroundColor: AppColors.red);
+            showToast(
+              'Error fetching caregivers.',
+              backgroundColor: AppColors.red,
+            );
           });
     } else if (_selectedRole == 'doctor') {
       _fetchDoctors()
@@ -109,8 +119,10 @@ class AdminUsersState extends State<AdminUsers> {
             }
           })
           .onError((error) {
-            showToast('Error fetching caregivers.',   
-                backgroundColor: AppColors.red);
+            showToast(
+              'Error fetching caregivers.',
+              backgroundColor: AppColors.red,
+            );
           });
     } else if (_selectedRole == 'nurse') {
       _fetchNurses()
@@ -124,8 +136,10 @@ class AdminUsersState extends State<AdminUsers> {
             }
           })
           .onError((error) {
-            showToast('Error fetching caregivers.', 
-                backgroundColor: AppColors.red);
+            showToast(
+              'Error fetching caregivers.',
+              backgroundColor: AppColors.red,
+            );
           });
     }
   }
@@ -165,7 +179,7 @@ class AdminUsersState extends State<AdminUsers> {
     Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
-      toastLength: Toast.LENGTH_SHORT,
+      toastLength: Toast.LENGTH_LONG,
       gravity: ToastGravity.BOTTOM,
       backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
@@ -273,17 +287,12 @@ class AdminUsersState extends State<AdminUsers> {
       );
     }
 
-    void confirmDelete(Function action) {
-      Navigator.pop(context);
-      action();
-    }
-
-    void showDeleteDialog(Function action) {
-      final deleteAction =
-          user is PatientData
-              ? () => _showDeceasePatientDialog(context, user.uid, userName)
-              : () => _showDeleteUserDialog(context, user.uid, userName);
-      confirmDelete(deleteAction);
+    void showDeleteDialog() {
+      if (user is PatientData) {
+        _showDeceasePatientDialog(context, user.uid, userName);
+      } else {
+        _showDeleteUserDialog(context, user.uid, userName);
+      }
     }
 
     Widget buildActionButton(
@@ -335,7 +344,9 @@ class AdminUsersState extends State<AdminUsers> {
                     navigateToEditProfile,
                   ),
                   buildActionButton(
-                    'Edit Tags',
+                    user is UserData
+                        ? 'Edit Assigned Patients'
+                        : 'Edit Assigned Caregivers',
                     Buttonstyle.buttonBlue,
                     navigateToEditTag,
                   ),
@@ -346,9 +357,9 @@ class AdminUsersState extends State<AdminUsers> {
                       navigateToLogs,
                     ),
                   buildActionButton(
-                    'Delete User',
+                    user is UserData ? 'Archive User' : 'Mark Deceased',
                     Buttonstyle.buttonRed,
-                    () => showDeleteDialog(() {}),
+                    showDeleteDialog,
                   ),
                   SizedBox(height: 10),
                   Row(
@@ -377,6 +388,7 @@ class AdminUsersState extends State<AdminUsers> {
   ) {
     showDialog(
       context: context,
+      barrierDismissible: false, // Prevent accidental dismissal
       builder: (context) {
         return AlertDialog(
           backgroundColor: AppColors.white,
@@ -386,31 +398,64 @@ class AdminUsersState extends State<AdminUsers> {
             style: Textstyle.body,
           ),
           actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(
-                  context,
-                ).pop(); // Close the dialog without doing anything
-              },
-              style: Buttonstyle.buttonNeon,
-              child: Text('Cancel', style: Textstyle.smallButton),
-            ),
-            TextButton(
-              onPressed: () async {
-                debugPrint("Marking decease patient id: $uid");
-                await DatabaseService().markDecease(uid);
-                _refreshUserList();
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.of(
+                        context,
+                      ).pop(); // Close the confirmation dialog
+                    },
+                    style: Buttonstyle.buttonNeon,
+                    child: Text('Cancel', style: Textstyle.smallButton),
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () async {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).pop();
 
-                await _logService.addLog(
-                  userId: user.uid,
-                  action: "Marked $userName as deceased",
-                );
+                      showToast('Marking $userName as deceased...');
 
-                showToast('$userName has been deleted.');
-                Navigator.of(context).pop();
-              },
-              style: Buttonstyle.buttonRed,
-              child: Text('Delete', style: Textstyle.smallButton),
+                      try {
+                        debugPrint("Marking deceased patient id: $uid");
+                        await DatabaseService().markDecease(uid);
+
+                        debugPrint("Mark deceased admin uid: ${user.uid}");
+                        await _logService.addLog(
+                          userId: user.uid,
+                          action: "Marked $userName as deceased",
+                        );
+
+                        await notificationService
+                            .sendInAppNotificationToTaggedUsers(
+                              uid,
+                              "Unfortunately, patient $userName is marked deceased.",
+                              "patient",
+                            );
+
+                        await notificationService.sendNotificationToTaggedUsers(
+                          uid,
+                          "Patient Alert",
+                          "Unfortunately, patient $userName is marked deceased.",
+                        );
+
+                        showToast(
+                          'Patient $userName has been marked as deceased.',
+                        );
+                        _refreshUserList();
+                      } catch (e) {
+                        showToast('An error occurred: ${e.toString()}');
+                      }
+                    },
+                    style: Buttonstyle.buttonRed,
+                    child: Text('Proceed', style: Textstyle.smallButton),
+                  ),
+                ),
+              ],
             ),
           ],
         );
@@ -425,40 +470,47 @@ class AdminUsersState extends State<AdminUsers> {
   ) {
     showDialog(
       context: context,
+      barrierDismissible: false, // Prevent accidental dismissal
       builder: (context) {
         return AlertDialog(
           backgroundColor: AppColors.white,
-          title: Text('Confirm Deletion', style: Textstyle.subheader),
+          title: Text('Confirm Archive', style: Textstyle.subheader),
           content: Text(
-            'Are you sure you want to delete $userName from the database?',
+            'Are you sure you want to archive $userName from the database?',
             style: Textstyle.body,
           ),
           actions: <Widget>[
             TextButton(
               onPressed: () {
-                Navigator.of(
-                  context,
-                ).pop(); // Close the dialog without doing anything
+                Navigator.of(context).pop(); // Close the confirmation dialog
               },
               style: Buttonstyle.buttonNeon,
               child: Text('Cancel', style: Textstyle.smallButton),
             ),
             TextButton(
               onPressed: () async {
-                debugPrint("Delete User id: $uid");
-                await DatabaseService().deleteUser(uid);
-                _refreshUserList();
+                Navigator.of(context).pop(); // Close the confirmation dialog
+                Navigator.of(context).pop(); // Close the UserDetailsDialog
 
-                await _logService.addLog(
-                  userId: user.uid,
-                  action: "Deleted $userName from the database.",
-                );
+                showToast('Archiving $userName...');
 
-                showToast('$userName has been deleted.');
-                Navigator.of(context).pop();
+                try {
+                  debugPrint("Archiving User id: $uid");
+                  await DatabaseService().deleteUser(uid);
+
+                  await _logService.addLog(
+                    userId: user.uid,
+                    action: "Archived $userName from the database.",
+                  );
+
+                  showToast('$userName has been archived.');
+                  _refreshUserList();
+                } catch (e) {
+                  showToast('An error occurred: ${e.toString()}');
+                }
               },
               style: Buttonstyle.buttonRed,
-              child: Text('Delete', style: Textstyle.smallButton),
+              child: Text('Archive', style: Textstyle.smallButton),
             ),
           ],
         );
@@ -721,7 +773,7 @@ class AdminUsersState extends State<AdminUsers> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Edit, Delete or View Logs of users',
+                'Edit, Archive or View Logs of users',
                 style: Textstyle.body.copyWith(color: AppColors.white),
               ),
             ],

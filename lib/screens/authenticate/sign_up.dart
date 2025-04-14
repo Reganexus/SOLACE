@@ -5,8 +5,8 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:solace/models/my_user.dart';
+import 'package:solace/screens/authenticate/conditions.dart';
 import 'package:solace/screens/authenticate/verify.dart';
 import 'package:solace/screens/home/home.dart';
 import 'package:solace/services/auth.dart';
@@ -43,6 +43,7 @@ class _SignUpState extends State<SignUp> {
   bool _isLoading = false;
   bool _isPasswordVisible = false;
   bool _agreeToTerms = false;
+  bool _isDialogVisible = false;
 
   final FocusNode _emailFocusNode = FocusNode();
   final FocusNode _passwordFocusNode = FocusNode();
@@ -74,96 +75,28 @@ class _SignUpState extends State<SignUp> {
     });
   }
 
-  Future<Map<String, dynamic>> _loadTermsAndConditions() async {
-    final terms = await rootBundle.loadString(
-      'lib/assets/terms_and_conditions.json',
-    );
-    return json.decode(terms);
-  }
-
-  void _showTermsDialog(Map<String, dynamic> termsData) {
-    final terms = termsData['terms'];
-    final sections = terms['sections'] as Map<String, dynamic>;
-
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            backgroundColor: AppColors.white,
-            title: Text(
-              terms['title'] ?? 'Terms and Conditions',
-              style: Textstyle.heading,
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (terms['lastUpdated'] != null)
-                    Text(
-                      terms['lastUpdated'],
-                      style: Textstyle.body.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  if (terms['welcomeMessage'] != null)
-                    Text(terms['welcomeMessage'], style: Textstyle.body),
-                  const SizedBox(height: 16),
-                  if (terms['subMessage'] != null)
-                    Text(
-                      terms['subMessage'],
-                      style: Textstyle.body.copyWith(
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  const SizedBox(height: 16),
-                  ...sections.entries.map((entry) {
-                    final section = entry.value as Map<String, dynamic>;
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (section['numberHeader'] != null)
-                          Text(
-                            section['numberHeader'],
-                            style: Textstyle.subheader,
-                          ),
-                        if (section['content'] != null)
-                          Text(section['content'], style: Textstyle.body),
-                        const SizedBox(height: 16),
-                      ],
-                    );
-                  }),
-                  const Divider(),
-                  SizedBox(
-                    width: double.infinity,
-                    child: TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      style: Buttonstyle.neon,
-                      child: Text('OK', style: Textstyle.largeButton),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-    );
-  }
-
   void _showError(List<String> errorMessages) {
-    if (errorMessages.isEmpty || !mounted) return;
+    if (errorMessages.isEmpty || !mounted || _isDialogVisible) return;
+
+    setState(() => _isDialogVisible = true);
 
     showDialog(
       context: context,
-      barrierDismissible: false, // Prevent accidental dismissal
+      barrierDismissible: false,
       builder:
           (context) => ErrorDialog(title: 'Error', messages: errorMessages),
-    );
+    ).then((_) {
+      if (mounted) {
+        setState(() => _isDialogVisible = false);
+      }
+    });
   }
 
   void showToast(String message, {Color? backgroundColor}) {
     Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
-      toastLength: Toast.LENGTH_SHORT,
+      toastLength: Toast.LENGTH_LONG,
       gravity: ToastGravity.BOTTOM,
       backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
@@ -184,11 +117,13 @@ class _SignUpState extends State<SignUp> {
     }
 
     if (!_agreeToTerms) {
-      _showError(['Please accept the terms and conditions to proceed.']);
-      return;
+      await _showConditionsScreen();
+      if (!_agreeToTerms) {
+        _showError(['You must accept the terms and conditions to proceed.']);
+        return;
+      }
     }
 
-    // Check if the widget is still mounted before calling setState
     if (mounted) {
       setState(() => _isLoading = true);
     }
@@ -197,12 +132,8 @@ class _SignUpState extends State<SignUp> {
       final email = _emailController.text.trim();
       final password = _passwordController.text;
 
-      // Check if the email already exists in the database
-      final existingUser = await _db.getUserDataByEmail(email);
-      if (existingUser != null) {
-        _showError([
-          'This email is already associated with an existing account.',
-        ]);
+      if (email == null) {
+        _showError(['Email is not available for this account.']);
         return;
       }
 
@@ -227,9 +158,14 @@ class _SignUpState extends State<SignUp> {
       // Navigate based on verification status
       await _navigateBasedOnVerification(userId, userRole);
     } catch (error) {
-      _showError(['An error occurred during sign-up: ${error.toString()}']);
+      if (error is FirebaseAuthException) {
+        _handleFirebaseAuthError(
+          error,
+        ); // This will handle email-deleted case too
+      } else {
+        _showError(['An error occurred during sign-up: ${error.toString()}']);
+      }
     } finally {
-      // Check if the widget is still mounted before calling setState
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -239,7 +175,6 @@ class _SignUpState extends State<SignUp> {
   Future<void> _handleSignUpWithGoogle() async {
     if (!_isGoogleSignUpButtonEnabled) return;
 
-    // Check if the widget is still mounted before calling setState
     if (mounted) {
       setState(() => _isGoogleSignUpButtonEnabled = false);
     }
@@ -247,6 +182,16 @@ class _SignUpState extends State<SignUp> {
     try {
       await _runWithLoadingState(() async {
         final myUser = await _auth.signInWithGoogle();
+
+        if (!_agreeToTerms) {
+          await _showConditionsScreen();
+          if (!_agreeToTerms) {
+            _showError([
+              'You must accept the terms and conditions to proceed.',
+            ]);
+            return;
+          }
+        }
         if (myUser != null) {
           final userRole = await _db.fetchAndCacheUserRole(myUser.uid);
           if (userRole != null) {
@@ -268,7 +213,11 @@ class _SignUpState extends State<SignUp> {
 
   void _handleGoogleSignInError(dynamic error) {
     if (error is FirebaseAuthException) {
-      _handleFirebaseAuthError(error);
+      if (error.code == 'email-deleted') {
+        _showError(['This account was previously deleted by an admin.']);
+      } else {
+        _handleFirebaseAuthError(error); // Handle other FirebaseAuth errors
+      }
     } else if (error is TimeoutException) {
       _showError(['The request timed out. Please try again later.']);
     } else if (!error.toString().contains('google_sign_in_aborted')) {
@@ -318,7 +267,7 @@ class _SignUpState extends State<SignUp> {
     return Column(
       children: [
         Image.asset('lib/assets/images/auth/solace.png', width: 100),
-        const SizedBox(height: 40),
+        const SizedBox(height: 30),
         Text('Sign Up', style: Textstyle.title),
         const SizedBox(height: 20),
       ],
@@ -378,33 +327,37 @@ class _SignUpState extends State<SignUp> {
     onFieldSubmitted: (_) => FocusScope.of(context).unfocus(),
   );
 
-  Widget _buildTermsAndConditions() {
-    return SizedBox(
-      height: 40,
-      child: Center(
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Checkbox(
-              value: _agreeToTerms,
-              onChanged: (val) {
-                setState(() {
-                  _agreeToTerms = val!;
-                });
-              },
-            ),
-            Text('I agree to the ', style: Textstyle.body),
-            GestureDetector(
-              onTap: () async {
-                final terms = await _loadTermsAndConditions();
-                _showTermsDialog(terms);
-              },
-              child: Text('terms and conditions', style: Textstyle.bodyPurple),
-            ),
-          ],
+  Widget _buildDivider() {
+    return const Row(
+      children: <Widget>[
+        Expanded(child: Divider()),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 10),
+          child: Text("or"),
         ),
+        Expanded(child: Divider()),
+      ],
+    );
+  }
+
+  Future<void> _showConditionsScreen() async {
+    final bool? accepted = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => ConditionsScreen(
+              onAcceptConditions:
+                  () => setState(() {
+                    _agreeToTerms = true;
+                  }),
+            ),
       ),
     );
+
+    // Check if accepted is null or false
+    if (accepted == null || !accepted) {
+      _showError(['You must accept the terms and conditions to proceed.']);
+    }
   }
 
   Widget _buildSignUpButton() {
@@ -419,19 +372,6 @@ class _SignUpState extends State<SignUp> {
                 ? SizedBox(width: 26, height: 26, child: Loader.loaderWhite)
                 : Text('Sign Up', style: Textstyle.largeButton),
       ),
-    );
-  }
-
-  Widget _buildDivider() {
-    return const Row(
-      children: <Widget>[
-        Expanded(child: Divider()),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 10),
-          child: Text("or"),
-        ),
-        Expanded(child: Divider()),
-      ],
     );
   }
 
@@ -478,7 +418,9 @@ class _SignUpState extends State<SignUp> {
         onTap: () => FocusScope.of(context).unfocus(),
         child: SingleChildScrollView(
           child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: MediaQuery.of(context).size.height),
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height,
+            ),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 30),
               child: Form(
@@ -497,8 +439,6 @@ class _SignUpState extends State<SignUp> {
                           _emailField(),
                           const SizedBox(height: 20),
                           _passwordField(),
-                          const SizedBox(height: 20),
-                          _buildTermsAndConditions(),
                           const SizedBox(height: 20),
                           _buildSignUpButton(),
                           const SizedBox(height: 10),

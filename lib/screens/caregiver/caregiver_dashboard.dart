@@ -75,19 +75,35 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
         ) // Subcollection containing the tagged patients (by patient ID)
         .snapshots()
         .asyncMap((snapshot) async {
-          // Extract the patient IDs (document IDs) from the 'tags' subcollection
           var patientIds = snapshot.docs.map((doc) => doc.id).toList();
 
           if (patientIds.isEmpty) return []; // No tagged patients
 
-          // Fetch patient documents based on these patient IDs
+          // Check if the patient documents exist in the 'patient' collection
           var patientSnapshots =
               await FirebaseFirestore.instance
                   .collection('patient')
                   .where(FieldPath.documentId, whereIn: patientIds)
                   .get();
 
-          // Map the documents to PatientData objects and return the list
+          // List of valid patient IDs that still exist in the 'patient' collection
+          var validPatientIds =
+              patientSnapshots.docs.map((doc) => doc.id).toList();
+
+          // Delete any invalid tagged patient records
+          for (var doc in snapshot.docs) {
+            if (!validPatientIds.contains(doc.id)) {
+              debugPrint("Deleting patient id: ${doc.id}");
+              await FirebaseFirestore.instance
+                  .collection(userRole!)
+                  .doc(caregiverId)
+                  .collection('tags')
+                  .doc(doc.id)
+                  .delete();
+            }
+          }
+
+          // Return the list of valid PatientData
           return patientSnapshots.docs
               .map((doc) => PatientData.fromDocument(doc))
               .toList();
@@ -98,7 +114,7 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
     Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
-      toastLength: Toast.LENGTH_SHORT,
+      toastLength: Toast.LENGTH_LONG,
       gravity: ToastGravity.BOTTOM,
       backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
@@ -184,10 +200,7 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
                 label: Text(
                   'All Patients',
                   style: Textstyle.bodySmall.copyWith(
-                    color:
-                        _showAllPatients
-                            ? AppColors.white
-                            : AppColors.black.withValues(alpha: 0.5),
+                    color: AppColors.white,
                     fontWeight:
                         _showAllPatients ? FontWeight.bold : FontWeight.normal,
                   ),
@@ -210,10 +223,7 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
                 label: Text(
                   'Tagged Patients',
                   style: Textstyle.bodySmall.copyWith(
-                    color:
-                        _showTaggedPatients
-                            ? AppColors.white
-                            : AppColors.black.withValues(alpha: 0.5),
+                    color: AppColors.white,
                     fontWeight:
                         _showTaggedPatients
                             ? FontWeight.bold
@@ -429,8 +439,10 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
 
   void _navigateToPatientDashboard(PatientData patient) {
     if (userRole == null) {
-      showToast('Unable to determine user role.', 
-          backgroundColor: AppColors.red);
+      showToast(
+        'Unable to determine user role.',
+        backgroundColor: AppColors.red,
+      );
       return;
     }
 

@@ -198,6 +198,16 @@ class AuthService {
   }) async {
     try {
       debugPrint("Starting signUpWithEmailAndPassword for email: $email");
+
+      // Check if email exists in the deleted collection
+      if (await emailExistsInDeletedCollection(email)) {
+        debugPrint("Sign-up blocked: Email exists in the deleted collection.");
+        throw FirebaseAuthException(
+          code: 'email-deleted',
+          message: 'This account was previously deleted by an admin.',
+        );
+      }
+
       UserCredential result = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -286,8 +296,19 @@ class AuthService {
 
       debugPrint("Google sign-in successful for UID: ${user.uid}");
 
-      // Check or initialize user data
+      // Check if email exists in the deleted collection
       final email = user.email;
+      if (email != null && await emailExistsInDeletedCollection(email)) {
+        debugPrint(
+          "Google sign-in blocked: Email exists in the deleted collection.",
+        );
+        throw FirebaseAuthException(
+          code: 'email-deleted',
+          message: 'This account was previously deleted by an admin.',
+        );
+      }
+
+      // Check or initialize user data
       if (email != null) {
         final emailExists = await emailExistsAcrossCollections(email);
 
@@ -320,6 +341,11 @@ class AuthService {
       debugPrint("Google sign-in error: $e");
     }
     return null;
+  }
+
+  Future<bool> emailExistsInDeletedCollection(String email) async {
+    final deletedUserDoc = await DatabaseService().getDeletedUserByEmail(email);
+    return deletedUserDoc != null;
   }
 
   Future<T?> retryOperation<T>(

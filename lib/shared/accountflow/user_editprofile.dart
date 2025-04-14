@@ -52,6 +52,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   bool _navigated = false;
+  bool _autoValidate = false;
 
   late List<FocusNode> _focusNodes;
   late TextEditingController firstNameController;
@@ -102,10 +103,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     debugPrint("User Data in Edit Profile: ${widget.userData}");
 
     if (widget.userData['newUser'] == true) {
-      loadFormData(userId);
+      _checkAndLoadFormData();
     } else {
       _initializeUserDetails(widget.userData);
     }
+
+    debugPrint("_autoValidate = $_autoValidate");
   }
 
   @override
@@ -122,18 +125,41 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.dispose();
   }
 
+  Future<void> _checkAndLoadFormData() async {
+    final prefs = await SharedPreferences.getInstance();
+    // Check if there are any stored preferences for the user
+    final hasData =
+        prefs.containsKey('firstName_$userId') ||
+        prefs.containsKey('middleName_$userId') ||
+        prefs.containsKey('lastName_$userId') ||
+        prefs.containsKey('phoneNumber_$userId') ||
+        prefs.containsKey('birthday_$userId') ||
+        prefs.containsKey('gender_$userId') ||
+        prefs.containsKey('religion_$userId') ||
+        prefs.containsKey('address_$userId') ||
+        prefs.containsKey('imagePath_$userId');
+
+    if (hasData) {
+      // Load the form data if any preference exists for the user
+      await loadFormData(userId);
+    } else {
+      debugPrint("No form data found for userId: $userId.");
+    }
+  }
+
   Future<void> loadFormData(String userId) async {
     /// Loads form data from shared preferences.
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      firstNameController.text = prefs.getString('firstName_$userId') ?? '';
-      middleNameController.text = prefs.getString('middleName_$userId') ?? '';
-      lastNameController.text = prefs.getString('lastName_$userId') ?? '';
-      phoneNumberController.text = prefs.getString('phoneNumber_$userId') ?? '';
-      birthdayController.text = prefs.getString('birthday_$userId') ?? '';
-      gender = prefs.getString('gender_$userId') ?? '';
+      firstNameController.text = prefs.getString('firstName_$userId') ?? ' ';
+      middleNameController.text = prefs.getString('middleName_$userId') ?? ' ';
+      lastNameController.text = prefs.getString('lastName_$userId') ?? ' ';
+      phoneNumberController.text =
+          prefs.getString('phoneNumber_$userId') ?? ' ';
+      birthdayController.text = prefs.getString('birthday_$userId') ?? ' ';
+      gender = prefs.getString('gender_$userId') ?? ' ';
       religion = prefs.getString('religion_$userId') ?? '';
-      addressController.text = prefs.getString('address_$userId') ?? '';
+      addressController.text = prefs.getString('address_$userId') ?? ' ';
       _profileImageUrl = prefs.getString('imagePath_$userId');
       if (_profileImageUrl != null) {
         _profileImage = File(_profileImageUrl!);
@@ -425,12 +451,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         lastNameController.text.trim() != widget.userData['lastName']?.trim() ||
         phoneNumberController.text.trim() !=
             widget.userData['phoneNumber']?.trim() ||
-        birthdayController.text.trim() != 
+        birthdayController.text.trim() !=
             (widget.userData['birthday'] != null
                 ? DateFormat('MMMM d, yyyy').format(
-                    widget.userData['birthday'] is Timestamp
-                        ? widget.userData['birthday'].toDate()
-                        : DateTime.parse(widget.userData['birthday']))
+                  widget.userData['birthday'] is Timestamp
+                      ? widget.userData['birthday'].toDate()
+                      : DateTime.parse(widget.userData['birthday']),
+                )
                 : '') ||
         gender != widget.userData['gender'] ||
         religion != widget.userData['religion'] ||
@@ -574,7 +601,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           (route) => false,
         );
       } else {
-        
         // Log changes
         final List<String> changeLogs = [];
         void logChange(String field, dynamic oldValue, dynamic newValue) {
@@ -583,22 +609,47 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           }
         }
 
-        logChange('First Name', originalUserData['firstName'], firstNameController.text.trim());
-        logChange('Middle Name', originalUserData['middleName'], middleNameController.text.trim());
-        logChange('Last Name', originalUserData['lastName'], lastNameController.text.trim());
-        logChange('Phone Number', originalUserData['phoneNumber'], phoneNumberController.text.trim());
+        logChange(
+          'First Name',
+          originalUserData['firstName'],
+          firstNameController.text.trim(),
+        );
+        logChange(
+          'Middle Name',
+          originalUserData['middleName'],
+          middleNameController.text.trim(),
+        );
+        logChange(
+          'Last Name',
+          originalUserData['lastName'],
+          lastNameController.text.trim(),
+        );
+        logChange(
+          'Phone Number',
+          originalUserData['phoneNumber'],
+          phoneNumberController.text.trim(),
+        );
         logChange(
           'Birthday',
           originalUserData['birthday'] is Timestamp
-              ? DateFormat('yyyy-MM-dd').format((originalUserData['birthday'] as Timestamp).toDate())
-              : originalUserData['birthday']?.toString().split(' ')[0], // Fallback if not a Timestamp
+              ? DateFormat(
+                'yyyy-MM-dd',
+              ).format((originalUserData['birthday'] as Timestamp).toDate())
+              : originalUserData['birthday']?.toString().split(
+                ' ',
+              )[0], // Fallback if not a Timestamp
           birthday != null ? DateFormat('yyyy-MM-dd').format(birthday!) : null,
         );
         logChange('Gender', originalUserData['gender'], gender);
         logChange('Religion', originalUserData['religion'], religion);
-        logChange('Address', originalUserData['address'], addressController.text.trim());
+        logChange(
+          'Address',
+          originalUserData['address'],
+          addressController.text.trim(),
+        );
 
-        if (_profileImage != null || _profileImageUrl != originalUserData['profileImageUrl']) {
+        if (_profileImage != null ||
+            _profileImageUrl != originalUserData['profileImageUrl']) {
           changeLogs.add("Changed Profile Image.");
         }
 
@@ -628,6 +679,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Widget _buildForm() {
     return Form(
+      autovalidateMode:
+          _autoValidate
+              ? AutovalidateMode.onUserInteraction
+              : AutovalidateMode.disabled,
       key: _formKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -645,6 +700,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           SizedBox(height: 20),
 
           FormField(
+            validator: (value) {
+              if (_profileImage == null &&
+                  (_profileImageUrl == null || _profileImageUrl!.isEmpty)) {
+                return 'Please select a profile image.';
+              }
+              return null;
+            },
             builder: (FormFieldState state) {
               return Center(
                 child: Column(
@@ -676,7 +738,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           child: IconButton(
                             onPressed:
                                 _isLoading
-                                    ? null
+                                    ? null // Disable during loading
                                     : () {
                                       _pickProfileImage();
                                     },
@@ -726,7 +788,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           CustomTextField(
             controller: middleNameController,
             focusNode: _focusNodes[1],
-            labelText: 'Middle Name',
+            labelText: 'Middle Name (Optional)',
             enabled: !_isLoading,
           ),
 
@@ -852,15 +914,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             width: double.infinity,
             child: TextButton(
               onPressed:
-                  (!_isLoading &&
-                          _formKey.currentState?.validate() == true &&
-                          _hasUnsavedChanges())
-                      ? _submitForm
+                  !_isLoading && _hasUnsavedChanges()
+                      ? () {
+                        setState(() {
+                          _autoValidate = true; // Enable autovalidation
+                        });
+
+                        // Validate the form and submit if valid
+                        if (_formKey.currentState?.validate() == true) {
+                          _submitForm();
+                        }
+                      }
                       : null,
               style:
-                  (!_isLoading &&
-                          _formKey.currentState?.validate() == true &&
-                          _hasUnsavedChanges())
+                  !_isLoading && _hasUnsavedChanges()
                       ? Buttonstyle.neon
                       : Buttonstyle.gray,
               child: Text('Save Changes', style: Textstyle.largeButton),
@@ -972,5 +1039,3 @@ extension StringExtensions on String {
         .join(' ');
   }
 }
-
-/*******  1483c8f1-1839-47d8-890b-9767657849b7  *******/

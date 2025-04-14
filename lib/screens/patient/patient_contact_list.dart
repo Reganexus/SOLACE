@@ -20,7 +20,7 @@ class ContactList extends StatelessWidget {
     Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
-      toastLength: Toast.LENGTH_SHORT,
+      toastLength: Toast.LENGTH_LONG,
       gravity: ToastGravity.BOTTOM,
       backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
@@ -73,7 +73,7 @@ class ContactList extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: AppBar(
-        title: Text(title, style: Textstyle.subheader),
+        title: Text('Call $title', style: Textstyle.subheader),
         backgroundColor: AppColors.white,
         centerTitle: true,
         scrolledUnderElevation: 0.0,

@@ -74,8 +74,10 @@ class NotificationsListState extends State<NotificationsList> {
         debugPrint(
           'User role could not be determined for userId: ${widget.userId}',
         );
-        showToast('Failed to determine user role.',
-            backgroundColor: AppColors.red);
+        showToast(
+          'Failed to determine user role.',
+          backgroundColor: AppColors.red,
+        );
         return;
       }
 
@@ -104,8 +106,10 @@ class NotificationsListState extends State<NotificationsList> {
       debugPrint(
         'Error deleting all notifications for userId: ${widget.userId}: $e',
       );
-      showToast('Failed to delete notifications. Please try again.',  
-          backgroundColor: AppColors.red);
+      showToast(
+        'Failed to delete notifications. Please try again.',
+        backgroundColor: AppColors.red,
+      );
     }
   }
 
@@ -144,8 +148,10 @@ class NotificationsListState extends State<NotificationsList> {
       debugPrint('Notification successfully deleted.');
     } catch (e) {
       debugPrint('Error deleting notification: $e');
-      showToast('Error deleting notification. Please try again.', 
-          backgroundColor: AppColors.red);
+      showToast(
+        'Error deleting notification. Please try again.',
+        backgroundColor: AppColors.red,
+      );
     }
   }
 
@@ -262,6 +268,10 @@ class NotificationsListState extends State<NotificationsList> {
         return Icon(Icons.healing, color: AppColors.black, size: 24);
       case 'tag':
         return Icon(Icons.how_to_reg_sharp, color: AppColors.black, size: 24);
+      case 'update':
+        return Icon(Icons.info, color: AppColors.black, size: 24);
+      case 'patient':
+        return Icon(Icons.person, color: AppColors.black, size: 24);
       default:
         return Icon(Icons.notifications, color: AppColors.black, size: 24);
     }
@@ -317,6 +327,9 @@ class NotificationsListState extends State<NotificationsList> {
         break;
       case 'tag':
         title = 'Tagging Details';
+        break;
+      case 'patient':
+        title = 'Patient Notice';
         break;
       default:
         title = 'Notification Details';
@@ -440,6 +453,8 @@ class NotificationsListState extends State<NotificationsList> {
                             ? 'Account Update'
                             : notification['type'] == 'tag'
                             ? 'Tagging Details'
+                            : notification['type'] == 'patient'
+                            ? 'Patient Notice'
                             : 'Notification';
 
                     return GestureDetector(

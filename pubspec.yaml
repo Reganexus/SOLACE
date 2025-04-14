@@ -23,6 +23,7 @@ dependencies:
   flutter_email_sender: ^7.0.0
   flutter_form_builder: ^10.0.0
   flutter_local_notifications: ^19.0.0
+  flutter_native_splash: ^2.4.6
   fluttertoast: ^8.2.12
   form_builder_validators: ^11.1.2
   google_sign_in: ^6.2.1
@@ -56,6 +57,13 @@ flutter_icons:
   remove_alpha_ios: true
   image_path: "lib/assets/images/auth/app_icon.png"
   name: "Solace"
+  
+flutter_native_splash:
+  color: "#ffffff"
+  image: "lib/assets/images/auth/splash_icon.png"
+  android: true
+  ios: true
+  web: true
 
 flutter:
   uses-material-design: true
@@ -78,7 +86,3 @@ flutter:
       fonts:
         - asset: lib/assets/fonts/Inter/Inter-Bold.ttf
         - asset: lib/assets/fonts/Inter/Inter-Regular.ttf
-    - family: Outfit
-      fonts:
-        - asset: lib/assets/fonts/Outfit/Outfit-Bold.ttf
-        - asset: lib/assets/fonts/Outfit/Outfit-Regular.ttf

@@ -70,7 +70,7 @@ class CaregiverInstructionsState extends State<CaregiverInstructions> {
     Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
-      toastLength: Toast.LENGTH_SHORT,
+      toastLength: Toast.LENGTH_LONG,
       gravity: ToastGravity.BOTTOM,
       backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
@@ -104,8 +104,10 @@ class CaregiverInstructionsState extends State<CaregiverInstructions> {
       );
     } catch (e) {
       print('Error updating newUser field: $e');
-      showToast('Error updating newUser field: $e', 
-          backgroundColor: AppColors.red);
+      showToast(
+        'Error updating newUser field: $e',
+        backgroundColor: AppColors.red,
+      );
     } finally {
       setState(() {
         _isProcessing = false;

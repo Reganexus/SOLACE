@@ -117,7 +117,7 @@ class CaregiverScheduleState extends State<CaregiverSchedule> {
         final String? patientId = scheduleData['patientId'] as String?;
 
         if (patientId != null) {
-          // Fetch patient details
+          // Check if the patient still exists
           final patientSnapshot =
               await FirebaseFirestore.instance
                   .collection('patient')
@@ -139,6 +139,14 @@ class CaregiverScheduleState extends State<CaregiverSchedule> {
               'address': address,
               'patientName': patientName,
             });
+          } else {
+            // If the patient no longer exists, delete the schedule
+            await FirebaseFirestore.instance
+                .collection(userRole) // Caregiver collection
+                .doc(uid) // Caregiver document
+                .collection('schedules') // Schedules subcollection
+                .doc(doc.id) // Schedule document
+                .delete();
           }
         }
       }

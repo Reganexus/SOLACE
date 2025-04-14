@@ -250,7 +250,7 @@ class ContactsScreenState extends State<Contacts> {
     Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
-      toastLength: Toast.LENGTH_SHORT,
+      toastLength: Toast.LENGTH_LONG,
       gravity: ToastGravity.BOTTOM,
       backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
@@ -362,16 +362,20 @@ class ContactsScreenState extends State<Contacts> {
                           final user = _auth.currentUser;
 
                           if (user == null) {
-                            showToast("Current user is not authenticated", 
-                                backgroundColor: AppColors.red);
+                            showToast(
+                              "Current user is not authenticated",
+                              backgroundColor: AppColors.red,
+                            );
                             return;
                           }
 
                           if (firstNameController.text.trim().isEmpty ||
                               lastNameController.text.trim().isEmpty ||
                               numberController.text.trim().isEmpty) {
-                            showToast("All fields are required.", 
-                                backgroundColor: AppColors.red);
+                            showToast(
+                              "All fields are required.",
+                              backgroundColor: AppColors.red,
+                            );
                             return;
                           }
 
@@ -415,8 +419,10 @@ class ContactsScreenState extends State<Contacts> {
                             _initializeContacts();
                             Navigator.pop(context);
                           } catch (e) {
-                            showToast("Failed to add contact: $e",  
-                                backgroundColor: AppColors.red);
+                            showToast(
+                              "Failed to add contact: $e",
+                              backgroundColor: AppColors.red,
+                            );
                           }
                         },
                         child: Text(
@@ -550,16 +556,20 @@ class ContactsScreenState extends State<Contacts> {
                           final user = _auth.currentUser;
 
                           if (user == null) {
-                            showToast("Current user is not authenticated", 
-                                backgroundColor: AppColors.red);
+                            showToast(
+                              "Current user is not authenticated",
+                              backgroundColor: AppColors.red,
+                            );
                             return;
                           }
 
                           if (firstNameController.text.trim().isEmpty ||
                               lastNameController.text.trim().isEmpty ||
                               numberController.text.trim().isEmpty) {
-                            showToast("All fields are required.", 
-                                backgroundColor: AppColors.red);
+                            showToast(
+                              "All fields are required.",
+                              backgroundColor: AppColors.red,
+                            );
                             return;
                           }
 
@@ -588,8 +598,10 @@ class ContactsScreenState extends State<Contacts> {
                           if (!RegExp(
                             r'^09\d{9}$',
                           ).hasMatch(updatedContact['phoneNumber']!)) {
-                            showToast('Invalid phone number format.', 
-                                backgroundColor: AppColors.red);
+                            showToast(
+                              'Invalid phone number format.',
+                              backgroundColor: AppColors.red,
+                            );
                             return;
                           }
 
@@ -612,8 +624,10 @@ class ContactsScreenState extends State<Contacts> {
                             _initializeContacts();
                           } catch (e) {
                             debugPrint("Error updating contact: $e");
-                            showToast("Failed to update contact.", 
-                                backgroundColor: AppColors.red);
+                            showToast(
+                              "Failed to update contact.",
+                              backgroundColor: AppColors.red,
+                            );
                           }
                         },
                         child: Text("Save", style: Textstyle.smallButton),
@@ -635,8 +649,7 @@ class ContactsScreenState extends State<Contacts> {
     final String phoneNumber = contactData['phoneNumber'] ?? '';
 
     if (category.isEmpty || phoneNumber.isEmpty) {
-      showToast("Invalid contact data.", 
-          backgroundColor: AppColors.red);
+      showToast("Invalid contact data.", backgroundColor: AppColors.red);
       return;
     }
 
@@ -663,8 +676,10 @@ class ContactsScreenState extends State<Contacts> {
                   final user = _auth.currentUser;
 
                   if (user == null) {
-                    showToast("Current user is not authenticated", 
-                        backgroundColor: AppColors.red);
+                    showToast(
+                      "Current user is not authenticated",
+                      backgroundColor: AppColors.red,
+                    );
                     return;
                   }
 
@@ -684,8 +699,10 @@ class ContactsScreenState extends State<Contacts> {
                   _initializeContacts();
                 } catch (e) {
                   debugPrint("Error deleting contact: $e");
-                  showToast("Failed to delete contact.", 
-                      backgroundColor: AppColors.red);
+                  showToast(
+                    "Failed to delete contact.",
+                    backgroundColor: AppColors.red,
+                  );
                 }
               },
               child: Text("Delete", style: Textstyle.smallButton),

@@ -156,7 +156,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
-      toastLength: Toast.LENGTH_SHORT,
+      toastLength: Toast.LENGTH_LONG,
       gravity: ToastGravity.BOTTOM,
       backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
@@ -346,7 +346,10 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         // Handle any unexpected errors
         debugPrint("Unexpected error: $e");
         if (mounted) {
-          showToast('An unexpected error occurred: $e', backgroundColor: AppColors.red);
+          showToast(
+            'An unexpected error occurred: $e',
+            backgroundColor: AppColors.red,
+          );
         }
       }
     }
@@ -412,7 +415,9 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                 formattedPredictions[systolicKey] = value.round();
 
                 // If diastolic exists, save it separately
-                if (predictions.containsKey("systemicdiastolic_t+$timeSuffix")) {
+                if (predictions.containsKey(
+                  "systemicdiastolic_t+$timeSuffix",
+                )) {
                   formattedPredictions[diastolicKey] =
                       predictions["systemicdiastolic_t+$timeSuffix"].round();
                 }
@@ -428,14 +433,23 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
               final currentTimestamp = Timestamp.now();
 
               // Calculate future timestamps for t+1, t+2, and t+3
-              final tPlus1Timestamp = currentTimestamp.toDate().add(Duration(hours: 1));
-              final tPlus2Timestamp = currentTimestamp.toDate().add(Duration(hours: 6));
-              final tPlus3Timestamp = currentTimestamp.toDate().add(Duration(hours: 12));
+              final tPlus1Timestamp = currentTimestamp.toDate().add(
+                Duration(hours: 1),
+              );
+              final tPlus2Timestamp = currentTimestamp.toDate().add(
+                Duration(hours: 6),
+              );
+              final tPlus3Timestamp = currentTimestamp.toDate().add(
+                Duration(hours: 12),
+              );
 
               // Format the timestamps to include only up to minutes
-              final tPlus1DocumentId = "${DateFormat('yyyy-MM-dd_HH:mm').format(tPlus1Timestamp)}_t+1";
-              final tPlus2DocumentId = "${DateFormat('yyyy-MM-dd_HH:mm').format(tPlus2Timestamp)}_t+2";
-              final tPlus3DocumentId = "${DateFormat('yyyy-MM-dd_HH:mm').format(tPlus3Timestamp)}_t+3";
+              final tPlus1DocumentId =
+                  "${DateFormat('yyyy-MM-dd_HH:mm').format(tPlus1Timestamp)}_t+1";
+              final tPlus2DocumentId =
+                  "${DateFormat('yyyy-MM-dd_HH:mm').format(tPlus2Timestamp)}_t+2";
+              final tPlus3DocumentId =
+                  "${DateFormat('yyyy-MM-dd_HH:mm').format(tPlus3Timestamp)}_t+3";
 
               // Split predictions into three maps: t+1, t+2, and t+3
               Map<String, dynamic> tPlus1 = {};
@@ -519,10 +533,8 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       // Handle no internet or server unreachable case
     } on FormatException catch (e) {
       debugPrint("Invalid Response Format: $e");
-      // Handle cases where API returns unexpected response
     } catch (e) {
       debugPrint("Unexpected Error: $e");
-      // Handle any other unknown errors
     }
   }
 
@@ -575,7 +587,10 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
             .catchError((e) {
               debugPrint("Error storing data: $e");
               if (mounted) {
-                showToast('Error storing data: $e', backgroundColor: AppColors.red);
+                showToast(
+                  'Error storing data: $e',
+                  backgroundColor: AppColors.red,
+                );
               }
             });
       } else {
@@ -587,13 +602,18 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
             .catchError((e) {
               debugPrint("Error creating tracking document: $e");
               if (mounted) {
-                showToast('Error creating tracking data: $e', backgroundColor: AppColors.red);
+                showToast(
+                  'Error creating tracking data: $e',
+                  backgroundColor: AppColors.red,
+                );
               }
             });
       }
 
       // Save the vitals to the nearest prediction documents
-      await saveVitalsToNearestPrediction(reformatVitals(widget.inputs['Vitals']));
+      await saveVitalsToNearestPrediction(
+        reformatVitals(widget.inputs['Vitals']),
+      );
 
       // Add log entries
       await _logService.addLog(
@@ -642,7 +662,10 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       // Handle any unexpected errors here
       debugPrint("Unexpected error: $e");
       if (mounted) {
-        showToast('An unexpected error occurred: $e', backgroundColor: AppColors.red);
+        showToast(
+          'An unexpected error occurred: $e',
+          backgroundColor: AppColors.red,
+        );
       }
     } finally {
       setState(() {
@@ -694,128 +717,138 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     }
   }
 
-  Future<void> saveVitalsToNearestPrediction(Map<String, dynamic> submittedVitals) async {
-  try {
-    debugPrint('Entered saveVitalsToNearestPrediction');
-    final currentTimestamp = DateTime.now();
+  Future<void> saveVitalsToNearestPrediction(
+    Map<String, dynamic> submittedVitals,
+  ) async {
+    try {
+      debugPrint('Entered saveVitalsToNearestPrediction');
+      final currentTimestamp = DateTime.now();
 
-    // Query the predictions subcollection
-    final predictionsSnapshot = await FirebaseFirestore.instance
-        .collection('patient')
-        .doc(widget.uid)
-        .collection('predictions')
-        .get();
+      // Query the predictions subcollection
+      final predictionsSnapshot =
+          await FirebaseFirestore.instance
+              .collection('patient')
+              .doc(widget.uid)
+              .collection('predictions')
+              .get();
 
-    debugPrint('Predictions Snapshot: ${predictionsSnapshot.docs.length} documents found.');
+      debugPrint(
+        'Predictions Snapshot: ${predictionsSnapshot.docs.length} documents found.',
+      );
 
-    // Group documents by their suffix (_t+1, _t+2, _t+3)
-    Map<String, Map<String, dynamic>> nearestDocuments = {};
-    for (var doc in predictionsSnapshot.docs) {
-      final docId = doc.id;
-      debugPrint('Processing Document ID: $docId');
+      // Group documents by their suffix (_t+1, _t+2, _t+3)
+      Map<String, Map<String, dynamic>> nearestDocuments = {};
+      for (var doc in predictionsSnapshot.docs) {
+        final docId = doc.id;
+        debugPrint('Processing Document ID: $docId');
 
-      // Extract the suffix (e.g., _t+1, _t+2, _t+3)
-      final suffix = docId.substring(docId.lastIndexOf('_'));
-      if (!['_t+1', '_t+2', '_t+3'].contains(suffix)) {
-        debugPrint('Skipping Document ID (Invalid Suffix): $docId');
-        continue;
-      }
-      debugPrint('Suffix: $suffix');
-
-      // Extract the timestamp from the document ID
-      final timestampString = '${docId.split('_')[0]}_${docId.split('_')[1]}';
-      debugPrint('Extracted Timestamp String: $timestampString');
-
-      // Parse the timestamp
-      DateTime? docTimestamp;
-      try {
-        docTimestamp = DateFormat('yyyy-MM-dd_HH:mm').parse(timestampString);
-      } catch (e) {
-        debugPrint('Error parsing timestamp for Document ID $docId: $e');
-        continue;
-      }
-      debugPrint('Parsed Document Timestamp: $docTimestamp');
-
-      // Calculate the time difference in seconds
-      final timeDifference = docTimestamp.difference(currentTimestamp).inSeconds;
-      debugPrint('Time Difference: $timeDifference seconds');
-
-      // Only consider documents within 15 minutes (±900 seconds)
-      if (timeDifference.abs() <= 900) {
-        // Check if the document already has a timeDifference field
-        final existingTimeDifference = doc.data().containsKey('timeDifference')
-            ? doc.get('timeDifference') as int
-            : null;
-
-        if (existingTimeDifference != null) {
-          // If the current timeDifference is farther from 0, skip this document
-          if (timeDifference.abs() >= existingTimeDifference.abs()) {
-            debugPrint(
-                'Skipping Document $docId because existing timeDifference ($existingTimeDifference) is closer to 0.');
-            continue;
-          }
+        // Extract the suffix (e.g., _t+1, _t+2, _t+3)
+        final suffix = docId.substring(docId.lastIndexOf('_'));
+        if (!['_t+1', '_t+2', '_t+3'].contains(suffix)) {
+          debugPrint('Skipping Document ID (Invalid Suffix): $docId');
+          continue;
         }
+        debugPrint('Suffix: $suffix');
 
-        // Update the nearest document if the current timeDifference is closer to 0
-        nearestDocuments[suffix] = {
-          'doc': doc,
-          'timeDifference': timeDifference,
-        };
-        debugPrint('Nearest Document Updated: $docId with time difference: $timeDifference seconds');
+        // Extract the timestamp from the document ID
+        final timestampString = '${docId.split('_')[0]}_${docId.split('_')[1]}';
+        debugPrint('Extracted Timestamp String: $timestampString');
+
+        // Parse the timestamp
+        DateTime? docTimestamp;
+        try {
+          docTimestamp = DateFormat('yyyy-MM-dd_HH:mm').parse(timestampString);
+        } catch (e) {
+          debugPrint('Error parsing timestamp for Document ID $docId: $e');
+          continue;
+        }
+        debugPrint('Parsed Document Timestamp: $docTimestamp');
+
+        // Calculate the time difference in seconds
+        final timeDifference =
+            docTimestamp.difference(currentTimestamp).inSeconds;
+        debugPrint('Time Difference: $timeDifference seconds');
+
+        // Only consider documents within 15 minutes (±900 seconds)
+        if (timeDifference.abs() <= 900) {
+          // Check if the document already has a timeDifference field
+          final existingTimeDifference =
+              doc.data().containsKey('timeDifference')
+                  ? doc.get('timeDifference') as int
+                  : null;
+
+          if (existingTimeDifference != null) {
+            // If the current timeDifference is farther from 0, skip this document
+            if (timeDifference.abs() >= existingTimeDifference.abs()) {
+              debugPrint(
+                'Skipping Document $docId because existing timeDifference ($existingTimeDifference) is closer to 0.',
+              );
+              continue;
+            }
+          }
+
+          // Update the nearest document if the current timeDifference is closer to 0
+          nearestDocuments[suffix] = {
+            'doc': doc,
+            'timeDifference': timeDifference,
+          };
+          debugPrint(
+            'Nearest Document Updated: $docId with time difference: $timeDifference seconds',
+          );
+        }
       }
+
+      debugPrint('Nearest Documents: $nearestDocuments');
+
+      // Save the submitted vitals to the nearest documents
+      for (var entry in nearestDocuments.entries) {
+        final doc = entry.value['doc'] as QueryDocumentSnapshot;
+        final timeDifference = entry.value['timeDifference'] as int;
+
+        // Prepare the data to save
+        final Map<String, dynamic> actualVitals = {};
+        submittedVitals.forEach((key, value) {
+          actualVitals['actual_$key'] = value;
+        });
+
+        // Add the time difference field
+        actualVitals['timeDifference'] = timeDifference;
+
+        // Update the document with the actual vitals
+        await FirebaseFirestore.instance
+            .collection('patient')
+            .doc(widget.uid)
+            .collection('predictions')
+            .doc(doc.id)
+            .update(actualVitals);
+
+        debugPrint('Saved actual vitals to ${doc.id}: $actualVitals');
+      }
+    } catch (e) {
+      debugPrint('Error saving vitals to nearest prediction: $e');
     }
-
-    debugPrint('Nearest Documents: $nearestDocuments');
-
-    // Save the submitted vitals to the nearest documents
-    for (var entry in nearestDocuments.entries) {
-      final doc = entry.value['doc'] as QueryDocumentSnapshot;
-      final timeDifference = entry.value['timeDifference'] as int;
-
-      // Prepare the data to save
-      final Map<String, dynamic> actualVitals = {};
-      submittedVitals.forEach((key, value) {
-        actualVitals['actual_$key'] = value;
-      });
-
-      // Add the time difference field
-      actualVitals['timeDifference'] = timeDifference;
-
-      // Update the document with the actual vitals
-      await FirebaseFirestore.instance
-          .collection('patient')
-          .doc(widget.uid)
-          .collection('predictions')
-          .doc(doc.id)
-          .update(actualVitals);
-
-      debugPrint('Saved actual vitals to ${doc.id}: $actualVitals');
-    }
-  } catch (e) {
-    debugPrint('Error saving vitals to nearest prediction: $e');
   }
-}
 
-Map<String, dynamic> reformatVitals(Map<String, dynamic> submittedVitals) {
-  final Map<String, dynamic> reformattedVitals = {};
+  Map<String, dynamic> reformatVitals(Map<String, dynamic> submittedVitals) {
+    final Map<String, dynamic> reformattedVitals = {};
 
-  submittedVitals.forEach((key, value) {
-    // Ignore the "Pain" key
-    if (key.toLowerCase() == 'pain') return;
+    submittedVitals.forEach((key, value) {
+      // Ignore the "Pain" key
+      if (key.toLowerCase() == 'pain') return;
 
-    // Handle "Oxygen Saturation" as "sao2"
-    if (key.toLowerCase() == 'oxygen saturation') {
-      reformattedVitals['sao2'] = value;
-      return;
-    }
+      // Handle "Oxygen Saturation" as "sao2"
+      if (key.toLowerCase() == 'oxygen saturation') {
+        reformattedVitals['sao2'] = value;
+        return;
+      }
 
-    // Reformat other keys: remove spaces and convert to lowercase
-    final formattedKey = key.toLowerCase().replaceAll(' ', '');
-    reformattedVitals[formattedKey] = value;
-  });
+      // Reformat other keys: remove spaces and convert to lowercase
+      final formattedKey = key.toLowerCase().replaceAll(' ', '');
+      reformattedVitals[formattedKey] = value;
+    });
 
-  return reformattedVitals;
-}
+    return reformattedVitals;
+  }
 
   Widget _buildSubmitButton() {
     return SizedBox(
@@ -846,66 +879,69 @@ Map<String, dynamic> reformatVitals(Map<String, dynamic> submittedVitals) {
                 ),
         automaticallyImplyLeading: _isLoading ? false : true,
       ),
-      body: 
+      body:
           _isLoading
               ? Center(child: CircularProgressIndicator())
               : SingleChildScrollView(
-                  child: Container(
-                    color: AppColors.white,
-                    padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildDeter(),
-                        const SizedBox(height: 20),
-                        _buildHeader("Your Assessment"),
-                        const SizedBox(height: 20.0),
-                        _buildHeader("Vitals:"),
-                        if (widget.inputs['Vitals'] is Map)
-                          ...widget.inputs['Vitals'].entries.map((entry) {
-                            // Get the unit for the current vital
-                            final unit = vitalsUnits[entry.key] ?? '';
-                            final value =
-                                (entry.value == null || entry.value.toString().isEmpty)
-                                    ? '0'
-                                    : entry.value.toString();
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 5.0),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text('${entry.key}:', style: Textstyle.body),
-                                  Text(
-                                    '$value$unit', // Append the unit
-                                    style: Textstyle.body,
-                                  ),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                        const SizedBox(height: 20.0),
-                        _buildHeader("Symptom Assessment:"),
-                        const SizedBox(height: 10.0),
-                        if (widget.inputs['Symptom Assessment'] is Map)
-                          ...widget.inputs['Symptom Assessment'].entries.map((entry) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 5.0),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text('${entry.key}:', style: Textstyle.body),
-                                  Text('${entry.value}', style: Textstyle.body),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                        Divider(),
-                        SizedBox(height: 10),
-                        _buildSubmitButton(),
-                      ],
-                    ),
+                child: Container(
+                  color: AppColors.white,
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildDeter(),
+                      const SizedBox(height: 20),
+                      _buildHeader("Your Assessment"),
+                      const SizedBox(height: 20.0),
+                      _buildHeader("Vitals:"),
+                      if (widget.inputs['Vitals'] is Map)
+                        ...widget.inputs['Vitals'].entries.map((entry) {
+                          // Get the unit for the current vital
+                          final unit = vitalsUnits[entry.key] ?? '';
+                          final value =
+                              (entry.value == null ||
+                                      entry.value.toString().isEmpty)
+                                  ? '0'
+                                  : entry.value.toString();
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 5.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('${entry.key}:', style: Textstyle.body),
+                                Text(
+                                  '$value$unit', // Append the unit
+                                  style: Textstyle.body,
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      const SizedBox(height: 20.0),
+                      _buildHeader("Symptom Assessment:"),
+                      const SizedBox(height: 10.0),
+                      if (widget.inputs['Symptom Assessment'] is Map)
+                        ...widget.inputs['Symptom Assessment'].entries.map((
+                          entry,
+                        ) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 5.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('${entry.key}:', style: Textstyle.body),
+                                Text('${entry.value}', style: Textstyle.body),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      Divider(),
+                      SizedBox(height: 10),
+                      _buildSubmitButton(),
+                    ],
                   ),
                 ),
+              ),
     );
   }
 }

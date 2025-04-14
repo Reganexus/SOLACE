@@ -830,6 +830,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         SizedBox(height: 30),
+
                         Text(
                           name,
                           style: Textstyle.bodyWhite.copyWith(fontSize: 20),
@@ -885,6 +886,8 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
                       ],
                     ),
                   ),
+
+                  if (widget.role != 'caregiver') _buildAssignmentRow(),
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16.0),
@@ -1280,11 +1283,13 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
   }) async {
     if (_isTagging) return; // Prevent multiple taps
 
+    String patientName = await _loadUserName(patientId);
+
     final shouldTag = await _showConfirmationDialog(
-      title: 'Tag Patient',
+      title: 'Assign Patient to yourself',
       definition:
-          'Tagging a patient means adding them to your assigned patient list.',
-      message: 'Are you sure you want to tag this patient?',
+          'Assigning patient $patientName means adding him/her to your assigned patient list.',
+      message: 'Are you sure you want to assign patient $patientName?',
     );
 
     if (shouldTag) {
@@ -1310,7 +1315,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
           _isTagging = true;
         });
 
-        showToast('Tagging in progress...');
+        showToast('Assigning patient $patientName in progress...');
 
         final patientRef = FirebaseFirestore.instance
             .collection('patient')
@@ -1327,17 +1332,20 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
 
         await _logService.addLog(
           userId: widget.caregiverId,
-          action: "Tagged patient $patientName",
+          action: "Assigned patient $patientName",
         );
         await databaseService.addNotification(
           widget.caregiverId,
-          'You successfully tagged patient $patientName',
+          'You successfully assigned patient $patientName to yourself',
           'tag',
         );
 
-        showToast('Successfully tagged patient.');
+        showToast('Successfully assigned patient $patientName.');
       } catch (e) {
-        showToast('Error tagging patient: $e', backgroundColor: AppColors.red);
+        showToast(
+          'Error assigning patient $patientName: $e',
+          backgroundColor: AppColors.red,
+        );
       } finally {
         if (mounted) {
           setState(() {
@@ -1353,12 +1361,14 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     required String userId,
   }) async {
     if (_isTagging) return;
+    String patientName = await _loadUserName(patientId);
 
     final shouldUntag = await _showConfirmationDialog(
-      title: 'Untag Patient',
+      title: 'Removed Assignment',
       definition:
-          'Untagging a patient means removing them from your assigned patient list.',
-      message: 'Are you sure you want to untag this patient?',
+          'Removing your assignment to patient $patientName means removing him/her from your assigned patient list.',
+      message:
+          'Are you sure you want to your assignment to patient $patientName?',
     );
 
     if (shouldUntag) {
@@ -1384,7 +1394,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
           _isTagging = true;
         });
 
-        showToast('Untagging in progress...');
+        showToast('Removing assignment in progress...');
 
         final patientRef = FirebaseFirestore.instance
             .collection('patient')
@@ -1401,18 +1411,18 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
 
         await _logService.addLog(
           userId: widget.caregiverId,
-          action: "Untagged patient $patientName",
+          action: "Removed assignment to patient $patientName",
         );
         await databaseService.addNotification(
           widget.caregiverId,
-          'You successfully untagged patient $patientName',
+          'You successfully removed assignment to patient $patientName',
           'tag',
         );
 
-        showToast('Successfully untagged patient.');
+        showToast('Successfully removed assignment to patient $patientName');
       } catch (e) {
         showToast(
-          'Error untagging patient: $e',
+          'Error removing assignment to patient $patientName: $e',
           backgroundColor: AppColors.red,
         );
       } finally {
@@ -1482,11 +1492,79 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
-      toastLength: Toast.LENGTH_SHORT,
+      toastLength: Toast.LENGTH_LONG,
       gravity: ToastGravity.BOTTOM,
       backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
       fontSize: 16.0,
+    );
+  }
+
+  Widget _buildAssignmentRow() {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(16),
+      color: AppColors.black.withValues(alpha: 0.85),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              "Manage Assignment",
+              style: Textstyle.bodySmall.copyWith(color: AppColors.white),
+            ),
+          ),
+          FutureBuilder<bool>(
+            future: _isUserTagged(widget.patientId, widget.caregiverId),
+            builder: (context, snapshot) {
+              if (snapshot.hasData) {
+                final isTagged = snapshot.data ?? false;
+
+                return Row(
+                  children: [
+                    SizedBox(width: 5),
+                    SizedBox(
+                      height: 30,
+                      child: TextButton(
+                        onPressed:
+                            () =>
+                                isTagged
+                                    ? _untagPatient(
+                                      patientId: widget.patientId,
+                                      userId: widget.caregiverId,
+                                    )
+                                    : _tagPatient(
+                                      patientId: widget.patientId,
+                                      userId: widget.caregiverId,
+                                    ),
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.symmetric(
+                            vertical: 3,
+                            horizontal: 8,
+                          ),
+                          backgroundColor:
+                              isTagged ? AppColors.red : AppColors.neon,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: Text(
+                          isTagged ? 'Remove Assignment' : 'Assign Patient',
+                          style: Textstyle.bodySuperSmall.copyWith(
+                            color: AppColors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              }
+
+              return Icon(Icons.error_outline, color: AppColors.yellow);
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -1496,9 +1574,10 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
       backgroundColor: AppColors.white,
       appBar: AppBar(
         title: Text('Patient Status', style: Textstyle.subheader),
+        centerTitle: true,
         actions: [
           _isLoading
-              ? Center(child: CircularProgressIndicator())
+              ? Container()
               : Padding(
                 padding: const EdgeInsets.only(right: 16),
                 child: Row(
@@ -1526,68 +1605,14 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
                             context,
                             MaterialPageRoute(
                               builder:
-                                  (context) =>
-                                      EditPatient(patientId: widget.patientId, role: widget.role),
+                                  (context) => EditPatient(
+                                    patientId: widget.patientId,
+                                    role: widget.role,
+                                  ),
                             ),
                           ),
                       child: Icon(Icons.edit, size: 24, color: AppColors.black),
                     ),
-                    if (widget.role != 'caregiver')
-                      FutureBuilder<bool>(
-                        future: _isUserTagged(
-                          widget.patientId,
-                          widget.caregiverId,
-                        ),
-                        builder: (context, snapshot) {
-                          if (!snapshot.hasData) {
-                            return CircularProgressIndicator();
-                          }
-
-                          final isTagged = snapshot.data!;
-
-                          return Row(
-                            children: [
-                              SizedBox(width: 5),
-                              SizedBox(
-                                height: 30,
-                                child: TextButton(
-                                  onPressed:
-                                      () =>
-                                          isTagged
-                                              ? _untagPatient(
-                                                patientId: widget.patientId,
-                                                userId: widget.caregiverId,
-                                              )
-                                              : _tagPatient(
-                                                patientId: widget.patientId,
-                                                userId: widget.caregiverId,
-                                              ),
-                                  style: TextButton.styleFrom(
-                                    padding: EdgeInsets.symmetric(
-                                      vertical: 3,
-                                      horizontal: 8,
-                                    ),
-                                    backgroundColor:
-                                        isTagged
-                                            ? AppColors.red
-                                            : AppColors.neon,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    isTagged ? 'Untag Patient' : 'Tag Patient',
-                                    style: Textstyle.bodySuperSmall.copyWith(
-                                      color: AppColors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
                   ],
                 ),
               ),

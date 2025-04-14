@@ -132,7 +132,7 @@ class PatientTasksState extends State<PatientTasks> {
     Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
-      toastLength: Toast.LENGTH_SHORT,
+      toastLength: Toast.LENGTH_LONG,
       gravity: ToastGravity.BOTTOM,
       backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
@@ -184,8 +184,10 @@ class PatientTasksState extends State<PatientTasks> {
 
       if (caregiverRole == null || patientRole == null) {
         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
-        showToast("Failed to mark task as complete. Roles not found.", 
-            backgroundColor: AppColors.red);
+        showToast(
+          "Failed to mark task as complete. Roles not found.",
+          backgroundColor: AppColors.red,
+        );
         return;
       }
 
@@ -212,8 +214,10 @@ class PatientTasksState extends State<PatientTasks> {
     } catch (e) {
       debugPrint("Error updating task: $e");
 
-      showToast('Failed to mark task as complete.', 
-          backgroundColor: AppColors.red);
+      showToast(
+        'Failed to mark task as complete.',
+        backgroundColor: AppColors.red,
+      );
     }
   }
 
@@ -232,9 +236,10 @@ class PatientTasksState extends State<PatientTasks> {
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
               TextButton(
-                style: showCompleted
-                    ? Buttonstyle.buttonNeon
-                    : Buttonstyle.buttonPurple,
+                style:
+                    showCompleted
+                        ? Buttonstyle.buttonNeon
+                        : Buttonstyle.buttonPurple,
                 onPressed: () {
                   setState(() {
                     showCompleted = !showCompleted;
@@ -243,9 +248,7 @@ class PatientTasksState extends State<PatientTasks> {
                 child: Row(
                   children: [
                     Text(
-                      showCompleted
-                          ? 'Show Incomplete'
-                          : 'Show Completed',
+                      showCompleted ? 'Show Incomplete' : 'Show Completed',
                       style: Textstyle.bodySmall.copyWith(
                         color: AppColors.white,
                         fontWeight: FontWeight.bold,

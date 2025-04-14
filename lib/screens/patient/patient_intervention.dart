@@ -1,4 +1,5 @@
 import 'package:collection/collection.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:solace/screens/patient/patient_contact_list.dart';
@@ -30,14 +31,18 @@ class PatientInterventionsState extends State<PatientInterventions> {
     _loadData();
   }
 
+  Future<String> _getCurrentUserId() async {
+    final user = FirebaseAuth.instance.currentUser;
+    return user?.uid ?? '';
+  }
+
   Future<void> _loadData() async {
     try {
       await _loadCheckedStates();
       symptomInterventions = await _fetchInterventions();
 
-      if (!mounted) return; // Ensure the widget is still in the tree
+      if (!mounted) return;
 
-      // Determine the initial section after data is loaded
       setState(() {
         Map<String, List<String>> initialSections = {};
 
@@ -54,8 +59,7 @@ class PatientInterventionsState extends State<PatientInterventions> {
         if (emotionalSymptoms.any(
           (symptom) => symptomInterventions.containsKey(symptom),
         )) {
-          initialSections['Emotional Symptoms'] =
-              emotionalSymptoms;
+          initialSections['Emotional Symptoms'] = emotionalSymptoms;
         }
 
         if (initialSections.isNotEmpty) {
@@ -145,7 +149,7 @@ class PatientInterventionsState extends State<PatientInterventions> {
     'Poor Appetite',
     'Coughing',
     'Nausea',
-    'Vomiting'
+    'Vomiting',
   ];
 
   final List<String> emotionalSymptoms = [
@@ -156,49 +160,48 @@ class PatientInterventionsState extends State<PatientInterventions> {
   ];
 
   Future<Map<String, List<String>>> _fetchInterventions() async {
-  Map<String, List<String>> interventions = {};
+    Map<String, List<String>> interventions = {};
 
-  try {
-    // Fetch the patient document
-    DocumentSnapshot userDoc =
-        await _firestore.collection('patient').doc(widget.patientId).get();
+    try {
+      // Fetch the patient document
+      DocumentSnapshot userDoc =
+          await _firestore.collection('patient').doc(widget.patientId).get();
 
-    if (userDoc.exists && userDoc['symptoms'] != null) {
-      List<String> symptoms = List<String>.from(userDoc['symptoms']);
+      if (userDoc.exists && userDoc['symptoms'] != null) {
+        List<String> symptoms = List<String>.from(userDoc['symptoms']);
 
-      // Fetch the interventions document from the globals collection
-      DocumentSnapshot globalsInterventionsDoc = await _firestore
-          .collection('globals')
-          .doc('interventions')
-          .get();
+        // Fetch the interventions document from the globals collection
+        DocumentSnapshot globalsInterventionsDoc =
+            await _firestore.collection('globals').doc('interventions').get();
 
-      if (globalsInterventionsDoc.exists) {
-        // Get the data from the interventions document
-        Map<String, dynamic> globalsInterventions =
-            globalsInterventionsDoc.data() as Map<String, dynamic>;
+        if (globalsInterventionsDoc.exists) {
+          // Get the data from the interventions document
+          Map<String, dynamic> globalsInterventions =
+              globalsInterventionsDoc.data() as Map<String, dynamic>;
 
-        for (String symptom in symptoms) {
-          // Dynamically generate the mapped name by converting the symptom to camel case
-          String mappedName = _toCamelCase(symptom);
+          for (String symptom in symptoms) {
+            // Dynamically generate the mapped name by converting the symptom to camel case
+            String mappedName = _toCamelCase(symptom);
 
-          if (globalsInterventions.containsKey(mappedName)) {
-            // Retrieve the array of interventions for the mapped name
-            List<String> mappedInterventions =
-                List<String>.from(globalsInterventions[mappedName] ?? []);
-            interventions[symptom] = mappedInterventions;
-          } else {
-            // If no interventions are found, add a default message
-            interventions[symptom] = ['No interventions found'];
+            if (globalsInterventions.containsKey(mappedName)) {
+              // Retrieve the array of interventions for the mapped name
+              List<String> mappedInterventions = List<String>.from(
+                globalsInterventions[mappedName] ?? [],
+              );
+              interventions[symptom] = mappedInterventions;
+            } else {
+              // If no interventions are found, add a default message
+              interventions[symptom] = ['No interventions found'];
+            }
           }
         }
       }
+    } catch (e) {
+      debugPrint('Error fetching interventions: $e');
     }
-  } catch (e) {
-    debugPrint('Error fetching interventions: $e');
-  }
 
-  return interventions;
-}
+    return interventions;
+  }
 
   Widget buildCallButtons() {
     return Padding(
@@ -230,13 +233,23 @@ class PatientInterventionsState extends State<PatientInterventions> {
                 if (relativeDocs.isNotEmpty) {
                   Map<String, dynamic> relatives =
                       relativeDocs.first.data() as Map<String, dynamic>;
-                  return relatives.values.map((relative) {
-                    return {
-                      'name': relative['name'] ?? '',
-                      'phone': relative['phoneNumber'] ?? '',
-                      'category': relative['category'] ?? '',
-                    };
-                  }).toList();
+
+                  // Get current user ID
+                  String currentUserId = await _getCurrentUserId();
+
+                  // Filter out the current user from the list
+                  return relatives.values
+                      .where((relative) {
+                        return relative['uid'] != currentUserId;
+                      })
+                      .map((relative) {
+                        return {
+                          'name': relative['name'] ?? '',
+                          'phone': relative['phoneNumber'] ?? '',
+                          'category': relative['category'] ?? '',
+                        };
+                      })
+                      .toList();
                 }
                 return [];
               },
@@ -268,13 +281,23 @@ class PatientInterventionsState extends State<PatientInterventions> {
                 if (nurseDocs.isNotEmpty) {
                   Map<String, dynamic> nurses =
                       nurseDocs.first.data() as Map<String, dynamic>;
-                  return nurses.values.map((nurse) {
-                    return {
-                      'name': nurse['name'] ?? '',
-                      'phone': nurse['phoneNumber'] ?? '',
-                      'category': nurse['category'] ?? '',
-                    };
-                  }).toList();
+
+                  // Get current user ID
+                  String currentUserId = await _getCurrentUserId();
+
+                  // Filter out the current user from the list
+                  return nurses.values
+                      .where((nurse) {
+                        return nurse['uid'] != currentUserId;
+                      })
+                      .map((nurse) {
+                        return {
+                          'name': nurse['name'] ?? '',
+                          'phone': nurse['phoneNumber'] ?? '',
+                          'category': nurse['category'] ?? '',
+                        };
+                      })
+                      .toList();
                 }
                 return [];
               },
@@ -295,13 +318,23 @@ class PatientInterventionsState extends State<PatientInterventions> {
                   debugPrint("Doctor Document (${doc.id}): ${doc.data()}");
                 }
 
-                return doctorSnapshot.docs.map((doc) {
-                  return {
-                    'name': '${doc['firstName']} ${doc['lastName']}'.trim(),
-                    'phone': doc['phoneNumber'] ?? '',
-                    'profileImageUrl': doc['profileImageUrl'] ?? '',
-                  };
-                }).toList();
+                // Get current user ID
+                String currentUserId = await _getCurrentUserId();
+
+                // Filter out the current user from the list
+                return doctorSnapshot.docs
+                    .where((doc) {
+                      return doc.id !=
+                          currentUserId; // Assuming the doctor ID is the document ID
+                    })
+                    .map((doc) {
+                      return {
+                        'name': '${doc['firstName']} ${doc['lastName']}'.trim(),
+                        'phone': doc['phoneNumber'] ?? '',
+                        'profileImageUrl': doc['profileImageUrl'] ?? '',
+                      };
+                    })
+                    .toList();
               },
             ),
           ),
@@ -345,14 +378,38 @@ class PatientInterventionsState extends State<PatientInterventions> {
     );
   }
 
+  void _showAllCheckedDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: AppColors.white,
+          title: Text("Checklist Done", style: Textstyle.subheader),
+          content: Text(
+            "Great! You performed all interventions. Watch the patient for symptom flare ups.\n\nIf symptom persists, call functions are provided below.",
+            style: Textstyle.body,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              style: Buttonstyle.buttonNeon,
+              child: Text("Okay", style: Textstyle.smallButton),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     Map<String, List<String>> sections = {};
 
     // Populate sections based on available data
-    if (vitals.any(
-      (symptom) => symptomInterventions.containsKey(symptom),
-    )) {
+    if (vitals.any((symptom) => symptomInterventions.containsKey(symptom))) {
       sections['Vitals'] = vitals;
     }
     if (physicalSymptoms.any(
@@ -363,8 +420,7 @@ class PatientInterventionsState extends State<PatientInterventions> {
     if (emotionalSymptoms.any(
       (symptom) => symptomInterventions.containsKey(symptom),
     )) {
-      sections['Emotional Symptoms'] =
-          emotionalSymptoms;
+      sections['Emotional Symptoms'] = emotionalSymptoms;
     }
 
     return isLoading
@@ -538,6 +594,11 @@ class PatientInterventionsState extends State<PatientInterventions> {
                               });
                               persistentCheckedStates[symptom] = checkedStates;
                               await _saveCheckedStates();
+
+                              // Show dialog when all checkboxes are checked
+                              if (checkedStates.every((state) => state)) {
+                                _showAllCheckedDialog(context);
+                              }
                             },
                             controlAffinity: ListTileControlAffinity.leading,
                           ),

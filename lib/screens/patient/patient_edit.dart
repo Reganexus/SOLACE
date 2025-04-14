@@ -66,7 +66,7 @@ class _EditPatientState extends State<EditPatient> {
     Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
-      toastLength: Toast.LENGTH_SHORT,
+      toastLength: Toast.LENGTH_LONG,
       gravity: ToastGravity.BOTTOM,
       backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
@@ -309,15 +309,20 @@ class _EditPatientState extends State<EditPatient> {
         // Log changes
         final List<String> caregiverLogs = [];
         final List<String> patientLogs = [];
-        final caregiverName = await _loadCaregiverName(user, widget.role); // Fetch caregiver's name
+        final caregiverName = await _loadCaregiverName(
+          user,
+          widget.role,
+        ); // Fetch caregiver's name
         final patientName = '$firstName $lastName';
 
         void logChange(String field, dynamic oldValue, dynamic newValue) {
           if (oldValue != newValue) {
             caregiverLogs.add(
-                "Edited $patientName's $field from '$oldValue' to '$newValue'.");
+              "Edited $patientName's $field from '$oldValue' to '$newValue'.",
+            );
             patientLogs.add(
-                "$caregiverName changed $patientName's $field from '$oldValue' to '$newValue'.");
+              "$caregiverName changed $patientName's $field from '$oldValue' to '$newValue'.",
+            );
           }
         }
 
@@ -325,38 +330,49 @@ class _EditPatientState extends State<EditPatient> {
         logChange('First Name', patientData.firstName, firstName);
         logChange('Middle Name', patientData.middleName, middleName);
         logChange('Last Name', patientData.lastName, lastName);
-        logChange('Case Description', patientData.caseDescription, caseDescription);
+        logChange(
+          'Case Description',
+          patientData.caseDescription,
+          caseDescription,
+        );
         logChange('Address', patientData.address, address);
         logChange('Gender', patientData.gender, gender);
         logChange('Religion', patientData.religion, religion);
         logChange(
           'Birthday',
           patientData.birthday is Timestamp
-              ? DateFormat('yyyy-MM-dd')
-                  .format((patientData.birthday as Timestamp).toDate())
+              ? DateFormat(
+                'yyyy-MM-dd',
+              ).format((patientData.birthday as Timestamp).toDate())
               : patientData.birthday.toString().split(' ')[0],
           birthday != null ? DateFormat('yyyy-MM-dd').format(birthday!) : null,
         );
 
         // Log case changes
         final oldCases = List<String>.from(patientData.cases);
-        final addedCases = selectedCases.where((c) => !oldCases.contains(c)).toList();
-        final removedCases = oldCases.where((c) => !selectedCases.contains(c)).toList();
+        final addedCases =
+            selectedCases.where((c) => !oldCases.contains(c)).toList();
+        final removedCases =
+            oldCases.where((c) => !selectedCases.contains(c)).toList();
 
         if (addedCases.isNotEmpty) {
           caregiverLogs.add(
-              "Added cases ${addedCases.join(', ')} to $patientName's profile.");
+            "Added cases ${addedCases.join(', ')} to $patientName's profile.",
+          );
           patientLogs.add(
-              "$caregiverName added cases ${addedCases.join(', ')} to $patientName's profile.");
+            "$caregiverName added cases ${addedCases.join(', ')} to $patientName's profile.",
+          );
         }
 
         if (removedCases.isNotEmpty) {
           caregiverLogs.add(
-              "Removed cases ${removedCases.join(', ')} from $patientName's profile.");
+            "Removed cases ${removedCases.join(', ')} from $patientName's profile.",
+          );
           patientLogs.add(
-              "$caregiverName removed cases ${removedCases.join(', ')} from $patientName's profile.");
+            "$caregiverName removed cases ${removedCases.join(', ')} from $patientName's profile.",
+          );
         }
-        
+
         // Update Firestore with formatted data
         await FirebaseFirestore.instance
             .collection('patient')
@@ -374,15 +390,23 @@ class _EditPatientState extends State<EditPatient> {
                   birthday != null ? Timestamp.fromDate(birthday!) : null,
               'profileImageUrl': _profileImageUrl,
             });
-        
+
         // Add logs to Firestore
         for (final log in caregiverLogs) {
-          await _logService.addLog(userId: user, action: log, relatedUsers: widget.patientId); // Caregiver logs
+          await _logService.addLog(
+            userId: user,
+            action: log,
+            relatedUsers: widget.patientId,
+          ); // Caregiver logs
         }
         for (final log in patientLogs) {
-          await _logService.addLog(userId: widget.patientId, action: log, relatedUsers: user); // Patient logs
+          await _logService.addLog(
+            userId: widget.patientId,
+            action: log,
+            relatedUsers: user,
+          ); // Patient logs
         }
-        
+
         showToast('User profile updated successfully.');
 
         // Close the current screen and return to the previous screen
@@ -400,10 +424,13 @@ class _EditPatientState extends State<EditPatient> {
 
   Future<String> _loadCaregiverName(String userId, String role) async {
     try {
-      final userDoc = await FirebaseFirestore.instance
-          .collection(role) // Replace with your actual Firestore collection name
-          .doc(userId)
-          .get();
+      final userDoc =
+          await FirebaseFirestore.instance
+              .collection(
+                role,
+              ) // Replace with your actual Firestore collection name
+              .doc(userId)
+              .get();
 
       if (userDoc.exists) {
         final data = userDoc.data();
@@ -575,9 +602,7 @@ class _EditPatientState extends State<EditPatient> {
             focusNode: _focusNodes[7],
             labelText: 'Case Description',
             enabled: !_isLoading,
-            inputFormatters: [
-              LengthLimitingTextInputFormatter(100)
-            ],
+            inputFormatters: [LengthLimitingTextInputFormatter(100)],
           ),
           divider(),
           Row(
