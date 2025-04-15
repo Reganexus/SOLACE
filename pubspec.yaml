@@ -43,6 +43,7 @@ dependencies:
   wakelock_plus: ^1.2.11
   lucide_icons: ^0.257.0
   collection: ^1.19.1
+  firebase_app_check: ^0.3.2+5
 
 dev_dependencies:
   flutter_test:

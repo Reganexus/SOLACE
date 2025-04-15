@@ -16,6 +16,7 @@ import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/authenticate/get_started.dart';
 import 'package:solace/services/auth.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -50,6 +51,9 @@ Future<void> _initializeFirebase() async {
     await Firebase.initializeApp(
       name: "solace-28954",
       options: DefaultFirebaseOptions.currentPlatform,
+    );
+    await FirebaseAppCheck.instance.activate(
+      androidProvider: AndroidProvider.debug,
     );
     await FirebaseMessaging.instance.setAutoInitEnabled(true);
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
