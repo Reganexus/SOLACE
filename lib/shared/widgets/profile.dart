@@ -123,7 +123,7 @@ class _ProfileState extends State<Profile> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
-            print("Future error: \${snapshot.error}");
+            //     debugPrint("Future error: ${snapshot.error}");
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,

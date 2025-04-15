@@ -28,8 +28,6 @@ class ConditionsScreenState extends State<ConditionsScreen> {
   void initState() {
     super.initState();
     _fetchContent();
-//     debugPrint("Terms Data: $_termsData");
-//     debugPrint("{} Data: $_termsData");
   }
 
   Future<void> _fetchContent() async {

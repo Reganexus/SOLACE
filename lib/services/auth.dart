@@ -27,16 +27,6 @@ class AuthService {
   MyUser? _cachedUser;
   String? get currentUserId => _auth.currentUser?.uid;
 
-  void displayValues() {
-    //     debugPrint('Current User: ${_auth.currentUser}');
-    //     debugPrint('Display name: ${_auth.currentUser?.displayName}');
-    //     debugPrint('Email: ${_auth.currentUser?.email}');
-    //     debugPrint('Email verified: ${_auth.currentUser?.emailVerified}');
-    //     debugPrint('Is anonymous: ${_auth.currentUser?.isAnonymous}');
-    //     debugPrint('Photo URL: ${_auth.currentUser?.photoURL}');
-    //     debugPrint('Provider data: ${_auth.currentUser?.providerData}');
-  }
-
   Future<bool> userExists(String email) async {
     final userData = await DatabaseService(uid: '').getUserDataByEmail(email);
     return userData != null;
@@ -58,11 +48,9 @@ class AuthService {
           uid: user.uid,
           isVerified: userData.isVerified,
           newUser: userData.newUser,
-          profileImageUrl: userData.profileImageUrl, // Pass profileImageUrl
+          profileImageUrl: userData.profileImageUrl,
         );
         return _cachedUser;
-      } else {
-        //         debugPrint("No user data found for UID: ${user.uid}");
       }
     } catch (e) {
       //       debugPrint("Error fetching user data from Firestore: $e");
@@ -171,7 +159,6 @@ class AuthService {
     final userDocRef = _firestore.collection('unregistered').doc(uid);
 
     try {
-      //       debugPrint("Initializing user document for UID: $uid");
       // Check existence and create in one atomic Firestore operation
       await userDocRef.set({
         'email': email,
@@ -181,12 +168,10 @@ class AuthService {
         'userRole': userRole.name,
         'dateCreated': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-      //       debugPrint("User document successfully created for UID: $uid");
 
       await MessagingService.fetchAndSaveToken();
     } catch (e) {
-      //       debugPrint("Error initializing user document for UID $uid: $e");
-      throw Exception("Failed to initialize user document for UID: $uid");
+      throw Exception("Failed to initialize user document. Error: $e");
     }
   }
 
@@ -196,8 +181,6 @@ class AuthService {
     String? profileImageUrl,
   }) async {
     try {
-      //       debugPrint("Starting signUpWithEmailAndPassword for email: $email");
-
       // Check if email exists in the deleted collection
       if (await emailExistsInDeletedCollection(email)) {
         //         debugPrint("Sign-up blocked: Email exists in the deleted collection.");
@@ -214,11 +197,8 @@ class AuthService {
       User? user = result.user;
 
       if (user == null) {
-        //         debugPrint("Sign-up failed: user is null for email: $email");
-        return false; // Indicate failure
+        return false;
       }
-
-      //       debugPrint("Sign-up successful for UID: ${user.uid}");
 
       // Clear the cache after successful sign-up
       _cachedUser = null;
@@ -233,10 +213,6 @@ class AuthService {
         profileImageUrl: profileImageUrl,
       );
 
-      //       debugPrint(
-      //      "User document initialized and custom claim set for UID: ${user.uid}",
-      //    );
-
       await _logService.addLog(
         userId: user.uid,
         action: 'Created account with email and password',
@@ -249,12 +225,9 @@ class AuthService {
         profileImageUrl: profileImageUrl ?? '',
         newUser: true,
       );
-
-      //       debugPrint("Cached user data set for UID: ${user.uid}");
       return true; // Indicate success
     } catch (e) {
-      //       debugPrint("Sign-up error for email: $email. Error: ${e.toString()}");
-      return false; // Indicate failure
+      return false;
     }
   }
 
@@ -292,8 +265,6 @@ class AuthService {
         //         debugPrint("Google sign-in failed: User is null.");
         return null;
       }
-
-      //       debugPrint("Google sign-in successful for UID: ${user.uid}");
 
       // Check if email exists in the deleted collection
       final email = user.email;
@@ -398,10 +369,8 @@ class AuthService {
   Future<bool?> resetPassword(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email);
-      //       debugPrint('Password reset email sent to $email');
       return true;
     } catch (e) {
-      //       debugPrint("Reset password error: ${e.toString()}");
       return null;
     }
   }

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
@@ -24,23 +25,6 @@ class MessagingService {
   static Future<void> initialize() async {
     try {
       requestNotificationPermission();
-      NotificationSettings settings = await _firebaseMessaging
-          .requestPermission(
-            alert: true,
-            announcement: false,
-            badge: true,
-            carPlay: false,
-            criticalAlert: false,
-            provisional: false,
-            sound: true,
-          );
-
-      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-        //         debugPrint('User granted permission for notifications.');
-      } else {
-        //         debugPrint('User denied notification permissions.');
-      }
-
       // Initialize Local Notifications
       const AndroidInitializationSettings androidSettings =
           AndroidInitializationSettings('@drawable/ic_notification');
@@ -51,14 +35,12 @@ class MessagingService {
 
       // Listen for messages in foreground
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        //         debugPrint(
-        //          'Received message in foreground: ${message.notification?.title}',
-        //        );
+        if (kDebugMode) debugPrint('Received message in foreground: ${message.notification?.title}');
         showLocalNotification(message);
       });
 
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-        print("Notification clicked! Data: ${message.data}");
+        if (kDebugMode) debugPrint("Notification clicked! Data: ${message.data}");
       });
 
       // Listen for token refresh
@@ -89,8 +71,6 @@ class MessagingService {
 
   static Future<void> showLocalNotification(RemoteMessage message) async {
     try {
-      //       debugPrint('Preparing to show local notification');
-
       // Wake up the device (only for the duration of the notification)
       WakelockPlus.enable();
 
@@ -114,8 +94,6 @@ class MessagingService {
       final String title = message.notification?.title ?? 'New Notification';
       final String body = message.notification?.body ?? 'Tap to open the app';
 
-      //       debugPrint('Showing notification: Title: $title, Body: $body');
-
       await _localNotificationsPlugin.show(
         message.hashCode,
         title,
@@ -126,8 +104,6 @@ class MessagingService {
       // Release wake lock after a short delay
       await Future.delayed(const Duration(seconds: 5));
       WakelockPlus.disable();
-
-      //       debugPrint('Notification displayed successfully.');
     } catch (e) {
       //       debugPrint('Error showing local notification: $e');
       //       debugPrint('Stack trace: $stackTrace');
@@ -147,7 +123,6 @@ class MessagingService {
       final String? userRole = await db.fetchAndCacheUserRole(user.uid);
 
       if (userRole == null) {
-        //         debugPrint('User role not found for UID: ${user.uid}');
         return;
       }
 
@@ -264,8 +239,6 @@ class MessagingService {
 
       _cachedAccessToken = authClient.credentials.accessToken.data;
       _tokenExpiry = authClient.credentials.accessToken.expiry;
-
-      //       debugPrint("Access token fetched successfully.");
       return _cachedAccessToken!;
     } catch (e) {
       //       debugPrint('Error fetching access token: $e');
@@ -283,8 +256,6 @@ class MessagingService {
       final fcmEndpoint =
           'https://fcm.googleapis.com/v1/projects/$projectId/messages:send';
 
-      //       debugPrint("FCM endpoint: $fcmEndpoint");
-
       return fcmEndpoint;
     } catch (e) {
       //       debugPrint('Error fetching FCM endpoint: $e');
@@ -299,13 +270,8 @@ class MessagingService {
     String body,
   ) async {
     try {
-      //       debugPrint("Preparing data message to send.");
-      //       debugPrint("Ttile $title");
-      //       debugPrint("Body: $body");
 
       final accessToken = await getAccessToken();
-      //       debugPrint("Access token: $accessToken");
-
       final messageTitle = title;
       final messageBody = body;
 
@@ -316,11 +282,7 @@ class MessagingService {
         },
       };
 
-      //       debugPrint("Sending message to FCM...");
-
       final endpoint = await getFcmEndpoint();
-      //       debugPrint("FCM Endpoint: $endpoint");
-
       final response = await http.post(
         Uri.parse(endpoint),
         headers: {

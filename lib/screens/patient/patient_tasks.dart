@@ -40,8 +40,6 @@ class PatientTasksState extends State<PatientTasks> {
   }
 
   Future<void> fetchPatientTasks() async {
-    print("Fetching tasks for patient: ${widget.patientId}");
-
     if (!mounted) {
       return; // Prevent unnecessary operations if widget is not mounted
     }
@@ -59,10 +57,9 @@ class PatientTasksState extends State<PatientTasks> {
               .collection('tasks')
               .get();
 
-      print("Fetched ${patientTasksSnapshot.docs.length} task documents.");
+      //     debugPrint("Fetched ${patientTasksSnapshot.docs.length} task documents.");
 
       if (patientTasksSnapshot.docs.isEmpty) {
-        print("No tasks found under patient ${widget.patientId}.");
         _updateTasks([], []);
         return;
       }
@@ -75,12 +72,7 @@ class PatientTasksState extends State<PatientTasks> {
         final startDate = (taskData['startDate'] as Timestamp?)?.toDate();
         final endDate = (taskData['endDate'] as Timestamp?)?.toDate();
 
-//         debugPrint("taskData: $taskData");
-//         debugPrint("startDate: $startDate");
-//         debugPrint("endDate: $endDate");
-
         if (startDate == null || endDate == null) {
-          print("Skipping invalid task: ${taskDoc.id}");
           continue;
         }
 
@@ -110,7 +102,7 @@ class PatientTasksState extends State<PatientTasks> {
 
       _updateTasks(loadedCompletedTasks, loadedNotCompletedTasks);
     } catch (e) {
-      print("Error loading tasks: $e");
+      //     debugPrint("Error loading tasks: $e");
       _updateTasks([], []);
     }
   }
@@ -170,10 +162,6 @@ class PatientTasksState extends State<PatientTasks> {
     String patientId,
   ) async {
     try {
-//       debugPrint("Task Id: $taskId");
-//       debugPrint("Caregiver Id: $caregiverId");
-//       debugPrint("Patient Id: $patientId");
-
       // Fetch the roles for both caregiver and patient
       final caregiverRole = await databaseService.fetchAndCacheUserRole(
         caregiverId,
@@ -438,7 +426,6 @@ class PatientTasksState extends State<PatientTasks> {
                                 caregiverId,
                                 patientId,
                               );
-//                               debugPrint("Completing Task");
                               Navigator.of(context).pop();
                             }
                           },

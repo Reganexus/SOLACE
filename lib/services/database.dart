@@ -43,7 +43,6 @@ class DatabaseService {
     for (var key in keys) {
       if (key.startsWith('userRole_')) {
         await prefs.remove(key);
-        //         debugPrint("Cleared cached role for: $key");
       }
     }
     //     debugPrint("All user role cache cleared.");
@@ -58,7 +57,6 @@ class DatabaseService {
   Future<void> cacheUserRole(String userId, String role) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('userRole_$userId', role);
-    //     debugPrint("Cached role updated to: $role for userId: $userId");
   }
 
   Future<void> cacheFormData({
@@ -86,7 +84,6 @@ class DatabaseService {
     if (imagePath != null) {
       await prefs.setString('imagePath_$userId', imagePath);
     }
-    //     debugPrint("Form data cached for userId: $userId");
   }
 
   Future<void> clearFormCache(String userId) async {
@@ -100,8 +97,6 @@ class DatabaseService {
     await prefs.remove('gender_$userId');
     await prefs.remove('religion_$userId');
     await prefs.remove('address_$userId');
-
-    //     debugPrint("Form cache cleared for userId: $userId");
   }
 
   Future<void> cacheTrackingData({
@@ -120,8 +115,6 @@ class DatabaseService {
     symptomValues.forEach((key, value) async {
       await prefs.setInt('${key}_${userId}', value);
     });
-
-    //     debugPrint("Form data cached for userId: $userId");
   }
 
   Future<void> clearTrackingCache(String userId) async {
@@ -133,14 +126,11 @@ class DatabaseService {
         await prefs.remove(key);
       }
     }
-
-    //     debugPrint("Form cache cleared for userId: $userId");
   }
 
   Future<Map<String, String>> getVitalInputs(String userId) async {
     final prefs = await SharedPreferences.getInstance();
     Map<String, String> vitalInputs = {};
-    // Assuming you have keys for each vital input (e.g., "Heart Rate", "Temperature", etc.)
     List<String> vitalKeys = [
       'Heart Rate',
       'Systolic',
@@ -159,7 +149,6 @@ class DatabaseService {
   Future<Map<String, int>> getSymptomValues(String userId) async {
     final prefs = await SharedPreferences.getInstance();
     Map<String, int> symptomValues = {};
-    // List of symptom slider keys (e.g., "Diarrhea", "Constipation", etc.)
     List<String> symptomKeys = [
       'Diarrhea',
       'Constipation',
@@ -187,7 +176,6 @@ class DatabaseService {
       // Check cached role
       final cachedRole = prefs.getString('userRole_$userId');
       if (cachedRole != null) {
-        //         debugPrint("Returning cached role: $cachedRole for userId: $userId");
         return cachedRole;
       }
 
@@ -211,7 +199,6 @@ class DatabaseService {
             if (doc.exists) {
               // Cache the found role
               await prefs.setString('userRole_$userId', collection);
-              //               debugPrint("Cached role: $collection for userId: $userId");
               return collection;
             }
             break; // Exit retry loop if successful
@@ -354,7 +341,7 @@ class DatabaseService {
   ) async {
     try {
       final role = await fetchAndCacheUserRole(userId);
-      if (role == null) throw Exception("User role not found for $userId");
+      if (role == null) throw Exception("User role not found");
       await cacheUserRole(userId, role);
 
       final notificationId = DateTime.now().millisecondsSinceEpoch.toString();
@@ -372,8 +359,6 @@ class DatabaseService {
           .collection('notifications')
           .doc(notificationId)
           .set(notificationData);
-
-      //       debugPrint("Notification added for userId: $userId");
     } catch (e) {
       //       debugPrint("Error adding notification: $e");
       throw Exception("Failed to add notification.");
@@ -385,7 +370,7 @@ class DatabaseService {
       // Fetch and cache the current role
       final currentRole = await fetchAndCacheUserRole(userId);
       if (currentRole == null) {
-        throw Exception("Current role not found for $userId");
+        throw Exception("Current role not found");
       }
 
       final newRoleName = newRole.name;
@@ -420,9 +405,6 @@ class DatabaseService {
             .doc(userId)
             .update({'userRole': newRoleName});
       }
-
-      // Ensure the role is cached after the update
-      //       debugPrint("Updated user role for $userId to $newRoleName");
     } catch (e) {
       //       debugPrint("Error updating user role: $e");
       throw Exception("Failed to update user role.");
@@ -479,10 +461,6 @@ class DatabaseService {
           .collection(collectionName)
           .doc(uid)
           .update({'isVerified': isVerified, 'newUser': true});
-
-      //       debugPrint(
-      //      "Verification status updated successfully for $uid in $collectionName.",
-      //      );
     } catch (e) {
       //       debugPrint("Failed to update verification status: $e");
       throw Exception("Failed to update verification status.");
@@ -570,11 +548,9 @@ class DatabaseService {
         relatedUsers: userId,
       );
 
-      print(
-        "User document successfully moved to 'deleted' collection, removed from the original collection, and authentication deleted.",
-      );
+      //     debugPrint("User document successfully moved to 'deleted' collection, removed from the original collection, and authentication deleted.");
     } catch (e) {
-      print("Error deleting user: $e");
+      //     debugPrint("Error deleting user: $e");
       rethrow;
     }
   }
@@ -627,9 +603,9 @@ class DatabaseService {
         relatedUsers: userId,
       );
 
-      print("User document and subcollections successfully deleted.");
+      //     debugPrint("User document and subcollections successfully deleted.");
     } catch (e) {
-      print("Error deleting user and subcollections: $e");
+      //     debugPrint("Error deleting user and subcollections: $e");
       rethrow;
     }
   }
@@ -685,11 +661,9 @@ class DatabaseService {
         relatedUsers: userId,
       );
 
-      print(
-        "User document and subcollections successfully moved to 'deceased' collection.",
-      );
+      //     debugPrint("User document and subcollections successfully moved to 'deceased' collection.");
     } catch (e) {
-      print("Error marking user as deceased and deleting subcollections: $e");
+      //     debugPrint("Error marking user as deceased and deleting subcollections: $e");
       rethrow;
     }
   }
@@ -736,14 +710,8 @@ class DatabaseService {
 
         // Commit the batch operation to delete all documents in the subcollection
         await batch.commit();
-
-        print(
-          "Subcollection '$subcollectionName' for user $userId successfully deleted.",
-        );
       } catch (e) {
-        print(
-          "Error deleting subcollection '$subcollectionName' for user $userId: $e",
-        );
+        //     debugPrint("Error deleting subcollection '$subcollectionName': $e");
       }
     }
   }
@@ -769,14 +737,12 @@ class DatabaseService {
               .get();
 
       if (doc.exists) {
-        //         debugPrint('Document found for patientId: $patientId');
         return PatientData.fromDocument(doc); // No casting needed now
       } else {
-        //         debugPrint('No document exists for patientId: $patientId');
         return null;
       }
     } catch (e) {
-      //       debugPrint("Error fetching patient data for Patient ID $patientId: $e");
+      //       debugPrint("Error fetching patient data: $e");
       return null;
     }
   }
@@ -852,16 +818,16 @@ class DatabaseService {
       // Save the patient data to the patient collection
       if (updatedData.isNotEmpty) {
         await collectionRef.doc(uid).set(updatedData, SetOptions(merge: true));
-        print("Patient data added successfully in collection: $collectionName");
+        //     debugPrint("Patient data added successfully in collection: $collectionName");
       } else {
-        print("No data provided to add patient.");
+        //     debugPrint("No data provided to add patient.");
       }
 
       // Save tags as subcollections for both the patient and current user
       if (currentUserId != null) {
         final String? userRole = await fetchAndCacheUserRole(currentUserId);
         if (userRole == null) {
-          throw Exception("User role not found for $currentUserId");
+          throw Exception("User role not found");
         }
 
         await FirebaseFirestore.instance
@@ -879,10 +845,10 @@ class DatabaseService {
             .doc(uid)
             .set({});
 
-        print("Tagging successful for patient and user.");
+        //     debugPrint("Tagging successful for patient and user.");
       }
     } catch (e) {
-      print("Error adding patient data: $e");
+      //     debugPrint("Error adding patient data: $e");
       throw Exception("Failed to add patient data");
     }
   }
@@ -928,12 +894,12 @@ class DatabaseService {
             .collection('patient')
             .doc(patientId)
             .update(updateData);
-        print('Patient profile updated successfully.');
+        //     debugPrint('Patient profile updated successfully.');
       } else {
-        print('No valid data provided for update.');
+        //     debugPrint('No valid data provided for update.');
       }
     } catch (e) {
-      print('Error updating patient profile: $e');
+      //     debugPrint('Error updating patient profile: $e');
       throw Exception('Failed to update patient profile');
     }
   }
@@ -949,7 +915,6 @@ class DatabaseService {
       if (doc.exists) {
         return doc;
       } else {
-        //         debugPrint("No document found for userId: $userId");
         return null;
       }
     } catch (e) {

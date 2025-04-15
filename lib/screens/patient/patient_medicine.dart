@@ -47,7 +47,6 @@ class PatientMedicineState extends State<PatientMedicine> {
       //      );
 
       if (medicinesSnapshot.docs.isEmpty) {
-        //         debugPrint("No medicines found under patient ${widget.patientId}.");
         if (mounted) {
           setState(() {
             patientMedicines = [];
@@ -93,8 +92,6 @@ class PatientMedicineState extends State<PatientMedicine> {
     final String medicineName = medicine['medicineName'] ?? 'Untitled Medicine';
     final String dosage = medicine['dosage'] ?? '';
     final String usage = medicine['usage'] ?? '';
-    //     debugPrint("Medicine $medicine");
-    //     debugPrint("MedicineName: $medicineName");
     showDialog(
       context: context,
       builder: (context) {

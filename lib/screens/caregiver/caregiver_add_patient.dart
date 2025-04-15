@@ -71,7 +71,6 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
   void initState() {
     super.initState();
     newPatientId = FirebaseFirestore.instance.collection('patient').doc().id;
-//     debugPrint("Add patient id: $newPatientId");
   }
 
   @override
@@ -131,10 +130,10 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
       final snapshot = await uploadTask.whenComplete(() {});
       final downloadUrl = await snapshot.ref.getDownloadURL();
 
-      print("Image uploaded successfully: $downloadUrl");
+      //     debugPrint("Image uploaded successfully: $downloadUrl");
       return downloadUrl;
     } catch (e) {
-      print("Error uploading image: $e");
+      //     debugPrint("Error uploading image: $e");
       throw Exception("Error uploading profile image: $e");
     }
   }
@@ -278,7 +277,6 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
     setState(() {
       patientName = name;
       _isLoading = false;
-//       debugPrint("Patient name: $patientName");
     });
 
     final shouldProceed = await _showConfirmationDialog(patientName);

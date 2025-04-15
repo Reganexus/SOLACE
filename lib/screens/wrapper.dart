@@ -55,7 +55,6 @@ class Wrapper extends StatelessWidget {
 
         final userData = snapshot.data;
         if (userData != null) {
-//           debugPrint("User data fetched: $userData");
           final isVerified = userData['isVerified'] ?? false;
           final newUser =
               userData['newUser'] ?? true; // Default to true for safety.
@@ -75,7 +74,6 @@ class Wrapper extends StatelessWidget {
 //             debugPrint("Wrapper: Directing to Home() with role: $role");
             return Home(uid: user.uid, role: role);
           } else {
-//             debugPrint("Wrapper: Verification failed for UID: ${user.uid}");
             return _errorScreen(
               "User verification failed. Please contact support.",
             );
@@ -91,7 +89,6 @@ class Wrapper extends StatelessWidget {
   Future<void> clearFieldsCache(String uid) async {
     final DatabaseService databaseService = DatabaseService();
     await databaseService.clearFormCache(uid);
-//     debugPrint("Cleared fields cache for UID: $uid");
   }
 
   Future<Map<String, dynamic>?> _fetchUserDataWithRetries(String uid) async {
@@ -100,8 +97,6 @@ class Wrapper extends StatelessWidget {
 
     for (int attempt = 0; attempt < maxRetries; attempt++) {
       try {
-//         debugPrint("Fetching user data (attempt ${attempt + 1}) for UID: $uid");
-
         // Use fetchAndCacheUserRole instead of getTargetUserRole
         final String? role = await DatabaseService().fetchAndCacheUserRole(uid);
         if (role == null) {
@@ -114,7 +109,6 @@ class Wrapper extends StatelessWidget {
             await FirebaseFirestore.instance.collection(role).doc(uid).get();
 
         if (docSnapshot.exists) {
-//           debugPrint("User document found for UID: $uid");
           return docSnapshot.data() as Map<String, dynamic>;
         } else {
 //           debugPrint("User document not found. Retrying...");

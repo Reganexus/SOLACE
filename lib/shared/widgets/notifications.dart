@@ -71,9 +71,6 @@ class NotificationsListState extends State<NotificationsList> {
       // Fetch the user's role
       String? userRole = await db.fetchAndCacheUserRole(widget.userId);
       if (userRole == null) {
-        //         debugPrint(
-        //      'User role could not be determined for userId: ${widget.userId}',
-        //     );
         showToast(
           'Failed to determine user role.',
           backgroundColor: AppColors.red,
@@ -100,12 +97,7 @@ class NotificationsListState extends State<NotificationsList> {
       setState(() {
         notifications.clear();
       });
-
-      //       debugPrint('All notifications cleared for userId: ${widget.userId}');
     } catch (e) {
-      //       debugPrint(
-      //      'Error deleting all notifications for userId: ${widget.userId}: $e',
-      //     );
       showToast(
         'Failed to delete notifications. Please try again.',
         backgroundColor: AppColors.red,

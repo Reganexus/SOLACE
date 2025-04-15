@@ -147,10 +147,10 @@ class _EditPatientState extends State<EditPatient> {
       // Get the download URL
       final downloadUrl = await snapshot.ref.getDownloadURL();
 
-      print("Image uploaded successfully: $downloadUrl");
+      //     debugPrint("Image uploaded successfully: $downloadUrl");
       return downloadUrl; // Return the URL
     } catch (e) {
-      print("Error uploading image: $e");
+      //     debugPrint("Error uploading image: $e");
       throw Exception("Error uploading profile image: $e");
     }
   }

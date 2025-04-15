@@ -48,7 +48,7 @@ class PatientData {
   factory PatientData.fromDocument(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data();
     if (data == null) {
-      throw Exception('Document data is null for patient ID: ${doc.id}');
+      throw Exception('Document data is null');
     }
 
     return PatientData(

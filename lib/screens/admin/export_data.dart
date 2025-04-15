@@ -62,11 +62,10 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       final user = _auth.currentUser;
 
       if (user == null) {
-        print("Error: No authenticated user found.");
+        //     debugPrint("Error: No authenticated user found.");
         return;
       }
 
-//       debugPrint("User ID: $user");
       QuerySnapshot querySnapshot;
       DateTime startDate;
 
@@ -152,7 +151,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
 
       _exportData(data, selectedValue);
     } catch (e) {
-      print("Error fetching data: $e");
+      //     debugPrint("Error fetching data: $e");
     } finally {
       setState(() => isSaving = false);
     }
@@ -239,7 +238,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
 
       _showToast("CSV export completed.");
     } catch (e) {
-      print("Error generating CSV: $e");
+      //     debugPrint("Error generating CSV: $e");
       _showToast("Error generating CSV.");
     }
   }
@@ -359,7 +358,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
 
       _showToast("PDF export completed.");
     } catch (e) {
-      print("Error generating PDF: $e");
+      //     debugPrint("Error generating PDF: $e");
       _showToast("Error generating PDF.");
     }
   }

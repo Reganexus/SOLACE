@@ -36,7 +36,6 @@ class ScheduleUtility {
       final now = DateTime.now();
 
       if (userRole == null) {
-        //         debugPrint("Failed to fetch user role for userId: $userId");
         throw Exception("User role not found.");
       }
 
@@ -50,15 +49,8 @@ class ScheduleUtility {
       final snapshot = await schedulesRef.get();
 
       if (snapshot.docs.isEmpty) {
-        //         debugPrint("No schedules found for userId: $userId");
         return;
       }
-
-      //       debugPrint(
-      //       "Remove Past Schedules Snapshot: ${snapshot.docs.map((doc) => doc.data()).toList()}",
-      //     );
-      //       debugPrint("Remove Past Schedules User Id: $userId");
-      //       debugPrint("Remove Past Schedules User Role: $userRole");
 
       // Initialize Firestore batch
       final WriteBatch batch = FirebaseFirestore.instance.batch();
@@ -73,18 +65,13 @@ class ScheduleUtility {
           final Timestamp timestamp = scheduleData['date'] as Timestamp;
           final scheduleDate = timestamp.toDate();
 
-          //           debugPrint("Schedule Date: ${scheduleDate.toString()}");
-          //           debugPrint("Schedule Date (formatted): ${scheduleDate.toLocal()}");
-          //           debugPrint("Schedule Date Now: ${now.toLocal()}");
-
           if (scheduleDate.isBefore(now)) {
             // This schedule is in the past, add to batch for deletion
             batch.delete(doc.reference);
-            //             debugPrint("Scheduled for deletion: ${doc.id}");
           }
         } else {
           //           debugPrint(
-          //        "Skipping document ${doc.id} due to missing or invalid date field.",
+          //        "Skipping document due to missing or invalid date field.",
           //        );
         }
       }

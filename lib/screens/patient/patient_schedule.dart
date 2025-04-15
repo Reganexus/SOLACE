@@ -27,7 +27,6 @@ class PatientScheduleState extends State<PatientSchedule> {
   @override
   void initState() {
     super.initState();
-//     debugPrint("Patient Dashboard Patient ID: ${widget.patientId}");
     refreshSchedules();
   }
 
@@ -134,8 +133,6 @@ class PatientScheduleState extends State<PatientSchedule> {
     final caregiverRole = await databaseService.fetchAndCacheUserRole(
       caregiverId,
     );
-//     debugPrint("Schedule CaregiverId: $caregiverId");
-//     debugPrint("Schedule CaregiverRole: $caregiverRole");
     if (caregiverRole == null) return 'Unknown';
 
     final caregiverSnapshot =

@@ -49,8 +49,6 @@ class CaregiverInstructionsState extends State<CaregiverInstructions> {
     super.initState();
     _pageController = PageController(initialPage: 0);
     _loadContent();
-//     debugPrint("user id: ${widget.userId}");
-//     debugPrint("user role: ${widget.userRole}");
   }
 
   Future<void> _loadContent() async {
@@ -91,7 +89,7 @@ class CaregiverInstructionsState extends State<CaregiverInstructions> {
 
       final docSnapshot = await userDocRef.get();
       if (!docSnapshot.exists) {
-        throw Exception("Document not found for userId: ${widget.userId}");
+        throw Exception("Document not found");
       }
 
       await userDocRef.update({'newUser': false});
@@ -103,7 +101,7 @@ class CaregiverInstructionsState extends State<CaregiverInstructions> {
         (route) => false,
       );
     } catch (e) {
-      print('Error updating newUser field: $e');
+      //     debugPrint('Error updating newUser field: $e');
       showToast(
         'Error updating newUser field: $e',
         backgroundColor: AppColors.red,

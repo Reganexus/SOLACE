@@ -199,7 +199,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           vitalValue = double.parse(value);
         } else {}
       } catch (e) {
-        //         debugPrint('$key value is invalid');
         return;
       }
 
@@ -333,7 +332,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       try {
         // Convert mapped algo inputs to a list
         List<dynamic> algoInputs = widget.algoInputs.values.toList();
-        //         debugPrint('Tracking algo inputs: $algoInputs');
 
         // Send the inputs for prediction
         await getPrediction(algoInputs);
@@ -364,7 +362,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       "Content-Type": "application/json",
       "Authorization": "Bearer $token",
     };
-    //     debugPrint("Token: $token");
 
     try {
       final Map<String, dynamic> requestBody = {
@@ -381,8 +378,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         "systemicdiastolic": int.tryParse(algoInputs[7].toString()) ?? 0,
       };
 
-      //       debugPrint("Sending JSON: ${jsonEncode(requestBody)}");
-
       // Send HTTP request
       final response = await http
           .post(url, headers: headers, body: jsonEncode(requestBody))
@@ -393,7 +388,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
         if (responseData.containsKey('predictions')) {
           Map<String, dynamic> predictions = responseData['predictions'];
-          //           debugPrint("Raw Response: ${response.body}");
 
           if (predictions.isNotEmpty) {
             // Store processed values
@@ -560,8 +554,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
 
       final timestamp = Timestamp.now();
 
-      //       debugPrint("Timestamp now at tracking: $timestamp");
-
       // Prepare the data to be inserted
       final trackingData = {
         'age': age,
@@ -722,7 +714,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     Map<String, dynamic> submittedVitals,
   ) async {
     try {
-      //       debugPrint('Entered saveVitalsToNearestPrediction');
       final currentTimestamp = DateTime.now();
 
       // Query the predictions subcollection
@@ -746,29 +737,23 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         // Extract the suffix (e.g., _t+1, _t+2, _t+3)
         final suffix = docId.substring(docId.lastIndexOf('_'));
         if (!['_t+1', '_t+2', '_t+3'].contains(suffix)) {
-          //           debugPrint('Skipping Document ID (Invalid Suffix): $docId');
           continue;
         }
-        //         debugPrint('Suffix: $suffix');
 
         // Extract the timestamp from the document ID
         final timestampString = '${docId.split('_')[0]}_${docId.split('_')[1]}';
-        //         debugPrint('Extracted Timestamp String: $timestampString');
 
         // Parse the timestamp
         DateTime? docTimestamp;
         try {
           docTimestamp = DateFormat('yyyy-MM-dd_HH:mm').parse(timestampString);
         } catch (e) {
-          //           debugPrint('Error parsing timestamp for Document ID $docId: $e');
           continue;
         }
-        //         debugPrint('Parsed Document Timestamp: $docTimestamp');
 
         // Calculate the time difference in seconds
         final timeDifference =
             docTimestamp.difference(currentTimestamp).inSeconds;
-        //         debugPrint('Time Difference: $timeDifference seconds');
 
         // Only consider documents within 15 minutes (±900 seconds)
         if (timeDifference.abs() <= 900) {
@@ -781,9 +766,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           if (existingTimeDifference != null) {
             // If the current timeDifference is farther from 0, skip this document
             if (timeDifference.abs() >= existingTimeDifference.abs()) {
-              //               debugPrint(
-              //                'Skipping Document $docId because existing timeDifference ($existingTimeDifference) is closer to 0.',
-              //              );
               continue;
             }
           }
@@ -793,13 +775,8 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
             'doc': doc,
             'timeDifference': timeDifference,
           };
-          //           debugPrint(
-          //            'Nearest Document Updated: $docId with time difference: $timeDifference seconds',
-          //          );
         }
       }
-
-      //       debugPrint('Nearest Documents: $nearestDocuments');
 
       // Save the submitted vitals to the nearest documents
       for (var entry in nearestDocuments.entries) {
@@ -822,8 +799,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
             .collection('predictions')
             .doc(doc.id)
             .update(actualVitals);
-
-        //         debugPrint('Saved actual vitals to ${doc.id}: $actualVitals');
       }
     } catch (e) {
       //       debugPrint('Error saving vitals to nearest prediction: $e');

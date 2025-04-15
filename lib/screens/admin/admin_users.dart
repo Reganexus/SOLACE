@@ -50,12 +50,11 @@ class AdminUsersState extends State<AdminUsers> {
     final currentUser = _auth.currentUser;
 
     if (currentUser == null) {
-      print("Error: No authenticated user found.");
+      //     debugPrint("Error: No authenticated user found.");
       return;
     }
 
     user = currentUser;
-//     debugPrint("User Id: ${user.uid}");
   }
 
   @override
@@ -241,7 +240,6 @@ class AdminUsersState extends State<AdminUsers> {
 
   void _showUserDetailsDialog(BuildContext context, dynamic user) {
     db.clearAllCache();
-//     debugPrint("Admin Users user: $user");
 
     if (user is! UserData && user is! PatientData) {
       throw ArgumentError('Unsupported user type');
@@ -421,10 +419,7 @@ class AdminUsersState extends State<AdminUsers> {
                       showToast('Marking $userName as deceased...');
 
                       try {
-//                         debugPrint("Marking deceased patient id: $uid");
                         await DatabaseService().markDecease(uid);
-
-//                         debugPrint("Mark deceased admin uid: ${user.uid}");
                         await _logService.addLog(
                           userId: user.uid,
                           action: "Marked $userName as deceased",
@@ -495,7 +490,6 @@ class AdminUsersState extends State<AdminUsers> {
                 showToast('Archiving $userName...');
 
                 try {
-//                   debugPrint("Archiving User id: $uid");
                   await DatabaseService().deleteUser(uid);
 
                   await _logService.addLog(

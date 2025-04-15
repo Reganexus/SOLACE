@@ -53,7 +53,6 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
     _fetchPatientTasks();
     _resetDateControllers();
     _loadPatientName();
-//     debugPrint("Patient Name: $patientName");
   }
 
   @override
@@ -76,12 +75,9 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
         patientName = name ?? 'Unknown';
       });
     }
-//     debugPrint("Patient Name: $patientName");
   }
 
   Future<void> _fetchPatientTasks() async {
-    print("Fetching tasks for patient: ${widget.patientId}");
-
     if (!mounted) return;
 
     setState(() {
@@ -135,7 +131,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
         });
       }
     } catch (e) {
-      print("Error loading tasks: $e");
+      //     debugPrint("Error loading tasks: $e");
       if (mounted) {
         setState(() {
           tasks = [];
@@ -233,7 +229,6 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
     try {
       // Get the caregiver ID (logged-in user)
       String caregiverId = FirebaseAuth.instance.currentUser?.uid ?? '';
-//       debugPrint("Add task caregiver id: $caregiverId");
 
       if (caregiverId.isEmpty) {
         showToast("No caregiver logged in.", backgroundColor: AppColors.red);
@@ -381,7 +376,6 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
               setError(""); // Clear error
             });
           }
-//           debugPrint("Start Date Updated: $taskStartDate");
         } else {
           // Validation for end date
           if (taskStartDate == null) {
@@ -404,7 +398,6 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
               setError(""); // Clear error
             });
           }
-//           debugPrint("End Date Updated: $taskEndDate");
         }
       }
     }
@@ -947,11 +940,8 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
   }
 
   void _showTaskDetailsDialog(Map<String, dynamic> task) {
-//     debugPrint("Task $task");
     final String title = task['title'] ?? 'Untitled Task';
     final String taskId = task['taskId'] ?? '';
-//     debugPrint("Task Title: $title");
-//     debugPrint("Task ID: $taskId");
     showDialog(
       context: context,
       builder: (context) {

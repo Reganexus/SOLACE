@@ -70,8 +70,6 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     _fetchThresholds();
     _startTimer();
     _pageController = PageController(initialPage: 0);
-//     debugPrint("Patient Dashboard Patient ID: ${widget.patientId}");
-//     debugPrint("Patient Dashboard Caregiver ID: ${widget.caregiverId}");
   }
 
   @override
@@ -1080,7 +1078,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
                     return _buildVitalColumn(
                       entry.key,
                       '(in $timeRemaining)',
-                      '${entry.value}',
+                      '~${entry.value}',
                       unit,
                       status,
                     );
@@ -1272,7 +1270,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
       // Return true if the user is tagged, otherwise false
       return docSnapshot.exists;
     } catch (e) {
-      print('Error checking tag: $e');
+      //     debugPrint('Error checking tag: $e');
       return false;
     }
   }

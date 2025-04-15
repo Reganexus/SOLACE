@@ -41,7 +41,6 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
     super.initState();
     _fetchPatientMedicines();
     _loadPatientName();
-//     debugPrint("Patient Name: $patientName");
     _focusNodes = List.generate(5, (index) => FocusNode());
   }
 
@@ -62,7 +61,6 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
         patientName = name ?? 'Unknown';
       });
     }
-//     debugPrint("Patient Name: $patientName");
   }
 
   void refreshValues() {
@@ -95,7 +93,6 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
   }
 
   Future<void> _fetchPatientMedicines() async {
-    print("Fetching medicines for patient: ${widget.patientId}");
 
     if (!mounted) return;
 
@@ -147,7 +144,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
         isLoading = false;
       });
     } catch (e) {
-      print("Error loading medicine: $e");
+      //     debugPrint("Error loading medicine: $e");
       setState(() {
         medicines = [];
         isLoading = false;
@@ -163,7 +160,6 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
     try {
       // Get the caregiver ID (logged-in user)
       String caregiverId = FirebaseAuth.instance.currentUser?.uid ?? '';
-//       debugPrint("Add prescription doctor id: $caregiverId");
 
       if (caregiverId.isEmpty) {
         showToast("No doctor logged in.", backgroundColor: AppColors.red);
@@ -721,11 +717,8 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
   }
 
   void _showMedicineDetailsDialog(Map<String, dynamic> medicine) {
-//     debugPrint("Medicine $medicine");
     final String medicineName = medicine['medicineName'] ?? 'Untitled Medicine';
     final String medicineId = medicine['medicineId'] ?? '';
-//     debugPrint("MedicineName: $medicineName");
-//     debugPrint("Medicine ID: $medicineId");
     showDialog(
       context: context,
       builder: (context) {

@@ -175,7 +175,7 @@ class CaregiverHomeState extends State<CaregiverHome> {
         }
 
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          print('Error fetching userRole: ${snapshot.error}');
+          //     debugPrint('Error fetching userRole: ${snapshot.error}');
           return const Icon(Icons.delete, size: 24.0);
         }
 
@@ -194,7 +194,7 @@ class CaregiverHomeState extends State<CaregiverHome> {
             }
 
             if (snapshot.hasError) {
-              print('Error fetching notifications: ${snapshot.error}');
+              //     debugPrint('Error fetching notifications: ${snapshot.error}');
               return const Icon(Icons.error, size: 24.0);
             }
 

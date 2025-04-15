@@ -16,11 +16,8 @@ class NotificationService {
       final taggedUserIds = await _getTaggedUserIds(patientId);
 
       if (taggedUserIds.isEmpty) {
-        //         debugPrint("No tagged users found for patient $patientId.");
         return;
       }
-
-      //       debugPrint("Tagged user IDs: $taggedUserIds");
 
       for (String token in taggedUserIds) {
         await db.addNotification(token, title, category);
@@ -40,11 +37,8 @@ class NotificationService {
       final taggedUserIds = await _getTaggedUserIds(patientId);
 
       if (taggedUserIds.isEmpty) {
-        //         debugPrint("No tagged users found for patient $patientId.");
         return;
       }
-
-      //       debugPrint("Tagged user IDs: $taggedUserIds");
 
       // Step 2: Fetch FCM tokens of each tagged user
       final fcmTokens = await _getFcmTokens(taggedUserIds);
@@ -53,8 +47,6 @@ class NotificationService {
         //         debugPrint("No FCM tokens found for tagged users.");
         return;
       }
-
-      //       debugPrint("FCM Tokens: $fcmTokens");
 
       // Step 3: Send notifications
       for (String token in fcmTokens) {
@@ -101,7 +93,7 @@ class NotificationService {
           }
         }
       } catch (e) {
-        //         debugPrint("Error fetching FCM token for user $userId: $e");
+        //         debugPrint("Error fetching FCM token: $e");
       }
     }
 

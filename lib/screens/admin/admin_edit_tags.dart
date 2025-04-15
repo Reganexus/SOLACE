@@ -37,8 +37,6 @@ class EditTagsState extends State<EditTags> {
     _loadUserData();
     _loadPatientName();
     _getAdminId();
-//     debugPrint("Patient Name: $userName");
-//     debugPrint("Admin ID: $adminId");
   }
 
   Future<void> _loadPatientName() async {
@@ -48,7 +46,6 @@ class EditTagsState extends State<EditTags> {
         userName = name ?? 'Unknown';
       });
     }
-//     debugPrint("Patient Name: $userName");
   }
 
   Future<void> _getAdminId() async {
@@ -58,7 +55,6 @@ class EditTagsState extends State<EditTags> {
         adminId = admin ?? 'Unknown';
       });
     }
-//     debugPrint("Admin ID: $adminId");
   }
 
   Future<void> _loadUserData() async {

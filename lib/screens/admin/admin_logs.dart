@@ -86,7 +86,7 @@ class AdminLogsState extends State<AdminLogs> {
         };
       }).toList();
     } catch (e) {
-      print("Error fetching login attempts: $e");
+      //     debugPrint("Error fetching login attempts: $e");
       return [];
     }
   }
@@ -131,15 +131,15 @@ class AdminLogsState extends State<AdminLogs> {
 
           return logs;
         } else {
-          print("No 'logs' array found in the user document.");
+          //     debugPrint("No 'logs' array found in the user document.");
           return [];
         }
       } else {
-        print("User document does not exist.");
+        //     debugPrint("User document does not exist.");
         return [];
       }
     } catch (e) {
-      print("Error fetching admin logs: $e");
+      //     debugPrint("Error fetching admin logs: $e");
       return [];
     }
   }
@@ -406,7 +406,7 @@ class AdminLogsState extends State<AdminLogs> {
         name = fetchedName;
       });
     } catch (e) {
-      print("Error fetching name: $e");
+      //     debugPrint("Error fetching name: $e");
     }
   }
 

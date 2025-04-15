@@ -23,7 +23,6 @@ class HomeState extends State<Home> {
 
   @override
   Widget build(BuildContext context) {
-//     debugPrint("Home role: ${widget.role}");
     switch (widget.role) {
       case 'admin':
         return const AdminHome();

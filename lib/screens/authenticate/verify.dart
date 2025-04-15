@@ -239,8 +239,6 @@ class _VerifyState extends State<Verify> {
     final userData = await db.fetchUserData(uid);
 
     if (userData != null) {
-//       debugPrint("User Data: ${userData.toMap()}");
-
       // Convert the UserData object to a map if needed
       final userMap = {
         'email': userData.email,
@@ -258,7 +256,6 @@ class _VerifyState extends State<Verify> {
 
       navigateToRoleChooser(userMap);
     } else {
-//       debugPrint("User data not found for UID: $uid");
       _showError(["Failed to fetch user data."]);
     }
   }
@@ -292,7 +289,6 @@ class _VerifyState extends State<Verify> {
                 (_) => RoleChooser(
                   onRoleSelected: (role) {
 //                     debugPrint("Selected role: $role");
-                    // Handle role selection logic.
                   },
                 ),
             settings: RouteSettings(arguments: userData),

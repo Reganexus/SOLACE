@@ -93,10 +93,6 @@ class CaregiverScheduleState extends State<CaregiverSchedule> {
               .collection('schedules') // Caregiver's schedules collection
               .get();
 
-      //       debugPrint(
-      //        'Schedules fetched: ${scheduleSnapshots.docs.map((doc) => doc.data()).toList()}',
-      //      );
-
       if (scheduleSnapshots.docs.isEmpty) {
         if (mounted) {
           setState(() {

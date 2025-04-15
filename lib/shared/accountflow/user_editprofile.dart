@@ -86,8 +86,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 //       debugPrint("User ID is empty. User not logged in.");
       return;
     }
-//     debugPrint("user id: $userId");
-//     debugPrint("user role: ${widget.userRole}");
 
     _focusNodes = List.generate(8, (_) => FocusNode());
     firstNameController = TextEditingController();
@@ -100,7 +98,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     originalUserData = Map<String, dynamic>.from(widget.userData);
 
     _initializeUserDetails(widget.userData);
-//     debugPrint("User Data in Edit Profile: ${widget.userData}");
 
     if (widget.userData['newUser'] == true) {
       _checkAndLoadFormData();
@@ -142,8 +139,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (hasData) {
       // Load the form data if any preference exists for the user
       await loadFormData(userId);
-    } else {
-//       debugPrint("No form data found for userId: $userId.");
     }
   }
 
@@ -165,7 +160,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _profileImage = File(_profileImageUrl!);
       }
     });
-//     debugPrint("Form data loaded for userId: $userId from cache.");
   }
 
   void _initializeUserDetails(Map<String, dynamic> userData) {
@@ -398,7 +392,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 (_) => RoleChooser(
                   onRoleSelected: (role) {
 //                     debugPrint("Selected role: $role");
-                    // Handle role selection logic.
                   },
                 ),
             settings: RouteSettings(arguments: userData),

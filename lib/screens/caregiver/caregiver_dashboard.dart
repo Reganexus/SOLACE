@@ -93,7 +93,6 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
           // Delete any invalid tagged patient records
           for (var doc in snapshot.docs) {
             if (!validPatientIds.contains(doc.id)) {
-//               debugPrint("Deleting patient id: ${doc.id}");
               await FirebaseFirestore.instance
                   .collection(userRole!)
                   .doc(caregiverId)
@@ -126,7 +125,6 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
     try {
       final String? token = await FirebaseMessaging.instance.getToken();
       if (token != null) {
-//         debugPrint("FCM Token: $token");
         return token;
       } else {
 //         debugPrint("Failed to fetch FCM token.");

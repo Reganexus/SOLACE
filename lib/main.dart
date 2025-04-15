@@ -2,6 +2,7 @@
 
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -18,7 +19,6 @@ import 'package:provider/provider.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  print("Handling a background message: ${message.messageId}");
   MessagingService.showLocalNotification(message);
   FirebaseFirestore.instance.collection('messages').add({
     'text': 'background message',
@@ -33,7 +33,7 @@ Future<void> main() async {
   await _initializeMessaging();
 
   FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-    print("Notification Clicked! Data: ${message.data}");
+    if (kDebugMode) debugPrint("Notification Clicked! Data: ${message.data}");
   });
 
   await SystemChrome.setPreferredOrientations([
@@ -54,7 +54,7 @@ Future<void> _initializeFirebase() async {
     await FirebaseMessaging.instance.setAutoInitEnabled(true);
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   } catch (e) {
-    print("Error initializing Firebase: $e");
+    //     debugPrint("Error initializing Firebase: $e");
   }
 }
 
@@ -62,7 +62,7 @@ Future<void> _initializeMessaging() async {
   try {
     MessagingService.initialize();
   } catch (e) {
-    print("Error initializing messaging service: $e");
+    //     debugPrint("Error initializing messaging service: $e");
   }
 }
 
@@ -74,13 +74,12 @@ Future<Widget> _determineInitialScreen() async {
     await authService.signOut();
     if (isNewInstall) {
       await prefs.setBool(_isNewInstallKey, false);
-      print("App is newly installed");
       return const GetStarted();
     }
 
     return const Authenticate();
   } catch (e) {
-    print("Error determining initial screen: $e");
+    //     debugPrint("Error determining initial screen: $e");
     return const Authenticate(); // Fallback
   }
 }

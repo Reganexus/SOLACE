@@ -74,7 +74,7 @@ class AuditLogsState extends State<AuditLogs> {
         name = fetchedName;
       });
     } catch (e) {
-      print("Error fetching name: $e");
+      //     debugPrint("Error fetching name: $e");
     }
   }
 

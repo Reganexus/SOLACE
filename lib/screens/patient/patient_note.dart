@@ -38,7 +38,6 @@ class PatientNoteState extends State<PatientNote> {
     fetchNotesForDay(selectedDay);
     fetchUserCreationDate();
     _loadPatientName();
-//     debugPrint("Patient Name: $patientName");
   }
 
   Future<void> _loadPatientName() async {
@@ -48,7 +47,6 @@ class PatientNoteState extends State<PatientNote> {
         patientName = name ?? 'Unknown';
       });
     }
-//     debugPrint("Patient Name: $patientName");
   }
 
   void showToast(String message, {Color? backgroundColor}) {
@@ -83,7 +81,7 @@ class PatientNoteState extends State<PatientNote> {
         }
       }
     } catch (e) {
-      print("Error fetching user creation date: $e");
+      //     debugPrint("Error fetching user creation date: $e");
     }
   }
 
@@ -117,7 +115,7 @@ class PatientNoteState extends State<PatientNote> {
         });
       }
     } catch (e) {
-      print('Error fetching notes: $e');
+      //     debugPrint('Error fetching notes: $e');
     }
 
     setState(() {

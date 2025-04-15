@@ -130,7 +130,6 @@ class ContactUtility {
       for (final doc in snapshot.docs) {
         final category = doc.id; // 'nurse' or 'relative'
         final data = doc.data();
-        //         debugPrint("Category: $category, Data: $data");
 
         if (data.isNotEmpty) {
           final List<Map<String, dynamic>> categoryContacts =
@@ -144,8 +143,6 @@ class ContactUtility {
           categorizedContacts[category] = categoryContacts;
         }
       }
-
-      //       debugPrint("Categorized Contacts: $categorizedContacts");
 
       return categorizedContacts;
     } catch (e) {

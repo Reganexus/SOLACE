@@ -52,7 +52,7 @@ class BottomNavBar extends StatelessWidget {
       final userRole = await db.fetchAndCacheUserRole(userId);
 
       if (userRole == null || userRole.isEmpty) {
-        throw Exception("User role not found for user ID: $userId");
+        throw Exception("User role not found");
       }
 
       // Fetch user document
@@ -69,7 +69,7 @@ class BottomNavBar extends StatelessWidget {
       }
     } catch (e) {
       // Log the error (if you have a logging mechanism) and rethrow
-      print("Error fetching user document: $e");
+      //     debugPrint("Error fetching user document: $e");
       throw Exception("Failed to fetch user document: $e");
     }
   }

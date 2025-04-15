@@ -302,9 +302,7 @@ class PatientTrackingState extends State<PatientTracking> {
       final String? targetToken = await FirebaseMessaging.instance.getToken();
 
       if (targetToken == null) {
-        print(
-          'Error: FCM token is null. Ensure Firebase is initialized properly.',
-        );
+        //     debugPrint('Error: FCM token is null. Ensure Firebase is initialized properly.');
         return;
       }
 
@@ -322,7 +320,7 @@ class PatientTrackingState extends State<PatientTracking> {
 
       //       debugPrint("Cooldown lifted notification sent successfully.");
     } catch (e) {
-      print('Failed to send notification: $e');
+      //     debugPrint('Failed to send notification: $e');
       //       debugPrint('Stack trace: $stackTrace');
     }
   }

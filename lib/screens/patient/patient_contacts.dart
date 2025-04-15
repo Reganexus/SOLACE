@@ -41,11 +41,8 @@ class ContactsScreenState extends State<Contacts> {
   void initState() {
     super.initState();
     patientId = widget.patientId;
-
-//     debugPrint("Current user id is: $patientId");
     _initializeContacts();
     _loadPatientName();
-//     debugPrint("Patient Name: $patientName");
   }
 
   Future<void> _loadPatientName() async {
@@ -65,7 +62,6 @@ class ContactsScreenState extends State<Contacts> {
 
     try {
       final contacts = await contactUtil.getContacts(widget.patientId);
-//       debugPrint("Contacts: $contacts");
 
       setState(() {
         nurseContacts = contacts['nurse'] ?? [];
@@ -185,7 +181,6 @@ class ContactsScreenState extends State<Contacts> {
   }
 
   void _showContactDialog(Map<String, dynamic> contactData) {
-//     debugPrint("Contact data: $contactData");
     showDialog(
       context: context,
       builder: (context) {
