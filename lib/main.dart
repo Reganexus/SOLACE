@@ -53,7 +53,7 @@ Future<void> _initializeFirebase() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
     await FirebaseAppCheck.instance.activate(
-      androidProvider: AndroidProvider.debug,
+      androidProvider: AndroidProvider.playIntegrity,
     );
     await FirebaseMessaging.instance.setAutoInitEnabled(true);
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
