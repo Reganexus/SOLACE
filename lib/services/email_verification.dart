@@ -10,20 +10,28 @@ class EmailVerificationService {
     required int checkIntervalSeconds,
   }) async {
     final startTime = DateTime.now();
-    const timeoutDuration = Duration(minutes: 5);
-    const checkInterval = Duration(seconds: 5);
+    final timeoutDuration = Duration(minutes: timeoutMinutes);
+    final checkInterval = Duration(seconds: checkIntervalSeconds);
 
     while (DateTime.now().difference(startTime) <= timeoutDuration) {
       await Future.delayed(checkInterval);
 
-      final user = _auth.currentUser;
-      if (user == null) {
-        return false; // User is logged out
-      }
+      try {
+        final user = _auth.currentUser;
+        if (user == null) {
+          return false; // User is logged out
+        }
 
-      await user.reload();
-      if (user.emailVerified) {
-        return true; // Email is verified
+        await user.reload(); // Reload the user's state
+        final refreshedUser = _auth.currentUser; // Fetch the updated user state
+
+        if (refreshedUser != null && refreshedUser.emailVerified) {
+          return true; // Email is verified
+        }
+      } catch (e) {
+        // Handle potential errors (e.g., network issues)
+        // debugPrint('Error while polling email verification status: $e');
+        return false; // Exit the loop if an error occurs
       }
     }
 

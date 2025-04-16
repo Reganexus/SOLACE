@@ -120,6 +120,7 @@ class _ForgotState extends State<Forgot> {
 
   @override
   Widget build(BuildContext context) {
+    final formKey = GlobalKey<FormState>();
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.neon,
@@ -149,43 +150,43 @@ class _ForgotState extends State<Forgot> {
               Row(
                 children: [
                   Expanded(
-                    child: TextField(
-                      controller: _emailController,
-                      focusNode: _emailFocusNode,
-                      enabled:
-                          !isLoading &&
-                          !isResendDisabled, // Disable during loading or resend cooldown
-                      decoration: InputDecorationStyles.build(
-                        !isResendDisabled || isLoading
-                            ? 'Enter your Email'
-                            : "",
-                        _emailFocusNode,
-                      ).copyWith(
-                        labelStyle: TextStyle(color: AppColors.black),
-                        fillColor: AppColors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(10),
-                            bottomLeft: Radius.circular(10),
+                    child: Form(
+                      key: formKey, // Add a GlobalKey for the form
+                      child: TextFormField(
+                        controller: _emailController,
+                        focusNode: _emailFocusNode,
+                        enabled: !isLoading && !isResendDisabled, // Disable during loading or resend cooldown
+                        decoration: InputDecorationStyles.build(
+                          !isResendDisabled || isLoading ? 'Enter your Email' : "",
+                          _emailFocusNode,
+                        ).copyWith(
+                          labelStyle: TextStyle(color: AppColors.black),
+                          fillColor: AppColors.white,
+                          border: OutlineInputBorder(
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(10),
+                              bottomLeft: Radius.circular(10),
+                            ),
+                            borderSide: const BorderSide(
+                              color: AppColors.blackTransparent,
+                              width: 2,
+                            ),
                           ),
-                          borderSide: const BorderSide(
-                            color: AppColors.blackTransparent,
-                            width: 2,
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(10),
+                              bottomLeft: Radius.circular(10),
+                            ),
+                            borderSide: const BorderSide(
+                              color: AppColors.blackTransparent,
+                              width: 2,
+                            ),
                           ),
                         ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(10),
-                            bottomLeft: Radius.circular(10),
-                          ),
-                          borderSide: const BorderSide(
-                            color: AppColors.blackTransparent,
-                            width: 2,
-                          ),
-                        ),
+                        maxLines: 1,
+                        style: Textstyle.body.copyWith(color: AppColors.black),
+                        validator: (val) => Validator.email(val),
                       ),
-                      maxLines: 1,
-                      style: Textstyle.body.copyWith(color: AppColors.black),
                     ),
                   ),
                   SizedBox(

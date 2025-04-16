@@ -109,6 +109,46 @@ class ContactUtility {
     );
   }
 
+  Future<bool> isDuplicateContact({
+    required String userId,
+    required String phoneNumber,
+    required String name,
+    required String category,
+    String? excludePhoneNumber,
+  }) async {
+    // Define the categories to check for duplicates
+    final categories = ['relative', 'nurse'];
+
+    for (final cat in categories) {
+      final categoryDocRef = FirebaseFirestore.instance
+          .collection('patient')
+          .doc(userId)
+          .collection('contacts')
+          .doc(cat);
+
+      final snapshot = await categoryDocRef.get();
+      if (!snapshot.exists) continue;
+
+      final data = snapshot.data() ?? {};
+
+      for (final entry in data.entries) {
+        final contact = Map<String, dynamic>.from(entry.value);
+
+        // Skip the current contact being edited
+        if (excludePhoneNumber != null && entry.key == excludePhoneNumber) {
+          continue;
+        }
+
+        // Check for duplicate phone number
+        if (contact['phoneNumber'] == phoneNumber) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
   Future<Map<String, List<Map<String, dynamic>>>> getContacts(
     String userId,
   ) async {

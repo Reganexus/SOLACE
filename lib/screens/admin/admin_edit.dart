@@ -22,6 +22,7 @@ import 'package:solace/themes/dropdownfield.dart';
 import 'package:solace/themes/loader.dart';
 import 'package:solace/themes/textformfield.dart';
 import 'package:solace/themes/textstyle.dart';
+import 'package:solace/services/validator.dart';
 
 class AdminEdit extends StatefulWidget {
   final String currentUserId;
@@ -540,11 +541,10 @@ class _AdminEditProfileScreenState extends State<AdminEditProfile> {
                             focusNode: _focusNodes[0],
                             labelText: 'First Name',
                             enabled: !_isLoading,
-                            validator:
-                                (val) =>
-                                    val!.isEmpty
-                                        ? 'First Name cannot be empty'
-                                        : null,
+                            validator: (val) => Validator.name(val?.trim()),
+                            inputFormatters: [
+                              LengthLimitingTextInputFormatter(50),
+                            ],
                           ),
 
                           SizedBox(height: 10),
@@ -553,6 +553,23 @@ class _AdminEditProfileScreenState extends State<AdminEditProfile> {
                             focusNode: _focusNodes[1],
                             labelText: 'Middle Name',
                             enabled: !_isLoading,
+                            validator: (val){
+                              if (val == null || val.isEmpty) {
+                                return null;
+                              }
+                              final nameRegExp = RegExp(
+                                r"^(?!['.-])[\p{L}]+(?:[\s'-][\p{L}]+)*(?<!['.-])$",
+                                unicode: true,
+                              );
+
+                              if (!nameRegExp.hasMatch(val)) {
+                                return 'Enter a valid name.';
+                              }
+                              return null;
+                            },
+                            inputFormatters: [
+                              LengthLimitingTextInputFormatter(50),
+                            ],
                           ),
 
                           SizedBox(height: 10),
@@ -561,11 +578,10 @@ class _AdminEditProfileScreenState extends State<AdminEditProfile> {
                             focusNode: _focusNodes[2],
                             labelText: 'Last Name',
                             enabled: !_isLoading,
-                            validator:
-                                (val) =>
-                                    val!.isEmpty
-                                        ? 'Last Name cannot be empty'
-                                        : null,
+                            validator: (val) => Validator.name(val?.trim()),
+                            inputFormatters: [
+                              LengthLimitingTextInputFormatter(50),
+                            ],
                           ),
 
                           SizedBox(height: 10),
@@ -575,15 +591,10 @@ class _AdminEditProfileScreenState extends State<AdminEditProfile> {
                             labelText: 'Phone Number',
                             keyboardType: TextInputType.phone,
                             enabled: !_isLoading,
-                            validator: (val) {
-                              if (val == null || val.isEmpty) {
-                                return 'Phone number cannot be empty';
-                              }
-                              if (!RegExp(r'^09\d{9}$').hasMatch(val)) {
-                                return 'Invalid Phone Number';
-                              }
-                              return null;
-                            },
+                            validator: (val) => Validator.phoneNumber(val?.trim()),
+                            inputFormatters: [
+                              LengthLimitingTextInputFormatter(11),
+                            ],
                           ),
 
                           // Birthday Field
@@ -688,12 +699,10 @@ class _AdminEditProfileScreenState extends State<AdminEditProfile> {
                             focusNode: _focusNodes[7],
                             labelText: 'Address',
                             enabled: !_isLoading,
-                            validator: (val) {
-                              if (val == null || val.isEmpty) {
-                                return 'Address cannot be empty';
-                              }
-                              return null;
-                            },
+                            validator: (val) => Validator.address(val?.trim()),
+                            inputFormatters: [
+                              LengthLimitingTextInputFormatter(200),
+                            ],
                           ),
                           divider(),
                           SizedBox(

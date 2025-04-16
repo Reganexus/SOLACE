@@ -581,6 +581,23 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
             focusNode: _focusNodes[1],
             labelText: 'Middle Name',
             enabled: !_isLoading,
+            validator: (val){
+              if (val == null || val.isEmpty) {
+                return null;
+              }
+              final nameRegExp = RegExp(
+                r"^(?!['.-])[\p{L}]+(?:[\s'-][\p{L}]+)*(?<!['.-])$",
+                unicode: true,
+              );
+
+              if (!nameRegExp.hasMatch(val)) {
+                return 'Enter a valid name.';
+              }
+              return null;
+            },
+            inputFormatters: [
+              LengthLimitingTextInputFormatter(50),
+            ],
           ),
           const SizedBox(height: 10),
 
@@ -589,7 +606,10 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
             focusNode: _focusNodes[2],
             labelText: 'Last Name',
             enabled: !_isLoading,
-            validator: (value) => Validator.name(value?.trim()),
+            validator: (val) => Validator.name(val?.trim()),
+            inputFormatters: [
+              LengthLimitingTextInputFormatter(50),
+            ],
           ),
           const SizedBox(height: 10),
 
@@ -667,7 +687,10 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
             focusNode: _focusNodes[6],
             labelText: 'Address',
             enabled: !_isLoading,
-            validator: (val) => val!.isEmpty ? 'Address cannot be empty' : null,
+            validator: (val) => Validator.address(val?.trim()),
+            inputFormatters: [
+              LengthLimitingTextInputFormatter(200),
+            ],
           ),
           const SizedBox(height: 10),
 

@@ -55,7 +55,7 @@ class _VerifyState extends State<Verify> {
     if (isGoogleSignUp) {
       await fetchAndNavigate(FirebaseAuth.instance.currentUser!.uid);
     } else {
-      sendVerificationEmail();
+      await sendVerificationEmail();
       await verifyEmailAndRole();
     }
   }
@@ -182,15 +182,22 @@ class _VerifyState extends State<Verify> {
 
   Future<void> _handleTimeout() async {
     setState(() => isVerifying = false);
-    _showError([
+
+    // Show an error message for the timeout
+    await _showError([
       'Verification timed out. Please verify your email and try again.',
     ]);
 
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      // Add a delay and fetch user data before navigating
-      await Future.delayed(const Duration(seconds: 3));
-      await fetchAndNavigate(user.uid);
+      // Reload the user's state to confirm their verification status
+      await user.reload();
+      final refreshedUser = FirebaseAuth.instance.currentUser;
+
+      // Only navigate if the email is verified
+      if (refreshedUser != null && refreshedUser.emailVerified) {
+        await fetchAndNavigate(refreshedUser.uid);
+      }
     } else {
       _showError(["User is not authenticated."]);
     }
@@ -224,14 +231,30 @@ class _VerifyState extends State<Verify> {
     });
   }
 
-  void _showError(List<String> errorMessages) {
+  Future<void> _showError(List<String> errorMessages) async {
     if (errorMessages.isEmpty) return;
 
-    showDialog(
+    await showDialog(
       context: context,
       barrierDismissible: false, // Prevent accidental dismissal
-      builder:
-          (context) => ErrorDialog(title: 'Error', messages: errorMessages),
+      builder: (context) => AlertDialog(
+        title: const Text('Error'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: errorMessages
+              .map((message) => Text(
+                    message,
+                    style: const TextStyle(fontSize: 16),
+                  ))
+              .toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
     );
   }
 

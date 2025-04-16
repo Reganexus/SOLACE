@@ -116,14 +116,6 @@ class _SignUpState extends State<SignUp> {
       return;
     }
 
-    if (!_agreeToTerms) {
-      await _showConditionsScreen();
-      if (!_agreeToTerms) {
-        _showError(['You must accept the terms and conditions to proceed.']);
-        return;
-      }
-    }
-
     if (mounted) {
       setState(() => _isLoading = true);
     }
@@ -132,18 +124,27 @@ class _SignUpState extends State<SignUp> {
       final email = _emailController.text.trim();
       final password = _passwordController.text;
 
-      if (email == null) {
-        _showError(['Email is not available for this account.']);
+      if (email.isEmpty) {
+        _showError(['Email is required.']);
         return;
       }
 
       // Proceed with the sign-up process
       await _auth.signUpWithEmailAndPassword(email, password);
 
+      // Check if the user ID is null after successful sign-up
       final String? userId = _auth.currentUserId;
       if (userId == null) {
-        _showError(['Current user ID is not found.']);
+        _showError(['An unexpected error occurred. Please try again.']);
         return;
+      }
+
+      if (!_agreeToTerms) {
+        await _showConditionsScreen();
+        if (!_agreeToTerms) {
+          _showError(['You must accept the terms and conditions to proceed.']);
+          return;
+        }
       }
 
       showToast('Account successfully created!');
@@ -159,10 +160,15 @@ class _SignUpState extends State<SignUp> {
       await _navigateBasedOnVerification(userId, userRole);
     } catch (error) {
       if (error is FirebaseAuthException) {
-        _handleFirebaseAuthError(
-          error,
-        ); // This will handle email-deleted case too
+        if (error.code == 'email-already-in-use') {
+          // Handle the specific case where the email is already in use
+          _showError(['An account is already using that email.']);
+        } else {
+          // Handle other FirebaseAuth exceptions
+          _handleFirebaseAuthError(error);
+        }
       } else {
+        // Handle any other errors
         _showError(['An error occurred during sign-up: ${error.toString()}']);
       }
     } finally {

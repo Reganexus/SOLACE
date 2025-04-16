@@ -518,6 +518,13 @@ class _EditPatientState extends State<EditPatient> {
           ),
           SizedBox(height: 20),
           FormField(
+            validator: (value) {
+              if (_profileImage == null &&
+                  (_profileImageUrl == null || _profileImageUrl!.isEmpty)) {
+                return 'Please select a profile image.';
+              }
+              return null;
+            },
             builder: (FormFieldState state) {
               return Center(
                 child: Column(
