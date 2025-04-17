@@ -226,7 +226,7 @@ class PatientTrackingState extends State<PatientTracking> {
       final timeDifference = currentTime - lastSubmitted;
 
       // Set the cooldown period to 1 minute (60 seconds)
-      final cooldownDuration = 60 * 1000; // 1 minute in milliseconds
+      final cooldownDuration = 60 * 1000 * 15; // 15 minutes in milliseconds
 
       if (timeDifference < cooldownDuration) {
         setState(() {

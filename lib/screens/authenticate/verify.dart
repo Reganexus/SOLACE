@@ -8,7 +8,6 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/home/home.dart';
 import 'package:solace/services/database.dart';
-import 'package:solace/services/error_handler.dart';
 import 'package:solace/shared/accountflow/rolechooser.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/services/email_verification.dart';
