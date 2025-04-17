@@ -2,6 +2,7 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/services/database.dart';
@@ -233,23 +234,16 @@ class AuthService {
 
   Future<MyUser?> signInWithGoogle() async {
     try {
-      //       debugPrint("Starting Google sign-in");
-
-      // Sign out the current user to ensure fresh login
       await _googleSignIn.signOut();
 
-      // Initiate Google Sign-In
       final googleUser = await retryOperation(() => _googleSignIn.signIn());
 
       if (googleUser == null) {
-        //         debugPrint("Google sign-in canceled by user.");
         return null;
       }
 
-      // Authenticate and fetch credentials
       final googleAuth = await googleUser.authentication;
       if (googleAuth.accessToken == null || googleAuth.idToken == null) {
-        //         debugPrint("Google authentication failed: Missing tokens.");
         return null;
       }
 
@@ -262,16 +256,11 @@ class AuthService {
       final user = result.user;
 
       if (user == null) {
-        //         debugPrint("Google sign-in failed: User is null.");
         return null;
       }
 
-      // Check if email exists in the deleted collection
       final email = user.email;
       if (email != null && await emailExistsInDeletedCollection(email)) {
-        //         debugPrint(
-        //     "Google sign-in blocked: Email exists in the deleted collection.",
-        //     );
         throw FirebaseAuthException(
           code: 'email-deleted',
           message: 'This account was previously deleted by an admin.',
@@ -308,7 +297,12 @@ class AuthService {
         }
       }
     } catch (e) {
-      //       debugPrint("Google sign-in error: $e");
+      if (kDebugMode) print("Error signing in with Google: $e");
+      if (e is FirebaseAuthException) {
+        if (kDebugMode) print("Firebase Auth Error Code: ${e.code}");
+        if (kDebugMode) print("Firebase Auth Error Message: ${e.message}");
+      }
+      return null;
     }
     return null;
   }

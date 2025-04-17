@@ -58,7 +58,7 @@ Future<void> _initializeFirebase() async {
     await FirebaseMessaging.instance.setAutoInitEnabled(true);
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   } catch (e) {
-    //     debugPrint("Error initializing Firebase: $e");
+    if (kDebugMode) debugPrint("Error initializing Firebase: $e");
   }
 }
 
@@ -66,7 +66,7 @@ Future<void> _initializeMessaging() async {
   try {
     MessagingService.initialize();
   } catch (e) {
-    //     debugPrint("Error initializing messaging service: $e");
+    if (kDebugMode) debugPrint("Error initializing messaging service: $e");
   }
 }
 
@@ -83,7 +83,7 @@ Future<Widget> _determineInitialScreen() async {
 
     return const Authenticate();
   } catch (e) {
-    //     debugPrint("Error determining initial screen: $e");
+    if (kDebugMode) debugPrint("Error determining initial screen: $e");
     return const Authenticate(); // Fallback
   }
 }
