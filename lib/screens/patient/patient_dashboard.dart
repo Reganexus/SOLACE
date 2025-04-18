@@ -1596,7 +1596,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
                         color: AppColors.black,
                       ),
                     ),
-                    SizedBox(width: 5),
+                    SizedBox(width: 15),
                     GestureDetector(
                       onTap:
                           () => Navigator.push(

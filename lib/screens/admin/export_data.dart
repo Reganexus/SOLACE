@@ -44,12 +44,13 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
   final List<String> _formats = ['CSV', 'PDF'];
   final List<String> _timeRanges = ['This Week', 'This Month', 'All Time'];
 
-  void _showToast(String message) {
+  void _showToast(String message, {Color? backgroundColor}) {
+    Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
       toastLength: Toast.LENGTH_SHORT,
       gravity: ToastGravity.BOTTOM,
-      backgroundColor: AppColors.neon,
+      backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
       fontSize: 16.0,
     );
@@ -104,7 +105,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       }
 
       if (querySnapshot.docs.isEmpty) {
-        _showToast("No data found for the selected filters.");
+        _showToast("No data found for the selected filters.", backgroundColor: AppColors.red);
         setState(() => isSaving = false);
         return;
       }
@@ -192,7 +193,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
   ) async {
     try {
       if (data.isEmpty) {
-        _showToast("No data available for export.");
+        _showToast("No data available for export.", backgroundColor: AppColors.red);
         return;
       }
 
@@ -235,11 +236,9 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       String csvData = const ListToCsvConverter().convert(rows);
       final csvBytes = Uint8List.fromList(utf8.encode(csvData));
       await _saveFile(csvBytes, selectedValue, "csv");
-
-      _showToast("CSV export completed.");
     } catch (e) {
       //     debugPrint("Error generating CSV: $e");
-      _showToast("Error generating CSV.");
+      _showToast("Error generating CSV.", backgroundColor: AppColors.red);
     }
   }
 
@@ -355,11 +354,9 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       _showToast("PDF data prepared, saving file...");
       final pdfBytes = Uint8List.fromList(await pdf.save());
       await _saveFile(pdfBytes, selectedValue, "pdf");
-
-      _showToast("PDF export completed.");
     } catch (e) {
       //     debugPrint("Error generating PDF: $e");
-      _showToast("Error generating PDF.");
+      _showToast("Error generating PDF.", backgroundColor: AppColors.red);
     }
   }
 
@@ -435,7 +432,9 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
     );
 
     if (outputFile == null) {
-      _showToast("File picking cancelled.");
+      _showToast("File picking cancelled.", backgroundColor: AppColors.red);
+    } else {
+      _showToast("${extension.toUpperCase} export completed.");
     }
   }
 

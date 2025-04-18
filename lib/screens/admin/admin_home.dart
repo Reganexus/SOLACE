@@ -12,7 +12,6 @@ import 'package:solace/screens/authenticate/authenticate.dart';
 import 'package:solace/services/auth.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/shared/widgets/bottom_navbar.dart';
-import 'package:solace/shared/widgets/help_page.dart';
 import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/themes/textstyle.dart';
@@ -77,32 +76,6 @@ class AdminHomeState extends State<AdminHome> {
     );
   }
 
-  Widget buildHelp() {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const HelpPage()),
-        );
-      },
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.info_outline_rounded, size: 24.0),
-          const SizedBox(width: 8),
-          const Text(
-            'Support',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: Colors.black,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget buildLogOut() {
     return GestureDetector(
       onTap: () async {
@@ -145,20 +118,26 @@ class AdminHomeState extends State<AdminHome> {
           }
         }
       },
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.logout_rounded, size: 24.0, color: AppColors.red),
-          const SizedBox(width: 8),
-          const Text(
-            'Log out',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: AppColors.red,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.logout_rounded, size: 24.0, color: AppColors.red),
+            const SizedBox(width: 8),
+            const Text(
+              'Log out',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.red,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

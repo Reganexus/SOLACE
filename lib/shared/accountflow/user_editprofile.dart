@@ -756,6 +756,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             focusNode: _focusNodes[1],
             labelText: 'Middle Name (Optional)',
             enabled: !_isLoading,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return null;
+              }
+              if (value.length > 50) {
+                return 'Cannot exceed 50 characters.';
+              }
+              final nameRegExp = RegExp(
+                r"^(?!['.-])[\p{L}]+(?:[\s'-][\p{L}]+)*(?<!['.-])$",
+                unicode: true,
+              );
+
+              if (!nameRegExp.hasMatch(value)) {
+                return 'Enter a valid name.';
+              }
+              return null;
+            },
           ),
 
           SizedBox(height: 10),

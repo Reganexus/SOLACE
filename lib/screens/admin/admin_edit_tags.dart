@@ -437,10 +437,7 @@ class EditTagsState extends State<EditTags> {
                                     label: Text(
                                       entry.key.capitalize(),
                                       style: Textstyle.bodySmall.copyWith(
-                                        color:
-                                            _selectedRole == entry.key
-                                                ? AppColors.white
-                                                : AppColors.whiteTransparent,
+                                        color: AppColors.white,
                                         fontWeight:
                                             _selectedRole == entry.key
                                                 ? FontWeight.bold
@@ -758,16 +755,16 @@ class EditTagsState extends State<EditTags> {
                       _removeTag(userId);
                       Navigator.pop(context);
                     },
-                    style: Buttonstyle.buttonRed,
-                    child: Text('Yes', style: Textstyle.smallButton),
+                    style: Buttonstyle.buttonNeon,
+                    child: Text('No', style: Textstyle.smallButton),
                   ),
                 ),
                 SizedBox(width: 10),
                 Expanded(
                   child: TextButton(
                     onPressed: () => Navigator.pop(context),
-                    style: Buttonstyle.buttonNeon,
-                    child: Text('No', style: Textstyle.smallButton),
+                    style: Buttonstyle.buttonRed,
+                    child: Text('Yes', style: Textstyle.smallButton),
                   ),
                 ),
               ],
@@ -798,16 +795,16 @@ class EditTagsState extends State<EditTags> {
                       _addTag(userId);
                       Navigator.pop(context);
                     },
-                    style: Buttonstyle.buttonRed,
-                    child: Text('Yes', style: Textstyle.smallButton),
+                    style: Buttonstyle.buttonNeon,
+                    child: Text('No', style: Textstyle.smallButton),
                   ),
                 ),
                 SizedBox(width: 10),
                 Expanded(
                   child: TextButton(
                     onPressed: () => Navigator.pop(context),
-                    style: Buttonstyle.buttonNeon,
-                    child: Text('No', style: Textstyle.smallButton),
+                    style: Buttonstyle.buttonRed,
+                    child: Text('Yes', style: Textstyle.smallButton),
                   ),
                 ),
               ],
