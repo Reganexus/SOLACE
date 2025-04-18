@@ -70,10 +70,7 @@ class _AdminSettingsState extends State<AdminSettings> {
       backgroundColor: AppColors.white,
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [const SizedBox(height: 20), _buildSettings()],
-        ),
+        child: _buildSettings(),
       ),
     );
   }
