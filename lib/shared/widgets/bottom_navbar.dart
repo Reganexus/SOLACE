@@ -113,8 +113,8 @@ class BottomNavBar extends StatelessWidget {
           BottomNavigationBarItem(
             icon: Image.asset(
               currentIndex == 3
-                  ? 'lib/assets/images/caregiver/profile_selected.png'
-                  : 'lib/assets/images/caregiver/profile.png',
+                  ? 'lib/assets/images/admin/settings_selected.png'
+                  : 'lib/assets/images/admin/settings.png',
               width: 26,
               height: 26,
             ),

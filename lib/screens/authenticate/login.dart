@@ -119,7 +119,7 @@ class _LogInState extends State<LogIn> {
           if (userRole != null && userRole != 'unregistered') {
             await _navigateBasedOnVerification(myUser.uid, userRole);
           } else {
-            _showError(["User not authenticated. Please sign up."]);
+            _showError(["User is not registered. Please sign up."]);
           }
         }
       });
@@ -387,7 +387,7 @@ class _LogInState extends State<LogIn> {
           .timeout(const Duration(seconds: 5));
       return doc.exists;
     } catch (e) {
-//       debugPrint('Failed to fetch document: $e');
+      //       debugPrint('Failed to fetch document: $e');
       return false;
     }
   }
@@ -517,7 +517,7 @@ class _LogInState extends State<LogIn> {
           children: [
             Image.asset('lib/assets/images/auth/google.png', height: 24),
             const SizedBox(width: 10),
-            Text('Sign in with Google', style: Textstyle.body),
+            Text('Login in with Google', style: Textstyle.body),
           ],
         ),
       ),

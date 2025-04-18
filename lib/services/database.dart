@@ -563,7 +563,7 @@ class DatabaseService {
         final userDocData = userDocSnapshot.data();
 
         // Reference to the 'deleted' collection document
-        final deletedDocRef = firestore.collection('arhived').doc(userId);
+        final deletedDocRef = firestore.collection('archived').doc(userId);
 
         // Add the document to the 'deleted' collection
         transaction.set(deletedDocRef, {
@@ -581,7 +581,7 @@ class DatabaseService {
       // Add a log entry for document movement (without subcollections)
       await _logService.addLog(
         userId: userId,
-        action: 'Deleted user $userId and moved to "deleted" collection',
+        action: 'Deleted user $userId and moved to "archived" collection',
         relatedUsers: userId,
       );
 
