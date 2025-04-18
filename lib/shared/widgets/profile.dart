@@ -517,10 +517,23 @@ class _ProfileState extends State<Profile> {
 
   void _launchPalCollabLink() async {
     final Uri url = Uri.parse('https://www.ruth.ph/palcollab');
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } else {
-      throw 'Could not launch $url';
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        debugPrint('Cannot launch URL: $url');
+        // Attempt fallback
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open the link. Trying another approach.'),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error launching URL: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('An unexpected error occurred.')));
     }
   }
 

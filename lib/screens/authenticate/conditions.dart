@@ -20,14 +20,44 @@ class ConditionsScreen extends StatefulWidget {
 class ConditionsScreenState extends State<ConditionsScreen> {
   int _currentPage = 0;
   final PageController _pageController = PageController();
+  final ScrollController _termsScrollController = ScrollController();
+  final ScrollController _privacyScrollController = ScrollController();
   Map<String, dynamic> _termsData = {};
   Map<String, dynamic> _privacyData = {};
   bool _isLoading = true;
+  bool _isBottomReached = false;
 
   @override
   void initState() {
     super.initState();
     _fetchContent();
+
+    _termsScrollController.addListener(() {
+      if (_termsScrollController.offset >=
+              _termsScrollController.position.maxScrollExtent &&
+          !_termsScrollController.position.outOfRange) {
+        setState(() => _isBottomReached = true);
+      } else {
+        setState(() => _isBottomReached = false);
+      }
+    });
+
+    _privacyScrollController.addListener(() {
+      if (_privacyScrollController.offset >=
+              _privacyScrollController.position.maxScrollExtent &&
+          !_privacyScrollController.position.outOfRange) {
+        setState(() => _isBottomReached = true);
+      } else {
+        setState(() => _isBottomReached = false);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _termsScrollController.dispose();
+    _privacyScrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchContent() async {
@@ -285,72 +315,20 @@ class ConditionsScreenState extends State<ConditionsScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.white,
-      appBar: AppBar(
-        title: Text("SOLACE by Team RES", style: Textstyle.subheader),
-        centerTitle: true,
-        backgroundColor: AppColors.white,
-        scrolledUnderElevation: 0.0,
-      ),
-      body: Column(
-        children: [
-          _buildTracker(),
-          SizedBox(height: 20),
-          Flexible(
-            child: PageView(
-              controller: _pageController,
-              onPageChanged: (index) => setState(() => _currentPage = index),
-              physics:
-                  _currentPage == 0
-                      ? NeverScrollableScrollPhysics()
-                      : null, // Disable swipe if it's on the first page
-              children: [
-                _buildPage(
-                  content:
-                      _termsData.isEmpty
-                          ? Container()
-                          : _buildTermsAndConditions(),
-                  title: 'Terms and Conditions',
-                ),
-                _buildPage(
-                  content:
-                      _privacyData.isEmpty
-                          ? Container()
-                          : _buildPrivacyNotice(),
-                  title: 'Privacy Notice',
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-        child: TextButton(
-          onPressed: _isLoading ? null : _nextPage,
-          style: _isLoading ? Buttonstyle.buttonGray : Buttonstyle.buttonNeon,
-          child: Text(
-            _currentPage == 0
-                ? 'Accept Terms and Conditions'
-                : 'I Agree and Sign Up',
-            style: Textstyle.smallButton,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPage({required Widget content, required String title}) {
+  Widget _buildPage({
+    required Widget content,
+    required String title,
+    required ScrollController scrollController,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child:
           _isLoading
               ? Center(child: Loader.loaderPurple)
-              : SingleChildScrollView(child: content),
+              : SingleChildScrollView(
+                controller: scrollController,
+                child: content,
+              ),
     );
   }
 
@@ -509,6 +487,73 @@ class ConditionsScreenState extends State<ConditionsScreen> {
         // Device and Usage Data Section
         _buildSection(usageInfo['sections']['deviceAndUsageData']),
       ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.white,
+      appBar: AppBar(
+        title: Text("SOLACE by Team RES", style: Textstyle.subheader),
+        centerTitle: true,
+        backgroundColor: AppColors.white,
+        scrolledUnderElevation: 0.0,
+      ),
+      body: Column(
+        children: [
+          _buildTracker(),
+          SizedBox(height: 20),
+          Flexible(
+            child: PageView(
+              controller: _pageController,
+              onPageChanged: (index) {
+                setState(() {
+                  _currentPage = index;
+                  _isBottomReached = false;
+                });
+              },
+              physics:
+                  _currentPage == 0 ? NeverScrollableScrollPhysics() : null,
+              children: [
+                _buildPage(
+                  content:
+                      _termsData.isEmpty
+                          ? Container()
+                          : _buildTermsAndConditions(),
+                  title: 'Terms and Conditions',
+                  scrollController: _termsScrollController,
+                ),
+                _buildPage(
+                  content:
+                      _privacyData.isEmpty
+                          ? Container()
+                          : _buildPrivacyNotice(),
+                  title: 'Privacy Notice',
+                  scrollController: _privacyScrollController,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        child: TextButton(
+          onPressed: _isLoading || !_isBottomReached ? null : _nextPage,
+          style:
+              _isLoading || !_isBottomReached
+                  ? Buttonstyle.buttonGray
+                  : Buttonstyle.buttonNeon,
+          child: Text(
+            _currentPage == 0
+                ? 'Accept Terms and Conditions'
+                : 'I Agree and Sign Up',
+            style: Textstyle.smallButton,
+          ),
+        ),
+      ),
     );
   }
 }

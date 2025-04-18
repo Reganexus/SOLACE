@@ -75,7 +75,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     'Roman Catholic',
     'Islam',
     'Iglesia ni Cristo',
-    'Other', // Add 'Other' option
+    'Other',
   ];
 
   @override
@@ -83,7 +83,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.initState();
     userId = FirebaseAuth.instance.currentUser?.uid ?? '';
     if (userId.isEmpty) {
-//       debugPrint("User ID is empty. User not logged in.");
       return;
     }
 
@@ -104,8 +103,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     } else {
       _initializeUserDetails(widget.userData);
     }
-
-//     debugPrint("_autoValidate = $_autoValidate");
   }
 
   @override
@@ -124,7 +121,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Future<void> _checkAndLoadFormData() async {
     final prefs = await SharedPreferences.getInstance();
-    // Check if there are any stored preferences for the user
     final hasData =
         prefs.containsKey('firstName_$userId') ||
         prefs.containsKey('middleName_$userId') ||
@@ -133,17 +129,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         prefs.containsKey('birthday_$userId') ||
         prefs.containsKey('gender_$userId') ||
         prefs.containsKey('religion_$userId') ||
-        prefs.containsKey('address_$userId') ||
-        prefs.containsKey('imagePath_$userId');
+        prefs.containsKey('address_$userId');
 
     if (hasData) {
-      // Load the form data if any preference exists for the user
       await loadFormData(userId);
     }
   }
 
   Future<void> loadFormData(String userId) async {
-    /// Loads form data from shared preferences.
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       firstNameController.text = prefs.getString('firstName_$userId') ?? ' ';
@@ -155,15 +148,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       gender = prefs.getString('gender_$userId') ?? ' ';
       religion = prefs.getString('religion_$userId') ?? '';
       addressController.text = prefs.getString('address_$userId') ?? ' ';
-      _profileImageUrl = prefs.getString('imagePath_$userId');
-      if (_profileImageUrl != null) {
-        _profileImage = File(_profileImageUrl!);
-      }
     });
   }
 
   void _initializeUserDetails(Map<String, dynamic> userData) {
-    /// Initializes the user details from provided data.
     setState(() {
       firstNameController.text = userData['firstName'] ?? '';
       lastNameController.text = userData['lastName'] ?? '';
@@ -184,19 +172,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<File> getFileFromAsset(String assetPath) async {
-    /// Gets a file from the asset path.
-    final byteData = await rootBundle.load(assetPath); // Load the asset
-    final tempDir = await getTemporaryDirectory(); // Get temp directory
-    final tempFile = File(
-      '${tempDir.path}/${assetPath.split('/').last}',
-    ); // Create file
-    return await tempFile.writeAsBytes(
-      byteData.buffer.asUint8List(),
-    ); // Write byte data to file
+    final byteData = await rootBundle.load(assetPath);
+    final tempDir = await getTemporaryDirectory();
+    final tempFile = File('${tempDir.path}/${assetPath.split('/').last}');
+    return await tempFile.writeAsBytes(byteData.buffer.asUint8List());
   }
 
   Future<String> uploadProfileImage({
-    /// Uploads profile image to Firebase Storage.
     required String userId,
     required File file,
   }) async {
@@ -213,7 +195,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       final snapshot = await uploadTask.whenComplete(() {});
       final downloadUrl = await snapshot.ref.getDownloadURL();
-//       debugPrint("Image uploaded successfully: $downloadUrl");
+      //       debugPrint("Image uploaded successfully: $downloadUrl");
       return downloadUrl;
     } on FirebaseException catch (e) {
       throw Exception("Firebase Storage Error: ${e.message}");
@@ -246,12 +228,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           _profileImageUrl = _profileImage!.path;
         });
 
-//         debugPrint("Selected image file path: ${_profileImage!.path}");
+        //         debugPrint("Selected image file path: ${_profileImage!.path}");
       } else {
-//         debugPrint('No image selected.');
+        //         debugPrint('No image selected.');
       }
     } catch (e) {
-//       debugPrint('Error picking profile image: $e');
+      //       debugPrint('Error picking profile image: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to pick a profile image.')),
       );
@@ -259,14 +241,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _selectDate(BuildContext context) async {
-    /// Opens date picker to select a date.
     final DateTime today = DateTime.now();
-    final DateTime minDate = DateTime(
-      today.year - 120,
-    ); // Minimum age of 120 years
-    final DateTime maxDate = DateTime(
-      today.year - 1,
-    ); // Maximum age of 1 year ago
+    final DateTime minDate = DateTime(today.year - 120);
+    final DateTime maxDate = DateTime(today.year - 18, today.month, today.day);
     final DateTime initialDate = birthday ?? maxDate;
 
     final DateTime? picked = await showDatePicker(
@@ -391,7 +368,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             builder:
                 (_) => RoleChooser(
                   onRoleSelected: (role) {
-//                     debugPrint("Selected role: $role");
+                    //                     debugPrint("Selected role: $role");
                   },
                 ),
             settings: RouteSettings(arguments: userData),
@@ -402,7 +379,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _handleBackPress() async {
-    /// Handles back press action.
     final isNewUser = widget.userData['newUser'] ?? false;
 
     if (_hasUnsavedChanges()) {
@@ -413,7 +389,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
 
     if (isNewUser) {
-//       debugPrint("imagepath: $_profileImageUrl");
       await db.cacheFormData(
         userId: userId,
         firstName: firstNameController.text.trim(),
@@ -424,7 +399,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         gender: gender,
         religion: religion,
         address: addressController.text.trim(),
-        imagePath: _profileImageUrl ?? '',
       );
       navigateToRoleChooser(widget.userData);
     } else {
@@ -436,7 +410,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   bool _hasUnsavedChanges() {
-    /// Checks if there are any unsaved changes in the form.
     return firstNameController.text.trim() !=
             widget.userData['firstName']?.trim() ||
         middleNameController.text.trim() !=

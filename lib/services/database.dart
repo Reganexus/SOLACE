@@ -69,10 +69,8 @@ class DatabaseService {
     required String gender,
     required String religion,
     required String address,
-    required String imagePath,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('imagePath_$userId', imagePath);
     await prefs.setString('firstName_$userId', firstName);
     await prefs.setString('middleName_$userId', middleName);
     await prefs.setString('lastName_$userId', lastName);
@@ -81,14 +79,10 @@ class DatabaseService {
     await prefs.setString('gender_$userId', gender);
     await prefs.setString('religion_$userId', religion);
     await prefs.setString('address_$userId', address);
-    if (imagePath != null) {
-      await prefs.setString('imagePath_$userId', imagePath);
-    }
   }
 
   Future<void> clearFormCache(String userId) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('imagePath_$userId');
     await prefs.remove('firstName_$userId');
     await prefs.remove('middleName_$userId');
     await prefs.remove('lastName_$userId');
@@ -173,17 +167,13 @@ class DatabaseService {
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      // Check cached role
       final cachedRole = prefs.getString('userRole_$userId');
       if (cachedRole != null) {
         return cachedRole;
       }
-
-      // Retry logic for Firestore reads
       const maxRetries = 3;
       const baseDelay = Duration(milliseconds: 500);
 
-      // Iterate through user role collections
       final collections = UserRoleExtension.allRoles;
       for (final collection in collections) {
         int retries = 0;
@@ -205,22 +195,14 @@ class DatabaseService {
           } catch (e) {
             retries++;
             if (retries >= maxRetries) {
-              //               debugPrint(
-              //             "Failed to fetch role from collection $collection after $retries retries: $e",
-              //         );
             } else {
-              await Future.delayed(
-                baseDelay * (2 << retries),
-              ); // Exponential backoff
+              await Future.delayed(baseDelay * (2 << retries));
             }
           }
         }
       }
-
-      //       debugPrint("No role found for userId: $userId");
       return null;
     } catch (e) {
-      //       debugPrint("Error fetching and caching user role for $userId: $e");
       return null;
     }
   }

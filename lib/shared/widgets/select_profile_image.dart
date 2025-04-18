@@ -1,7 +1,9 @@
 // ignore_for_file: library_private_types_in_public_api
 
 import 'package:flutter/material.dart';
+import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
+import 'package:solace/themes/textstyle.dart';
 
 class SelectProfileImageScreen extends StatefulWidget {
   final String role; // Role of the user
@@ -54,21 +56,15 @@ class _SelectProfileImageScreenState extends State<SelectProfileImageScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Select Your Profile Image',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Inter',
-          ),
-        ),
+        title: Text('Select Your Profile Image', style: Textstyle.subheader),
         backgroundColor: AppColors.white,
         scrolledUnderElevation: 0.0,
+        centerTitle: true,
       ),
       body: Container(
         color: AppColors.white,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(30.0, 20.0, 30.0, 30.0),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: Column(
             children: [
               Expanded(
@@ -120,55 +116,26 @@ class _SelectProfileImageScreenState extends State<SelectProfileImageScreen> {
                       onPressed: () {
                         Navigator.of(context).pop();
                       },
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 10,
-                        ),
-                        backgroundColor: AppColors.red,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: const Text(
-                        'Cancel',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: AppColors.white,
-                        ),
-                      ),
+                      style: Buttonstyle.buttonRed,
+                      child: Text('Cancel', style: Textstyle.smallButton),
                     ),
                   ),
                   SizedBox(width: 10.0),
                   Expanded(
                     child: TextButton(
                       onPressed:
-                          selectedImage != null
+                          selectedImage != null &&
+                                  selectedImage != widget.currentImage
                               ? () {
                                 Navigator.of(context).pop(selectedImage);
                               }
                               : null,
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 10,
-                        ),
-                        backgroundColor: AppColors.neon,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: const Text(
-                        'Select',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: AppColors.white,
-                        ),
-                      ),
+                      style:
+                          selectedImage != null &&
+                                  selectedImage != widget.currentImage
+                              ? Buttonstyle.buttonNeon
+                              : Buttonstyle.buttonGray,
+                      child: Text('Select', style: Textstyle.smallButton),
                     ),
                   ),
                 ],
