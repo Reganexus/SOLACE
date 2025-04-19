@@ -751,10 +751,7 @@ class EditTagsState extends State<EditTags> {
               children: [
                 Expanded(
                   child: TextButton(
-                    onPressed: () {
-                      _removeTag(userId);
-                      Navigator.pop(context);
-                    },
+                    onPressed: () => Navigator.pop(context),
                     style: Buttonstyle.buttonNeon,
                     child: Text('No', style: Textstyle.smallButton),
                   ),
@@ -762,7 +759,10 @@ class EditTagsState extends State<EditTags> {
                 SizedBox(width: 10),
                 Expanded(
                   child: TextButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () {
+                      _removeTag(userId);
+                      Navigator.pop(context);
+                    },
                     style: Buttonstyle.buttonRed,
                     child: Text('Yes', style: Textstyle.smallButton),
                   ),
@@ -791,10 +791,7 @@ class EditTagsState extends State<EditTags> {
               children: [
                 Expanded(
                   child: TextButton(
-                    onPressed: () {
-                      _addTag(userId);
-                      Navigator.pop(context);
-                    },
+                    onPressed: () => Navigator.pop(context),
                     style: Buttonstyle.buttonNeon,
                     child: Text('No', style: Textstyle.smallButton),
                   ),
@@ -802,7 +799,10 @@ class EditTagsState extends State<EditTags> {
                 SizedBox(width: 10),
                 Expanded(
                   child: TextButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () {
+                      _addTag(userId);
+                      Navigator.pop(context);
+                    },
                     style: Buttonstyle.buttonRed,
                     child: Text('Yes', style: Textstyle.smallButton),
                   ),

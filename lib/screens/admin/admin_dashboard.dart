@@ -284,7 +284,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
       if (confirmed == true) {
         try {
           await ExportDataset.exportTrackingData();
-          showToast("Export successful!");
         } catch (e) {
           showToast("Export failed: $e", backgroundColor: AppColors.red);
         }

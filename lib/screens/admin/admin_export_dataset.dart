@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:csv/csv.dart';
 import 'package:file_picker/file_picker.dart';
@@ -215,8 +216,6 @@ class ExportHelper {
         userId: user,
         action: 'Exported dataset as $fileName.csv',
       );
-
-      _showToast("CSV export completed.");
     } catch (e) {
       //       debugPrint("Error generating CSV: $e");
       _showToast("Error generating CSV.");
@@ -251,17 +250,20 @@ class ExportHelper {
     );
 
     if (outputFile == null) {
-      _showToast("File saving cancelled.");
+      _showToast("File picking cancelled.", backgroundColor: AppColors.red);
+    } else {
+      _showToast("CSV export completed.");
     }
   }
 
   /// Shows toast message (Static method)
-  static void _showToast(String message) {
+  static void _showToast(String message, {Color? backgroundColor}) {
+    Fluttertoast.cancel();
     Fluttertoast.showToast(
       msg: message,
       toastLength: Toast.LENGTH_SHORT,
       gravity: ToastGravity.BOTTOM,
-      backgroundColor: AppColors.neon,
+      backgroundColor: backgroundColor ?? AppColors.neon,
       textColor: AppColors.white,
       fontSize: 16.0,
     );
