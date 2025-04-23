@@ -515,7 +515,6 @@ class DatabaseService {
       }
       final currentUserId = currentUser.uid;
 
-      // Check if the current user has admin role
       final userRole = await fetchAndCacheUserRole(currentUserId);
       if (userRole != 'admin') {
         throw Exception('Current user does not have admin privileges.');
@@ -523,16 +522,12 @@ class DatabaseService {
 
       await _moveUserDataToDeletedCollection(userId);
 
-      // Add a log entry for the deletion
       await _logService.addLog(
         userId: userId,
         action: 'Deleted user $userId and moved to "deleted" collection',
         relatedUsers: userId,
       );
-
-      //     debugPrint("User document successfully moved to 'deleted' collection, removed from the original collection, and authentication deleted.");
     } catch (e) {
-      //     debugPrint("Error deleting user: $e");
       rethrow;
     }
   }
@@ -584,10 +579,7 @@ class DatabaseService {
         action: 'Deleted user $userId and moved to "archived" collection',
         relatedUsers: userId,
       );
-
-      //     debugPrint("User document and subcollections successfully deleted.");
     } catch (e) {
-      //     debugPrint("Error deleting user and subcollections: $e");
       rethrow;
     }
   }

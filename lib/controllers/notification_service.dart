@@ -74,6 +74,32 @@ class NotificationService {
     }
   }
 
+  Future<void> sendNotificationToAllAdmins(String title, String body) async {
+    try {
+      final adminsSnapshot = await _firestore.collection('admin').get();
+
+      final fcmTokens =
+          adminsSnapshot.docs
+              .map((doc) {
+                final data = doc.data() as Map<String, dynamic>?;
+                return data?['fcmToken'] as String?;
+              })
+              .where((token) => token != null && token.isNotEmpty)
+              .cast<String>()
+              .toList();
+
+      if (fcmTokens.isEmpty) {
+        return;
+      }
+
+      for (String token in fcmTokens) {
+        await MessagingService.sendDataMessage(token, title, body);
+      }
+    } catch (e) {
+      // debugPrint("Error in sendNotificationToAllAdmins: $e");
+    }
+  }
+
   /// Fetch the FCM tokens of the tagged users
   Future<List<String>> _getFcmTokens(List<String> userIds) async {
     List<String> tokens = [];

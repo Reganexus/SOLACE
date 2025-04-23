@@ -4,7 +4,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:solace/screens/wrapper.dart';
+import 'package:solace/screens/caregiver/caregiver_waiting_screen.dart';
 import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/themes/loader.dart';
@@ -92,20 +92,23 @@ class CaregiverInstructionsState extends State<CaregiverInstructions> {
         throw Exception("Document not found");
       }
 
-      await userDocRef.update({'newUser': false});
+      await userDocRef.update({'newUser': false, 'hasAccess': false});
+
       showToast('Account successfully created!');
 
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => const Wrapper()),
+        MaterialPageRoute(
+          builder:
+              (context) => CaregiverWaitingScreen(
+                userId: widget.userId,
+                userRole: widget.userRole,
+              ),
+        ),
         (route) => false,
       );
     } catch (e) {
-      //     debugPrint('Error updating newUser field: $e');
-      showToast(
-        'Error updating newUser field: $e',
-        backgroundColor: AppColors.red,
-      );
+      showToast('Error updating fields: $e', backgroundColor: AppColors.red);
     } finally {
       setState(() {
         _isProcessing = false;

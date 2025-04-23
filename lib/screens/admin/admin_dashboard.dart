@@ -2,11 +2,16 @@
 
 import 'dart:ui';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:solace/controllers/messaging_service.dart';
+import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/admin/admin_export_dataset.dart';
 import 'package:solace/screens/admin/export_data.dart';
+import 'package:solace/services/database.dart';
+import 'package:solace/services/log_service.dart';
 import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/themes/textstyle.dart';
@@ -19,6 +24,12 @@ class AdminDashboard extends StatefulWidget {
 }
 
 class _AdminDashboardState extends State<AdminDashboard> {
+  final DatabaseService db = DatabaseService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final LogService _logService = LogService();
+  late User user;
+  bool isLoading = false;
+
   int adminCount = 0;
   int caregiverCount = 0;
   int doctorCount = 0;
@@ -31,6 +42,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
   void initState() {
     super.initState();
     fetchData();
+    final currentUser = _auth.currentUser;
+
+    if (currentUser == null) {
+      showToast("Error: No authenticated user found.");
+      return;
+    }
+
+    user = currentUser;
   }
 
   Future<void> fetchData() async {
@@ -344,6 +363,380 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
+  Stream<List<UserData>> _streamAllRequests() async* {
+    try {
+      final requestsStream =
+          FirebaseFirestore.instance.collection('requests').snapshots();
+
+      await for (final requestsSnapshot in requestsStream) {
+        final userIds = requestsSnapshot.docs.map((doc) => doc.id).toList();
+        final userDataList = <UserData>[];
+
+        for (final userId in userIds) {
+          final userData = await db.fetchUserData(userId);
+          if (userData != null) {
+            userDataList.add(userData);
+          }
+        }
+        yield userDataList;
+      }
+    } catch (e) {
+      showToast('Error fetching requests: $e');
+      yield [];
+    }
+  }
+
+  Widget _buildRequests() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('System Requests', style: Textstyle.subheader),
+        Text(
+          'Authenticate and grant access to familiar accounts',
+          style: Textstyle.body,
+        ),
+        const SizedBox(height: 20),
+        StreamBuilder<List<UserData>>(
+          stream: _streamAllRequests(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(
+                child: Text('Error fetching requests: ${snapshot.error}'),
+              );
+            }
+
+            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return Container(
+                padding: EdgeInsets.all(16),
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: AppColors.gray,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  "There are no current requests yet.",
+                  style: Textstyle.body,
+                  textAlign: TextAlign.center,
+                ),
+              );
+            }
+
+            final requests = snapshot.data!;
+
+            return SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ...requests.map((userData) {
+                    String uid = userData.uid;
+                    String email = userData.email;
+                    String name =
+                        "${userData.firstName} ${userData.middleName?.isNotEmpty == true ? "${userData.middleName} " : ""}${userData.lastName}";
+                    String role =
+                        "${userData.userRole.name[0].toUpperCase()}${userData.userRole.name.substring(1)}";
+                    return GestureDetector(
+                      onTap:
+                          () => _showRequestInfoDialog(uid, name, email, role),
+                      child: Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: AppColors.gray,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        margin: EdgeInsets.only(bottom: 10),
+                        padding: EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    name,
+                                    style: Textstyle.body.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(email, style: Textstyle.body),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              Icons.more_vert_rounded,
+                              color: AppColors.black,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showRequestInfoDialog(
+    String uid,
+    String name,
+    String email,
+    String role,
+  ) async {
+    return showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppColors.white,
+          title: Text("Grant Access?", style: Textstyle.subheader),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "Do you confirm that $name is a legitimate user and partner of the Foundation?",
+                style: Textstyle.body,
+              ),
+              SizedBox(height: 10),
+              RichText(
+                text: TextSpan(
+                  style: Textstyle.body,
+                  children: [
+                    TextSpan(text: "The user is currently applying for the "),
+                    TextSpan(
+                      text: role,
+                      style: Textstyle.body.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    TextSpan(text: " role."),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed:
+                        isLoading ? null : () => Navigator.of(context).pop(),
+                    style:
+                        isLoading
+                            ? Buttonstyle.buttonGray
+                            : Buttonstyle.buttonRed,
+                    child: Text("Cancel", style: Textstyle.smallButton),
+                  ),
+                ),
+                SizedBox(width: 5),
+                Expanded(
+                  child: TextButton(
+                    onPressed:
+                        isLoading
+                            ? null
+                            : () async {
+                              await _revokeUser(uid, name);
+                            },
+                    style:
+                        isLoading
+                            ? Buttonstyle.buttonGray
+                            : Buttonstyle.buttonPurple,
+                    child: Text("Revoke", style: Textstyle.smallButton),
+                  ),
+                ),
+                SizedBox(width: 5),
+                Expanded(
+                  child: TextButton(
+                    onPressed:
+                        isLoading
+                            ? null
+                            : () async {
+                              await _grantAccessToUser(uid, name);
+                              Navigator.of(context).pop();
+                            },
+                    style:
+                        isLoading
+                            ? Buttonstyle.buttonGray
+                            : Buttonstyle.buttonNeon,
+                    child: Text("Confirm", style: Textstyle.smallButton),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _revokeUser(String uid, String name) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: AppColors.white,
+          title: Text('Confirm Revocation', style: Textstyle.subheader),
+          content: Text(
+            'Are you sure you want to revoke $name\'s request?',
+            style: Textstyle.body,
+          ),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    style: Buttonstyle.buttonRed,
+                    child: Text('Cancel', style: Textstyle.smallButton),
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    style: Buttonstyle.buttonNeon,
+                    child: Text('Confirm', style: Textstyle.smallButton),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final userRole = await db.fetchAndCacheUserRole(uid);
+      if (userRole == null) {
+        showToast("User is not authenticated");
+        return;
+      }
+
+      await _logService.addLog(
+        userId: user.uid,
+        action:
+            "Revoked $name with user id $uid the permission to access the app",
+      );
+
+      final userDoc = await db.fetchUserDocument(uid);
+      if (userDoc != null && userDoc.exists) {
+        final data = userDoc.data() as Map<String, dynamic>?;
+        final fcmToken = data?['fcmToken'] as String?;
+
+        if (fcmToken != null && fcmToken.isNotEmpty) {
+          await MessagingService.sendDataMessage(
+            fcmToken,
+            "Request not Granted",
+            "Your pending approval in SOLACE is not approved",
+          );
+        }
+      }
+
+      await db.deleteUser(uid);
+
+      showToast('Successfully revoked access');
+    } catch (e) {
+      showToast('Error revoking access: $e');
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _grantAccessToUser(String uid, String name) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: AppColors.white,
+          title: Text('Confirm Access Grant', style: Textstyle.subheader),
+          content: Text(
+            'Are you sure you want to grant access to $name?',
+            style: Textstyle.body,
+          ),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    style: Buttonstyle.buttonRed,
+                    child: Text('Cancel', style: Textstyle.smallButton),
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    style: Buttonstyle.buttonNeon,
+                    child: Text('Confirm', style: Textstyle.smallButton),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final userRole = await db.fetchAndCacheUserRole(uid);
+      if (userRole == null) {
+        showToast("User is not authenticated");
+        return;
+      }
+
+      await FirebaseFirestore.instance.collection(userRole).doc(uid).update({
+        'hasAccess': true,
+      });
+
+      await FirebaseFirestore.instance.collection('requests').doc(uid).delete();
+
+      await _logService.addLog(
+        userId: user.uid,
+        action:
+            "Granted $name with user id $uid a permission to access the app",
+      );
+
+      final userDoc = await db.fetchUserDocument(uid);
+      if (userDoc != null && userDoc.exists) {
+        final data = userDoc.data() as Map<String, dynamic>?;
+        final fcmToken = data?['fcmToken'] as String?;
+
+        if (fcmToken != null && fcmToken.isNotEmpty) {
+          await MessagingService.sendDataMessage(
+            fcmToken,
+            "Request Granted",
+            "Your pending approval in SOLACE is now approved",
+          );
+        }
+      }
+
+      showToast('Successfully granted access');
+    } catch (e) {
+      showToast('Error granting access: $e');
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -363,6 +756,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   ),
                   const SizedBox(height: 10),
                   _buildCounter(),
+                  const SizedBox(height: 10),
+                  Divider(),
+                  const SizedBox(height: 10),
+                  _buildRequests(),
                   const SizedBox(height: 10),
                   Divider(),
                   const SizedBox(height: 10),
