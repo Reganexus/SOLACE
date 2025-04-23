@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
+import 'package:solace/controllers/notification_service.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/services/log_service.dart';
 import 'package:solace/themes/buttonstyle.dart';
@@ -26,6 +27,7 @@ class PatientNoteState extends State<PatientNote> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final DatabaseService databaseService = DatabaseService();
   final LogService _logService = LogService();
+  final NotificationService notificationService = NotificationService();
   List<Map<String, dynamic>> notes = [];
   DateTime selectedDay = DateTime.now();
   DateTime? userCreatedDate;
@@ -138,9 +140,15 @@ class PatientNoteState extends State<PatientNote> {
       }
 
       final String userId = widget.patientId;
+      final String? role = await databaseService.fetchAndCacheUserRole(
+        user.uid,
+      );
+      final String userRole =
+          '${role!.substring(0, 1).toUpperCase()}${role.substring(1)}';
       final DateTime selectedDate = selectedDay;
       final String noteId =
           '${selectedDate.millisecondsSinceEpoch}_${DateTime.now().millisecondsSinceEpoch}';
+      final String? name = await databaseService.fetchUserName(user.uid);
 
       final newNote = {
         'timestamp': Timestamp.fromDate(selectedDate),
@@ -160,6 +168,20 @@ class PatientNoteState extends State<PatientNote> {
       await _logService.addLog(
         userId: userId,
         action: "Added note $title to patient $patientName",
+      );
+
+      await notificationService.sendInAppNotificationToTaggedUsers(
+        patientId: widget.patientId,
+        currentUserId: user.uid,
+        notificationMessage:
+            "$userRole $name added a note to patient $patientName.",
+        type: "note",
+      );
+
+      await notificationService.sendNotificationToTaggedUsers(
+        widget.patientId,
+        "New Patient Note",
+        "$userRole $name added a note to patient $patientName.",
       );
 
       fetchNotesForDay(selectedDay);
@@ -184,6 +206,13 @@ class PatientNoteState extends State<PatientNote> {
       }
 
       final String userId = user.uid;
+      final String? role = await databaseService.fetchAndCacheUserRole(
+        user.uid,
+      );
+      final String userRole =
+          '${role!.substring(0, 1).toUpperCase()}${role.substring(1)}';
+      final String? name = await databaseService.fetchUserName(user.uid);
+
       final noteRef = FirebaseFirestore.instance
           .collection('patient')
           .doc(widget.patientId)
@@ -195,6 +224,20 @@ class PatientNoteState extends State<PatientNote> {
       await _logService.addLog(
         userId: userId,
         action: "Deleted note ${note['title']} from patient $patientName",
+      );
+
+      await notificationService.sendInAppNotificationToTaggedUsers(
+        patientId: widget.patientId,
+        currentUserId: user.uid,
+        notificationMessage:
+            "$userRole $name deleted a note from patient $patientName.",
+        type: "note",
+      );
+
+      await notificationService.sendNotificationToTaggedUsers(
+        widget.patientId,
+        "Deleted Patient Note",
+        "$userRole $name deleted a note from patient $patientName.",
       );
 
       fetchNotesForDay(selectedDay);
@@ -544,6 +587,23 @@ class PatientNoteState extends State<PatientNote> {
         return;
       }
 
+      final String? role = await databaseService.fetchAndCacheUserRole(
+        user.uid,
+      );
+      final String userRole =
+          '${role!.substring(0, 1).toUpperCase()}${role.substring(1)}';
+      final String? name = await databaseService.fetchUserName(user.uid);
+
+      if (user == null) {
+        showToast("User is not Authenticated", backgroundColor: AppColors.red);
+        return;
+      }
+
+      if (user.uid == null) {
+        showToast("User is id Null", backgroundColor: AppColors.red);
+        return;
+      }
+
       final String userId = user.uid;
 
       await _logService.addLog(
@@ -551,7 +611,21 @@ class PatientNoteState extends State<PatientNote> {
         action: "Updated note $updatedTitle for patient $patientName",
       );
 
-      fetchNotesForDay(selectedDay); // Refresh the notes list
+      await notificationService.sendInAppNotificationToTaggedUsers(
+        patientId: widget.patientId,
+        currentUserId: user.uid,
+        notificationMessage:
+            "$userRole $name updated a note from patient $patientName.",
+        type: "note",
+      );
+
+      await notificationService.sendNotificationToTaggedUsers(
+        widget.patientId,
+        "Updated Patient Note",
+        "$userRole $name updated a note from patient $patientName.",
+      );
+
+      fetchNotesForDay(selectedDay);
       showToast('Note updated successfully!');
     } catch (e) {
       showToast('Error updating note: $e', backgroundColor: AppColors.red);

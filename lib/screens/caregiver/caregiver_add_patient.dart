@@ -162,12 +162,12 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
           _profileImageUrl = null;
         });
 
-//         debugPrint("Selected image file path: ${_profileImage!.path}");
+        //         debugPrint("Selected image file path: ${_profileImage!.path}");
       } else {
-//         debugPrint('No image selected.');
+        //         debugPrint('No image selected.');
       }
     } catch (e) {
-//       debugPrint('Error picking profile image: $e');
+      //       debugPrint('Error picking profile image: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to pick a profile image.')),
       );
@@ -581,7 +581,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
             focusNode: _focusNodes[1],
             labelText: 'Middle Name',
             enabled: !_isLoading,
-            validator: (val){
+            validator: (val) {
               if (val == null || val.isEmpty) {
                 return null;
               }
@@ -595,9 +595,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
               }
               return null;
             },
-            inputFormatters: [
-              LengthLimitingTextInputFormatter(50),
-            ],
+            inputFormatters: [LengthLimitingTextInputFormatter(50)],
           ),
           const SizedBox(height: 10),
 
@@ -607,9 +605,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
             labelText: 'Last Name',
             enabled: !_isLoading,
             validator: (val) => Validator.name(val?.trim()),
-            inputFormatters: [
-              LengthLimitingTextInputFormatter(50),
-            ],
+            inputFormatters: [LengthLimitingTextInputFormatter(50)],
           ),
           const SizedBox(height: 10),
 
@@ -688,9 +684,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
             labelText: 'Address',
             enabled: !_isLoading,
             validator: (val) => Validator.address(val?.trim()),
-            inputFormatters: [
-              LengthLimitingTextInputFormatter(200),
-            ],
+            inputFormatters: [LengthLimitingTextInputFormatter(200)],
           ),
           const SizedBox(height: 10),
 
@@ -728,6 +722,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
           backgroundColor: AppColors.white,
           scrolledUnderElevation: 0.0,
           centerTitle: true,
+          automaticallyImplyLeading: _isLoading ? false : true,
           title: Text('Patient Info', style: Textstyle.subheader),
         ),
         body:

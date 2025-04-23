@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
+import 'package:solace/controllers/notification_service.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/services/log_service.dart';
 import 'package:solace/themes/buttonstyle.dart';
@@ -23,6 +24,7 @@ class PatientHistory extends StatefulWidget {
 }
 
 class _PatientHistoryState extends State<PatientHistory> {
+  final NotificationService notificationService = NotificationService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final DatabaseService databaseService = DatabaseService();
   final LogService _logService = LogService();
@@ -159,6 +161,9 @@ class _PatientHistoryState extends State<PatientHistory> {
     }
 
     final String userId = user.uid;
+    final String? caregiverRole = await databaseService.fetchAndCacheUserRole(
+      userId,
+    );
 
     String capitalize(String input) {
       if (input.isEmpty) return input;
@@ -166,6 +171,13 @@ class _PatientHistoryState extends State<PatientHistory> {
     }
 
     try {
+      final String role =
+          '${caregiverRole?.substring(0, 1).toUpperCase()}${caregiverRole?.substring(1)}';
+      final String? caregiverName = await databaseService.fetchUserName(userId);
+      final String? patientName = await databaseService.fetchUserName(
+        widget.patientId,
+      );
+
       await FirebaseFirestore.instance
           .collection('patient')
           .doc(widget.patientId)
@@ -179,6 +191,20 @@ class _PatientHistoryState extends State<PatientHistory> {
       await _logService.addLog(
         userId: userId,
         action: "Added Diagnosis $diagnosis to patient $patientName",
+      );
+
+      await notificationService.sendInAppNotificationToTaggedUsers(
+        patientId: widget.patientId,
+        currentUserId: userId,
+        notificationMessage:
+            "$role $caregiverName added a diagnosis to patient $patientName.",
+        type: "update",
+      );
+
+      await notificationService.sendNotificationToTaggedUsers(
+        widget.patientId,
+        "Diagnosis Update",
+        "$role $caregiverName added a diagnosis to patient $patientName.",
       );
 
       if (mounted) {
@@ -203,6 +229,15 @@ class _PatientHistoryState extends State<PatientHistory> {
     }
 
     final String userId = user.uid;
+    final String? caregiverRole = await databaseService.fetchAndCacheUserRole(
+      userId,
+    );
+    final String role =
+        '${caregiverRole?.substring(0, 1).toUpperCase()}${caregiverRole?.substring(1)}';
+    final String? caregiverName = await databaseService.fetchUserName(userId);
+    final String? patientName = await databaseService.fetchUserName(
+      widget.patientId,
+    );
 
     final doc =
         await FirebaseFirestore.instance
@@ -225,6 +260,24 @@ class _PatientHistoryState extends State<PatientHistory> {
       userId: userId,
       action: "Removed Diagnosis $diagnosis from patient $patientName",
     );
+
+    await notificationService.sendInAppNotificationToTaggedUsers(
+      patientId: widget.patientId,
+      currentUserId: userId,
+      notificationMessage:
+          "$role $caregiverName removed a diagnosis to patient $patientName.",
+      type: "update",
+    );
+
+    await notificationService.sendNotificationToTaggedUsers(
+      widget.patientId,
+      "Diagnosis Update",
+      "$role $caregiverName removed a diagnosis to patient $patientName.",
+    );
+
+    if (mounted) {
+      showToast('Diagnosis removed successfully');
+    }
   }
 
   void _showAddDiagnosisDialog() {

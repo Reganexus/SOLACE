@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
+import 'package:solace/controllers/notification_service.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/services/log_service.dart';
 import 'package:solace/themes/buttonstyle.dart';
@@ -26,6 +27,7 @@ class ViewPatientTask extends StatefulWidget {
 
 class _ViewPatientTaskState extends State<ViewPatientTask> {
   final LogService _logService = LogService();
+  final NotificationService notificationService = NotificationService();
   final DatabaseService databaseService = DatabaseService();
   final TaskUtility taskUtility = TaskUtility();
   List<Map<String, dynamic>> tasks = [];
@@ -186,7 +188,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
 
       // Check if the roles were successfully fetched
       if (caregiverRole == null || patientRole == null) {
-//         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
+        //         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
         showToast(
           "Failed to remove task. Roles not found.",
           backgroundColor: AppColors.red,
@@ -202,6 +204,24 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
         subCollectionName: 'tasks',
       );
 
+      final String role =
+          '${caregiverRole.substring(0, 1).toUpperCase()}${caregiverRole.substring(1)}';
+      final String? name = await databaseService.fetchUserName(caregiverId);
+
+      await notificationService.sendInAppNotificationToTaggedUsers(
+        patientId: widget.patientId,
+        currentUserId: caregiverId,
+        notificationMessage:
+            "$role $name removed a task from patient $patientName.",
+        type: "task",
+      );
+
+      await notificationService.sendNotificationToTaggedUsers(
+        widget.patientId,
+        "Task Notice",
+        "$role $name removed a task from patient $patientName.",
+      );
+
       await _logService.addLog(
         userId: caregiverId,
         action:
@@ -213,7 +233,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
         _fetchPatientTasks();
       }
     } catch (e) {
-//       debugPrint("Error removing task: $e");
+      //       debugPrint("Error removing task: $e");
       if (mounted) {
         showToast('Failed to delete task: $e', backgroundColor: AppColors.red);
       }
@@ -251,10 +271,8 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
       title = capitalizeWords(title);
       description = capitalizeWords(description);
 
-      // Generate a unique task ID
       String taskId = FirebaseFirestore.instance.collection('_').doc().id;
 
-      // Fetch the roles for both caregiver and patient
       final caregiverRole = await databaseService.fetchAndCacheUserRole(
         caregiverId,
       );
@@ -263,7 +281,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
       );
 
       if (caregiverRole == null || patientRole == null) {
-//         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
+        //         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
         showToast(
           "Failed to add task. Roles not found.",
           backgroundColor: AppColors.red,
@@ -271,7 +289,6 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
         return;
       }
 
-      // Save the task for the patient
       await taskUtility.saveTask(
         userId: widget.patientId,
         taskId: taskId,
@@ -283,17 +300,33 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
         endDate: endDate,
       );
 
-      _fetchPatientTasks();
-      _resetDateControllers();
+      final String role =
+          '${caregiverRole.substring(0, 1).toUpperCase()}${caregiverRole.substring(1)}';
+      final String? name = await databaseService.fetchUserName(caregiverId);
+
+      await notificationService.sendInAppNotificationToTaggedUsers(
+        patientId: widget.patientId,
+        currentUserId: caregiverId,
+        notificationMessage:
+            "$role $name added a task '$title' to patient $patientName.",
+        type: "task",
+      );
+
+      await notificationService.sendNotificationToTaggedUsers(
+        widget.patientId,
+        "Task Notice",
+        "$role $name added a task '$title' to patient $patientName.",
+      );
+
       await _logService.addLog(
         userId: caregiverId,
         action: "Added Task $title to patient $patientName",
       );
 
+      _fetchPatientTasks();
+      _resetDateControllers();
       showToast("Task added successfully");
     } catch (e) {
-//       debugPrint("Error adding task: $e");
-
       showToast("Failed to add task: $e", backgroundColor: AppColors.red);
     }
   }

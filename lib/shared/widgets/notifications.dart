@@ -262,6 +262,12 @@ class NotificationsListState extends State<NotificationsList> {
         return Icon(Icons.how_to_reg_sharp, color: AppColors.black, size: 24);
       case 'update':
         return Icon(Icons.info, color: AppColors.black, size: 24);
+      case 'note':
+        return Icon(
+          Icons.pending_actions_rounded,
+          color: AppColors.black,
+          size: 24,
+        );
       case 'patient':
         return Icon(Icons.person, color: AppColors.black, size: 24);
       default:
@@ -319,6 +325,9 @@ class NotificationsListState extends State<NotificationsList> {
         break;
       case 'tag':
         title = 'Tagging Details';
+        break;
+      case 'note':
+        title = 'Note Details';
         break;
       case 'patient':
         title = 'Patient Notice';
@@ -445,6 +454,8 @@ class NotificationsListState extends State<NotificationsList> {
                             ? 'Account Update'
                             : notification['type'] == 'tag'
                             ? 'Tagging Details'
+                            : notification['type'] == 'note'
+                            ? 'Note Details'
                             : notification['type'] == 'patient'
                             ? 'Patient Notice'
                             : 'Notification';

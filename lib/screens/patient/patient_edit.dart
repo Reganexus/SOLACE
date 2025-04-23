@@ -92,10 +92,10 @@ class _EditPatientState extends State<EditPatient> {
           }
         }
       } else {
-//         debugPrint("Patient document does not exist.");
+        showToast("Patient document does not exist.");
       }
     } catch (e) {
-//       debugPrint("Error loading patient cases: $e");
+      showToast("Error loading patient cases: $e");
     }
   }
 
@@ -112,14 +112,10 @@ class _EditPatientState extends State<EditPatient> {
   }
 
   Future<File> getFileFromAsset(String assetPath) async {
-    final byteData = await rootBundle.load(assetPath); // Load the asset
-    final tempDir = await getTemporaryDirectory(); // Get temp directory
-    final tempFile = File(
-      '${tempDir.path}/${assetPath.split('/').last}',
-    ); // Create file
-    return await tempFile.writeAsBytes(
-      byteData.buffer.asUint8List(),
-    ); // Write byte data to file
+    final byteData = await rootBundle.load(assetPath);
+    final tempDir = await getTemporaryDirectory();
+    final tempFile = File('${tempDir.path}/${assetPath.split('/').last}');
+    return await tempFile.writeAsBytes(byteData.buffer.asUint8List());
   }
 
   Future<String> uploadProfileImage({
@@ -141,16 +137,12 @@ class _EditPatientState extends State<EditPatient> {
         ), // Ensure correct content type
       );
 
-      // Wait for upload to complete
       final snapshot = await uploadTask.whenComplete(() {});
 
-      // Get the download URL
       final downloadUrl = await snapshot.ref.getDownloadURL();
 
-      //     debugPrint("Image uploaded successfully: $downloadUrl");
-      return downloadUrl; // Return the URL
+      return downloadUrl;
     } catch (e) {
-      //     debugPrint("Error uploading image: $e");
       throw Exception("Error uploading profile image: $e");
     }
   }
@@ -170,23 +162,20 @@ class _EditPatientState extends State<EditPatient> {
 
       if (selectedImage != null) {
         if (selectedImage.startsWith('lib/')) {
-          // Convert asset to file
           _profileImage = await getFileFromAsset(selectedImage);
         } else {
-          // Regular file path
           _profileImage = File(selectedImage);
         }
 
         setState(() {
           _profileImageUrl = null; // Clear old URLs
         });
-
-//         debugPrint("Selected image file path: ${_profileImage!.path}");
+        showToast("Selected image file path: ${_profileImage!.path}");
       } else {
-//         debugPrint('No image selected.');
+        showToast('No image selected.');
       }
     } catch (e) {
-//       debugPrint('Error picking profile image: $e');
+      showToast('Error picking profile image: $e');
       showToast(
         'Failed to pick a profile image.',
         backgroundColor: AppColors.red,
@@ -438,11 +427,11 @@ class _EditPatientState extends State<EditPatient> {
         final lastName = data?['lastName'] ?? '';
         return '$firstName $lastName'.trim();
       } else {
-//         debugPrint('User document does not exist for userId: $userId');
+        //         debugPrint('User document does not exist for userId: $userId');
         return 'Unknown User';
       }
     } catch (e) {
-//       debugPrint('Error fetching user name for userId $userId: $e');
+      //       debugPrint('Error fetching user name for userId $userId: $e');
       return 'Unknown User';
     }
   }

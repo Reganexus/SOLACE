@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:solace/controllers/notification_service.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/services/log_service.dart';
 import 'package:solace/themes/buttonstyle.dart';
@@ -25,6 +26,7 @@ class ViewPatientMedicine extends StatefulWidget {
 
 class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
   final LogService _logService = LogService();
+  final NotificationService notificationService = NotificationService();
   DatabaseService databaseService = DatabaseService();
   MedicineUtility medicineUtility = MedicineUtility();
   List<Map<String, dynamic>> medicines = [];
@@ -93,7 +95,6 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
   }
 
   Future<void> _fetchPatientMedicines() async {
-
     if (!mounted) return;
 
     setState(() {
@@ -181,10 +182,8 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
 
       medicineName = capitalizeWords(medicineName);
 
-      // Generate a unique task ID
       String medicineId = FirebaseFirestore.instance.collection('_').doc().id;
 
-      // Fetch the roles for both caregiver and patient
       final caregiverRole = await databaseService.fetchAndCacheUserRole(
         caregiverId,
       );
@@ -193,7 +192,6 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
       );
 
       if (caregiverRole == null || patientRole == null) {
-//         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
         showToast(
           "Failed to add task. Roles not found.",
           backgroundColor: AppColors.red,
@@ -201,7 +199,6 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
         return;
       }
 
-      // Save the medicine for the patient
       await medicineUtility.saveMedicine(
         userId: widget.patientId,
         medicineId: medicineId,
@@ -216,12 +213,31 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
         userId: caregiverId,
         action: "Added Medicine $medicineName to patient $patientName",
       );
+
+      final String role =
+          '${caregiverRole.substring(0, 1).toUpperCase()}${caregiverRole.substring(1)}';
+      final String? name = await databaseService.fetchUserName(caregiverId);
+
+      await notificationService.sendInAppNotificationToTaggedUsers(
+        patientId: widget.patientId,
+        currentUserId: caregiverId,
+        notificationMessage:
+            "$role $name prescribed $dosage dosage of $medicineName to patient $patientName.",
+        type: "medicine",
+      );
+
+      await notificationService.sendNotificationToTaggedUsers(
+        widget.patientId,
+        "Medicine Prescription Notice",
+        "$role $name prescribed $dosage dosage of $medicineName to patient $patientName.",
+      );
+
       refreshValues();
       _fetchPatientMedicines();
 
       showToast("Medicine added successfully");
     } catch (e) {
-//       debugPrint("Error adding medicine: $e");
+      //       debugPrint("Error adding medicine: $e");
 
       showToast(
         "Failed to add prescription: $e",
@@ -246,7 +262,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
 
       // Check if the roles were successfully fetched
       if (caregiverRole == null || patientRole == null) {
-//         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
+        //         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
         showToast(
           "Failed to remove medicine. Roles not found.",
           backgroundColor: AppColors.red,
@@ -262,17 +278,35 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
         subCollectionName: 'medicines',
       );
 
+      final String medicineName = getMedicineNameById(medicineId);
+      final String role =
+          '${caregiverRole.substring(0, 1).toUpperCase()}${caregiverRole.substring(1)}';
+      final String? name = await databaseService.fetchUserName(caregiverId);
+
       await _logService.addLog(
         userId: caregiverId,
-        action:
-            "Removed Medicine ${getMedicineNameById(medicineId)} from patient $patientName",
+        action: "Removed Medicine $medicineName from patient $patientName",
+      );
+
+      await notificationService.sendInAppNotificationToTaggedUsers(
+        patientId: widget.patientId,
+        currentUserId: caregiverId,
+        notificationMessage:
+            "$role $name removed $medicineName prescription from patient $patientName.",
+        type: "medicine",
+      );
+
+      await notificationService.sendNotificationToTaggedUsers(
+        widget.patientId,
+        "Medicine Prescription Notice",
+        "$role $name removed $medicineName prescription from patient $patientName.",
       );
 
       showToast('Medicine deleted successfully');
       refreshValues();
       _fetchPatientMedicines();
     } catch (e) {
-//       debugPrint("Error removing medicine: $e");
+      //       debugPrint("Error removing medicine: $e");
 
       showToast(
         'Failed to delete medicine: $e',
@@ -316,7 +350,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
           }
         }
       } catch (e) {
-//         debugPrint('Error fetching global medicines: $e');
+        //         debugPrint('Error fetching global medicines: $e');
       }
     }
 

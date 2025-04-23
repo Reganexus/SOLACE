@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
+import 'package:solace/controllers/notification_service.dart';
 import 'package:solace/services/database.dart';
 import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
@@ -21,6 +22,7 @@ class PatientTasks extends StatefulWidget {
 }
 
 class PatientTasksState extends State<PatientTasks> {
+  NotificationService notificationService = NotificationService();
   DatabaseService databaseService = DatabaseService();
   TaskUtility taskUtility = TaskUtility();
   List<Map<String, dynamic>> completedTasks = [];
@@ -171,7 +173,7 @@ class PatientTasksState extends State<PatientTasks> {
       );
 
       if (caregiverRole == null || patientRole == null) {
-//         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
+        //         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
         showToast(
           "Failed to mark task as complete. Roles not found.",
           backgroundColor: AppColors.red,
@@ -196,12 +198,33 @@ class PatientTasksState extends State<PatientTasks> {
         updates: {'isCompleted': true},
       );
 
+      final String role =
+          '${caregiverRole.substring(0, 1).toUpperCase()}${caregiverRole.substring(1)}';
+      final String? caregiverName = await databaseService.fetchUserName(
+        caregiverId,
+      );
+      final String? patientName = await databaseService.fetchUserName(
+        patientId,
+      );
+
+      await notificationService.sendInAppNotificationToTaggedUsers(
+        patientId: widget.patientId,
+        currentUserId: caregiverId,
+        notificationMessage:
+            "$role $caregiverName completed a task from patient $patientName.",
+        type: "task",
+      );
+
+      await notificationService.sendNotificationToTaggedUsers(
+        widget.patientId,
+        "Task Completion",
+        "$role $caregiverName completed a task from patient $patientName.",
+      );
+
       showToast('Task marked as complete successfully.');
 
-      fetchPatientTasks(); // Refresh the task list
+      fetchPatientTasks();
     } catch (e) {
-//       debugPrint("Error updating task: $e");
-
       showToast(
         'Failed to mark task as complete.',
         backgroundColor: AppColors.red,

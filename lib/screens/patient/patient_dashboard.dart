@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
+import 'package:solace/controllers/notification_service.dart';
 import 'package:solace/screens/caregiver/caregiver_add_medicine.dart';
 import 'package:solace/screens/caregiver/caregiver_add_task.dart';
 import 'package:solace/screens/patient/patient_edit.dart';
@@ -51,6 +52,7 @@ class VitalStatus {
 class _PatientsDashboardState extends State<PatientsDashboard> {
   final LogService _logService = LogService();
   final DatabaseService databaseService = DatabaseService();
+  final NotificationService notificationService = NotificationService();
   ScheduleUtility scheduleUtility = ScheduleUtility();
   Map<String, dynamic>? patientData;
   bool isLoading = true;
@@ -577,8 +579,10 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
           _buildTracking(),
           const SizedBox(height: 10.0),
           _buildNotes(),
-          const SizedBox(height: 10.0),
-          _buildScheduleContainer(),
+          if (role != 'caregiver') ...[
+            const SizedBox(height: 10.0),
+            _buildScheduleContainer(),
+          ],
           const SizedBox(height: 10.0),
           _buildTaskContainer(),
           if (role == 'doctor') ...[
@@ -732,7 +736,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
       );
 
       if (caregiverRole == null || patientRole == null) {
-//         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
+        //         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
         showToast(
           "Failed to schedule. Roles not found.",
           backgroundColor: AppColors.red,
@@ -760,6 +764,23 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
 
       String patientName = await _loadUserName(patientId);
       String caregiverName = await _loadUserName(caregiverId);
+      final String role =
+          '${caregiverRole.substring(0, 1).toUpperCase()}${caregiverRole.substring(1)}';
+      final String? name = await databaseService.fetchUserName(caregiverId);
+
+      await notificationService.sendInAppNotificationToTaggedUsers(
+        patientId: widget.patientId,
+        currentUserId: caregiverId,
+        notificationMessage:
+            "$role $name scheduled an appointment to patient $patientName on $scheduledDateTime.",
+        type: "schedule",
+      );
+
+      await notificationService.sendNotificationToTaggedUsers(
+        widget.patientId,
+        "Schedule Notice",
+        "$role $name scheduled an appointment to patient $patientName on $scheduledDateTime.",
+      );
 
       await _logService.addLog(
         userId: caregiverId,
@@ -772,10 +793,8 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
             "Scheduled by $caregiverName an appointment on $scheduledDateTime",
       );
 
-//       debugPrint("Schedule saved for both caregiver and patient.");
       showToast("Appointment scheduled for $patientName at $formattedDateTime");
     } catch (e) {
-//       debugPrint("Failed to save schedule: $e");
       showToast(
         "Failed to schedule appointment.",
         backgroundColor: AppColors.red,

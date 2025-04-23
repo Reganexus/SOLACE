@@ -401,9 +401,7 @@ class AdminUsersState extends State<AdminUsers> {
                 Expanded(
                   child: TextButton(
                     onPressed: () {
-                      Navigator.of(
-                        context,
-                      ).pop(); // Close the confirmation dialog
+                      Navigator.of(context).pop();
                     },
                     style: Buttonstyle.buttonNeon,
                     child: Text('Cancel', style: Textstyle.smallButton),
@@ -427,15 +425,17 @@ class AdminUsersState extends State<AdminUsers> {
 
                         await notificationService
                             .sendInAppNotificationToTaggedUsers(
-                              uid,
-                              "Unfortunately, patient $userName is marked deceased.",
-                              "patient",
+                              patientId: uid,
+                              currentUserId: user.uid,
+                              notificationMessage:
+                                  "Unfortunately, patient $userName is marked deceased.",
+                              type: "patient",
                             );
 
                         await notificationService.sendNotificationToTaggedUsers(
                           uid,
                           "Patient Alert",
-                          "Unfortunately, patient $userName is marked deceased.",
+                          "Unfortunately, patient $userName passed away.",
                         );
 
                         showToast(

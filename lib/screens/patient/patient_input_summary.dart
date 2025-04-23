@@ -303,21 +303,17 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       await _firestore.collection('patient').doc(widget.uid).update({
         'symptoms': FieldValue.arrayUnion(symptoms),
       });
-      //       debugPrint('Identified symptoms successfully updated in Firestore');
-
       String status = '';
       if (symptoms.isEmpty) {
         status = 'stable';
-        //         debugPrint('Status set to stable');
       } else {
         status = 'unstable';
-        //         debugPrint('Status set to unstable');
       }
       await _firestore.collection('patient').doc(widget.uid).update({
         'status': status,
       });
     } catch (e) {
-      //       debugPrint('Error updating Firestore: $e');
+      showToast('Error updating Firestore: $e');
     }
   }
 
@@ -619,29 +615,66 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
           await _firestore.collection('patient').doc(widget.uid).get();
       String status = patientDoc.get('status') ?? 'uncertain';
 
+      final user = _auth.currentUser;
+      if (user == null) {
+        showToast("User is not Authenticated", backgroundColor: AppColors.red);
+        return;
+      }
+
+      final String userId = user.uid;
+      final String? caregiverRole = await databaseService.fetchAndCacheUserRole(
+        userId,
+      );
+      final String role =
+          '${caregiverRole?.substring(0, 1).toUpperCase()}${caregiverRole?.substring(1)}';
+      final String? caregiverName = await databaseService.fetchUserName(userId);
+
       if (status == 'unstable') {
         // Send notification for unstable status
         await notificationService.sendNotificationToTaggedUsers(
           widget.uid,
           "Tracking Update",
-          "Patient $patientName is unstable. Check it now.",
+          "Patient $patientName is tracked by $role $caregiverName and is unstable. Check it now.",
+        );
+
+        await notificationService.sendInAppNotificationToTaggedUsers(
+          patientId: widget.uid,
+          currentUserId: userId,
+          notificationMessage:
+              "Patient $patientName is tracked by $role $caregiverName and is unstable. Check it now.",
+          type: "update",
         );
       } else if (status == 'stable') {
         // Send notification for stable status
         await notificationService.sendNotificationToTaggedUsers(
           widget.uid,
           "Tracking Update",
-          "Patient $patientName is stable. View it now.",
+          "Patient $patientName is tracked by $role $caregiverName and is stable. Check it now.",
+        );
+
+        await notificationService.sendInAppNotificationToTaggedUsers(
+          patientId: widget.uid,
+          currentUserId: userId,
+          notificationMessage:
+              "Patient $patientName is tracked by $role $caregiverName and is stable. Check it now.",
+          type: "update",
         );
       } else if (status == 'uncertain') {
         // Send notification for uncertain status
         await notificationService.sendNotificationToTaggedUsers(
           widget.uid,
           "Tracking Update",
-          "Patient $patientName is uncertain. Check it now.",
+          "Patient $patientName is tracked by $role $caregiverName and is 7uncertain. Check it now.",
+        );
+        await notificationService.sendInAppNotificationToTaggedUsers(
+          patientId: widget.uid,
+          currentUserId: userId,
+          notificationMessage:
+              "Patient $patientName is tracked by $role $caregiverName and is 7uncertain. Check it now.",
+          type: "update",
         );
       } else {
-        //         debugPrint("Status is not stable, unstable, or uncertain.");
+        showToast("Status is not stable, unstable, or uncertain.");
       }
 
       Navigator.pushAndRemoveUntil(
@@ -652,8 +685,6 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         (Route<dynamic> route) => route.isFirst,
       );
     } catch (e) {
-      // Handle any unexpected errors here
-      //       debugPrint("Unexpected error: $e");
       if (mounted) {
         showToast(
           'An unexpected error occurred: $e',

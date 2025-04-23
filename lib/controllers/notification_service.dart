@@ -6,27 +6,6 @@ class NotificationService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final DatabaseService db = DatabaseService();
 
-  Future<void> sendInAppNotificationToTaggedUsers(
-    String patientId,
-    String title,
-    String category,
-  ) async {
-    try {
-      // Step 1: Fetch all tagged user IDs
-      final taggedUserIds = await _getTaggedUserIds(patientId);
-
-      if (taggedUserIds.isEmpty) {
-        return;
-      }
-
-      for (String token in taggedUserIds) {
-        await db.addNotification(token, title, category);
-      }
-    } catch (e) {
-      //       debugPrint("Error in sendNotificationToTaggedUsers: $e");
-    }
-  }
-
   Future<void> sendNotificationToTaggedUsers(
     String patientId,
     String title,
@@ -54,6 +33,36 @@ class NotificationService {
       }
     } catch (e) {
       //       debugPrint("Error in sendNotificationToTaggedUsers: $e");
+    }
+  }
+
+  Future<void> sendInAppNotificationToTaggedUsers({
+    required String patientId,
+    required String currentUserId,
+    required String notificationMessage,
+    required String type,
+  }) async {
+    try {
+      // Step 1: Fetch all tagged user IDs
+      final taggedUserIds = await _getTaggedUserIds(patientId);
+
+      // Step 2: Filter out the current user ID
+      final filteredUserIds =
+          taggedUserIds.where((id) => id != currentUserId).toList();
+
+      if (filteredUserIds.isEmpty) {
+        // No tagged users to notify after filtering
+        return;
+      }
+
+      // Step 3: Send in-app notifications to each tagged user
+      for (String userId in filteredUserIds) {
+        await db.addNotification(userId, notificationMessage, type);
+      }
+    } catch (e) {
+      // Handle any errors during the notification process
+      // debugPrint("Error in sendInAppNotificationToTaggedUsers: $e");
+      throw Exception("Failed to send in-app notifications.");
     }
   }
 
