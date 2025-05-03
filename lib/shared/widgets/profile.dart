@@ -72,7 +72,7 @@ class _ProfileState extends State<Profile> {
           context: context,
           builder:
               (context) => AlertDialog(
-                title: Text('Log Out', style: Textstyle.title),
+                title: Text('Log Out', style: Textstyle.subheader),
                 backgroundColor: AppColors.white,
                 contentPadding: const EdgeInsets.all(16),
                 content: Text(

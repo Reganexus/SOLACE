@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:solace/screens/authenticate/verify.dart';
+import 'package:solace/screens/caregiver/caregiver_waiting_screen.dart';
 import 'package:solace/screens/home/home.dart';
 import 'package:solace/screens/authenticate/authenticate.dart';
 import 'package:solace/models/my_user.dart';
@@ -19,7 +20,6 @@ class Wrapper extends StatelessWidget {
     final MyUser? user = Provider.of<MyUser?>(context);
 
     if (user == null) {
-//       debugPrint("No user found, navigating to Authenticate screen.");
       return const Authenticate();
     }
 
@@ -49,29 +49,25 @@ class Wrapper extends StatelessWidget {
         }
 
         if (snapshot.hasError) {
-//           debugPrint('Error loading user data: ${snapshot.error}');
           return _errorScreen("Failed to load user data. Please try again.");
         }
 
         final userData = snapshot.data;
         if (userData != null) {
           final isVerified = userData['isVerified'] ?? false;
-          final newUser =
-              userData['newUser'] ?? true; // Default to true for safety.
+          final newUser = userData['newUser'] ?? true;
           final role = userData['userRole'];
+          final hasAccess = userData['hasAccess'] ?? false;
+
+          debugPrint("Has Access of user: $hasAccess");
 
           if (newUser && !isVerified) {
-//             debugPrint("Wrapper: Directing to Verify()");
             return const Verify();
           } else if (newUser && isVerified) {
-//             debugPrint("Wrapper: Directing to Home() with role: $role");
-            return RoleChooser(
-              onRoleSelected: (role) {
-//                 debugPrint("User role: $role");
-              },
-            );
-          } else if (!newUser && isVerified) {
-//             debugPrint("Wrapper: Directing to Home() with role: $role");
+            return RoleChooser(onRoleSelected: (role) {});
+          } else if (!newUser && isVerified && hasAccess == false) {
+            return CaregiverWaitingScreen(userId: user.uid, userRole: role);
+          } else if (!newUser && isVerified && hasAccess == true) {
             return Home(uid: user.uid, role: role);
           } else {
             return _errorScreen(
@@ -79,7 +75,6 @@ class Wrapper extends StatelessWidget {
             );
           }
         } else {
-//           debugPrint("No user data found after retries.");
           return Authenticate();
         }
       },
@@ -100,7 +95,7 @@ class Wrapper extends StatelessWidget {
         // Use fetchAndCacheUserRole instead of getTargetUserRole
         final String? role = await DatabaseService().fetchAndCacheUserRole(uid);
         if (role == null) {
-//           debugPrint("Role not found. Retrying...");
+          //           debugPrint("Role not found. Retrying...");
           await Future.delayed(retryDelay);
           continue;
         }
@@ -111,16 +106,16 @@ class Wrapper extends StatelessWidget {
         if (docSnapshot.exists) {
           return docSnapshot.data() as Map<String, dynamic>;
         } else {
-//           debugPrint("User document not found. Retrying...");
+          //           debugPrint("User document not found. Retrying...");
         }
       } catch (e) {
-//         debugPrint("Error fetching user data: $e");
+        //         debugPrint("Error fetching user data: $e");
       }
 
       await Future.delayed(retryDelay);
     }
 
-//     debugPrint("Max retries reached. User document not found.");
+    //     debugPrint("Max retries reached. User document not found.");
     return null;
   }
 

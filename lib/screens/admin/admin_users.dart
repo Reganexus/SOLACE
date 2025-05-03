@@ -50,7 +50,7 @@ class AdminUsersState extends State<AdminUsers> {
     final currentUser = _auth.currentUser;
 
     if (currentUser == null) {
-      //     debugPrint("Error: No authenticated user found.");
+      showToast("Error: No authenticated user found.");
       return;
     }
 

@@ -127,11 +127,11 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
       if (token != null) {
         return token;
       } else {
-//         debugPrint("Failed to fetch FCM token.");
+        //         debugPrint("Failed to fetch FCM token.");
         return null;
       }
     } catch (e) {
-//       debugPrint("Error fetching FCM token: $e");
+      //       debugPrint("Error fetching FCM token: $e");
       return null;
     }
   }

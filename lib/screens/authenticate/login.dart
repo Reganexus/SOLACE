@@ -7,7 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:solace/models/my_user.dart';
 import 'package:solace/screens/authenticate/forgot.dart';
-import 'package:solace/screens/home/home.dart';
+import 'package:solace/screens/wrapper.dart';
 import 'package:solace/services/auth.dart';
 import 'package:flutter/material.dart';
 import 'package:solace/services/database.dart';
@@ -277,9 +277,7 @@ class _LogInState extends State<LogIn> {
       if (userDoc.exists && userDoc.data()?['isVerified'] == true) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (context) => Home(uid: uid, role: userRole),
-          ),
+          MaterialPageRoute(builder: (context) => Wrapper()),
         );
       } else {
         showToast(
@@ -311,9 +309,9 @@ class _LogInState extends State<LogIn> {
     if (role != null) {
       final docExists = await _checkDocumentExists(role, uid);
       if (docExists) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => Home(uid: uid, role: role)),
-        );
+        Navigator.of(
+          context,
+        ).pushReplacement(MaterialPageRoute(builder: (context) => Wrapper()));
       } else {
         setState(() => error = 'User document not found.');
       }
