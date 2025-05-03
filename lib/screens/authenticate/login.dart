@@ -336,7 +336,7 @@ class _LogInState extends State<LogIn> {
       attempts = (data['attempts'] ?? 0) + 1;
 
       if (attempts >= 20) {
-        lockedUntil = DateTime.now().add(Duration(minutes: 10));
+        lockedUntil = DateTime.now().add(Duration(minutes: 30));
       } else if (attempts >= 15) {
         lockedUntil = DateTime.now().add(Duration(minutes: 5));
       } else if (attempts >= 10) {

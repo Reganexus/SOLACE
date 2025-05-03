@@ -440,6 +440,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
                                     "grams",
                                     "milliliters",
                                     "micrograms",
+                                    "kilograms"
                                   ],
                                   onChanged:
                                       (value) => setModalState(() {
@@ -770,7 +771,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
                 Text(medicineName, style: Textstyle.subheader),
                 const SizedBox(height: 10.0),
                 Text(
-                  "Do you want to delete this medicine?",
+                  "Do you want to remove this prescription?",
                   style: Textstyle.body,
                 ),
                 SizedBox(height: 20),

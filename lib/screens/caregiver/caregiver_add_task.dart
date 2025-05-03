@@ -395,9 +395,9 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
 
         // Validation for start date
         if (isStartDate) {
-          if (selectedDateTime.isBefore(now.add(Duration(minutes: 15)))) {
+          if (selectedDateTime.isBefore(now)) {
             setError(
-              "Start date and time must be at least 15 minutes from now.",
+              "Start date and time must not be before the current date and time.",
             );
             return;
           }
@@ -416,10 +416,10 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
             return;
           }
           if (selectedDateTime.isBefore(
-            taskStartDate!.add(Duration(minutes: 30)),
+            taskStartDate!.add(Duration(minutes: 10)),
           )) {
             setError(
-              "End date and time must be at least 30 minutes after the start date.",
+              "End date and time must be at least 10 minutes after the start date.",
             );
             return;
           }

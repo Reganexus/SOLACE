@@ -1565,7 +1565,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
                           ),
                         ),
                         child: Text(
-                          isTagged ? 'Remove Assignment' : 'Assign Patient',
+                          isTagged ? 'Unassign Patient' : 'Assign Patient',
                           style: Textstyle.bodySuperSmall.copyWith(
                             color: AppColors.white,
                             fontWeight: FontWeight.bold,

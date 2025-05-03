@@ -198,9 +198,22 @@ class _AdminEditProfileScreenState extends State<AdminEditProfile> {
 
   static const List<String> religions = [
     'Roman Catholic',
-    'Islam',
+    'Protestant',
     'Iglesia ni Cristo',
-    'Other', // Add 'Other' option
+    'Aglipayan / Philippine Independent Church',
+    'Islam',
+    'Orthodox Christian',
+    'Indigenous / Ancestral Beliefs',
+    'Buddhism',
+    'Hinduism',
+    'Judaism',
+    'Sikhism',
+    'Taoism / Chinese Folk Religion',
+    'Bahá’í Faith',
+    'Spiritual but not religious',
+    'Agnostic',
+    'Atheist',
+    'Prefer not to say',
   ];
 
   Future<File> getFileFromAsset(String assetPath) async {

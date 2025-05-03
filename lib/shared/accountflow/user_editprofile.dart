@@ -73,9 +73,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   static const List<String> religions = [
     'Roman Catholic',
-    'Islam',
+    'Protestant',
     'Iglesia ni Cristo',
-    'Other',
+    'Aglipayan / Philippine Independent Church',
+    'Islam',
+    'Orthodox Christian',
+    'Indigenous / Ancestral Beliefs',
+    'Buddhism',
+    'Hinduism',
+    'Judaism',
+    'Sikhism',
+    'Taoism / Chinese Folk Religion',
+    'Bahá’í Faith',
+    'Spiritual but not religious',
+    'Agnostic',
+    'Atheist',
+    'Prefer not to say',
   ];
 
   @override
