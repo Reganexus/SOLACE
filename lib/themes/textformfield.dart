@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:solace/themes/colors.dart';
+import 'package:solace/themes/textstyle.dart';
 
 class CustomTextField extends StatelessWidget {
   final TextEditingController controller;
@@ -42,12 +43,7 @@ class CustomTextField extends StatelessWidget {
       enabled: enabled,
       onTap: onTap,
       onChanged: onChanged,
-      style: const TextStyle(
-        fontSize: 16,
-        fontFamily: 'Inter',
-        fontWeight: FontWeight.normal,
-        color: AppColors.black,
-      ),
+      style: Textstyle.body,
       decoration: InputDecoration(
         labelText: labelText,
         filled: true,
@@ -60,10 +56,7 @@ class CustomTextField extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: AppColors.neon, width: 2),
         ),
-        labelStyle: TextStyle(
-          fontSize: 16,
-          fontFamily: 'Inter',
-          fontWeight: FontWeight.normal,
+        labelStyle: Textstyle.body.copyWith(
           color: focusNode.hasFocus ? AppColors.neon : AppColors.black,
         ),
       ),

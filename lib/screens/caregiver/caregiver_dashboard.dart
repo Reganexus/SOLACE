@@ -343,14 +343,18 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
   }
 
   Widget _buildPatientList(String title, List<PatientData> patients) {
-    // Sort the patients list: 'unstable' patients first
+    // Sort the patients list: 'unstable' patients first and then alphabetical order
     patients.sort((a, b) {
+      // Check for status first: unstable patients first
       if (a.status == 'unstable' && b.status != 'unstable') {
         return -1; // a comes before b
       } else if (a.status != 'unstable' && b.status == 'unstable') {
         return 1; // b comes before a
       } else {
-        return 0; // Keep the original order if both have the same status
+        // If both are the same status, sort alphabetically by first and last name
+        final nameA = '${a.firstName} ${a.lastName}'.toLowerCase();
+        final nameB = '${b.firstName} ${b.lastName}'.toLowerCase();
+        return nameA.compareTo(nameB); // Alphabetical order
       }
     });
 
@@ -361,7 +365,7 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
         const SizedBox(height: 10.0),
         ListView.builder(
           shrinkWrap: true,
-          physics: NeverScrollableScrollPhysics(),
+          physics: const NeverScrollableScrollPhysics(),
           itemCount: patients.length,
           itemBuilder: (context, index) {
             final patient = patients[index];

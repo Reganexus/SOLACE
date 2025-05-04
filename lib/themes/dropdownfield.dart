@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:solace/themes/colors.dart';
+import 'package:solace/themes/textstyle.dart';
 
 class CustomDropdownField<T> extends StatelessWidget {
   final T? value;
@@ -39,19 +40,11 @@ class CustomDropdownField<T> extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: AppColors.neon, width: 2),
         ),
-        labelStyle: TextStyle(
-          fontSize: 16,
-          fontFamily: 'Inter',
-          fontWeight: FontWeight.normal,
+        labelStyle: Textstyle.body.copyWith(
           color: focusNode.hasFocus ? AppColors.neon : AppColors.black,
         ),
       ),
-      style: const TextStyle(
-        fontSize: 16,
-        fontFamily: 'Inter',
-        fontWeight: FontWeight.normal,
-        color: AppColors.black,
-      ),
+      style: Textstyle.body,
       items:
           items.map((item) {
             return DropdownMenuItem<T>(

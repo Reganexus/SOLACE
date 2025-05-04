@@ -22,6 +22,7 @@ import 'package:solace/themes/buttonstyle.dart';
 import 'package:solace/themes/colors.dart';
 import 'package:solace/themes/textstyle.dart';
 import 'package:solace/utility/schedule_utility.dart';
+import 'package:syncfusion_flutter_charts/charts.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:lucide_icons/lucide_icons.dart';
 
@@ -402,8 +403,6 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     required String title,
     required String description,
     required String imagePath,
-    required String buttonText,
-    required IconData buttonIcon,
     required VoidCallback onPressed,
   }) {
     return GestureDetector(
@@ -414,7 +413,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
             borderRadius: BorderRadius.circular(10),
             child: Container(
               width: double.infinity,
-              height: 200,
+              height: 300,
               decoration: BoxDecoration(
                 image: DecorationImage(
                   image: AssetImage(imagePath),
@@ -433,36 +432,15 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
               children: [
                 Text(
                   title,
-                  style: Textstyle.heading.copyWith(
+                  style: Textstyle.body.copyWith(
                     fontWeight: FontWeight.bold,
                     color: AppColors.white,
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 8),
+                Divider(),
                 Text(
                   description,
-                  style: Textstyle.body.copyWith(color: AppColors.white),
-                ),
-                const SizedBox(height: 20),
-                Divider(),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    Text(
-                      buttonText,
-                      style: Textstyle.body.copyWith(
-                        color: AppColors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(width: 5),
-                    Icon(
-                      Icons.arrow_forward_ios_rounded,
-                      size: 16,
-                      color: AppColors.white,
-                    ),
-                  ],
+                  style: Textstyle.bodySmall.copyWith(color: AppColors.white),
                 ),
               ],
             ),
@@ -475,11 +453,8 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
   Widget _buildScheduleContainer() {
     return _buildContainer(
       title: 'Schedule Patient',
-      description:
-          'Set appointments and visit to the patient at a particular time and day.',
+      description: 'Appoint a schedule of visit to the patient',
       imagePath: 'lib/assets/images/auth/calendar.jpg',
-      buttonText: 'Schedule',
-      buttonIcon: Icons.edit_calendar,
       onPressed: () {
         _scheduleAppointment(widget.caregiverId, widget.patientId);
       },
@@ -489,10 +464,8 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
   Widget _buildTaskContainer() {
     return _buildContainer(
       title: 'Set Task',
-      description: 'Set tasks for the patient to do.',
+      description: 'Set a task for the patient to accomplish',
       imagePath: 'lib/assets/images/auth/task.jpg',
-      buttonText: 'Give Task',
-      buttonIcon: Icons.edit_calendar,
       onPressed: () {
         Navigator.push(
           context,
@@ -507,10 +480,8 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
   Widget _buildMedicineContainer() {
     return _buildContainer(
       title: 'Prescribe Medicine',
-      description: 'Give medications to the patient to take.',
+      description: 'Prescribe a medicine to the patient to take',
       imagePath: 'lib/assets/images/auth/medicine.jpg',
-      buttonText: 'Prescribe Medicine',
-      buttonIcon: Icons.medical_services_rounded,
       onPressed: () {
         Navigator.push(
           context,
@@ -527,10 +498,8 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     return GestureDetector(
       child: _buildContainer(
         title: 'Track Patient',
-        description: 'Monitor and track patient symptom flare-ups and vitals.',
+        description: 'Track and input patient vitals and symptoms',
         imagePath: 'lib/assets/images/auth/tracking.jpg',
-        buttonText: 'Track Patient',
-        buttonIcon: Icons.monitor_heart_rounded,
         onPressed: () {
           Navigator.push(
             context,
@@ -547,11 +516,8 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
   Widget _buildNotes() {
     return _buildContainer(
       title: 'Take Notes',
-      description:
-          'Add notes on the current events and changes in the patient\'s condition.',
+      description: 'Add notes to record events about the patient',
       imagePath: 'lib/assets/images/auth/notes.jpg',
-      buttonText: 'Add Note',
-      buttonIcon: Icons.edit_calendar_rounded,
       onPressed: () {
         Navigator.push(
           context,
@@ -576,22 +542,356 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
             style: Textstyle.body,
           ),
           const SizedBox(height: 20.0),
-          _buildTracking(),
-          const SizedBox(height: 10.0),
-          _buildNotes(),
-          if (role != 'caregiver') ...[
-            const SizedBox(height: 10.0),
-            _buildScheduleContainer(),
-          ],
-          const SizedBox(height: 10.0),
-          _buildTaskContainer(),
-          if (role == 'doctor') ...[
-            const SizedBox(height: 10.0),
-            _buildMedicineContainer(),
-          ],
+          GridView(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2, // Two columns
+              crossAxisSpacing: 10.0, // Space between columns
+              mainAxisSpacing: 10.0, // Space between rows
+              childAspectRatio: 2.5, // Adjust height-to-width ratio
+              mainAxisExtent: 200,
+            ),
+            children: [
+              _buildTracking(),
+              _buildNotes(),
+              if (role != 'caregiver') _buildScheduleContainer(),
+              _buildTaskContainer(),
+              if (role == 'doctor') _buildMedicineContainer(),
+            ],
+          ),
         ],
       ),
     );
+  }
+
+  Widget _buildNoDataView(String message) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Patient Records",
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10.0),
+          Text(
+            "Graphs of the patient's vitals and symptoms over time.",
+            style: TextStyle(fontSize: 16),
+          ),
+          const SizedBox(height: 20.0),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              color: AppColors.gray,
+            ),
+            child: Text(
+              message,
+              style: Textstyle.body,
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGraph(String patientId) {
+    return FutureBuilder<Map<String, List<Map<String, dynamic>>>>(
+      future: fetchPatientTracking(patientId),
+      builder: (context, snapshot) {
+        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+          return _buildNoDataView("No available data");
+        }
+
+        final symptomData = snapshot.data!['symptoms']!;
+        final vitalData = snapshot.data!['vitals']!;
+        final timestampData = snapshot.data!['timestamps']!;
+
+        debugPrint("timestampDataaaa: $timestampData");
+
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("Patient Records", style: Textstyle.subheader),
+                const SizedBox(height: 10.0),
+                Text(
+                  "Graphs of the patient's vitals and symptoms over time.",
+                  style: Textstyle.body,
+                ),
+                const SizedBox(height: 20.0),
+                Text(
+                  "Vitals",
+                  style: Textstyle.body.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 10.0),
+                _buildGraphsForCategory(
+                  'Vitals',
+                  vitalData,
+                  timestampData,
+                ), // Render Vitals Graphs
+                const SizedBox(height: 20.0),
+                Text(
+                  "Symptoms",
+                  style: Textstyle.body.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 10.0),
+                _buildGraphsForCategory(
+                  'Symptoms',
+                  symptomData,
+                  timestampData,
+                ), // Render Symptoms Graphs
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGraphsForCategory(
+    String title,
+    List<Map<String, dynamic>> data,
+    List<Map<String, dynamic>> timestampData,
+  ) {
+    final Map<String, List<double>> keyValues = {};
+    final List<String> timestamps = [];
+
+    // Collect all values for each key and preserve all timestamps
+    for (var i = 0; i < data.length; i++) {
+      var record = data[i];
+      var timestamp = timestampData[i]['timestamp'] as String;
+
+      // Add the timestamp only once for each data point
+      timestamps.add(timestamp);
+
+      debugPrint("timestamp data for build graphs for categ: $timestamp");
+
+      record.forEach((key, value) {
+        if (value is String) {
+          // Attempt to parse string to double
+          final doubleValue = double.tryParse(value);
+          if (doubleValue != null) {
+            keyValues.putIfAbsent(key, () => []).add(doubleValue);
+          }
+        } else if (value is num) {
+          keyValues.putIfAbsent(key, () => []).add(value.toDouble());
+        }
+      });
+    }
+
+    // Build a PageView for graphs
+    return SizedBox(
+      height: 300, // Adjust height as needed
+      child: PageView.builder(
+        itemCount: keyValues.length,
+        itemBuilder: (context, index) {
+          final key = keyValues.keys.elementAt(index);
+          final values = keyValues[key]!;
+
+          return Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              color: AppColors.gray,
+            ),
+            padding: const EdgeInsets.all(8.0),
+            child: SfCartesianChart(
+              title: ChartTitle(
+                text: key,
+                textStyle: Textstyle.bodySuperSmall.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.black,
+                ),
+              ),
+              primaryXAxis: CategoryAxis(
+                labelPlacement: LabelPlacement.onTicks,
+                labelRotation: 45,
+                majorGridLines: MajorGridLines(width: 0),
+                edgeLabelPlacement: EdgeLabelPlacement.shift,
+              ),
+              series: <CartesianSeries>[
+                SplineAreaSeries<double, String>(
+                  // Changed xValueMapper to String
+                  dataSource: values,
+                  xValueMapper:
+                      (value, index) =>
+                          timestamps[index], // Use timestamps as x-axis values
+                  yValueMapper: (value, _) => value,
+                  markerSettings: MarkerSettings(
+                    isVisible: true,
+                    color:
+                        title == 'Vitals' ? AppColors.neon : AppColors.purple,
+                    shape: DataMarkerType.circle,
+                    borderColor:
+                        title == 'Vitals' ? AppColors.neon : AppColors.purple,
+                    borderWidth: 2,
+                  ),
+                  borderColor:
+                      title == 'Vitals' ? AppColors.neon : AppColors.purple,
+                  borderWidth: 2,
+                  color:
+                      title == 'Vitals'
+                          ? AppColors.neon.withValues(alpha: 0.5)
+                          : AppColors.purple.withValues(alpha: 0.5),
+                  splineType: SplineType.natural,
+                  enableTooltip: true,
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<Map<String, List<Map<String, dynamic>>>> fetchPatientTracking(
+    String patientId,
+  ) async {
+    try {
+      debugPrint("Running fetch");
+      final trackingDoc = FirebaseFirestore.instance
+          .collection('tracking')
+          .doc(patientId);
+      final docSnapshot = await trackingDoc.get();
+
+      debugPrint("Doc snapshot: $docSnapshot");
+
+      if (!docSnapshot.exists) throw Exception('Patient data not found.');
+
+      final trackingData = docSnapshot.data();
+      if (trackingData == null || trackingData['tracking'] == null) {
+        throw Exception('Tracking data is unavailable.');
+      }
+
+      final List<dynamic> trackingArray = trackingData['tracking'];
+
+      debugPrint("Tracking Data: $trackingArray");
+
+      List<Map<String, dynamic>> symptoms = [];
+      List<Map<String, dynamic>> vitals = [];
+      List<Map<String, dynamic>> timestamps = [];
+
+      final today = DateTime.now();
+
+      // Create a DateFormat instance for "M/d H:mm" format (includes time)
+      final dateFormat = DateFormat('M/d H:mm');
+
+      // Loop through each entry in the tracking data
+      for (final entry in trackingArray) {
+        if (entry is Map<String, dynamic> && entry.containsKey('timestamp')) {
+          final timestamp = entry['timestamp'];
+
+          // Ensure timestamp is a valid type (Timestamp or DateTime)
+          DateTime timestampDateOnly;
+          if (timestamp is Timestamp) {
+            timestampDateOnly = timestamp.toDate();
+          } else if (timestamp is DateTime) {
+            timestampDateOnly = timestamp;
+          } else if (timestamp is String) {
+            timestampDateOnly = DateTime.parse(timestamp);
+          } else {
+            continue;
+          }
+
+          // Reset the time to 00:00:00 for the timestamp and keep the time for comparison
+          timestampDateOnly = DateTime(
+            timestampDateOnly.year,
+            timestampDateOnly.month,
+            timestampDateOnly.day,
+            timestampDateOnly.hour,
+            timestampDateOnly.minute,
+          );
+
+          debugPrint("Timestamp date with time: $timestampDateOnly");
+
+          // Compare if the timestamp is within 1 day of today's date
+          final difference = today.difference(timestampDateOnly).inHours;
+
+          if (difference <= 24) {
+            // If timestamp is within 24 hours, add it to the list
+            String formattedDate = dateFormat.format(timestampDateOnly);
+            timestamps.add({'timestamp': formattedDate});
+
+            // Process the other data as required
+            if (entry.containsKey('Symptom Assessment')) {
+              symptoms.add(entry['Symptom Assessment']);
+            }
+            if (entry.containsKey('Vitals')) {
+              vitals.add(entry['Vitals']);
+            }
+          }
+        }
+      }
+
+      // If there are no records for today, proceed with the original data
+      if (timestamps.isEmpty || timestamps.length == 1) {
+        debugPrint(
+          "No recent data for today, collecting the earliest 10 records.",
+        );
+        for (final entry in trackingArray) {
+          if (entry is Map<String, dynamic>) {
+            if (entry.containsKey('timestamp')) {
+              final timestamp = entry['timestamp'];
+
+              // Ensure timestamp is a valid type (Timestamp or DateTime)
+              DateTime timestampDateOnly;
+              if (timestamp is Timestamp) {
+                timestampDateOnly = timestamp.toDate();
+              } else if (timestamp is DateTime) {
+                timestampDateOnly = timestamp;
+              } else if (timestamp is String) {
+                timestampDateOnly = DateTime.parse(timestamp);
+              } else {
+                continue;
+              }
+
+              // Format timestamp to "M/d H:mm"
+              String formattedDate = dateFormat.format(timestampDateOnly);
+              timestamps.add({'timestamp': formattedDate});
+
+              // Add data to symptoms and vitals
+              if (entry.containsKey('Symptom Assessment')) {
+                symptoms.add(entry['Symptom Assessment']);
+              }
+              if (entry.containsKey('Vitals')) {
+                vitals.add(entry['Vitals']);
+              }
+            }
+          }
+        }
+      }
+
+      // Sort timestamps by date and time (ascending order)
+      timestamps.sort((a, b) {
+        final timestampA = DateFormat('M/d H:mm').parse(a['timestamp']);
+        final timestampB = DateFormat('M/d H:mm').parse(b['timestamp']);
+        return timestampA.compareTo(timestampB); // Ascending order
+      });
+
+      // If there are fewer than 10 records, return all available records
+      if (timestamps.length < 10) {
+        debugPrint("Less than 10 records available, returning all.");
+      } else {
+        // If there are more than 10, return the earliest 10 records
+        timestamps = timestamps.sublist(0, 10);
+      }
+
+      debugPrint("Timestamps: $timestamps");
+      debugPrint("Symptoms: $symptoms");
+      debugPrint("Vitals: $vitals");
+
+      // Return the data
+      return {'symptoms': symptoms, 'vitals': vitals, 'timestamps': timestamps};
+    } catch (e) {
+      print('Error fetching patient tracking: $e');
+      throw Exception('Error fetching patient tracking data.');
+    }
   }
 
   Future<void> _scheduleAppointment(
@@ -802,14 +1102,61 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     }
   }
 
+  Widget _buildAssignButton() {
+    return FutureBuilder<bool>(
+      future: _isUserTagged(widget.patientId, widget.caregiverId),
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          final isTagged = snapshot.data ?? false;
+
+          return Row(
+            children: [
+              SizedBox(width: 5),
+              SizedBox(
+                height: 30,
+                child: TextButton(
+                  onPressed:
+                      () =>
+                          isTagged
+                              ? _untagPatient(
+                                patientId: widget.patientId,
+                                userId: widget.caregiverId,
+                              )
+                              : _tagPatient(
+                                patientId: widget.patientId,
+                                userId: widget.caregiverId,
+                              ),
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.symmetric(vertical: 3, horizontal: 8),
+                    backgroundColor: isTagged ? AppColors.red : AppColors.neon,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: Text(
+                    isTagged ? 'Remove Assignment' : 'Assign Patient',
+                    style: Textstyle.bodySuperSmall.copyWith(
+                      color: AppColors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+
+        return Container();
+      },
+    );
+  }
+
   Widget _buildPatientStatus() {
     return StreamBuilder<DocumentSnapshot>(
       stream:
           FirebaseFirestore.instance
-              .collection('patient') // Assuming you have a 'patient' collection
-              .doc(
-                widget.patientId,
-              ) // Document ID for the current user (patient)
+              .collection('patient')
+              .doc(widget.patientId)
               .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
@@ -818,10 +1165,11 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
 
         // Extract patient data and status directly
         final patientData = snapshot.data?.data() as Map<String, dynamic>?;
-        final status =
-            patientData?['status'] ?? 'stable'; // Default to 'stable' if null
+        final status = patientData?['status'] ?? 'stable';
         final isUnstable = status == 'unstable';
         final isUnavailable = patientData == null;
+        final cases = patientData?['cases'];
+        final age = patientData?['age'];
         final String name =
             '${patientData?['firstName']} ${patientData?['lastName']}';
         final backgroundColor =
@@ -847,11 +1195,12 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         SizedBox(height: 30),
-
                         Text(
-                          name,
+                          '$name, $age',
                           style: Textstyle.bodyWhite.copyWith(fontSize: 20),
+                          overflow: TextOverflow.ellipsis,
                         ),
+
                         Text(
                           isUnavailable
                               ? 'Unavailable'
@@ -864,6 +1213,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
                           ),
                         ),
                         SizedBox(height: 20),
+
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
@@ -904,7 +1254,51 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
                     ),
                   ),
 
-                  if (widget.role != 'caregiver') _buildAssignmentRow(),
+                  Container(
+                    color: AppColors.black.withValues(alpha: 0.9),
+                    padding: EdgeInsets.all(16),
+                    width: double.infinity,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (widget.role != 'caregiver')
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  "Patient Management",
+                                  style: Textstyle.bodySmall.copyWith(
+                                    color: AppColors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              _buildAssignButton(),
+                            ],
+                          ),
+                        SizedBox(height: 10),
+                        Divider(),
+                        SizedBox(height: 10),
+                        Text(
+                          "Current Cases",
+                          style: Textstyle.bodySmall.copyWith(
+                            color: AppColors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          (cases != null && cases.isNotEmpty)
+                              ? cases.map((caseItem) => '$caseItem').join('\n')
+                              : 'No cases available',
+                          style: Textstyle.bodySmall.copyWith(
+                            color: AppColors.white,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16.0),
@@ -1517,74 +1911,6 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     );
   }
 
-  Widget _buildAssignmentRow() {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(16),
-      color: AppColors.black.withValues(alpha: 0.85),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              "Manage Assignment",
-              style: Textstyle.bodySmall.copyWith(color: AppColors.white),
-            ),
-          ),
-          FutureBuilder<bool>(
-            future: _isUserTagged(widget.patientId, widget.caregiverId),
-            builder: (context, snapshot) {
-              if (snapshot.hasData) {
-                final isTagged = snapshot.data ?? false;
-
-                return Row(
-                  children: [
-                    SizedBox(width: 5),
-                    SizedBox(
-                      height: 30,
-                      child: TextButton(
-                        onPressed:
-                            () =>
-                                isTagged
-                                    ? _untagPatient(
-                                      patientId: widget.patientId,
-                                      userId: widget.caregiverId,
-                                    )
-                                    : _tagPatient(
-                                      patientId: widget.patientId,
-                                      userId: widget.caregiverId,
-                                    ),
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.symmetric(
-                            vertical: 3,
-                            horizontal: 8,
-                          ),
-                          backgroundColor:
-                              isTagged ? AppColors.red : AppColors.neon,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: Text(
-                          isTagged ? 'Unassign Patient' : 'Assign Patient',
-                          style: Textstyle.bodySuperSmall.copyWith(
-                            color: AppColors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              }
-
-              return Icon(Icons.error_outline, color: AppColors.yellow);
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1636,7 +1962,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
         ],
         backgroundColor: AppColors.white,
         scrolledUnderElevation: 0.0,
-        automaticallyImplyLeading: _isTagging ? false : true,
+        automaticallyImplyLeading: _isLoading ? false : true,
       ),
       body:
           _isLoading
@@ -1646,8 +1972,9 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildPatientStatus(),
+                    _buildGraph(widget.patientId),
+                    Divider(),
                     _buildActions(widget.role),
-                    const SizedBox(height: 20.0),
                     Divider(),
                     _buildInterventions(),
                     const SizedBox(height: 20.0),
@@ -1657,4 +1984,11 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
               ),
     );
   }
+}
+
+class ChartData {
+  final String x;
+  final double y;
+
+  ChartData({required this.x, required this.y});
 }

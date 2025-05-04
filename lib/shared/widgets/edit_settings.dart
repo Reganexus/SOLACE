@@ -302,6 +302,7 @@ class _EditSettingsState extends State<EditSettings> {
                   children: [
                     Text(key, style: Textstyle.body),
                     DropdownButton<int>(
+                      dropdownColor: AppColors.white,
                       value: current,
                       items:
                           List.generate(10, (i) => i + 1)
@@ -380,83 +381,108 @@ class _EditSettingsState extends State<EditSettings> {
       context: context,
       builder:
           (context) => AlertDialog(
+            backgroundColor: AppColors.white,
             title: Text('Edit $key', style: Textstyle.subheader),
-            content: TextField(
+            content: CustomTextField(
               controller: controller,
+              focusNode: FocusNode(),
+              labelText: sectionName,
+              enabled: true,
               keyboardType: TextInputType.numberWithOptions(decimal: true),
               inputFormatters: _getInputFormatters(sectionName),
+              maxLines: 1,
             ),
+
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Cancel', style: Textstyle.body),
-              ),
-              TextButton(
-                onPressed: () async {
-                  try {
-                    final num parsedValue = num.parse(controller.text);
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: Buttonstyle.buttonRed,
+                      child: Text('Cancel', style: Textstyle.smallButton),
+                    ),
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () async {
+                        try {
+                          final num parsedValue = num.parse(controller.text);
 
-                    // Validate input for scale bounds
-                    if (sectionName == 'scale') {
-                      if (parsedValue < 1 || parsedValue > 10) {
-                        showToast(
-                          '$key must be between 1 and 10',
-                          backgroundColor: AppColors.red,
-                        );
-                        return;
-                      }
-                    }
+                          // Validate input for scale bounds
+                          if (sectionName == 'scale') {
+                            if (parsedValue < 1 || parsedValue > 10) {
+                              showToast(
+                                '$key must be between 1 and 10',
+                                backgroundColor: AppColors.red,
+                              );
+                              return;
+                            }
+                          }
 
-                    // Apply value to local copy before checking logic
-                    thresholdsMap[key] = parsedValue;
+                          // Apply value to local copy before checking logic
+                          thresholdsMap[key] = parsedValue;
 
-                    if (sectionName == 'scale') {
-                      final num mild = thresholdsMap['maxMild'];
-                      final num normal = thresholdsMap['maxNormal'];
-                      if (mild <= normal) {
-                        showToast(
-                          'maxMild ($mild) must be greater than maxNormal ($normal)',
-                          backgroundColor: AppColors.red,
-                        );
-                        return;
-                      }
-                    } else {
-                      // Standard order validation for full thresholds
-                      final keys = [
-                        'maxSevere',
-                        'maxMild',
-                        'maxNormal',
-                        'minNormal',
-                        'minMild',
-                        'minSevere',
-                      ];
-                      final values =
-                          keys.map((k) => thresholdsMap[k] as num).toList();
+                          if (sectionName == 'scale') {
+                            final num mild = thresholdsMap['maxMild'];
+                            final num normal = thresholdsMap['maxNormal'];
+                            if (mild <= normal) {
+                              showToast(
+                                'maxMild ($mild) must be greater than maxNormal ($normal)',
+                                backgroundColor: AppColors.red,
+                              );
+                              return;
+                            }
+                          } else {
+                            // Standard order validation for full thresholds
+                            final keys = [
+                              'maxSevere',
+                              'maxMild',
+                              'maxNormal',
+                              'minNormal',
+                              'minMild',
+                              'minSevere',
+                            ];
+                            final values =
+                                keys
+                                    .map((k) => thresholdsMap[k] as num)
+                                    .toList();
 
-                      for (int i = 0; i < values.length - 1; i++) {
-                        if (values[i] <= values[i + 1]) {
-                          final errorMsg =
-                              '${keys[i]} (${values[i]}) must be greater than ${keys[i + 1]} (${values[i + 1]})';
-                          showToast(errorMsg, backgroundColor: AppColors.red);
-                          return;
+                            for (int i = 0; i < values.length - 1; i++) {
+                              if (values[i] <= values[i + 1]) {
+                                final errorMsg =
+                                    '${keys[i]} (${values[i]}) must be greater than ${keys[i + 1]} (${values[i + 1]})';
+                                showToast(
+                                  errorMsg,
+                                  backgroundColor: AppColors.red,
+                                );
+                                return;
+                              }
+                            }
+                          }
+
+                          // If passed all validation, commit to Firestore
+                          await FirebaseFirestore.instance
+                              .collection('globals')
+                              .doc('thresholds')
+                              .update({'$vitalName.$key': parsedValue});
+
+                          setState(() {});
+                          Navigator.pop(context);
+                          showToast('$key updated!');
+                        } catch (e) {
+                          showToast(
+                            'Invalid input!',
+                            backgroundColor: AppColors.red,
+                          );
                         }
-                      }
-                    }
-
-                    // If passed all validation, commit to Firestore
-                    await FirebaseFirestore.instance
-                        .collection('globals')
-                        .doc('thresholds')
-                        .update({'$vitalName.$key': parsedValue});
-
-                    setState(() {});
-                    Navigator.pop(context);
-                    showToast('$key updated!');
-                  } catch (e) {
-                    showToast('Invalid input!', backgroundColor: AppColors.red);
-                  }
-                },
-                child: Text('Save', style: Textstyle.body),
+                      },
+                      style: Buttonstyle.buttonNeon,
+                      child: Text('Save', style: Textstyle.smallButton),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -573,7 +599,10 @@ class _EditSettingsState extends State<EditSettings> {
                   enabled: true,
                   validator: (value) {
                     if (controller.text.isEmpty) {
-                       showToast('This cannot be empty.', backgroundColor: AppColors.red);
+                      showToast(
+                        'This cannot be empty.',
+                        backgroundColor: AppColors.red,
+                      );
                     }
                     return null;
                   },
@@ -714,7 +743,7 @@ class _EditSettingsState extends State<EditSettings> {
       setState(() {});
       showToast('$itemName added!');
     } catch (e) {
-//       debugPrint('Error adding item: $e');
+      //       debugPrint('Error adding item: $e');
     }
   }
 
@@ -775,7 +804,7 @@ class _EditSettingsState extends State<EditSettings> {
       setState(() {});
       showToast('$itemName successfully edited!');
     } catch (e) {
-//       debugPrint('Error editing item: $e');
+      //       debugPrint('Error editing item: $e');
     }
   }
 
@@ -841,7 +870,7 @@ class _EditSettingsState extends State<EditSettings> {
         showToast('$itemName deleted!');
       }
     } catch (e) {
-//       debugPrint('Error deleting item: $e');
+      //       debugPrint('Error deleting item: $e');
     }
   }
 
@@ -886,6 +915,7 @@ class _EditSettingsState extends State<EditSettings> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Edit ${widget.docName}', style: Textstyle.subheader),
+        centerTitle: true,
         scrolledUnderElevation: 0.0,
         backgroundColor: AppColors.white,
       ),

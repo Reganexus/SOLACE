@@ -77,18 +77,27 @@ class _ProfileState extends State<Profile> {
                 contentPadding: const EdgeInsets.all(16),
                 content: Text(
                   'Are you sure you want to log out?',
-                  style: Textstyle.bodySmall,
+                  style: Textstyle.body,
                 ),
                 actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(false),
-                    style: Buttonstyle.buttonNeon,
-                    child: Text('Cancel', style: Textstyle.smallButton),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(true),
-                    style: Buttonstyle.buttonRed,
-                    child: Text('Log Out', style: Textstyle.smallButton),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.of(context).pop(false),
+                          style: Buttonstyle.buttonNeon,
+                          child: Text('Cancel', style: Textstyle.smallButton),
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.of(context).pop(true),
+                          style: Buttonstyle.buttonRed,
+                          child: Text('Log Out', style: Textstyle.smallButton),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

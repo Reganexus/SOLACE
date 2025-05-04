@@ -10,10 +10,12 @@ dependencies:
   cached_network_image: ^3.4.1
   cloud_firestore: ^5.4.4
   cloud_functions: ^5.3.4
+  collection: ^1.19.1
   csv: ^6.0.0
   cupertino_icons: ^1.0.8
   file_picker: ^10.1.2
   firebase_auth: ^5.3.1
+  firebase_app_check: ^0.3.2+5
   firebase_core: ^3.13.0
   firebase_messaging: ^15.2.5
   firebase_storage: ^12.3.6
@@ -31,19 +33,18 @@ dependencies:
   http: ^1.3.0
   intl: ^0.19.0
   local_auth: ^2.3.0
+  lucide_icons: ^0.257.0
   path_provider: ^2.0.10
   pdf: ^3.6.0
   permission_handler: ^12.0.0+1
   provider: ^6.1.2
   shared_preferences: ^2.5.2
+  syncfusion_flutter_charts: ^29.1.39
   table_calendar: ^3.0.0
+  timeago: ^3.7.0
   timezone: ^0.10.0
   url_launcher: ^6.3.1
-  timeago: ^3.7.0
   wakelock_plus: ^1.2.11
-  lucide_icons: ^0.257.0
-  collection: ^1.19.1
-  firebase_app_check: ^0.3.2+5
 
 dev_dependencies:
   flutter_test:

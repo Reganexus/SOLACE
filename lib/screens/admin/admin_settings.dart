@@ -54,8 +54,29 @@ class _AdminSettingsState extends State<AdminSettings> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        SizedBox(
+          width: double.infinity,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Image.asset('lib/assets/images/auth/solace.png', height: 130),
+              SizedBox(height: 10),
+              Text("SOLACE", style: Textstyle.heading),
+              Text("© Team RES, 2025", style: Textstyle.bodySmall),
+            ],
+          ),
+        ),
+        SizedBox(height: 20),
+        Divider(),
+        const SizedBox(height: 10),
+
         Text('Edit System Variables', style: Textstyle.subheader),
         const SizedBox(height: 10),
+        Text(
+          'Change and modify thresholds and variables in the system',
+          style: Textstyle.body,
+        ),
+        const SizedBox(height: 20),
         for (var option in exportOptions) ...[
           buildSettingOption(option),
           const SizedBox(height: 10),

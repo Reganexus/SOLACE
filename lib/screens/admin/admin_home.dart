@@ -83,7 +83,7 @@ class AdminHomeState extends State<AdminHome> {
           context: context,
           builder:
               (context) => AlertDialog(
-                title: Text('Log Out', style: Textstyle.heading),
+                title: Text('Log Out', style: Textstyle.subheader),
                 backgroundColor: AppColors.white,
                 contentPadding: const EdgeInsets.all(20),
                 content: Text(
@@ -91,15 +91,24 @@ class AdminHomeState extends State<AdminHome> {
                   style: Textstyle.body,
                 ),
                 actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(false),
-                    style: Buttonstyle.buttonNeon,
-                    child: Text('Cancel', style: Textstyle.smallButton),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(true),
-                    style: Buttonstyle.buttonRed,
-                    child: Text('Log Out', style: Textstyle.smallButton),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.of(context).pop(false),
+                          style: Buttonstyle.buttonNeon,
+                          child: Text('Cancel', style: Textstyle.smallButton),
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.of(context).pop(true),
+                          style: Buttonstyle.buttonRed,
+                          child: Text('Log Out', style: Textstyle.smallButton),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -120,9 +129,7 @@ class AdminHomeState extends State<AdminHome> {
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: Colors.transparent,
-        ),
+        decoration: BoxDecoration(color: Colors.transparent),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
