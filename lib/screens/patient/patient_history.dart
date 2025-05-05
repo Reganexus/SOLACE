@@ -648,7 +648,7 @@ class _PatientHistoryState extends State<PatientHistory> {
                                     0,
                                   ),
                                   child: Text(
-                                    diagnosisDate,
+                                    diagnosisText,
                                     style: Textstyle.body.copyWith(
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -673,7 +673,7 @@ class _PatientHistoryState extends State<PatientHistory> {
                                         ),
                                       ),
                                       Text(
-                                        diagnosisText,
+                                        diagnosisDate,
                                         style: Textstyle.body,
                                       ),
                                       if (description.isNotEmpty) ...[
