@@ -513,7 +513,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         //          "API Error: ${response.statusCode}, Response: ${response.body}",
         //        );
       }
-    } on TimeoutException catch (e) {
+    } on TimeoutException {
       //       debugPrint("API Timeout: $e");
       // showToast("API Timeout: $e", backgroundColor: AppColors.red);
       // Show a UI message to the user
