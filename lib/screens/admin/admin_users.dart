@@ -758,7 +758,7 @@ class AdminUsersState extends State<AdminUsers> {
             children: [
               // Title
               Text(
-                'Manager Users',
+                'Manage Users',
                 style: Textstyle.heading.copyWith(
                   fontWeight: FontWeight.bold,
                   color: AppColors.white,

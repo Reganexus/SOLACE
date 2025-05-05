@@ -515,7 +515,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       }
     } on TimeoutException catch (e) {
       //       debugPrint("API Timeout: $e");
-      showToast("API Timeout: $e", backgroundColor: AppColors.red);
+      // showToast("API Timeout: $e", backgroundColor: AppColors.red);
       // Show a UI message to the user
     } on SocketException catch (e) {
       //       debugPrint("Network Error: $e");
