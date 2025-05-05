@@ -440,7 +440,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
     if (outputFile == null) {
       _showToast("File picking cancelled.", backgroundColor: AppColors.red);
     } else {
-      _showToast("Export completed.");
+      _showToast("$extension Export completed.");
     }
   }
 
