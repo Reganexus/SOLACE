@@ -105,7 +105,10 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       }
 
       if (querySnapshot.docs.isEmpty) {
-        _showToast("No data found for the selected filters.", backgroundColor: AppColors.red);
+        _showToast(
+          "No data found for the selected filters.",
+          backgroundColor: AppColors.red,
+        );
         setState(() => isSaving = false);
         return;
       }
@@ -193,7 +196,10 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
   ) async {
     try {
       if (data.isEmpty) {
-        _showToast("No data available for export.", backgroundColor: AppColors.red);
+        _showToast(
+          "No data available for export.",
+          backgroundColor: AppColors.red,
+        );
         return;
       }
 
@@ -434,7 +440,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
     if (outputFile == null) {
       _showToast("File picking cancelled.", backgroundColor: AppColors.red);
     } else {
-      _showToast("${extension.toUpperCase()} export completed.");
+      _showToast("Export completed.");
     }
   }
 
