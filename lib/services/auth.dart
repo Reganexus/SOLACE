@@ -348,15 +348,38 @@ class AuthService {
 
   Future<void> signOut() async {
     try {
-      await _logService.addLog(userId: currentUserId!, action: 'Logged out');
+      // Log the logout action
+      if (currentUserId != null) {
+        await _logService.addLog(userId: currentUserId!, action: 'Logged out');
+      }
+
+      // List of collections to search
+      final List<String> collections = ['admin', 'doctor', 'nurse', 'caregiver'];
+
+      // Search for the user ID in each collection and set isLoggedIn to false
+      for (String collection in collections) {
+        final userDoc = await _firestore.collection(collection).doc(currentUserId).get();
+        if (userDoc.exists) {
+          await _firestore.collection(collection).doc(currentUserId).update({
+            'isLoggedIn': false,
+          });
+          break; // Exit the loop once the user is found
+        }
+      }
+
+      // Sign out from Firebase Auth and Google Sign-In
       await _auth.signOut();
       await _googleSignIn.signOut();
+
+      // Clear cached user data
       _cachedUser = null;
+
+      // Log the logout action again (if needed)
       if (currentUserId != null) {
         await _logService.addLog(userId: currentUserId!, action: 'Logged out');
       }
     } catch (e) {
-      //       debugPrint("Error signing out: $e");
+      //  debugPrint("Error signing out: $e");
     }
   }
 

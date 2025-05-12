@@ -249,6 +249,10 @@ class _SignUpState extends State<SignUp> {
     final userData = (await userDoc.get()).data();
 
     if (userData?['isVerified'] == true) {
+      // Set isLoggedIn to true
+      await FirebaseFirestore.instance.collection(userRole).doc(uid).update({
+        'isLoggedIn': true,
+      });
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => Home(uid: uid, role: userRole)),

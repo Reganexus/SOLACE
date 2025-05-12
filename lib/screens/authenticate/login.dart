@@ -273,15 +273,34 @@ class _LogInState extends State<LogIn> {
           .doc(uid)
           .get()
           .timeout(const Duration(seconds: 5));
+      
+      final isLoggedIn = await userDoc.data()?['isLoggedIn'] ?? false;
 
-      if (userDoc.exists && userDoc.data()?['isVerified'] == true) {
+      if (userDoc.exists) {
+        if (userDoc.data()?['isVerified'] != true) {
+          showToast(
+            'Account not verified. Redirecting to verification page...',
+            backgroundColor: AppColors.red,
+          );
+          return;
+        } else if (isLoggedIn) {
+          showToast(
+            'This account is already logged in.',
+            backgroundColor: AppColors.red,
+          );
+          return;
+        }
+        // Set isLoggedIn to true
+        await FirebaseFirestore.instance.collection(userRole).doc(uid).update({
+          'isLoggedIn': true,
+        });
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => Wrapper()),
         );
       } else {
         showToast(
-          'Account not verified. Redirecting to verification page...',
+          'Account does not exist. Please sign up.',
           backgroundColor: AppColors.red,
         );
         return;
@@ -309,9 +328,7 @@ class _LogInState extends State<LogIn> {
     if (role != null) {
       final docExists = await _checkDocumentExists(role, uid);
       if (docExists) {
-        Navigator.of(
-          context,
-        ).pushReplacement(MaterialPageRoute(builder: (context) => Wrapper()));
+        await _navigateBasedOnVerification(uid, role);
       } else {
         setState(() => error = 'User document not found.');
       }
