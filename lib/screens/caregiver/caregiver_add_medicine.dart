@@ -36,6 +36,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
   TextEditingController _dosageController = TextEditingController();
   TextEditingController _usageController = TextEditingController();
   String dosageUnit = "milligrams";
+  String frequency = "Once daily";
   late String patientName = '';
 
   @override
@@ -70,6 +71,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
       _dosageController.clear();
       _usageController.clear();
       dosageUnit = "milligrams"; // Reset dosage unit to default
+      frequency = "Once daily"; // Reset frequency to default
     });
   }
 
@@ -124,12 +126,14 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
                 final medicineName =
                     data['medicineName'] ?? 'Untitled Medicine';
                 final dosage = data['dosage'] ?? 'No Dosage';
+                final frequency = data['frequency'] ?? 'No Frequency';
                 final usage = data['usage'] ?? 'No Usage';
 
                 return {
                   'medicineId': doc.id,
                   'medicineName': medicineName,
                   'dosage': dosage,
+                  'frequency': frequency,
                   'usage': usage,
                 };
               })
@@ -157,6 +161,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
     String medicineName,
     String dosage,
     String frequency,
+    String usage,
   ) async {
     try {
       // Get the caregiver ID (logged-in user)
@@ -206,12 +211,8 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
         subCollectionName: 'medicines',
         medicineTitle: medicineName,
         dosage: dosage,
-        usage: frequency,
-      );
-
-      await _logService.addLog(
-        userId: caregiverId,
-        action: "Added Medicine $medicineName to patient $patientName",
+        frequency: frequency,
+        usage: usage,
       );
 
       final String role =
@@ -222,14 +223,20 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
         patientId: widget.patientId,
         currentUserId: caregiverId,
         notificationMessage:
-            "$role $name prescribed $dosage dosage of $medicineName to patient $patientName.",
+            "$role $name prescribed $dosage of $medicineName $frequency to patient $patientName.",
         type: "medicine",
       );
 
       await notificationService.sendNotificationToTaggedUsers(
         widget.patientId,
         "Medicine Prescription Notice",
-        "$role $name prescribed $dosage dosage of $medicineName to patient $patientName.",
+        "$role $name prescribed $dosage of $medicineName $frequency to patient $patientName.",
+      );
+
+      await _logService.addLog(
+        userId: caregiverId,
+        relatedUsers: widget.patientId,
+        action: "$role $name prescribed $dosage of $medicineName $frequency to patient $patientName.",
       );
 
       refreshValues();
@@ -454,10 +461,70 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
                           ),
                           const SizedBox(height: 10),
 
+                          // Frequency Dropdown
+                          Row(
+                            children: [
+                              Expanded(
+                                child: CustomDropdownField<String>(
+                                  value: frequency,
+                                  focusNode: _focusNodes[3],
+                                  labelText: "Frequency",
+                                  items: [
+                                    "Once daily",
+                                    "Twice daily (every 12 hours)",
+                                    "Three times daily (every 8 hours)",
+                                    "Every 6 hours",
+                                    "Every 4 hours",
+                                    "Once a week",
+                                    "As needed (PRN)",
+                                    "Custom (specify in instructions)"
+                                  ],
+                                  onChanged:
+                                      (value) => setModalState(() {
+                                        frequency = value ?? frequency;
+                                      }),
+                                  displayItem: (item) => item,
+                                  enabled: true,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          // CustomDropdownField<String>(
+                          //   value: selectedFrequency.isNotEmpty
+                          //       ? selectedFrequency
+                          //       : null,
+                          //   focusNode: _focusNodes[3],
+                          //   labelText: "Frequency",
+                          //   items: [
+                          //     "Once daily",
+                          //     "Twice daily (every 12 hours)",
+                          //     "Three times daily (every 8 hours)",
+                          //     "Every 6 hours",
+                          //     "Every 4 hours",
+                          //     "Once a week",
+                          //     "As needed (PRN)",
+                          //     "Custom (specify in instructions)"
+                          //   ],
+                          //   onChanged: (value) {
+                          //     setModalState(() {
+                          //       selectedFrequency = value ?? '';
+                          //     });
+                          //   },
+                          //   validator: (value) {
+                          //     if (value == null || value.isEmpty) {
+                          //       return "Please select a frequency";
+                          //     }
+                          //     return null;
+                          //   },
+                          //   displayItem: (frequency) => frequency,
+                          // ),
+                          // const SizedBox(height: 10),
+
                           // Usage Field
                           CustomTextField(
                             controller: _usageController,
-                            focusNode: _focusNodes[3],
+                            focusNode: _focusNodes[4],
                             maxLines: 3,
                             labelText: "Instructions",
                             enabled: true,
@@ -504,6 +571,11 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
                                         "The dosage you entered is too high!",
                                         backgroundColor: AppColors.red,
                                       );
+                                    } else if (frequency.isEmpty) {
+                                      showToast(
+                                        "Please select a frequency.",
+                                        backgroundColor: AppColors.red,
+                                      );
                                     } else if (usage.isEmpty) {
                                       showToast(
                                         "Please provide your instructed prescription.",
@@ -528,6 +600,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
                                         _addMedicine(
                                           selectedMedicine,
                                           "$dosage $dosageUnit",
+                                          frequency,
                                           usage,
                                         );
                                         Navigator.pop(context);
@@ -590,6 +663,12 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
                 style: Textstyle.body.copyWith(fontWeight: FontWeight.bold),
               ),
               Text('$dosage $dosageUnit', style: Textstyle.body),
+              SizedBox(height: 10),
+              Text(
+                "Frequency",
+                style: Textstyle.body.copyWith(fontWeight: FontWeight.bold),
+              ),
+              Text(frequency, style: Textstyle.body),
               SizedBox(height: 10),
               Text(
                 "Instructions",
@@ -673,6 +752,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
   Widget _buildMedicineCard(Map<String, dynamic> medicine) {
     final String medicineName = medicine['medicineName'] ?? 'Untitled Medicine';
     final String dosage = medicine['dosage'] ?? 'No Dosage';
+    final String frequency = medicine['frequency'] ?? 'No Frequency';
     final String usage = medicine['usage'] ?? 'No Instruction';
 
     return GestureDetector(
@@ -722,7 +802,24 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
             // Description
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: Text(usage, style: Textstyle.body),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Frequency Text
+                  Text(
+                    frequency,
+                    style: Textstyle.body.copyWith(
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  // Usage Text
+                  Text(
+                    usage,
+                    style: Textstyle.body,
+                  ),
+                ],
+              ),
             ),
           ],
         ),

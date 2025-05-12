@@ -76,6 +76,7 @@ class PatientMedicineState extends State<PatientMedicine> {
             return {
               'medicineName': data['medicineName'] ?? 'Unknown',
               'dosage': data['dosage'] ?? 'Unknown',
+              'frequency': data['frequency'] ?? 'Unknown',
               'usage': data['usage'] ?? 'Unknown',
               'isTaken':
                   data['isTaken'] ?? false, // Ensure isTaken is a boolean
@@ -112,6 +113,7 @@ class PatientMedicineState extends State<PatientMedicine> {
   ) {
     final String medicineName = medicine['medicineName'] ?? 'Untitled Medicine';
     final String dosage = medicine['dosage'] ?? '';
+    final String frequency = medicine['frequency'] ?? '';
     final String usage = medicine['usage'] ?? '';
     final bool isTaken = medicine['isTaken'] == true;
 
@@ -266,7 +268,7 @@ class PatientMedicineState extends State<PatientMedicine> {
                 Text(medicineName, style: Textstyle.subheader),
                 const SizedBox(height: 10.0),
                 Text(
-                  "Use $dosage of this medicine for $usage",
+                  "Use $dosage of this medicine $frequency. $usage",
                   style: Textstyle.body,
                 ),
                 SizedBox(height: 20),
@@ -340,6 +342,7 @@ class PatientMedicineState extends State<PatientMedicine> {
   Widget _buildMedicineCard(Map<String, dynamic> medicine) {
     final String medicineName = medicine['medicineName'] ?? 'Untitled Medicine';
     final String dosage = medicine['dosage'] ?? 'No Dosage';
+    final String frequency = medicine['frequency'] ?? 'No Frequency';
     final String usage = medicine['usage'] ?? 'No Usage';
     final String medicineId = medicine['medicineId'];
     final bool isTaken = medicine['isTaken'] ?? false;
@@ -394,6 +397,7 @@ class PatientMedicineState extends State<PatientMedicine> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(dosage, style: Textstyle.body),
+                  Text(frequency, style: Textstyle.body),
                   Text(usage, style: Textstyle.body),
                 ],
               ),

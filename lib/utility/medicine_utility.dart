@@ -9,12 +9,14 @@ class MedicineUtility {
     required String subCollectionName,
     required String medicineTitle,
     required String dosage,
+    required String frequency,
     required String usage,
   }) async {
     final medicineData = {
       "medicineId": medicineId,
       "medicineName": medicineTitle,
       "dosage": dosage,
+      "frequency": frequency,
       "usage": usage,
     };
 
