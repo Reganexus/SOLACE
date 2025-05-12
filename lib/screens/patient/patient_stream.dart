@@ -61,7 +61,7 @@ class _CarouselWidgetState extends State<CarouselWidget> {
                   SizedBox(width: 10),
                   _buildNavigationButton("Tasks", 1),
                   SizedBox(width: 10),
-                  _buildNavigationButton("Medicines", 2),
+                  _buildNavigationButton("Prescriptions", 2),
                 ],
               ),
             ],

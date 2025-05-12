@@ -629,7 +629,7 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: AppBar(
-        title: Text("View Prescriptions", style: Textstyle.subheader),
+        title: Text("Prescriptions", style: Textstyle.subheader),
         backgroundColor: AppColors.white,
         centerTitle: true,
         scrolledUnderElevation: 0.0,

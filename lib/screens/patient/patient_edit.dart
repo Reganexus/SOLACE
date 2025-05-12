@@ -591,7 +591,7 @@ class _EditPatientState extends State<EditPatient> {
           divider(),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [Text('Current Case', style: Textstyle.subheader)],
+            children: [Text('Active Case/s', style: Textstyle.subheader)],
           ),
           CasePickerWidget(
             selectedCases: selectedCases,

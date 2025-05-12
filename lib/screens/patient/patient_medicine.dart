@@ -66,7 +66,6 @@ class PatientMedicineState extends State<PatientMedicine> {
             _isLoading = false;
           });
         }
-        showToast('No medicines found for this patient.');
         return;
       }
 
@@ -468,7 +467,7 @@ class PatientMedicineState extends State<PatientMedicine> {
           ),
           SizedBox(height: 10.0),
           Text(
-            "No Medicines Yet",
+            "No Prescriptions Yet",
             style: Textstyle.bodyWhite.copyWith(
               color: AppColors.whiteTransparent,
             ),

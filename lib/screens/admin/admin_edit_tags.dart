@@ -114,7 +114,7 @@ class EditTagsState extends State<EditTags> {
         _isTagging = true;
       });
 
-      showToast('Tagging in progress...');
+      showToast('Assigning...');
 
       String? taggedUserRole = await _db.fetchAndCacheUserRole(taggedUserId);
       if (taggedUserRole == null) {
@@ -144,7 +144,7 @@ class EditTagsState extends State<EditTags> {
 
       await _logService.addLog(
         userId: adminId,
-        action: "Tagged $name to patient $userName",
+        action: "Assigned $name to patient $userName",
       );
 
       showToast('Successfully tagged user.');
@@ -302,7 +302,7 @@ class EditTagsState extends State<EditTags> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                'Untag',
+                                'Unassign',
                                 style: Textstyle.bodySmall.copyWith(
                                   color:
                                       _isTagging
@@ -378,7 +378,7 @@ class EditTagsState extends State<EditTags> {
                     availableUsersSnapshot.data ?? [];
                 if (availableUserIds.isEmpty) {
                   return Text(
-                    'No available users to tag',
+                    'No available users to assign',
                     style: Textstyle.body,
                   );
                 }
@@ -404,7 +404,7 @@ class EditTagsState extends State<EditTags> {
 
                       if (nonEmptyCategories.isEmpty) {
                         return Text(
-                          'No available users to tag',
+                          'No available users to assign',
                           style: Textstyle.body,
                         );
                       }
@@ -424,7 +424,7 @@ class EditTagsState extends State<EditTags> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Select one of the following roles to view healthcare providers to tag',
+                            'Select one of the following roles to view healthcare providers to assign',
                             style: Textstyle.body,
                           ),
                           SizedBox(height: 10),
@@ -536,7 +536,7 @@ class EditTagsState extends State<EditTags> {
                                                             .center,
                                                     children: [
                                                       Text(
-                                                        'Tag',
+                                                        'Assign',
                                                         style: Textstyle
                                                             .bodySmall
                                                             .copyWith(
@@ -643,7 +643,7 @@ class EditTagsState extends State<EditTags> {
                                               MainAxisAlignment.center,
                                           children: [
                                             Text(
-                                              'Tag',
+                                              'Assign',
                                               style: Textstyle.bodySmall
                                                   .copyWith(
                                                     color:
@@ -740,9 +740,9 @@ class EditTagsState extends State<EditTags> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Remove Tag', style: Textstyle.subheader),
+          title: Text('Unassign', style: Textstyle.subheader),
           content: Text(
-            'Are you sure you want to remove this tag?',
+            'Are you sure you want to remove this assignment?',
             style: Textstyle.body,
           ),
           backgroundColor: AppColors.white,
@@ -780,9 +780,9 @@ class EditTagsState extends State<EditTags> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Add Tag', style: Textstyle.subheader),
+          title: Text('Assign', style: Textstyle.subheader),
           content: Text(
-            'Are you sure you want to tag this user?',
+            'Are you sure you want to assign this user?',
             style: Textstyle.body,
           ),
           backgroundColor: AppColors.white,
@@ -830,7 +830,7 @@ class EditTagsState extends State<EditTags> {
             ),
             const SizedBox(height: 10.0),
             Text(
-              "No Tagged users yet",
+              "No assigned users yet",
               style: Textstyle.body,
               textAlign: TextAlign.center,
             ),
@@ -869,7 +869,7 @@ class EditTagsState extends State<EditTags> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Edit Tags', style: Textstyle.subheader),
+        title: Text('Edit Assignments', style: Textstyle.subheader),
         scrolledUnderElevation: 0.0,
         automaticallyImplyLeading: _isTagging ? false : true,
         backgroundColor: AppColors.white,
@@ -881,7 +881,7 @@ class EditTagsState extends State<EditTags> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Tagged Users', style: Textstyle.subheader),
+              Text('Assigned Users', style: Textstyle.subheader),
               SizedBox(height: 10),
               _buildTaggedUserList(),
               SizedBox(height: 20),

@@ -321,7 +321,7 @@ class ContactsScreenState extends State<Contacts> {
                       validator:
                           (val) =>
                               val == null || val.isEmpty
-                                  ? 'Select a category'
+                                  ? 'Select a contact category'
                                   : null,
                       displayItem: (item) => item.capitalize(),
                     ),
@@ -503,7 +503,7 @@ class ContactsScreenState extends State<Contacts> {
                       validator:
                           (val) =>
                               val == null || val.isEmpty
-                                  ? 'Select a category'
+                                  ? 'Select a contact category'
                                   : null,
                       displayItem: (item) => item.capitalize(),
                     ),
@@ -685,6 +685,7 @@ class ContactsScreenState extends State<Contacts> {
         backgroundColor: AppColors.white,
         scrolledUnderElevation: 0.0,
         title: Text('Contacts', style: Textstyle.subheader),
+        centerTitle: true,
       ),
       body:
           isLoading ? Center(child: Loader.loaderPurple) : _buildContactsView(),

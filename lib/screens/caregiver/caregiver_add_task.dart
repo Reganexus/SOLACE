@@ -845,7 +845,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: AppBar(
-        title: Text("View Tasks", style: Textstyle.subheader),
+        title: Text("Tasks", style: Textstyle.subheader),
         backgroundColor: AppColors.white,
         centerTitle: true,
         scrolledUnderElevation: 0.0,

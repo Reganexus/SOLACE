@@ -17,10 +17,10 @@ class HelpPageState extends State<HelpPage> {
   List<bool> expandedState = [];
 
   final List<String> items = [
-    'A referral system for patients, by patients, their friends/relatives, or their physician/health care provider.',
+    'A referral system for patients, their families, or healthcare providers.',
     'A directory for those looking for Palliative Care Institutions or home care supply providers.',
-    'An updated resource base for key information through scheduled teleconsults that can guide physicians in their palliative approach to patient care through palliative care consults with fellow physicians who have trained and have significant experience in the practice of palliative medicine, pain management, public health, and counseling.',
-    'A source of inspiration, as we all work together towards creating more compassionate communities.',
+    'An updated resource base for key information through scheduled teleconsults. These sessions guide physicians in their palliative approach to patient care, with input from experienced physicians in palliative medicine, pain management, public health, and counseling.',
+    'A source of inspiration as we work together to build more compassionate communities.',
   ];
 
   final List<Map<String, String>> faqData = [
@@ -30,9 +30,9 @@ class HelpPageState extends State<HelpPage> {
           'SOLACE is a pain management application designed for palliative and hospice care. It allows users to track vitals, monitor symptoms, and connect with caregivers and doctors for timely interventions.',
     },
     {
-      'question': 'How can I track my vitals?',
+      'question': 'How can I monitor my vitals and symptoms?',
       'answer':
-          'You can log your vitals in the app under the "Vitals" section. The app will help you monitor trends over time.',
+          'You can record your health data through the \'Track Patient\' feature. The app will help you monitor trends over time under the \'Vitals\' section.',
     },
     {
       'question': 'Can I schedule tasks or appointments?',
@@ -45,9 +45,9 @@ class HelpPageState extends State<HelpPage> {
           'To reset your password, go to the login screen and click on "Forgot Password." Follow the instructions sent to your registered email.',
     },
     {
-      'question': 'Who can I contact for further support?',
+      'question': 'Who can I contact for help?',
       'answer':
-          'You can always contact us at teamres.solace@gmail.com, and we’ll assist you as soon as possible.',
+          'You can contact us at teamres.solace@gmail.com, and we will assist you promptly.',
     },
   ];
 
@@ -192,7 +192,7 @@ class HelpPageState extends State<HelpPage> {
           Image.asset('lib/assets/images/auth/palcollab.png'),
           SizedBox(height: 20),
           Text(
-            "The Ruth Foundation's PalCollab is an approach created for advocates of Palliative Care in the Philippines which works toward providing:",
+            "The Ruth Foundation's PalCollab is a platform for palliative care advocates in the Philippines, aimed at providing:",
             style: Textstyle.bodyWhite,
             textAlign: TextAlign.justify,
           ),
@@ -212,7 +212,7 @@ class HelpPageState extends State<HelpPage> {
           child: Column(
             children: [
               Text(
-                'At SOLACE, we understand that you might need assistance from time to time, and we are committed to providing you with the utmost help. Whether you have questions, face challenges, or need support, we are here for you.',
+                'At SOLACE, we are committed to providing support and care. Whether you have questions, face challenges, or need support, we are here for you.',
                 style: Textstyle.body,
                 textAlign: TextAlign.justify,
               ),
@@ -237,13 +237,13 @@ class HelpPageState extends State<HelpPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'How to reach us?',
+                    'How can you reach us?',
                     style: Textstyle.heading.copyWith(color: AppColors.white),
                   ),
                 ],
               ),
               Text(
-                'You can reach us via email at: ',
+                'Contact us via email: ',
                 style: Textstyle.bodySmall.copyWith(color: AppColors.white),
               ),
               SizedBox(
@@ -303,7 +303,7 @@ class HelpPageState extends State<HelpPage> {
             SizedBox(width: 20),
             Flexible(
               child: Text(
-                'If your question isn’t listed above, feel free to contact us. We’re here to assist you!',
+                'If your question isn\'t listed above, please contact us. We are here to help!',
                 style: Textstyle.bodySmall.copyWith(color: AppColors.white),
                 textAlign: TextAlign.justify,
               ),

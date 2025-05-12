@@ -185,7 +185,7 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
             ),
           ),
           Text(
-            "Select the list you want to view. Tagged patients lists all of your assigned patients.",
+            "Select the list you want to view.",
             style: Textstyle.bodySmall.copyWith(color: AppColors.white),
           ),
 
@@ -219,7 +219,7 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
                 checkmarkColor: AppColors.white,
                 labelPadding: EdgeInsets.symmetric(horizontal: 0, vertical: 0),
                 label: Text(
-                  'Tagged Patients',
+                  'Assigned Patients',
                   style: Textstyle.bodySmall.copyWith(
                     color: AppColors.white,
                     fontWeight:
@@ -265,7 +265,7 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
             builder: (context, taggedPatientsSnapshot) {
               return _buildPatientContentColumn(
                 taggedPatientsSnapshot,
-                'Tagged Patients',
+                'Assigned Patients',
               );
             },
           ),

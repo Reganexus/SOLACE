@@ -453,7 +453,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
   Widget _buildScheduleContainer() {
     return _buildContainer(
       title: 'Schedule Patient',
-      description: 'Appoint a schedule of visit to the patient',
+      description: 'Schedule a visit for the patient',
       imagePath: 'lib/assets/images/auth/calendar.jpg',
       onPressed: () {
         _scheduleAppointment(widget.caregiverId, widget.patientId);
@@ -463,8 +463,8 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
 
   Widget _buildTaskContainer() {
     return _buildContainer(
-      title: 'Set Task',
-      description: 'Set a task for the patient to accomplish',
+      title: 'Give Task',
+      description: 'Give a task for the patient to complete',
       imagePath: 'lib/assets/images/auth/task.jpg',
       onPressed: () {
         Navigator.push(
@@ -480,7 +480,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
   Widget _buildMedicineContainer() {
     return _buildContainer(
       title: 'Prescribe Medicine',
-      description: 'Prescribe a medicine to the patient to take',
+      description: 'Prescribe medicine for the patient',
       imagePath: 'lib/assets/images/auth/medicine.jpg',
       onPressed: () {
         Navigator.push(
@@ -498,7 +498,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     return GestureDetector(
       child: _buildContainer(
         title: 'Track Patient',
-        description: 'Track and input patient vitals and symptoms',
+        description: 'Record the patient\'s vitals and symptoms',
         imagePath: 'lib/assets/images/auth/tracking.jpg',
         onPressed: () {
           Navigator.push(
@@ -516,7 +516,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
   Widget _buildNotes() {
     return _buildContainer(
       title: 'Take Notes',
-      description: 'Add notes to record events about the patient',
+      description: 'Add notes to document events related to the patient',
       imagePath: 'lib/assets/images/auth/notes.jpg',
       onPressed: () {
         Navigator.push(
@@ -535,10 +535,10 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("What you can do", style: Textstyle.subheader),
+          Text("Available Actions", style: Textstyle.subheader),
           const SizedBox(height: 10.0),
           Text(
-            "Listed below are the features you can use to effectively monitor and manage the patient.",
+            "Below are the tools available to help you monitor and manage the patient effectively.",
             style: Textstyle.body,
           ),
           const SizedBox(height: 20.0),
@@ -604,7 +604,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
       future: fetchPatientTracking(patientId),
       builder: (context, snapshot) {
         if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-          return _buildNoDataView("No available data");
+          return _buildNoDataView("No data available");
         }
 
         final symptomData = snapshot.data!['symptoms']!;
@@ -622,7 +622,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
                 Text("Patient Records", style: Textstyle.subheader),
                 const SizedBox(height: 10.0),
                 Text(
-                  "Graphs of the patient's vitals and symptoms over time.",
+                  "Visualizations of the patient's vitals and symptoms over time.",
                   style: Textstyle.body,
                 ),
                 const SizedBox(height: 20.0),
@@ -1267,7 +1267,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
                             children: [
                               Expanded(
                                 child: Text(
-                                  "Patient Management",
+                                  "Manage Patient",
                                   style: Textstyle.bodySmall.copyWith(
                                     color: AppColors.white,
                                     fontWeight: FontWeight.bold,
@@ -1281,7 +1281,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
                         Divider(),
                         SizedBox(height: 10),
                         Text(
-                          "Current Cases",
+                          "Active Cases",
                           style: Textstyle.bodySmall.copyWith(
                             color: AppColors.white,
                             fontWeight: FontWeight.bold,
@@ -1290,7 +1290,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
                         Text(
                           (cases != null && cases.isNotEmpty)
                               ? cases.map((caseItem) => '$caseItem').join('\n')
-                              : 'No cases available',
+                              : 'No active cases available',
                           style: Textstyle.bodySmall.copyWith(
                             color: AppColors.white,
                             overflow: TextOverflow.ellipsis,
@@ -1332,7 +1332,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
         if (trackingArray == null || trackingArray.isEmpty) {
           return Center(
             child: Text(
-              'No recent vitals. Track symptoms now',
+              'No recent vitals available. Start tracking symptoms now',
               style: TextStyle(color: AppColors.white),
             ),
           );
@@ -1655,7 +1655,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
               Text('Interventions', style: Textstyle.subheader),
               const SizedBox(height: 10),
               Text(
-                'Select a section to view the checklist of interventions based on the patient\'s current status.',
+                'Choose a section to view intervention checklists based on the patient\'s current status.',
                 style: Textstyle.body,
               ),
             ],
@@ -1697,9 +1697,9 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     String patientName = await _loadUserName(patientId);
 
     final shouldTag = await _showConfirmationDialog(
-      title: 'Assign Patient to yourself',
+      title: 'Assign this patient to yourself',
       definition:
-          'Assigning patient $patientName means adding him/her to your assigned patient list.',
+          'Assigning $patientName will add them to your list of assigned patients.',
       message: 'Are you sure you want to assign patient $patientName?',
     );
 
@@ -1777,9 +1777,9 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
     final shouldUntag = await _showConfirmationDialog(
       title: 'Removed Assignment',
       definition:
-          'Removing your assignment to patient $patientName means removing him/her from your assigned patient list.',
+          'Removing your assignment to $patientName will remove them from your list of assigned patients.',
       message:
-          'Are you sure you want to your assignment to patient $patientName?',
+          'Are you sure you want to remove your assignment to $patientName?',
     );
 
     if (shouldUntag) {
@@ -1830,7 +1830,7 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
           'tag',
         );
 
-        showToast('Successfully removed assignment to patient $patientName');
+        showToast('Assignment to $patientName has been successfully removed');
       } catch (e) {
         showToast(
           'Error removing assignment to patient $patientName: $e',
