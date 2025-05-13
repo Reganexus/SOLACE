@@ -294,11 +294,8 @@ class _LogInState extends State<LogIn> {
         await FirebaseFirestore.instance.collection(userRole).doc(uid).update({
           'isLoggedIn': true,
         });
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => Home(uid: uid, role: userRole),
-          ),
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => Home(uid: uid, role: userRole)),
         );
       } else {
         showToast(
@@ -330,9 +327,7 @@ class _LogInState extends State<LogIn> {
     if (role != null) {
       final docExists = await _checkDocumentExists(role, uid);
       if (docExists) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => Home(uid: uid, role: role)),
-        );
+        await _navigateBasedOnVerification(uid, role);
       } else {
         setState(() => error = 'User document not found.');
       }
