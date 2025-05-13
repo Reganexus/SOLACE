@@ -254,356 +254,436 @@ class ContactsScreenState extends State<Contacts> {
     );
   }
 
-  void _addContact() {
+  void _addContact() async {
     final formKey = GlobalKey<FormState>();
-    final TextEditingController firstNameController = TextEditingController();
-    final TextEditingController lastNameController = TextEditingController();
+    final TextEditingController nameController = TextEditingController();
     final TextEditingController numberController = TextEditingController();
-    final FocusNode firstNameFocusNode = FocusNode();
-    final FocusNode lastNameFocusNode = FocusNode();
+    final FocusNode nameFocusNode = FocusNode();
     final FocusNode numberFocusNode = FocusNode();
     final FocusNode categoryFocusNode = FocusNode();
     String category = "relative";
+    bool isSaving = false; // Add saving state
+
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) {
-        return Dialog(
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Form(
-              key: formKey,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("Add Contact", style: Textstyle.subheader),
-                    const SizedBox(height: 20),
-                    CustomTextField(
-                      controller: firstNameController,
-                      focusNode: firstNameFocusNode,
-                      labelText: 'First Name',
-                      enabled: true,
-                      validator: (val) => Validator.name(val?.trim()),
-                    ),
-                    const SizedBox(height: 10),
-                    CustomTextField(
-                      controller: lastNameController,
-                      focusNode: lastNameFocusNode,
-                      labelText: 'Last Name',
-                      enabled: true,
-                      validator: (val) => Validator.name(val?.trim()),
-                    ),
-                    const SizedBox(height: 10),
-                    CustomTextField(
-                      controller: numberController,
-                      focusNode: numberFocusNode,
-                      labelText: 'Phone Number',
-                      enabled: true,
-                      validator: (val) => Validator.phoneNumber(val?.trim()),
-                    ),
-                    const SizedBox(height: 10),
-                    CustomDropdownField<String>(
-                      value: category,
-                      focusNode: categoryFocusNode,
-                      labelText: 'Category',
-                      enabled: true,
-                      items: const ['relative', 'nurse'],
-                      onChanged: (val) {
-                        if (val != null) {
-                          category = val;
-                        }
-                      },
-                      validator:
-                          (val) =>
-                              val == null || val.isEmpty
-                                  ? 'Select a contact category'
-                                  : null,
-                      displayItem: (item) => item.capitalize(),
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Form(
+                  key: formKey,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            style: Buttonstyle.buttonRed,
-                            child: Text("Cancel", style: Textstyle.smallButton),
-                          ),
+                        Text("Add Contact", style: Textstyle.subheader),
+                        Text(
+                          "Fields marked with * are required.",
+                          style: Textstyle.body,
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: TextButton(
-                            style: Buttonstyle.buttonNeon,
-                            onPressed: () async {
-                              // Trigger validation
-                              if (formKey.currentState?.validate() ?? false) {
-                                // Proceed if validation passes
-                                final String firstName =
-                                    firstNameController.text.trim();
-                                final String lastName =
-                                    lastNameController.text.trim();
-                                final String phoneNumber =
-                                    numberController.text.trim();
-
-                                // Ensure no double spaces
-                                final cleanedFirstName = firstName.replaceAll(
-                                  RegExp(r'\s+'),
-                                  ' ',
-                                );
-                                final cleanedLastName = lastName.replaceAll(
-                                  RegExp(r'\s+'),
-                                  ' ',
-                                );
-                                final name =
-                                    '$cleanedFirstName $cleanedLastName';
-
-                                // Check for duplicates
-                                final isDuplicate = await contactUtil
-                                    .isDuplicateContact(
-                                      userId: widget.patientId,
-                                      phoneNumber: phoneNumber,
-                                      name: name,
-                                      category: category,
-                                    );
-
-                                if (isDuplicate) {
-                                  showToast(
-                                    "A contact with the same details already exists.",
-                                    backgroundColor: AppColors.red,
-                                  );
-                                  return;
-                                }
-
-                                Map<String, dynamic> contactData = {
-                                  "name": name,
-                                  "phoneNumber": phoneNumber,
-                                  "category": category,
-                                  "createdAt": DateTime.now(),
-                                };
-
-                                try {
-                                  await contactUtil.addContact(
-                                    userId: widget.patientId,
-                                    category: category,
-                                    contactData: contactData,
-                                  );
-                                  showToast("Contact added successfully.");
-                                  _initializeContacts();
-                                  Navigator.pop(context);
-                                } catch (e) {
-                                  showToast(
-                                    "Failed to add contact: $e",
-                                    backgroundColor: AppColors.red,
-                                  );
-                                }
-                              }
-                            },
-                            child: Text(
-                              "Add Contact",
-                              style: Textstyle.smallButton,
+                        const SizedBox(height: 20),
+                        CustomTextField(
+                          controller: nameController,
+                          focusNode: nameFocusNode,
+                          labelText: 'Name *',
+                          enabled: !isSaving,
+                          validator: (val) => Validator.name(val?.trim()),
+                        ),
+                        const SizedBox(height: 10),
+                        CustomTextField(
+                          controller: numberController,
+                          focusNode: numberFocusNode,
+                          labelText: 'Phone Number *',
+                          enabled: !isSaving,
+                          validator:
+                              (val) => Validator.phoneNumber(val?.trim()),
+                        ),
+                        const SizedBox(height: 10),
+                        CustomDropdownField<String>(
+                          value: category,
+                          focusNode: categoryFocusNode,
+                          labelText: 'Category *',
+                          enabled: !isSaving,
+                          items: const ['relative', 'nurse'],
+                          onChanged: (val) {
+                            if (val != null) {
+                              category = val;
+                            }
+                          },
+                          validator:
+                              (val) =>
+                                  val == null || val.isEmpty
+                                      ? 'Select a category'
+                                      : null,
+                          displayItem: (item) => item.capitalize(),
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextButton(
+                                onPressed:
+                                    !isSaving
+                                        ? () => Navigator.pop(context)
+                                        : null,
+                                style:
+                                    isSaving
+                                        ? Buttonstyle.buttonGray
+                                        : Buttonstyle.buttonRed,
+                                child: Text(
+                                  "Cancel",
+                                  style: Textstyle.smallButton,
+                                ),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: TextButton(
+                                style: Buttonstyle.buttonNeon,
+                                onPressed:
+                                    !isSaving
+                                        ? () async {
+                                          final confirmed =
+                                              await showConfirmationDialog(
+                                                context,
+                                                'add',
+                                              );
+                                          if (confirmed) {
+                                            if (formKey.currentState
+                                                    ?.validate() ??
+                                                false) {
+                                              setState(() {
+                                                isSaving = true; // Start saving
+                                              });
+                                              final String name =
+                                                  nameController.text.trim();
+                                              final String phoneNumber =
+                                                  numberController.text.trim();
+
+                                              final cleanedName = name
+                                                  .replaceAll(
+                                                    RegExp(r'\s+'),
+                                                    ' ',
+                                                  );
+
+                                              final isDuplicate =
+                                                  await contactUtil
+                                                      .isDuplicateContact(
+                                                        userId:
+                                                            widget.patientId,
+                                                        phoneNumber:
+                                                            phoneNumber,
+                                                        name: cleanedName,
+                                                        category: category,
+                                                      );
+
+                                              if (isDuplicate) {
+                                                setState(() {
+                                                  isSaving =
+                                                      false; // Stop saving
+                                                });
+                                                showToast(
+                                                  "A contact with the same details already exists.",
+                                                  backgroundColor:
+                                                      AppColors.red,
+                                                );
+                                                return;
+                                              }
+
+                                              Map<String, dynamic> contactData =
+                                                  {
+                                                    "name": cleanedName,
+                                                    "phoneNumber": phoneNumber,
+                                                    "category": category,
+                                                    "createdAt": DateTime.now(),
+                                                  };
+
+                                              try {
+                                                await contactUtil.addContact(
+                                                  userId: widget.patientId,
+                                                  category: category,
+                                                  contactData: contactData,
+                                                );
+                                                showToast(
+                                                  "Contact added successfully.",
+                                                );
+                                                _initializeContacts();
+                                                Navigator.pop(context);
+                                              } catch (e) {
+                                                showToast(
+                                                  "Failed to add contact: $e",
+                                                  backgroundColor:
+                                                      AppColors.red,
+                                                );
+                                              } finally {
+                                                setState(() {
+                                                  isSaving =
+                                                      false; // Stop saving
+                                                });
+                                              }
+                                            }
+                                          }
+                                        }
+                                        : null,
+                                child:
+                                    isSaving
+                                        ? const SizedBox(
+                                          height: 20,
+                                          width: 20,
+                                          child: CircularProgressIndicator(
+                                            valueColor: AlwaysStoppedAnimation(
+                                              AppColors.white,
+                                            ),
+                                          ),
+                                        )
+                                        : Text(
+                                          "Add Contact",
+                                          style: Textstyle.smallButton,
+                                        ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
   }
 
-  void _editContact(Map<String, dynamic> contactData) {
+  void _editContact(Map<String, dynamic> contactData) async {
     final formKey = GlobalKey<FormState>();
-
-    final TextEditingController firstNameController = TextEditingController(
-      text:
-          contactData['name'].split(
-            " ",
-          )[0], // Assuming 'name' is "FirstName LastName"
-    );
-    final TextEditingController lastNameController = TextEditingController(
-      text:
-          contactData['name'].split(" ").length > 1
-              ? contactData['name'].split(" ")[1]
-              : "",
+    final TextEditingController nameController = TextEditingController(
+      text: contactData['name'],
     );
     final TextEditingController numberController = TextEditingController(
       text: contactData['phoneNumber'],
     );
-    final FocusNode firstNameFocusNode = FocusNode();
-    final FocusNode lastNameFocusNode = FocusNode();
+    final FocusNode nameFocusNode = FocusNode();
     final FocusNode numberFocusNode = FocusNode();
     final FocusNode categoryFocusNode = FocusNode();
     String category = contactData['category'];
     String oldPhoneNumber = contactData['phoneNumber'];
+    bool isSaving = false; // Add saving state
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) {
-        return Dialog(
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Form(
-              key: formKey,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("Edit Contact", style: Textstyle.subheader),
-                    const SizedBox(height: 20),
-                    CustomTextField(
-                      controller: firstNameController,
-                      focusNode: firstNameFocusNode,
-                      labelText: 'First Name',
-                      enabled: true,
-                      validator: (val) => Validator.name(val?.trim()),
-                    ),
-                    const SizedBox(height: 10),
-                    CustomTextField(
-                      controller: lastNameController,
-                      focusNode: lastNameFocusNode,
-                      labelText: 'Last Name',
-                      enabled: true,
-                      validator: (val) => Validator.name(val?.trim()),
-                    ),
-                    const SizedBox(height: 10),
-                    CustomTextField(
-                      controller: numberController,
-                      focusNode: numberFocusNode,
-                      labelText: 'Phone Number',
-                      enabled: true,
-                      validator: (val) => Validator.phoneNumber(val?.trim()),
-                    ),
-                    const SizedBox(height: 10),
-                    CustomDropdownField<String>(
-                      value: category,
-                      focusNode: categoryFocusNode,
-                      labelText: 'Category',
-                      enabled: true,
-                      items: const ['relative', 'nurse'],
-                      onChanged: (val) {
-                        if (val != null) {
-                          category = val;
-                        }
-                      },
-                      validator:
-                          (val) =>
-                              val == null || val.isEmpty
-                                  ? 'Select a contact category'
-                                  : null,
-                      displayItem: (item) => item.capitalize(),
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Form(
+                  key: formKey,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            style: Buttonstyle.buttonRed,
-                            child: Text("Cancel", style: Textstyle.smallButton),
-                          ),
+                        Text("Edit Contact", style: Textstyle.subheader),
+                        const SizedBox(height: 20),
+                        CustomTextField(
+                          controller: nameController,
+                          focusNode: nameFocusNode,
+                          labelText: 'Name',
+                          enabled: !isSaving,
+                          validator: (val) => Validator.name(val?.trim()),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: TextButton(
-                            style: Buttonstyle.buttonNeon,
-                            onPressed: () async {
-                              if (formKey.currentState?.validate() ?? false) {
-                                final String firstName =
-                                    firstNameController.text.trim();
-                                final String lastName =
-                                    lastNameController.text.trim();
-                                final String phoneNumber =
-                                    numberController.text.trim();
+                        const SizedBox(height: 10),
+                        CustomTextField(
+                          controller: numberController,
+                          focusNode: numberFocusNode,
+                          labelText: 'Phone Number',
+                          enabled: !isSaving,
+                          validator:
+                              (val) => Validator.phoneNumber(val?.trim()),
+                        ),
+                        const SizedBox(height: 10),
+                        CustomDropdownField<String>(
+                          value: category,
+                          focusNode: categoryFocusNode,
+                          labelText: 'Category',
+                          enabled: !isSaving,
+                          items: const ['relative', 'nurse'],
+                          onChanged: (val) {
+                            if (val != null) {
+                              category = val;
+                            }
+                          },
+                          validator:
+                              (val) =>
+                                  val == null || val.isEmpty
+                                      ? 'Select a category'
+                                      : null,
+                          displayItem: (item) => item.capitalize(),
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextButton(
+                                onPressed:
+                                    !isSaving
+                                        ? () => Navigator.pop(context)
+                                        : null,
+                                style:
+                                    isSaving
+                                        ? Buttonstyle.buttonGray
+                                        : Buttonstyle.buttonRed,
+                                child: Text(
+                                  "Cancel",
+                                  style: Textstyle.smallButton,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: TextButton(
+                                style: Buttonstyle.buttonNeon,
+                                onPressed:
+                                    !isSaving
+                                        ? () async {
+                                          final confirmed =
+                                              await showConfirmationDialog(
+                                                context,
+                                                'save',
+                                              );
+                                          if (confirmed) {
+                                            if (formKey.currentState
+                                                    ?.validate() ??
+                                                false) {
+                                              setState(() {
+                                                isSaving = true; // Start saving
+                                              });
+                                              final String name =
+                                                  nameController.text.trim();
+                                              final String phoneNumber =
+                                                  numberController.text.trim();
 
-                                // Ensure no double spaces
-                                final cleanedFirstName = firstName.replaceAll(
-                                  RegExp(r'\s+'),
-                                  ' ',
-                                );
-                                final cleanedLastName = lastName.replaceAll(
-                                  RegExp(r'\s+'),
-                                  ' ',
-                                );
-                                final name =
-                                    '$cleanedFirstName $cleanedLastName';
+                                              final cleanedName = name
+                                                  .replaceAll(
+                                                    RegExp(r'\s+'),
+                                                    ' ',
+                                                  );
 
-                                // Check for duplicates (exclude the current contact being edited)
-                                final isDuplicate = await contactUtil
-                                    .isDuplicateContact(
-                                      userId: widget.patientId,
-                                      phoneNumber: phoneNumber,
-                                      name: name,
-                                      category: category,
-                                      excludePhoneNumber: oldPhoneNumber,
-                                    );
+                                              final isDuplicate =
+                                                  await contactUtil
+                                                      .isDuplicateContact(
+                                                        userId:
+                                                            widget.patientId,
+                                                        phoneNumber:
+                                                            phoneNumber,
+                                                        name: cleanedName,
+                                                        category: category,
+                                                        excludePhoneNumber:
+                                                            oldPhoneNumber,
+                                                      );
 
-                                if (isDuplicate) {
-                                  showToast(
-                                    "A contact with the same number already exists.",
-                                    backgroundColor: AppColors.red,
-                                  );
-                                  return;
-                                }
+                                              if (isDuplicate) {
+                                                setState(() {
+                                                  isSaving =
+                                                      false; // Stop saving
+                                                });
+                                                showToast(
+                                                  "A contact with the same number already exists.",
+                                                  backgroundColor:
+                                                      AppColors.red,
+                                                );
+                                                return;
+                                              }
 
-                                final updatedContact = {
-                                  'name': name,
-                                  'phoneNumber': phoneNumber,
-                                  'category': category,
-                                };
+                                              final updatedContact = {
+                                                'name': cleanedName,
+                                                'phoneNumber': phoneNumber,
+                                                'category': category,
+                                              };
 
-                                try {
-                                  await contactUtil.editContact(
-                                    userId: widget.patientId,
-                                    category: contactData['category'],
-                                    updatedContact: updatedContact,
-                                    oldPhoneNumber: oldPhoneNumber,
-                                  );
-
-                                  Navigator.pop(context);
-                                  showToast("Contact updated successfully.");
-                                  _initializeContacts();
-                                } catch (e) {
-                                  showToast(
-                                    "Failed to update contact.",
-                                    backgroundColor: AppColors.red,
-                                  );
-                                }
-                              }
-                            },
-                            child: Text("Save", style: Textstyle.smallButton),
-                          ),
+                                              try {
+                                                await contactUtil.editContact(
+                                                  userId: widget.patientId,
+                                                  category:
+                                                      contactData['category'],
+                                                  updatedContact:
+                                                      updatedContact,
+                                                  oldPhoneNumber:
+                                                      oldPhoneNumber,
+                                                );
+                                                Navigator.pop(context);
+                                                showToast(
+                                                  "Contact updated successfully.",
+                                                );
+                                                _initializeContacts();
+                                              } catch (e) {
+                                                showToast(
+                                                  "Failed to update contact.",
+                                                  backgroundColor:
+                                                      AppColors.red,
+                                                );
+                                              } finally {
+                                                setState(() {
+                                                  isSaving =
+                                                      false; // Stop saving
+                                                });
+                                              }
+                                            }
+                                          }
+                                        }
+                                        : null,
+                                child:
+                                    isSaving
+                                        ? const SizedBox(
+                                          height: 20,
+                                          width: 20,
+                                          child: CircularProgressIndicator(
+                                            valueColor: AlwaysStoppedAnimation(
+                                              AppColors.white,
+                                            ),
+                                          ),
+                                        )
+                                        : Text(
+                                          "Save",
+                                          style: Textstyle.smallButton,
+                                        ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
   }
 
-  void _deleteContact(Map<String, dynamic> contactData) {
+  void _deleteContact(Map<String, dynamic> contactData) async {
     final String name = contactData['name'] ?? 'Contact';
     final String category = contactData['category'] ?? '';
     final String phoneNumber = contactData['phoneNumber'] ?? '';
+    bool isDeleting = false; // Add deleting state
 
     if (category.isEmpty || phoneNumber.isEmpty) {
       showToast("Invalid contact data.", backgroundColor: AppColors.red);
@@ -612,62 +692,132 @@ class ContactsScreenState extends State<Contacts> {
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) {
-        return AlertDialog(
-          backgroundColor: AppColors.white,
-          title: Text("Delete Contact", style: Textstyle.subheader),
-          content: Text(
-            "Are you sure you want to delete $name?",
-            style: Textstyle.body,
-          ),
-          actions: [
-            TextButton(
-              style: Buttonstyle.buttonNeon,
-              onPressed: () => Navigator.pop(context),
-              child: Text("Cancel", style: Textstyle.smallButton),
-            ),
-            TextButton(
-              style: Buttonstyle.buttonRed,
-              onPressed: () async {
-                try {
-                  final user = _auth.currentUser;
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: AppColors.white,
+              title: Text("Delete Contact", style: Textstyle.subheader),
+              content: Text(
+                "Are you sure you want to delete $name?",
+                style: Textstyle.body,
+              ),
+              actions: [
+                TextButton(
+                  style:
+                      isDeleting
+                          ? Buttonstyle.buttonGray
+                          : Buttonstyle.buttonNeon,
+                  onPressed: !isDeleting ? () => Navigator.pop(context) : null,
+                  child: Text("Cancel", style: Textstyle.smallButton),
+                ),
+                TextButton(
+                  style: Buttonstyle.buttonRed,
+                  onPressed:
+                      !isDeleting
+                          ? () async {
+                            setState(() {
+                              isDeleting = true; // Start deleting
+                            });
+                            try {
+                              final user = _auth.currentUser;
 
-                  if (user == null) {
-                    showToast(
-                      "Current user is not authenticated",
-                      backgroundColor: AppColors.red,
-                    );
-                    return;
-                  }
+                              if (user == null) {
+                                showToast(
+                                  "Current user is not authenticated",
+                                  backgroundColor: AppColors.red,
+                                );
+                                return;
+                              }
 
-                  await contactUtil.deleteContact(
-                    userId: widget.patientId,
-                    category: category,
-                    phoneNumberToDelete: phoneNumber,
-                  );
+                              await contactUtil.deleteContact(
+                                userId: widget.patientId,
+                                category: category,
+                                phoneNumberToDelete: phoneNumber,
+                              );
 
-                  await _logService.addLog(
-                    userId: user.uid,
-                    action:
-                        "Deleted contact $phoneNumber from patient $patientName",
-                  );
-                  Navigator.pop(context);
-                  showToast("$name deleted successfully.");
-                  _initializeContacts();
-                } catch (e) {
-                  //                   debugPrint("Error deleting contact: $e");
-                  showToast(
-                    "Failed to delete contact.",
-                    backgroundColor: AppColors.red,
-                  );
-                }
-              },
-              child: Text("Delete", style: Textstyle.smallButton),
-            ),
-          ],
+                              await _logService.addLog(
+                                userId: user.uid,
+                                action:
+                                    "Deleted contact $phoneNumber from patient $patientName",
+                              );
+                              Navigator.pop(context);
+                              showToast("$name deleted successfully.");
+                              _initializeContacts();
+                            } catch (e) {
+                              showToast(
+                                "Failed to delete contact.",
+                                backgroundColor: AppColors.red,
+                              );
+                            } finally {
+                              setState(() {
+                                isDeleting = false; // Stop deleting
+                              });
+                            }
+                          }
+                          : null,
+                  child:
+                      isDeleting
+                          ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation(
+                                AppColors.white,
+                              ),
+                            ),
+                          )
+                          : Text("Delete", style: Textstyle.smallButton),
+                ),
+              ],
+            );
+          },
         );
       },
     );
+  }
+
+  Future<bool> showConfirmationDialog(
+    BuildContext context,
+    String action,
+  ) async {
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              backgroundColor: AppColors.white,
+              title: Text('Confirm $action', style: Textstyle.subheader),
+              content: Text(
+                'Are you sure you want to $action this contact?',
+                style: Textstyle.body,
+              ),
+              actions: <Widget>[
+                TextButton(
+                  style:
+                      action == "delete"
+                          ? Buttonstyle.buttonNeon
+                          : Buttonstyle.buttonRed,
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text('Cancel', style: Textstyle.smallButton),
+                ),
+                TextButton(
+                  style:
+                      action == "delete"
+                          ? Buttonstyle.buttonRed
+                          : Buttonstyle.buttonNeon,
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: Text(
+                    action.capitalize(),
+                    style: Textstyle.smallButton,
+                  ),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
   }
 
   @override
@@ -684,8 +834,8 @@ class ContactsScreenState extends State<Contacts> {
       appBar: AppBar(
         backgroundColor: AppColors.white,
         scrolledUnderElevation: 0.0,
-        title: Text('Contacts', style: Textstyle.subheader),
         centerTitle: true,
+        title: Text('Contacts', style: Textstyle.subheader),
       ),
       body:
           isLoading ? Center(child: Loader.loaderPurple) : _buildContactsView(),

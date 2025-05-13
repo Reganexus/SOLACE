@@ -43,23 +43,20 @@ class PatientTasksState extends State<PatientTasks> {
 
   Future<void> fetchPatientTasks() async {
     if (!mounted) {
-      return; // Prevent unnecessary operations if widget is not mounted
+      return;
     }
 
     setState(() {
-      isLoading = true; // Show loading indicator
+      isLoading = true;
     });
 
     try {
-      // Fetch all task documents under the patient's tasks subcollection
       final patientTasksSnapshot =
           await FirebaseFirestore.instance
               .collection('patient')
               .doc(widget.patientId)
               .collection('tasks')
               .get();
-
-      //     debugPrint("Fetched ${patientTasksSnapshot.docs.length} task documents.");
 
       if (patientTasksSnapshot.docs.isEmpty) {
         _updateTasks([], []);
@@ -85,6 +82,8 @@ class PatientTasksState extends State<PatientTasks> {
           'endDate': endDate,
           'isCompleted': taskData['isCompleted'] ?? false,
           'taskId': taskDoc.id,
+          'completedBy': taskData['completedBy'] ?? '',
+          'completedDate': taskData['completedDate'] ?? '',
         };
 
         if (task['isCompleted'] == true) {
@@ -104,8 +103,11 @@ class PatientTasksState extends State<PatientTasks> {
 
       _updateTasks(loadedCompletedTasks, loadedNotCompletedTasks);
     } catch (e) {
-      //     debugPrint("Error loading tasks: $e");
       _updateTasks([], []);
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
@@ -173,7 +175,6 @@ class PatientTasksState extends State<PatientTasks> {
       );
 
       if (caregiverRole == null || patientRole == null) {
-        //         debugPrint("Failed to fetch roles. Caregiver or patient role is null.");
         showToast(
           "Failed to mark task as complete. Roles not found.",
           backgroundColor: AppColors.red,
@@ -181,13 +182,25 @@ class PatientTasksState extends State<PatientTasks> {
         return;
       }
 
+      // Fetch caregiver's name.
+      final String? caregiverName = await databaseService.fetchUserName(
+        caregiverId,
+      );
+
+      final DateTime now = DateTime.now();
+      final String formattedDate = DateFormat('MMMM d, yyyy').format(now);
+
       // Mark the task as completed for the patient
       await taskUtility.updateTask(
         taskId: taskId,
         userId: patientId,
         collectionName: patientRole,
         subCollectionName: 'tasks',
-        updates: {'isCompleted': true},
+        updates: {
+          'isCompleted': true,
+          'completedBy': caregiverName,
+          'completedDate': formattedDate,
+        },
       );
 
       await taskUtility.updateTask(
@@ -200,9 +213,7 @@ class PatientTasksState extends State<PatientTasks> {
 
       final String role =
           '${caregiverRole.substring(0, 1).toUpperCase()}${caregiverRole.substring(1)}';
-      final String? caregiverName = await databaseService.fetchUserName(
-        caregiverId,
-      );
+
       final String? patientName = await databaseService.fetchUserName(
         patientId,
       );
@@ -321,6 +332,8 @@ class PatientTasksState extends State<PatientTasks> {
     final DateTime startDate = task['startDate'];
     final DateTime endDate = task['endDate'];
     final bool isCompleted = task['isCompleted'];
+    final String caregiverName = task['completedBy'] ?? '';
+    final String completedDate = task['completedDate'] ?? '';
     final formattedStartDate = DateFormat(
       'MMMM dd, yyyy h:mm a',
     ).format(startDate);
@@ -376,6 +389,24 @@ class PatientTasksState extends State<PatientTasks> {
                 children: [
                   Text(description, style: Textstyle.body),
                   const SizedBox(height: 10),
+                  if (isCompleted)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Completed By",
+                          style: Textstyle.body.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          '$caregiverName on $completedDate',
+                          style: Textstyle.body,
+                        ),
+                        const SizedBox(height: 5),
+                      ],
+                    ),
+
                   Text(
                     "Start Date",
                     style: Textstyle.body.copyWith(fontWeight: FontWeight.bold),
@@ -401,111 +432,113 @@ class PatientTasksState extends State<PatientTasks> {
     final String description = task['description'];
     final bool isCompleted = task['isCompleted'];
     final String patientId = widget.patientId;
+
+    bool isLoading = false;
+
     showDialog(
       context: context,
       builder: (context) {
-        return Dialog(
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  task['title'],
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.black,
-                  ),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(15),
                 ),
-                const SizedBox(height: 10.0),
-                Text(
-                  isCompleted ? description : "Mark task as complete?",
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.normal,
-                    color: AppColors.black,
-                  ),
-                ),
-                SizedBox(height: 20),
-                Row(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (!isCompleted)
-                      Expanded(
-                        child: TextButton(
-                          onPressed: () {
-                            if (taskId.isNotEmpty) {
-                              String caregiverId =
-                                  FirebaseAuth.instance.currentUser?.uid ?? '';
-                              updateTaskCompletion(
-                                taskId,
-                                caregiverId,
-                                patientId,
-                              );
-                              Navigator.of(context).pop();
-                            }
-                          },
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 15,
-                              vertical: 5,
+                    Text(task['title'], style: Textstyle.subheader),
+                    const SizedBox(height: 10.0),
+                    Text(
+                      isCompleted ? description : "Mark task as complete?",
+                      style: Textstyle.body,
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        if (!isCompleted) const SizedBox(width: 10.0),
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () {
+                              Navigator.of(context).pop(); // Close dialog
+                            },
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 15,
+                                vertical: 5,
+                              ),
+                              backgroundColor:
+                                  isCompleted ? AppColors.neon : AppColors.red,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
-                            backgroundColor: AppColors.neon,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: const Text(
-                            'Complete',
-                            style: TextStyle(
-                              fontSize: 16.0,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'Inter',
-                              color: Colors.white,
-                            ),
+                            child: Text('Close', style: Textstyle.smallButton),
                           ),
                         ),
-                      ),
-                    if (!isCompleted) const SizedBox(width: 10.0),
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () {
-                          Navigator.of(context).pop(); // Close dialog
-                        },
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 15,
-                            vertical: 5,
+                        if (!isCompleted)
+                          Expanded(
+                            child: TextButton(
+                              onPressed: () async {
+                                if (taskId.isNotEmpty) {
+                                  setState(() {
+                                    isLoading = true;
+                                  });
+
+                                  try {
+                                    String caregiverId =
+                                        FirebaseAuth
+                                            .instance
+                                            .currentUser
+                                            ?.uid ??
+                                        '';
+                                    await updateTaskCompletion(
+                                      taskId,
+                                      caregiverId,
+                                      patientId,
+                                    );
+                                    Navigator.of(context).pop();
+                                  } catch (e) {
+                                    setState(() {
+                                      isLoading = false;
+                                    });
+                                    showToast(
+                                      "Failed to complete task",
+                                      backgroundColor: AppColors.red,
+                                    );
+                                  }
+                                }
+                              },
+                              style: Buttonstyle.buttonNeon,
+                              child:
+                                  isLoading
+                                      ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                Colors.white,
+                                              ),
+                                        ),
+                                      )
+                                      : Text(
+                                        'Complete',
+                                        style: Textstyle.smallButton,
+                                      ),
+                            ),
                           ),
-                          backgroundColor:
-                              isCompleted ? AppColors.neon : AppColors.red,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: const Text(
-                          'Close',
-                          style: TextStyle(
-                            fontSize: 16.0,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Inter',
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );

@@ -187,31 +187,30 @@ class _SignUpState extends State<SignUp> {
 
     try {
       await _runWithLoadingState(() async {
-        MyUser? myUser = await _auth.signInWithGoogle();
+        final myUser = await _auth.signInWithGoogle();
 
+        if (!_agreeToTerms) {
+          await _showConditionsScreen();
+          if (!_agreeToTerms) {
+            _showError([
+              'You must accept the terms and conditions to proceed.',
+            ]);
+            return;
+          }
+        }
         if (myUser != null) {
-          String? userRole = await _db.fetchAndCacheUserRole(myUser.uid);
-
-          if (userRole != null && userRole != 'unregistered') {
+          final userRole = await _db.fetchAndCacheUserRole(myUser.uid);
+          if (userRole != null) {
             await _navigateBasedOnVerification(myUser.uid, userRole);
           } else {
-            _showError(["User is not registered. Please sign up."]);
+            _showError(['User role not found. Please contact support.']);
           }
         }
       });
     } catch (e) {
-      if (e is FirebaseAuthException) {
-        _handleGoogleSignInError(e);
-      } else if (e is TimeoutException) {
-        _showError(["The request timed out. Please try again later."]);
-      } else if (e.toString().contains("google_sign_in_aborted")) {
-        // Silently handle user cancellation
-      } else {
-        _showError([
-          "An error occurred during Google sign-in. Please try again later.",
-        ]);
-      }
+      _handleGoogleSignInError(e);
     } finally {
+      // Check if the widget is still mounted before calling setState
       if (mounted) {
         setState(() => _isGoogleSignUpButtonEnabled = true);
       }

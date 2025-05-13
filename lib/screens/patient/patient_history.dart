@@ -165,11 +165,6 @@ class _PatientHistoryState extends State<PatientHistory> {
       userId,
     );
 
-    String capitalize(String input) {
-      if (input.isEmpty) return input;
-      return toBeginningOfSentenceCase(input.toLowerCase()) ?? input;
-    }
-
     try {
       final String role =
           '${caregiverRole?.substring(0, 1).toUpperCase()}${caregiverRole?.substring(1)}';
@@ -183,8 +178,16 @@ class _PatientHistoryState extends State<PatientHistory> {
           .doc(widget.patientId)
           .collection('diagnoses')
           .add({
-            'diagnosis': capitalize(diagnosis), // Capitalized diagnosis
-            'description': capitalize(description), // Capitalized description
+            'diagnosis': diagnosis,
+            'description': description
+                .split(RegExp(r'\s+'))
+                .map(
+                  (word) =>
+                      word.isNotEmpty
+                          ? '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}'
+                          : '',
+                )
+                .join(' '),
             'date': date,
           });
 
@@ -210,6 +213,8 @@ class _PatientHistoryState extends State<PatientHistory> {
       if (mounted) {
         showToast('Diagnosis added successfully');
       }
+
+      setState(() {});
     } catch (e) {
       if (mounted) {
         showToast(
@@ -239,201 +244,267 @@ class _PatientHistoryState extends State<PatientHistory> {
       widget.patientId,
     );
 
-    final doc =
-        await FirebaseFirestore.instance
-            .collection('patient')
-            .doc(widget.patientId)
-            .collection('diagnoses')
-            .doc(diagnosisId)
-            .get();
+    try {
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('patient')
+              .doc(widget.patientId)
+              .collection('diagnoses')
+              .doc(diagnosisId)
+              .get();
 
-    final String diagnosis = doc.data()?['diagnosis'] ?? 'Unknown Diagnosis';
+      final String diagnosis = doc.data()?['diagnosis'] ?? 'Unknown Diagnosis';
 
-    await FirebaseFirestore.instance
-        .collection('patient')
-        .doc(widget.patientId)
-        .collection('diagnoses')
-        .doc(diagnosisId)
-        .delete();
+      await FirebaseFirestore.instance
+          .collection('patient')
+          .doc(widget.patientId)
+          .collection('diagnoses')
+          .doc(diagnosisId)
+          .delete();
 
-    await _logService.addLog(
-      userId: userId,
-      action: "Removed Diagnosis $diagnosis from patient $patientName",
-    );
+      await _logService.addLog(
+        userId: userId,
+        action: "Removed Diagnosis $diagnosis from patient $patientName",
+      );
 
-    await notificationService.sendInAppNotificationToTaggedUsers(
-      patientId: widget.patientId,
-      currentUserId: userId,
-      notificationMessage:
-          "$role $caregiverName removed a diagnosis to patient $patientName.",
-      type: "update",
-    );
+      await notificationService.sendInAppNotificationToTaggedUsers(
+        patientId: widget.patientId,
+        currentUserId: userId,
+        notificationMessage:
+            "$role $caregiverName removed a diagnosis to patient $patientName.",
+        type: "update",
+      );
 
-    await notificationService.sendNotificationToTaggedUsers(
-      widget.patientId,
-      "Diagnosis Update",
-      "$role $caregiverName removed a diagnosis to patient $patientName.",
-    );
+      await notificationService.sendNotificationToTaggedUsers(
+        widget.patientId,
+        "Diagnosis Update",
+        "$role $caregiverName removed a diagnosis to patient $patientName.",
+      );
 
-    if (mounted) {
-      showToast('Diagnosis removed successfully');
+      if (mounted) {
+        showToast('Diagnosis removed successfully');
+      }
+
+      setState(() {});
+    } catch (e) {
+      if (mounted) {
+        showToast(
+          'Failed to delete diagnosis: $e',
+          backgroundColor: AppColors.red,
+        );
+      }
     }
   }
 
-  void _showAddDiagnosisDialog() {
+  Future<void> _showAddDiagnosisDialog() async {
     diagnosisController.clear();
     descriptionController.clear();
     dateController.clear();
+    bool isSaving = false;
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) {
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            return AlertDialog(
-              backgroundColor: AppColors.white,
-              title: Text('Add Previous Diagnosis', style: Textstyle.subheader),
-              content: SizedBox(
-                width: constraints.maxWidth * 1,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CustomTextField(
-                        controller: diagnosisController,
-                        focusNode: diagnosisFocusNode,
-                        labelText: 'Previous Diagnosis',
-                        enabled: true,
-                        validator:
-                            (val) =>
-                                val == null || val.isEmpty
-                                    ? 'Diagnosis is required'
-                                    : null,
-                        inputFormatters: [LengthLimitingTextInputFormatter(50)],
-                      ),
-                      const SizedBox(height: 10),
-                      CustomTextField(
-                        controller: descriptionController,
-                        focusNode: descriptionFocusNode,
-                        labelText: 'Diagnosis Description',
-                        enabled: true,
-                        inputFormatters: [
-                          LengthLimitingTextInputFormatter(200),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                return AlertDialog(
+                  backgroundColor: AppColors.white,
+                  content: SizedBox(
+                    width: constraints.maxWidth * 1,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Add Previous Diagnosis',
+                            style: Textstyle.subheader,
+                          ),
+                          Text(
+                            "Fields marked with * are required.",
+                            style: Textstyle.body,
+                          ),
+                          const SizedBox(height: 20),
+                          CustomTextField(
+                            controller: diagnosisController,
+                            focusNode: diagnosisFocusNode,
+                            labelText: 'Diagnosis *',
+                            enabled: !isSaving,
+                            validator:
+                                (val) =>
+                                    val == null || val.isEmpty
+                                        ? 'Diagnosis is required'
+                                        : null,
+                            inputFormatters: [
+                              LengthLimitingTextInputFormatter(50),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          CustomTextField(
+                            controller: descriptionController,
+                            focusNode: descriptionFocusNode,
+                            labelText: 'Diagnosis Description',
+                            enabled: !isSaving,
+                            inputFormatters: [
+                              LengthLimitingTextInputFormatter(200),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          TextFormField(
+                            controller: dateController,
+                            focusNode: dateFocusNode,
+                            style: Textstyle.body,
+                            decoration: InputDecoration(
+                              labelText: 'Diagnosis Date *',
+                              filled: true,
+                              fillColor: AppColors.gray,
+                              suffixIcon: Icon(
+                                Icons.calendar_today,
+                                color:
+                                    dateFocusNode.hasFocus
+                                        ? AppColors.neon
+                                        : AppColors.black,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide.none,
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(
+                                  color: AppColors.neon,
+                                  width: 2,
+                                ),
+                              ),
+                              labelStyle: TextStyle(
+                                fontSize: 16,
+                                fontFamily: 'Inter',
+                                fontWeight: FontWeight.normal,
+                                color:
+                                    dateFocusNode.hasFocus
+                                        ? AppColors.neon
+                                        : AppColors.black,
+                              ),
+                            ),
+                            validator:
+                                (val) =>
+                                    _selectedDate == null
+                                        ? 'Please select a date'
+                                        : null,
+                            readOnly: true,
+                            onTap:
+                                !isSaving ? () => _selectDate(context) : null,
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 10),
-                      TextFormField(
-                        controller: dateController,
-                        focusNode: dateFocusNode,
-                        style: Textstyle.body,
-                        decoration: InputDecoration(
-                          labelText: 'Date',
-                          filled: true,
-                          fillColor: AppColors.gray,
-                          suffixIcon: Icon(
-                            Icons.calendar_today,
-                            color:
-                                dateFocusNode.hasFocus
-                                    ? AppColors.neon
-                                    : AppColors.black,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none,
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide(
-                              color: AppColors.neon,
-                              width: 2,
-                            ),
-                          ),
-                          labelStyle: TextStyle(
-                            fontSize: 16,
-                            fontFamily: 'Inter',
-                            fontWeight: FontWeight.normal,
-                            color:
-                                dateFocusNode.hasFocus
-                                    ? AppColors.neon
-                                    : AppColors.black,
+                    ),
+                  ),
+                  actions: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed:
+                                !isSaving
+                                    ? () async {
+                                      Navigator.of(context).pop();
+                                    }
+                                    : null,
+                            style:
+                                isSaving
+                                    ? Buttonstyle.buttonGray
+                                    : Buttonstyle.buttonRed,
+                            child: Text('Cancel', style: Textstyle.smallButton),
                           ),
                         ),
-                        validator:
-                            (val) =>
-                                _selectedDate == null
-                                    ? 'Please select a date'
-                                    : null,
-                        readOnly: true,
-                        onTap: () => _selectDate(context),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () async {
-                          final diagnosisText = diagnosisController.text.trim();
-                          final descriptionText =
-                              descriptionController.text.trim();
-                          final dateText = dateController.text;
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextButton(
+                            onPressed:
+                                isSaving
+                                    ? null
+                                    : () async {
+                                      final confirmed =
+                                          await showConfirmationDialog(
+                                            context,
+                                            'add',
+                                          );
+                                      if (!confirmed) return;
 
-                          if (diagnosisText.isEmpty &&
-                              descriptionText.isEmpty &&
-                              dateText.isEmpty) {
-                            _resetDateControllers();
-                            Navigator.of(context).pop();
-                          } else {
-                            final shouldDiscard =
-                                await showDiscardConfirmationDialog(context);
-                            if (shouldDiscard) Navigator.of(context).pop();
-                          }
-                        },
-                        style: Buttonstyle.buttonRed,
-                        child: Text('Cancel', style: Textstyle.smallButton),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () async {
-                          final diagnosis = diagnosisController.text.trim();
-                          final description = descriptionController.text.trim();
+                                      setState(() {
+                                        isSaving = true; // Set saving state
+                                      });
 
-                          if (diagnosis.isEmpty) {
-                            showToast(
-                              'Please specify the diagnosis.',
-                              backgroundColor: AppColors.red,
-                            );
-                          } else if (_selectedDate == null) {
-                            showToast(
-                              'Please specify the diagnosis date.',
-                              backgroundColor: AppColors.red,
-                            );
-                          } else {
-                            await _addDiagnosis(
-                              diagnosis,
-                              description,
-                              _selectedDate!,
-                            );
+                                      String diagnosis =
+                                          diagnosisController.text.trim();
+                                      String description =
+                                          descriptionController.text.trim();
 
-                            if (mounted) {
-                              _resetDateControllers();
-                              Navigator.of(context).pop();
-                              setState(() {}); // Refresh the diagnoses list
-                            }
-                          }
-                        },
-                        style: Buttonstyle.buttonNeon,
-                        child: Text('Save', style: Textstyle.smallButton),
-                      ),
+                                      diagnosis = diagnosis
+                                          .split(RegExp(r'\s+'))
+                                          .map(
+                                            (word) =>
+                                                word.isNotEmpty
+                                                    ? '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}'
+                                                    : '',
+                                          )
+                                          .join(' ');
+
+                                      if (diagnosis.isEmpty) {
+                                        showToast(
+                                          'Please specify the diagnosis.',
+                                          backgroundColor: AppColors.red,
+                                        );
+                                      } else if (_selectedDate == null) {
+                                        showToast(
+                                          'Please specify the diagnosis date.',
+                                          backgroundColor: AppColors.red,
+                                        );
+                                      } else {
+                                        await _addDiagnosis(
+                                          diagnosis,
+                                          description,
+                                          _selectedDate!,
+                                        );
+
+                                        _getDiagnoses();
+
+                                        if (mounted) {
+                                          _resetDateControllers();
+                                          Navigator.of(context).pop();
+                                        }
+                                      }
+
+                                      setState(() {
+                                        isSaving = false;
+                                      });
+                                    },
+                            style: Buttonstyle.buttonNeon,
+                            child:
+                                isSaving
+                                    ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        valueColor: AlwaysStoppedAnimation(
+                                          AppColors.white,
+                                        ),
+                                      ),
+                                    )
+                                    : Text(
+                                      'Save',
+                                      style: Textstyle.smallButton,
+                                    ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
-                ),
-              ],
+                );
+              },
             );
           },
         );
@@ -441,50 +512,97 @@ class _PatientHistoryState extends State<PatientHistory> {
     );
   }
 
-  void _showDiagnosisOptionsDialog(String diagnosisId) {
+  Future<void> _showDiagnosisOptionsDialog(String diagnosisId) async {
+    bool isDeleting = false;
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) {
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            return AlertDialog(
-              backgroundColor: AppColors.white,
-              title: Text('Options', style: Textstyle.subheader),
-              content: SizedBox(
-                width: constraints.maxWidth * 0.9,
-                child: Text(
-                  "Do you want to delete this record?",
-                  style: Textstyle.body,
-                ),
-              ),
-              actions: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () {
-                          _resetDateControllers();
-                          Navigator.of(context).pop();
-                        },
-                        style: Buttonstyle.buttonNeon,
-                        child: Text('Cancel', style: Textstyle.smallButton),
-                      ),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                return AlertDialog(
+                  backgroundColor: AppColors.white,
+                  title: Text('Options', style: Textstyle.subheader),
+                  content: SizedBox(
+                    width: constraints.maxWidth * 0.9,
+                    child: Text(
+                      "Are you sure you want to delete this record?",
+                      style: Textstyle.body,
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () async {
-                          await _deleteDiagnosis(diagnosisId);
-                          Navigator.of(context).pop();
-                          setState(() {}); // Refresh the diagnoses list
-                        },
-                        style: Buttonstyle.buttonRed,
-                        child: Text('Delete', style: Textstyle.smallButton),
-                      ),
+                  ),
+                  actions: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed:
+                                isDeleting
+                                    ? null
+                                    : () {
+                                      Navigator.of(context).pop();
+                                    },
+                            style:
+                                isDeleting
+                                    ? Buttonstyle.buttonGray
+                                    : Buttonstyle.buttonNeon,
+                            child: Text('Cancel', style: Textstyle.smallButton),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextButton(
+                            onPressed:
+                                isDeleting
+                                    ? null
+                                    : () async {
+                                      final confirmed =
+                                          await showConfirmationDialog(
+                                            context,
+                                            'delete',
+                                          );
+                                      if (!confirmed) return;
+
+                                      setState(() {
+                                        isDeleting = true; // Set deleting state
+                                      });
+
+                                      await _deleteDiagnosis(diagnosisId);
+                                      _getDiagnoses();
+
+                                      if (Navigator.of(context).canPop()) {
+                                        Navigator.of(context).pop();
+                                      }
+
+                                      setState(() {
+                                        isDeleting =
+                                            false; // Reset deleting state
+                                      });
+                                    },
+                            style: Buttonstyle.buttonRed,
+                            child:
+                                isDeleting
+                                    ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        valueColor: AlwaysStoppedAnimation(
+                                          AppColors.white,
+                                        ),
+                                      ),
+                                    )
+                                    : Text(
+                                      'Delete',
+                                      style: Textstyle.smallButton,
+                                    ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
-                ),
-              ],
+                );
+              },
             );
           },
         );
@@ -519,6 +637,59 @@ class _PatientHistoryState extends State<PatientHistory> {
                     onPressed: () => Navigator.of(dialogContext).pop(true),
                     style: Buttonstyle.buttonRed,
                     child: Text('Discard', style: Textstyle.smallButton),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+
+    return confirmed == true;
+  }
+
+  Future<bool> showConfirmationDialog(BuildContext context, String flag) async {
+    String message = '';
+    String buttonText = '';
+    if (flag == 'delete') {
+      message = 'Are you sure you want to delete this diagnosis?';
+      buttonText = 'Delete';
+    } else if (flag == 'add') {
+      message = 'Are you sure you want to add this diagnosis?';
+      buttonText = 'Add';
+    }
+
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: AppColors.white,
+          title: Text('Confirmation', style: Textstyle.subheader),
+          content: Text(message, style: Textstyle.body),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(false),
+                    style:
+                        flag == 'delete'
+                            ? Buttonstyle.buttonNeon
+                            : Buttonstyle.buttonRed,
+                    child: Text('Cancel', style: Textstyle.smallButton),
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(true),
+                    style:
+                        flag == 'delete'
+                            ? Buttonstyle.buttonRed
+                            : Buttonstyle.buttonNeon,
+                    child: Text(buttonText, style: Textstyle.smallButton),
                   ),
                 ),
               ],
@@ -667,7 +838,7 @@ class _PatientHistoryState extends State<PatientHistory> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        "Date",
+                                        "Diagnosis Date",
                                         style: Textstyle.body.copyWith(
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -710,7 +881,7 @@ class _PatientHistoryState extends State<PatientHistory> {
         backgroundColor: AppColors.neon,
         foregroundColor: AppColors.white,
         icon: const Icon(Icons.add),
-        label: const Text('Add Previous Diagnosis'),
+        label: const Text('Add Medical Record'),
       ),
     );
   }

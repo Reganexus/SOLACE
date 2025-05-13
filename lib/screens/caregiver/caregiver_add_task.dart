@@ -119,6 +119,8 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                   'startDate': startDate,
                   'endDate': endDate,
                   'isCompleted': isCompleted,
+                  'completedBy': data['completedBy'],
+                  'completedDate': data['completedDate'],
                 };
               })
               .where((task) => task['startDate'] != null)
@@ -444,6 +446,7 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
     String errorMessage = "";
     final FocusNode titleFocusNode = FocusNode();
     final FocusNode descriptionFocusNode = FocusNode();
+    bool _isAddingTask = false; // Add a state variable for tracking
 
     showDialog(
       context: context,
@@ -464,8 +467,13 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text("Add Task", style: Textstyle.subheader),
+                      Text(
+                        "Fields marked with * are required.",
+                        style: Textstyle.body,
+                      ),
                       const SizedBox(height: 20),
                       TextFormField(
+                        enabled: _isAddingTask ? false : true,
                         controller: _titleController,
                         focusNode: titleFocusNode,
                         textCapitalization: TextCapitalization.sentences,
@@ -474,12 +482,13 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                           FilteringTextInputFormatter.deny(RegExp(r'[\n]')),
                         ],
                         decoration: InputDecorationStyles.build(
-                          'Title',
+                          'Title *',
                           titleFocusNode,
                         ),
                       ),
                       const SizedBox(height: 10.0),
                       TextFormField(
+                        enabled: _isAddingTask ? false : true,
                         controller: _descriptionController,
                         focusNode: descriptionFocusNode,
                         textCapitalization: TextCapitalization.sentences,
@@ -496,12 +505,13 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
 
                       // Start Date Field
                       TextFormField(
+                        enabled: _isAddingTask ? false : true,
                         controller: _startDateController,
                         focusNode: _focusNodes[2],
                         textCapitalization: TextCapitalization.sentences,
                         readOnly: true,
                         decoration: InputDecorationStyles.build(
-                          "Start Date/Time",
+                          "Start Date/Time *",
                           _focusNodes[2],
                         ).copyWith(
                           suffixIcon: IconButton(
@@ -530,12 +540,13 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
 
                       // End Date Field
                       TextFormField(
+                        enabled: _isAddingTask ? false : true,
                         controller: _endDateController,
                         focusNode: _focusNodes[3],
                         textCapitalization: TextCapitalization.sentences,
                         readOnly: true,
                         decoration: InputDecorationStyles.build(
-                          "End Date/Time",
+                          "End Date/Time *",
                           _focusNodes[3],
                         ).copyWith(
                           suffixIcon: IconButton(
@@ -578,29 +589,37 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                         children: [
                           Expanded(
                             child: TextButton(
-                              onPressed: () async {
-                                final titleText = _titleController.text.trim();
-                                final descriptionText =
-                                    _descriptionController.text.trim();
-                                final startText = _startDateController.text;
-                                final endText = _endDateController.text;
+                              onPressed:
+                                  _isAddingTask
+                                      ? null
+                                      : () async {
+                                        final titleText =
+                                            _titleController.text.trim();
+                                        final descriptionText =
+                                            _descriptionController.text.trim();
+                                        final startText =
+                                            _startDateController.text;
+                                        final endText = _endDateController.text;
 
-                                if (titleText.isEmpty &&
-                                    descriptionText.isEmpty &&
-                                    startText.isEmpty &&
-                                    endText.isEmpty) {
-                                  Navigator.of(context).pop();
-                                } else {
-                                  final shouldDiscard =
-                                      await showDiscardConfirmationDialog(
-                                        context,
-                                      );
-                                  if (shouldDiscard) {
-                                    Navigator.of(context).pop();
-                                  }
-                                }
-                              },
-                              style: Buttonstyle.buttonRed,
+                                        if (titleText.isEmpty &&
+                                            descriptionText.isEmpty &&
+                                            startText.isEmpty &&
+                                            endText.isEmpty) {
+                                          Navigator.of(context).pop();
+                                        } else {
+                                          final shouldDiscard =
+                                              await showDiscardConfirmationDialog(
+                                                context,
+                                              );
+                                          if (shouldDiscard) {
+                                            Navigator.of(context).pop();
+                                          }
+                                        }
+                                      },
+                              style:
+                                  _isAddingTask
+                                      ? Buttonstyle.buttonGray
+                                      : Buttonstyle.buttonRed,
                               child: Text(
                                 "Cancel",
                                 style: Textstyle.smallButton,
@@ -610,71 +629,98 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
                           const SizedBox(width: 10.0),
                           Expanded(
                             child: TextButton(
-                              onPressed: () async {
-                                String taskTitle = _titleController.text.trim();
-                                String taskDescription =
-                                    _descriptionController.text.trim();
+                              onPressed:
+                                  _isAddingTask // Disable button while adding
+                                      ? null
+                                      : () async {
+                                        String taskTitle =
+                                            _titleController.text.trim();
+                                        String taskDescription =
+                                            _descriptionController.text.trim();
 
-                                if (taskTitle.isEmpty) {
-                                  showToast(
-                                    "Please provide a title for the task.",
-                                    backgroundColor: AppColors.red,
-                                  );
-                                } else if (taskDescription.isEmpty) {
-                                  showToast(
-                                    "Please provide the task description.",
-                                    backgroundColor: AppColors.red,
-                                  );
-                                } else if (taskStartDate == null) {
-                                  showToast(
-                                    "Please specify the starting date/time of the task.",
-                                    backgroundColor: AppColors.red,
-                                  );
-                                } else if (taskEndDate == null) {
-                                  showToast(
-                                    "Please specify the ending date/time of the task.",
-                                    backgroundColor: AppColors.red,
-                                  );
-                                } else if (taskStartDate!.isAfter(
-                                  taskEndDate!,
-                                )) {
-                                  showToast(
-                                    "The starting date/time must be set before ending date/time.",
-                                    backgroundColor: AppColors.red,
-                                  );
-                                } else {
-                                  // Show confirmation dialog before adding task
-                                  bool confirmAdd =
-                                      await _showTaskConfirmationDialog(
-                                        taskTitle,
-                                        taskDescription,
-                                        taskStartDate!,
-                                        taskEndDate!,
-                                      );
+                                        if (taskTitle.isEmpty) {
+                                          showToast(
+                                            "Please provide a title for the task.",
+                                            backgroundColor: AppColors.red,
+                                          );
+                                        } else if (taskDescription.isEmpty) {
+                                          showToast(
+                                            "Please provide the task description.",
+                                            backgroundColor: AppColors.red,
+                                          );
+                                        } else if (taskStartDate == null) {
+                                          showToast(
+                                            "Please specify the starting date/time of the task.",
+                                            backgroundColor: AppColors.red,
+                                          );
+                                        } else if (taskEndDate == null) {
+                                          showToast(
+                                            "Please specify the ending date/time of the task.",
+                                            backgroundColor: AppColors.red,
+                                          );
+                                        } else if (taskStartDate!.isAfter(
+                                          taskEndDate!,
+                                        )) {
+                                          showToast(
+                                            "The starting date/time must be set before ending date/time.",
+                                            backgroundColor: AppColors.red,
+                                          );
+                                        } else {
+                                          // Show confirmation dialog before adding task
+                                          bool confirmAdd =
+                                              await _showTaskConfirmationDialog(
+                                                taskTitle,
+                                                taskDescription,
+                                                taskStartDate!,
+                                                taskEndDate!,
+                                              );
 
-                                  taskTitle = _capitalizeSentences(taskTitle);
-                                  taskDescription = _capitalizeSentences(
-                                    taskDescription,
-                                  );
+                                          taskTitle = _capitalizeSentences(
+                                            taskTitle,
+                                          );
+                                          taskDescription =
+                                              _capitalizeSentences(
+                                                taskDescription,
+                                              );
 
-                                  if (confirmAdd) {
-                                    _addTask(
-                                      taskTitle,
-                                      taskDescription,
-                                      taskStartDate!,
-                                      taskEndDate!,
-                                    );
-                                    Navigator.pop(context);
-                                    _fetchPatientTasks();
-                                    _resetDateControllers();
-                                  }
-                                }
-                              },
+                                          if (confirmAdd) {
+                                            setModalState(() {
+                                              _isAddingTask =
+                                                  true; // Set state to adding
+                                            });
+                                            await _addTask(
+                                              taskTitle,
+                                              taskDescription,
+                                              taskStartDate!,
+                                              taskEndDate!,
+                                            );
+                                            if (mounted) Navigator.pop(context);
+                                            _fetchPatientTasks();
+                                            _resetDateControllers();
+                                            setModalState(() {
+                                              _isAddingTask =
+                                                  false; // Reset state
+                                            });
+                                          }
+                                        }
+                                      },
                               style: Buttonstyle.buttonNeon,
-                              child: Text(
-                                "Add Task",
-                                style: Textstyle.smallButton,
-                              ),
+                              child:
+                                  _isAddingTask // Show indicator if adding
+                                      ? SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                AppColors.white,
+                                              ),
+                                        ),
+                                      )
+                                      : Text(
+                                        "Add Task",
+                                        style: Textstyle.smallButton,
+                                      ),
                             ),
                           ),
                         ],
@@ -892,6 +938,8 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
     final DateTime startDate = task['startDate'];
     final DateTime endDate = task['endDate'];
     final bool isCompleted = task['isCompleted'];
+    final String caregiverName = task['completedBy'] ?? '';
+    final String completedDate = task['completedDate'] ?? '';
     final formattedStartDate = DateFormat(
       'MMMM dd, yyyy h:mm a',
     ).format(startDate);
@@ -946,6 +994,24 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (isCompleted) ...[
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Completed By",
+                          style: Textstyle.body.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          '$caregiverName on $completedDate',
+                          style: Textstyle.body,
+                        ),
+                        const SizedBox(height: 5),
+                      ],
+                    ),
+                  ],
                   Text(
                     "Description",
                     style: Textstyle.body.copyWith(fontWeight: FontWeight.bold),
@@ -975,64 +1041,113 @@ class _ViewPatientTaskState extends State<ViewPatientTask> {
   void _showTaskDetailsDialog(Map<String, dynamic> task) {
     final String title = task['title'] ?? 'Untitled Task';
     final String taskId = task['taskId'] ?? '';
+    bool _isDeletingTask = false;
+
     showDialog(
+      barrierDismissible: false,
       context: context,
       builder: (context) {
-        return Dialog(
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: Textstyle.subheader),
-                const SizedBox(height: 10.0),
-                Text("Do you want to delete this task?", style: Textstyle.body),
-                SizedBox(height: 20),
-                Row(
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () {
-                          Navigator.of(
-                            context,
-                          ).pop(); // Close dialog without doing anything
-                        },
-                        style: Buttonstyle.buttonNeon,
-                        child: Text('Cancel', style: Textstyle.smallButton),
-                      ),
+                    Text(title, style: Textstyle.subheader),
+                    const SizedBox(height: 10.0),
+                    Text(
+                      "Do you want to delete this task?",
+                      style: Textstyle.body,
                     ),
-                    const SizedBox(width: 10.0),
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () async {
-                          if (taskId.isNotEmpty) {
-                            String caregiverId =
-                                FirebaseAuth.instance.currentUser?.uid ?? '';
-                            await _removeTask(
-                              widget.patientId,
-                              taskId,
-                              caregiverId,
-                            ); // Remove task and refresh
-                            Navigator.of(context).pop(); // Close dialog
-                          }
-                        },
-                        style: Buttonstyle.buttonRed,
-                        child: Text(
-                          'Delete Task',
-                          style: Textstyle.smallButton,
+                    SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed:
+                                _isDeletingTask
+                                    ? null
+                                    : () {
+                                      Navigator.of(
+                                        context,
+                                      ).pop(); // Close dialog
+                                    },
+                            style:
+                                _isDeletingTask
+                                    ? Buttonstyle.buttonGray
+                                    : Buttonstyle.buttonNeon,
+                            child: Text('Cancel', style: Textstyle.smallButton),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 10.0),
+                        Expanded(
+                          child: TextButton(
+                            onPressed:
+                                _isDeletingTask
+                                    ? null
+                                    : () async {
+                                      String patientId = widget.patientId;
+                                      String caregiverId =
+                                          FirebaseAuth
+                                              .instance
+                                              .currentUser
+                                              ?.uid ??
+                                          '';
+                                      if (taskId.isNotEmpty &&
+                                          patientId.isNotEmpty) {
+                                        // Check patientId as well
+                                        setState(() {
+                                          _isDeletingTask = true;
+                                        });
+                                        await _removeTask(
+                                          patientId, // Use the passed patientId
+                                          taskId,
+                                          caregiverId,
+                                        );
+                                        if (mounted) {
+                                          Navigator.of(context).pop();
+                                        }
+                                      } else {
+                                        // Handle the case where patientId is unexpectedly null
+                                        print(
+                                          "Error: patientId is null during delete!",
+                                        );
+                                        // Optionally show an error message to the user
+                                      }
+                                    },
+                            style: Buttonstyle.buttonRed,
+                            child:
+                                _isDeletingTask // Show indicator if deleting
+                                    ? SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              AppColors.white,
+                                            ),
+                                      ),
+                                    )
+                                    : Text(
+                                      'Delete Task',
+                                      style: Textstyle.smallButton,
+                                    ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );

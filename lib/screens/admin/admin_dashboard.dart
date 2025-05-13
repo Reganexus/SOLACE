@@ -554,7 +554,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             ? null
                             : () async {
                               await _grantAccessToUser(uid, name);
-                              Navigator.of(context).pop();
+                              if (mounted) {
+                                showToast(
+                                  "Successfully granted access to $name",
+                                  backgroundColor: AppColors.neon,
+                                );
+                                Navigator.of(context).pop();
+                              }
                             },
                     style:
                         isLoading

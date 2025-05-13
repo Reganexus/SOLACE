@@ -70,7 +70,7 @@ class CasePickerWidgetState extends State<CasePickerWidget> {
         });
       }
     } catch (e) {
-//       debugPrint('Error fetching cases: $e');
+      //       debugPrint('Error fetching cases: $e');
     }
   }
 
@@ -146,7 +146,7 @@ class CasePickerWidgetState extends State<CasePickerWidget> {
               enabled: widget.enabled,
               onChanged: _onSearchChanged,
               decoration: InputDecoration(
-                labelText: 'Add Case',
+                labelText: 'Add Case *',
                 filled: true,
                 fillColor: AppColors.gray,
                 border: OutlineInputBorder(

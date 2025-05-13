@@ -340,6 +340,9 @@ class PatientTrackingState extends State<PatientTracking> {
   }
 
   Widget _buildVitalInputField(String key) {
+    if (_controllers[key] == null) {
+      _controllers[key] = TextEditingController();
+    }
     final controller = _controllers[key]!;
     final focusNode = _focusNodes[key]!;
 
@@ -450,11 +453,9 @@ class PatientTrackingState extends State<PatientTracking> {
         return Column(
           children: [
             SizedBox(height: 10.0),
-            _buildSlider('Pain', painValue, (newValue) {
+            _buildSlider('Pain *', painValue, (newValue) {
               setState(() {
                 _vitalInputs[key] = newValue.round().toString();
-                //                 debugPrint("Updated Pain value: ${_vitalInputs[key]}");
-                //                 debugPrint("Current _vitalInputs: $_vitalInputs");
               });
             }),
           ],
@@ -485,8 +486,8 @@ class PatientTrackingState extends State<PatientTracking> {
                   keyboardType: TextInputType.number,
                   decoration: InputDecorationStyles.build(
                     (key == 'Systolic' || key == 'Diastolic')
-                        ? 'Blood Pressure ($key)'
-                        : key,
+                        ? 'Blood Pressure ($key) *'
+                        : '$key *',
                     focusNode,
                   ).copyWith(
                     focusedBorder: OutlineInputBorder(
@@ -1033,7 +1034,11 @@ class PatientTrackingState extends State<PatientTracking> {
                 _buildVitalsInfo(),
                 const SizedBox(height: 20.0),
                 Text('Vitals', style: Textstyle.subheader),
-                const SizedBox(height: 10.0),
+                Text(
+                  "Fields marked with * are required.",
+                  style: Textstyle.body,
+                ),
+                const SizedBox(height: 10),
                 _buildVitalsInputs(),
                 const SizedBox(height: 10.0),
                 const Divider(),

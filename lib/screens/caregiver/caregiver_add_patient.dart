@@ -463,10 +463,12 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text("Fields marked with * are required.", style: Textstyle.body),
+          const SizedBox(height: 20),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Profile Image', style: Textstyle.subheader),
+              Text('Profile Image *', style: Textstyle.subheader),
               Text(
                 "Tap the camera icon to change the patient's profile image",
                 style: Textstyle.body,
@@ -583,7 +585,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
           CustomTextField(
             controller: firstNameController,
             focusNode: _focusNodes[0],
-            labelText: 'First Name',
+            labelText: 'First Name *',
             enabled: !_isLoading,
             validator: (value) => Validator.name(value?.trim()),
           ),
@@ -615,7 +617,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
           CustomTextField(
             controller: lastNameController,
             focusNode: _focusNodes[2],
-            labelText: 'Last Name',
+            labelText: 'Last Name *',
             enabled: !_isLoading,
             validator: (val) => Validator.name(val?.trim()),
             inputFormatters: [LengthLimitingTextInputFormatter(50)],
@@ -633,7 +635,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
               color: AppColors.black,
             ),
             decoration: InputDecoration(
-              labelText: 'Birthday',
+              labelText: 'Birthday *',
               filled: true,
               fillColor: AppColors.gray,
               suffixIcon: Icon(
@@ -668,7 +670,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
           CustomDropdownField<String>(
             value: gender.isNotEmpty ? gender : null,
             focusNode: _focusNodes[4],
-            labelText: 'Gender',
+            labelText: 'Gender *',
             items: ['Male', 'Female', 'Other'],
             onChanged: (val) => setState(() => gender = val ?? ''),
             validator:
@@ -681,7 +683,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
           CustomDropdownField<String>(
             value: religion.isNotEmpty ? religion : null,
             focusNode: _focusNodes[5],
-            labelText: 'Religion',
+            labelText: 'Religion *',
             items: religions,
             onChanged: (val) => setState(() => religion = val ?? ''),
             validator:
@@ -694,7 +696,7 @@ class _CaregiverAddPatientState extends State<CaregiverAddPatient> {
           CustomTextField(
             controller: addressController,
             focusNode: _focusNodes[6],
-            labelText: 'Address',
+            labelText: 'Address *',
             enabled: !_isLoading,
             validator: (val) => Validator.address(val?.trim()),
             inputFormatters: [LengthLimitingTextInputFormatter(200)],

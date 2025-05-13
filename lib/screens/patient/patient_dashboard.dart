@@ -665,6 +665,11 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
 
     // Collect all values for each key and preserve all timestamps
     for (var i = 0; i < data.length; i++) {
+      if (i >= timestampData.length) {
+        debugPrint("Index $i is out of range for timestampData");
+        break; // Prevent accessing out-of-range elements
+      }
+
       var record = data[i];
       var timestamp = timestampData[i]['timestamp'] as String;
 
@@ -686,67 +691,102 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
       });
     }
 
-    // Build a PageView for graphs
-    return SizedBox(
-      height: 300, // Adjust height as needed
-      child: PageView.builder(
-        itemCount: keyValues.length,
-        itemBuilder: (context, index) {
-          final key = keyValues.keys.elementAt(index);
-          final values = keyValues[key]!;
+    final pageController = PageController(viewportFraction: 0.85);
 
-          return Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              color: AppColors.gray,
-            ),
-            padding: const EdgeInsets.all(8.0),
-            child: SfCartesianChart(
-              title: ChartTitle(
-                text: key,
-                textStyle: Textstyle.bodySuperSmall.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.black,
-                ),
-              ),
-              primaryXAxis: CategoryAxis(
-                labelPlacement: LabelPlacement.onTicks,
-                labelRotation: 45,
-                majorGridLines: MajorGridLines(width: 0),
-                edgeLabelPlacement: EdgeLabelPlacement.shift,
-              ),
-              series: <CartesianSeries>[
-                SplineAreaSeries<double, String>(
-                  // Changed xValueMapper to String
-                  dataSource: values,
-                  xValueMapper:
-                      (value, index) =>
-                          timestamps[index], // Use timestamps as x-axis values
-                  yValueMapper: (value, _) => value,
-                  markerSettings: MarkerSettings(
-                    isVisible: true,
-                    color:
-                        title == 'Vitals' ? AppColors.neon : AppColors.purple,
-                    shape: DataMarkerType.circle,
-                    borderColor:
-                        title == 'Vitals' ? AppColors.neon : AppColors.purple,
-                    borderWidth: 2,
-                  ),
-                  borderColor:
-                      title == 'Vitals' ? AppColors.neon : AppColors.purple,
-                  borderWidth: 2,
-                  color:
-                      title == 'Vitals'
-                          ? AppColors.neon.withValues(alpha: 0.5)
-                          : AppColors.purple.withValues(alpha: 0.5),
-                  splineType: SplineType.natural,
-                  enableTooltip: true,
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final pageWidth = constraints.maxWidth * 9;
+        final pageHeight = 300.0;
+
+        return SizedBox(
+          height: pageHeight,
+          child: PageView.builder(
+            controller: pageController,
+            itemCount: keyValues.length,
+            itemBuilder: (context, index) {
+              final key = keyValues.keys.elementAt(index);
+              final values = keyValues[key]!;
+
+              return AnimatedBuilder(
+                animation: pageController,
+                builder: (context, child) {
+                  double value = 1;
+                  if (pageController.position.haveDimensions) {
+                    value = pageController.page! - index;
+                    value = (1 - (value.abs() * 0.2)).clamp(0.0, 1.0);
+                  }
+
+                  return Center(
+                    child: SizedBox(
+                      height: Curves.easeInOut.transform(value) * pageHeight,
+                      width: Curves.easeInOut.transform(value) * pageWidth,
+                      child: Padding(
+                        padding: const EdgeInsets.all(4.0),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            color: AppColors.gray,
+                          ),
+                          padding: const EdgeInsets.all(8.0),
+                          child: SfCartesianChart(
+                            title: ChartTitle(
+                              text: key,
+                              textStyle: Textstyle.bodySuperSmall.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.black,
+                              ),
+                            ),
+                            primaryXAxis: CategoryAxis(
+                              labelPlacement: LabelPlacement.onTicks,
+                              labelRotation: 45,
+                              majorGridLines: MajorGridLines(width: 0),
+                              edgeLabelPlacement: EdgeLabelPlacement.shift,
+                            ),
+                            series: <CartesianSeries>[
+                              SplineAreaSeries<double, String>(
+                                dataSource: values,
+                                xValueMapper:
+                                    (value, index) => timestamps[index],
+                                yValueMapper: (value, _) => value,
+                                markerSettings: MarkerSettings(
+                                  isVisible: true,
+                                  color:
+                                      title == 'Vitals'
+                                          ? AppColors.neon
+                                          : AppColors.purple,
+                                  shape: DataMarkerType.circle,
+                                  borderColor:
+                                      title == 'Vitals'
+                                          ? AppColors.neon
+                                          : AppColors.purple,
+                                  borderWidth: 2,
+                                ),
+                                borderColor:
+                                    title == 'Vitals'
+                                        ? AppColors.neon
+                                        : AppColors.purple,
+                                borderWidth: 2,
+                                color:
+                                    title == 'Vitals'
+                                        ? AppColors.neon.withValues(alpha: 0.5)
+                                        : AppColors.purple.withValues(
+                                          alpha: 0.5,
+                                        ),
+                                splineType: SplineType.natural,
+                                enableTooltip: true,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        );
+      },
     );
   }
 

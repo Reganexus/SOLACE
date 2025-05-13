@@ -236,7 +236,8 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
       await _logService.addLog(
         userId: caregiverId,
         relatedUsers: widget.patientId,
-        action: "$role $name prescribed $dosage of $medicineName $frequency to patient $patientName.",
+        action:
+            "$role $name prescribed $dosage of $medicineName $frequency to patient $patientName.",
       );
 
       refreshValues();
@@ -335,11 +336,12 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
   }
 
   void _showAddMedicineDialog() {
-    List<String> allMedicines = []; // List to store fetched medicines
-    String selectedMedicine = ''; // Selected medicine from the dropdown
+    List<String> allMedicines = [];
+    String selectedMedicine = '';
+    bool isLoading = false;
+    bool isAddingMedicine = false;
 
-    // Fetch medicines from Firestore
-    Future<void> _fetchGlobalMedicines() async {
+    Future<List<String>> _fetchGlobalMedicines() async {
       try {
         final doc =
             await FirebaseFirestore.instance
@@ -350,28 +352,32 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
         if (doc.exists) {
           final data = doc.data();
           if (data != null && data['medicines'] is List) {
-            allMedicines = List<String>.from(data['medicines']);
-            allMedicines.sort(
-              (a, b) => a.toLowerCase().compareTo(b.toLowerCase()),
-            );
+            final List<String> medicines =
+                List<String>.from(data['medicines']).toSet().toList()
+                  ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+            return medicines;
           }
         }
       } catch (e) {
-        //         debugPrint('Error fetching global medicines: $e');
+        debugPrint('Error fetching global medicines: $e');
       }
+      return [];
     }
 
-    // Show dialog
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) {
-        return FutureBuilder(
+        return FutureBuilder<List<String>>(
           future: _fetchGlobalMedicines(),
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
+            if (snapshot.hasError) {
+              return Center(
+                child: Text('Error loading medicines: ${snapshot.error}'),
+              );
             }
+
+            allMedicines = snapshot.data ?? [];
 
             return StatefulBuilder(
               builder: (context, setModalState) {
@@ -388,35 +394,32 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text("Add Prescription", style: Textstyle.subheader),
+                          Text(
+                            "Fields marked with * are required.",
+                            style: Textstyle.body,
+                          ),
                           const SizedBox(height: 20),
-
-                          // Medicine Name Dropdown/Search Field
                           CustomDropdownField<String>(
-                            enabled: true,
+                            enabled: !isLoading && !isAddingMedicine,
                             value:
-                                selectedMedicine.isNotEmpty
+                                allMedicines.contains(selectedMedicine)
                                     ? selectedMedicine
                                     : null,
                             focusNode: _focusNodes[0],
-                            labelText: "Medicine Name",
+                            labelText: "Medicine Name *",
                             items: allMedicines,
-                            onChanged: (value) {
-                              setModalState(() {
-                                selectedMedicine = value ?? '';
-                              });
-                            },
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return "Please select a medicine";
-                              }
-                              return null;
-                            },
+                            onChanged:
+                                (value) => setModalState(() {
+                                  selectedMedicine = value ?? '';
+                                }),
+                            validator:
+                                (value) =>
+                                    value == null || value.isEmpty
+                                        ? "Please select a medicine"
+                                        : null,
                             displayItem: (medicine) => medicine,
                           ),
-
                           const SizedBox(height: 10),
-
-                          // Dosage and Unit Fields
                           Row(
                             children: [
                               Expanded(
@@ -424,9 +427,9 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
                                 child: CustomTextField(
                                   controller: _dosageController,
                                   focusNode: _focusNodes[1],
-                                  labelText: "Dosage",
+                                  labelText: "Dosage *",
                                   keyboardType: TextInputType.number,
-                                  enabled: true,
+                                  enabled: !isLoading && !isAddingMedicine,
                                   inputFormatters: [
                                     FilteringTextInputFormatter.allow(
                                       RegExp(r'^\d*\.?\d*$'),
@@ -441,35 +444,33 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
                                 child: CustomDropdownField<String>(
                                   value: dosageUnit,
                                   focusNode: _focusNodes[2],
-                                  labelText: "Unit",
-                                  items: [
+                                  labelText: "Unit *",
+                                  items: const [
                                     "milligrams",
                                     "grams",
                                     "milliliters",
                                     "micrograms",
-                                    "kilograms"
+                                    "kilograms",
                                   ],
                                   onChanged:
                                       (value) => setModalState(() {
                                         dosageUnit = value ?? dosageUnit;
                                       }),
                                   displayItem: (item) => item,
-                                  enabled: true,
+                                  enabled: !isLoading && !isAddingMedicine,
                                 ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 10),
-
-                          // Frequency Dropdown
                           Row(
                             children: [
                               Expanded(
                                 child: CustomDropdownField<String>(
                                   value: frequency,
                                   focusNode: _focusNodes[3],
-                                  labelText: "Frequency",
-                                  items: [
+                                  labelText: "Frequency *",
+                                  items: const [
                                     "Once daily",
                                     "Twice daily (every 12 hours)",
                                     "Three times daily (every 8 hours)",
@@ -477,71 +478,43 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
                                     "Every 4 hours",
                                     "Once a week",
                                     "As needed (PRN)",
-                                    "Custom (specify in instructions)"
+                                    "Custom (specify in instructions)",
                                   ],
                                   onChanged:
                                       (value) => setModalState(() {
                                         frequency = value ?? frequency;
                                       }),
                                   displayItem: (item) => item,
-                                  enabled: true,
+                                  enabled: !isLoading && !isAddingMedicine,
                                 ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 10),
-                          // CustomDropdownField<String>(
-                          //   value: selectedFrequency.isNotEmpty
-                          //       ? selectedFrequency
-                          //       : null,
-                          //   focusNode: _focusNodes[3],
-                          //   labelText: "Frequency",
-                          //   items: [
-                          //     "Once daily",
-                          //     "Twice daily (every 12 hours)",
-                          //     "Three times daily (every 8 hours)",
-                          //     "Every 6 hours",
-                          //     "Every 4 hours",
-                          //     "Once a week",
-                          //     "As needed (PRN)",
-                          //     "Custom (specify in instructions)"
-                          //   ],
-                          //   onChanged: (value) {
-                          //     setModalState(() {
-                          //       selectedFrequency = value ?? '';
-                          //     });
-                          //   },
-                          //   validator: (value) {
-                          //     if (value == null || value.isEmpty) {
-                          //       return "Please select a frequency";
-                          //     }
-                          //     return null;
-                          //   },
-                          //   displayItem: (frequency) => frequency,
-                          // ),
-                          // const SizedBox(height: 10),
-
-                          // Usage Field
                           CustomTextField(
                             controller: _usageController,
                             focusNode: _focusNodes[4],
                             maxLines: 3,
-                            labelText: "Instructions",
-                            enabled: true,
+                            labelText: "Instructions *",
+                            enabled: !isLoading && !isAddingMedicine,
                             inputFormatters: [
                               LengthLimitingTextInputFormatter(200),
                             ],
                           ),
                           const SizedBox(height: 20),
-
-                          // Buttons
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Expanded(
                                 child: TextButton(
-                                  onPressed: () => Navigator.pop(context),
-                                  style: Buttonstyle.buttonRed,
+                                  onPressed:
+                                      isLoading || isAddingMedicine
+                                          ? null
+                                          : () => Navigator.pop(context),
+                                  style:
+                                      isLoading || isAddingMedicine
+                                          ? Buttonstyle.buttonGray
+                                          : Buttonstyle.buttonRed,
                                   child: Text(
                                     "Cancel",
                                     style: Textstyle.smallButton,
@@ -551,67 +524,94 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
                               const SizedBox(width: 10),
                               Expanded(
                                 child: TextButton(
-                                  onPressed: () async {
-                                    String dosage =
-                                        _dosageController.text.trim();
-                                    String usage = _usageController.text.trim();
+                                  onPressed:
+                                      isAddingMedicine
+                                          ? null
+                                          : () async {
+                                            setModalState(() {
+                                              isLoading = true;
+                                            });
 
-                                    if (selectedMedicine.isEmpty) {
-                                      showToast(
-                                        "Please provide the name of the medicine.",
-                                        backgroundColor: AppColors.red,
-                                      );
-                                    } else if (dosage.isEmpty) {
-                                      showToast(
-                                        "Please provide the dosage amount.",
-                                        backgroundColor: AppColors.red,
-                                      );
-                                    } else if (num.parse(dosage) > 100000) {
-                                      showToast(
-                                        "The dosage you entered is too high!",
-                                        backgroundColor: AppColors.red,
-                                      );
-                                    } else if (frequency.isEmpty) {
-                                      showToast(
-                                        "Please select a frequency.",
-                                        backgroundColor: AppColors.red,
-                                      );
-                                    } else if (usage.isEmpty) {
-                                      showToast(
-                                        "Please provide your instructed prescription.",
-                                        backgroundColor: AppColors.red,
-                                      );
-                                    } else {
-                                      // Confirm before adding the medicine
-                                      bool confirmAdd =
-                                          await _showMedicineConfirmationDialog(
-                                            selectedMedicine,
-                                            dosage,
-                                            dosageUnit,
-                                            usage,
-                                          );
+                                            final String dosage =
+                                                _dosageController.text.trim();
+                                            final String usage =
+                                                _usageController.text.trim();
 
-                                      if (confirmAdd) {
-                                        selectedMedicine = _capitalizeSentences(
-                                          selectedMedicine,
-                                        );
-                                        usage = _capitalizeSentences(usage);
+                                            if (selectedMedicine.isEmpty) {
+                                              showToast(
+                                                "Please provide the name of the medicine.",
+                                                backgroundColor: AppColors.red,
+                                              );
+                                            } else if (dosage.isEmpty) {
+                                              showToast(
+                                                "Please provide the dosage amount.",
+                                                backgroundColor: AppColors.red,
+                                              );
+                                            } else if (num.parse(dosage) >
+                                                100000) {
+                                              showToast(
+                                                "The dosage you entered is too high!",
+                                                backgroundColor: AppColors.red,
+                                              );
+                                            } else if (usage.isEmpty) {
+                                              showToast(
+                                                "Please provide your instructed prescription.",
+                                                backgroundColor: AppColors.red,
+                                              );
+                                            } else {
+                                              final bool confirmAdd =
+                                                  await _showMedicineConfirmationDialog(
+                                                    selectedMedicine,
+                                                    dosage,
+                                                    dosageUnit,
+                                                    usage,
+                                                  );
 
-                                        _addMedicine(
-                                          selectedMedicine,
-                                          "$dosage $dosageUnit",
-                                          frequency,
-                                          usage,
-                                        );
-                                        Navigator.pop(context);
-                                      }
-                                    }
-                                  },
+                                              if (confirmAdd) {
+                                                setModalState(() {
+                                                  isAddingMedicine = true;
+                                                });
+                                                final String
+                                                capitalizedMedicine =
+                                                    _capitalizeSentences(
+                                                      selectedMedicine,
+                                                    );
+                                                final String capitalizedUsage =
+                                                    _capitalizeSentences(usage);
+
+                                                await _addMedicine(
+                                                  capitalizedMedicine,
+                                                  "$dosage $dosageUnit",
+                                                  frequency,
+                                                  capitalizedUsage,
+                                                );
+                                                if (mounted) {
+                                                  Navigator.pop(context);
+                                                }
+                                              }
+                                            }
+
+                                            setModalState(() {
+                                              isLoading = false;
+                                            });
+                                          },
                                   style: Buttonstyle.buttonNeon,
-                                  child: Text(
-                                    "Prescribe",
-                                    style: Textstyle.smallButton,
-                                  ),
+                                  child:
+                                      isAddingMedicine
+                                          ? const SizedBox(
+                                            height: 20,
+                                            width: 20,
+                                            child: CircularProgressIndicator(
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                    Colors.white,
+                                                  ),
+                                            ),
+                                          )
+                                          : Text(
+                                            "Prescribe",
+                                            style: Textstyle.smallButton,
+                                          ),
                                 ),
                               ),
                             ],
@@ -629,7 +629,6 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
     );
   }
 
-  // Confirmation dialog for adding the medicine
   Future<bool> _showMedicineConfirmationDialog(
     String medicineName,
     String dosage,
@@ -808,16 +807,11 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
                   // Frequency Text
                   Text(
                     frequency,
-                    style: Textstyle.body.copyWith(
-                      fontStyle: FontStyle.italic,
-                    ),
+                    style: Textstyle.body.copyWith(fontStyle: FontStyle.italic),
                   ),
                   const SizedBox(height: 5),
                   // Usage Text
-                  Text(
-                    usage,
-                    style: Textstyle.body,
-                  ),
+                  Text(usage, style: Textstyle.body),
                 ],
               ),
             ),
@@ -851,99 +845,105 @@ class _ViewPatientMedicineState extends State<ViewPatientMedicine> {
   void _showMedicineDetailsDialog(Map<String, dynamic> medicine) {
     final String medicineName = medicine['medicineName'] ?? 'Untitled Medicine';
     final String medicineId = medicine['medicineId'] ?? '';
+    bool _isRemovingMedicine = false; // State for tracking removal
+
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) {
-        return Dialog(
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(medicineName, style: Textstyle.subheader),
-                const SizedBox(height: 10.0),
-                Text(
-                  "Do you want to remove this prescription?",
-                  style: Textstyle.body,
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(15),
                 ),
-                SizedBox(height: 20),
-                Row(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () {
-                          Navigator.of(
-                            context,
-                          ).pop(); // Close dialog without doing anything
-                        },
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 15,
-                            vertical: 5,
-                          ),
-                          backgroundColor: AppColors.neon,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: const Text(
-                          'Cancel',
-                          style: TextStyle(
-                            fontSize: 16.0,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Inter',
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
+                    Text(medicineName, style: Textstyle.subheader),
+                    const SizedBox(height: 10.0),
+                    Text(
+                      "Do you want to remove this prescription?",
+                      style: Textstyle.body,
                     ),
-                    const SizedBox(width: 10.0),
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () async {
-                          if (medicineId.isNotEmpty) {
-                            String caregiverId =
-                                FirebaseAuth.instance.currentUser?.uid ?? '';
-                            await _removeMedicine(
-                              widget.patientId,
-                              medicineId,
-                              caregiverId,
-                            ); // Remove task and refresh
-                            Navigator.of(context).pop(); // Close dialog
-                          }
-                        },
-
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 15,
-                            vertical: 5,
-                          ),
-                          backgroundColor: AppColors.red,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                    SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed:
+                                _isRemovingMedicine
+                                    ? null // Disable button while removing
+                                    : () {
+                                      Navigator.of(context).pop();
+                                    },
+                            style:
+                                _isRemovingMedicine
+                                    ? Buttonstyle.buttonGray
+                                    : Buttonstyle.buttonNeon,
+                            child: Text('Cancel', style: Textstyle.smallButton),
                           ),
                         ),
-                        child: const Text(
-                          'Delete',
-                          style: TextStyle(
-                            fontSize: 16.0,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Inter',
-                            color: Colors.white,
+                        const SizedBox(width: 10.0),
+                        Expanded(
+                          child: TextButton(
+                            onPressed:
+                                _isRemovingMedicine
+                                    ? null // Disable button while removing
+                                    : () async {
+                                      if (medicineId.isNotEmpty) {
+                                        setState(() {
+                                          _isRemovingMedicine =
+                                              true; // Set removing state
+                                        });
+                                        String caregiverId =
+                                            FirebaseAuth
+                                                .instance
+                                                .currentUser
+                                                ?.uid ??
+                                            '';
+                                        await _removeMedicine(
+                                          widget.patientId,
+                                          medicineId,
+                                          caregiverId,
+                                        );
+                                        if (mounted) {
+                                          Navigator.of(
+                                            context,
+                                          ).pop(); // Close dialog
+                                        }
+                                      }
+                                    },
+                            style: Buttonstyle.buttonRed,
+                            child:
+                                _isRemovingMedicine
+                                    ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              Colors.white,
+                                            ),
+                                      ),
+                                    )
+                                    : Text(
+                                      'Delete',
+                                      style: Textstyle.smallButton,
+                                    ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );

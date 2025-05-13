@@ -33,11 +33,20 @@ class PatientNoteState extends State<PatientNote> {
   DateTime? userCreatedDate;
   bool isLoading = true;
   late String patientName = '';
+  Set<DateTime> noteDates = {};
 
   @override
   void initState() {
     super.initState();
     fetchNotesForDay(selectedDay);
+    _fetchAllNoteDates().then((dates) {
+      setState(() {
+        noteDates = dates;
+      });
+
+      print("Note Dates: $noteDates");
+    });
+
     fetchUserCreationDate();
     _loadPatientName();
   }
@@ -85,6 +94,35 @@ class PatientNoteState extends State<PatientNote> {
     } catch (e) {
       //     debugPrint("Error fetching user creation date: $e");
     }
+  }
+
+  Future<Set<DateTime>> _fetchAllNoteDates() async {
+    Set<DateTime> noteDates = {};
+    try {
+      final notesSnapshot =
+          await FirebaseFirestore.instance
+              .collection('patient')
+              .doc(widget.patientId)
+              .collection('notes')
+              .get();
+
+      for (var doc in notesSnapshot.docs) {
+        final data = doc.data();
+        if (data.containsKey('date')) {
+          try {
+            final parsedDate = DateFormat('yyyy-MM-dd').parse(data['date']);
+            noteDates.add(parsedDate);
+          } catch (e) {
+            // Handle potential parsing errors
+            // debugPrint('Error parsing date: ${data['date']}, error: $e');
+          }
+        }
+      }
+    } catch (e) {
+      // Handle error fetching all notes
+      // debugPrint('Error fetching all note dates: $e');
+    }
+    return noteDates;
   }
 
   Future<void> fetchNotesForDay(DateTime day) async {
@@ -185,6 +223,13 @@ class PatientNoteState extends State<PatientNote> {
       );
 
       fetchNotesForDay(selectedDay);
+      _fetchAllNoteDates().then((dates) {
+        setState(() {
+          noteDates = dates;
+        });
+
+        print("Note Dates: $noteDates");
+      });
       showToast('Note added successfully!');
     } catch (e) {
       showToast('Error adding note: $e', backgroundColor: AppColors.red);
@@ -241,9 +286,94 @@ class PatientNoteState extends State<PatientNote> {
       );
 
       fetchNotesForDay(selectedDay);
+      _fetchAllNoteDates().then((dates) {
+        setState(() {
+          noteDates = dates;
+        });
+
+        print("Note Dates: $noteDates");
+      });
       showToast('Note deleted successfully!');
     } catch (e) {
       showToast('Error deleting note: $e', backgroundColor: AppColors.red);
+    }
+  }
+
+  Future<void> _updateNote(
+    String noteId,
+    String updatedTitle,
+    String updatedNote,
+  ) async {
+    try {
+      final noteRef = FirebaseFirestore.instance
+          .collection('patient')
+          .doc(widget.patientId)
+          .collection('notes')
+          .doc(noteId);
+
+      await noteRef.update({'title': updatedTitle, 'note': updatedNote});
+
+      final user = _auth.currentUser;
+
+      if (user == null) {
+        showToast("User is not Authenticated", backgroundColor: AppColors.red);
+        return;
+      }
+
+      if (user.uid == null) {
+        showToast("User is id Null", backgroundColor: AppColors.red);
+        return;
+      }
+
+      final String? role = await databaseService.fetchAndCacheUserRole(
+        user.uid,
+      );
+      final String userRole =
+          '${role!.substring(0, 1).toUpperCase()}${role.substring(1)}';
+      final String? name = await databaseService.fetchUserName(user.uid);
+
+      if (user == null) {
+        showToast("User is not Authenticated", backgroundColor: AppColors.red);
+        return;
+      }
+
+      if (user.uid == null) {
+        showToast("User is id Null", backgroundColor: AppColors.red);
+        return;
+      }
+
+      final String userId = user.uid;
+
+      await _logService.addLog(
+        userId: userId,
+        action: "Updated note $updatedTitle for patient $patientName",
+      );
+
+      await notificationService.sendInAppNotificationToTaggedUsers(
+        patientId: widget.patientId,
+        currentUserId: user.uid,
+        notificationMessage:
+            "$userRole $name updated a note from patient $patientName.",
+        type: "note",
+      );
+
+      await notificationService.sendNotificationToTaggedUsers(
+        widget.patientId,
+        "Updated Patient Note",
+        "$userRole $name updated a note from patient $patientName.",
+      );
+
+      fetchNotesForDay(selectedDay);
+      _fetchAllNoteDates().then((dates) {
+        setState(() {
+          noteDates = dates;
+        });
+
+        print("Note Dates: $noteDates");
+      });
+      showToast('Note updated successfully!');
+    } catch (e) {
+      showToast('Error updating note: $e', backgroundColor: AppColors.red);
     }
   }
 
@@ -331,121 +461,189 @@ class PatientNoteState extends State<PatientNote> {
     final TextEditingController titleController = TextEditingController();
     final FocusNode titleFocusNode = FocusNode();
     final FocusNode noteFocusNode = FocusNode();
+    bool isSaving = false;
 
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) {
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            return AlertDialog(
-              backgroundColor: AppColors.white,
-              title: Text('Add Note for Today', style: Textstyle.subheader),
-              content: SizedBox(
-                width: constraints.maxWidth * 0.9,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextFormField(
-                        controller: titleController,
-                        focusNode: titleFocusNode,
-                        maxLength: 50,
-                        inputFormatters: [
-                          LengthLimitingTextInputFormatter(50),
-                          FilteringTextInputFormatter.deny(RegExp(r'[\n]')),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                return AlertDialog(
+                  backgroundColor: AppColors.white,
+                  content: SizedBox(
+                    width: constraints.maxWidth * 0.9,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Add Note for Today',
+                            style: Textstyle.subheader,
+                          ),
+                          Text(
+                            "Fields marked with * are required.",
+                            style: Textstyle.body,
+                          ),
+                          const SizedBox(height: 20),
+                          TextFormField(
+                            enabled: isSaving ? false : true,
+                            controller: titleController,
+                            focusNode: titleFocusNode,
+                            maxLength: 50,
+                            inputFormatters: [
+                              LengthLimitingTextInputFormatter(50),
+                              FilteringTextInputFormatter.deny(RegExp(r'[\n]')),
+                            ],
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                showToast(
+                                  'Title is required',
+                                  backgroundColor: AppColors.red,
+                                );
+                              }
+                              return null;
+                            },
+                            decoration: InputDecorationStyles.build(
+                              'Title *',
+                              titleFocusNode,
+                            ),
+                          ),
+                          const SizedBox(height: 10.0),
+                          TextFormField(
+                            enabled: isSaving ? false : true,
+                            controller: noteController,
+                            focusNode: noteFocusNode,
+                            maxLength: 1000,
+                            maxLines: 6,
+                            inputFormatters: [
+                              LengthLimitingTextInputFormatter(1000),
+                            ],
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                showToast(
+                                  'Note content is required',
+                                  backgroundColor: AppColors.red,
+                                );
+                              }
+                              return null;
+                            },
+                            decoration: InputDecorationStyles.build(
+                              'Note *',
+                              noteFocusNode,
+                            ),
+                          ),
                         ],
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            showToast(
-                              'Title is required',
-                              backgroundColor: AppColors.red,
-                            );
-                          }
-                          return null;
-                        },
-                        decoration: InputDecorationStyles.build(
-                          'Title',
-                          titleFocusNode,
-                        ),
-                      ),
-                      const SizedBox(height: 10.0),
-                      TextFormField(
-                        controller: noteController,
-                        focusNode: noteFocusNode,
-                        maxLength: 1000,
-                        maxLines: 6,
-                        inputFormatters: [
-                          LengthLimitingTextInputFormatter(1000),
-                        ],
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            showToast(
-                              'Note content is required',
-                              backgroundColor: AppColors.red,
-                            );
-                          }
-                          return null;
-                        },
-                        decoration: InputDecorationStyles.build(
-                          'Note',
-                          noteFocusNode,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () async {
-                          final titleText = titleController.text.trim();
-                          final noteText = noteController.text.trim();
-
-                          if (titleText.isEmpty && noteText.isEmpty) {
-                            Navigator.of(context).pop();
-                          } else {
-                            final shouldDiscard =
-                                await showDiscardConfirmationDialog(context);
-                            if (shouldDiscard) Navigator.of(context).pop();
-                          }
-                        },
-                        style: Buttonstyle.buttonRed,
-                        child: Text('Cancel', style: Textstyle.smallButton),
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () async {
-                          final noteText = noteController.text.trim();
-                          final titleText = titleController.text.trim();
+                  ),
+                  actions: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed:
+                                isSaving
+                                    ? null
+                                    : () async {
+                                      final titleText =
+                                          titleController.text.trim();
+                                      final noteText =
+                                          noteController.text.trim();
 
-                          if (titleText.isEmpty) {
-                            showToast(
-                              'Please provide a title for your note.',
-                              backgroundColor: AppColors.red,
-                            );
-                          } else if (noteText.isEmpty) {
-                            showToast(
-                              'Please provide the content for your note.',
-                              backgroundColor: AppColors.red,
-                            );
-                          } else {
-                            await addNoteForToday(titleText, noteText);
-                            Navigator.of(context).pop();
-                          }
-                        },
-                        style: Buttonstyle.buttonNeon,
-                        child: Text('Save', style: Textstyle.smallButton),
-                      ),
+                                      if (titleText.isEmpty &&
+                                          noteText.isEmpty) {
+                                        Navigator.of(context).pop();
+                                      } else {
+                                        final shouldDiscard =
+                                            await showDiscardConfirmationDialog(
+                                              context,
+                                            );
+                                        if (shouldDiscard) {
+                                          Navigator.of(context).pop();
+                                        }
+                                      }
+                                    },
+                            style:
+                                isSaving
+                                    ? Buttonstyle.buttonGray
+                                    : Buttonstyle.buttonRed,
+                            child: Text('Cancel', style: Textstyle.smallButton),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextButton(
+                            onPressed:
+                                isSaving
+                                    ? null
+                                    : () async {
+                                      final noteText =
+                                          noteController.text.trim();
+                                      final titleText =
+                                          titleController.text.trim();
+                                      FocusScope.of(context).unfocus();
+
+                                      if (titleText.isEmpty) {
+                                        showToast(
+                                          'Please provide a title for your note.',
+                                          backgroundColor: AppColors.red,
+                                        );
+                                      } else if (noteText.isEmpty) {
+                                        showToast(
+                                          'Please provide the content for your note.',
+                                          backgroundColor: AppColors.red,
+                                        );
+                                      } else {
+                                        final shouldSave =
+                                            await showConfirmationDialog(
+                                              context,
+                                              'add',
+                                            );
+                                        if (shouldSave) {
+                                          setState(() {
+                                            isSaving = true;
+                                          });
+                                          await addNoteForToday(
+                                            titleText,
+                                            noteText,
+                                          );
+                                          setState(() {
+                                            isSaving = false;
+                                          });
+                                          if (mounted) {
+                                            Navigator.of(context).pop();
+                                          }
+                                        }
+                                      }
+                                    },
+                            style: Buttonstyle.buttonNeon,
+                            child:
+                                isSaving
+                                    ? SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              AppColors.white,
+                                            ),
+                                      ),
+                                    )
+                                    : Text(
+                                      'Save',
+                                      style: Textstyle.smallButton,
+                                    ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
-                ),
-              ],
+                );
+              },
             );
           },
         );
@@ -462,93 +660,268 @@ class PatientNoteState extends State<PatientNote> {
     );
     final FocusNode titleFocusNode = FocusNode();
     final FocusNode noteFocusNode = FocusNode();
+    bool isSaving = false;
 
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) {
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            return AlertDialog(
-              backgroundColor: AppColors.white,
-              title: Text('Edit Note', style: Textstyle.subheader),
-              content: SizedBox(
-                width: constraints.maxWidth * 0.9,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextFormField(
-                        controller: titleController,
-                        focusNode: titleFocusNode,
-                        maxLength: 50,
-                        inputFormatters: [
-                          LengthLimitingTextInputFormatter(50),
-                          FilteringTextInputFormatter.deny(RegExp(r'[\n]')),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                return AlertDialog(
+                  backgroundColor: AppColors.white,
+                  content: SizedBox(
+                    width: constraints.maxWidth * 0.9,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('Edit Note', style: Textstyle.subheader),
+                          const SizedBox(height: 20),
+                          TextFormField(
+                            enabled: isSaving ? false : true,
+                            controller: titleController,
+                            focusNode: titleFocusNode,
+                            maxLength: 50,
+                            inputFormatters: [
+                              LengthLimitingTextInputFormatter(50),
+                              FilteringTextInputFormatter.deny(RegExp(r'[\n]')),
+                            ],
+                            decoration: InputDecorationStyles.build(
+                              'Title',
+                              titleFocusNode,
+                            ),
+                          ),
+                          const SizedBox(height: 10.0),
+                          TextFormField(
+                            enabled: isSaving ? false : true,
+                            controller: noteController,
+                            focusNode: noteFocusNode,
+                            maxLength: 1000,
+                            maxLines: 6,
+                            inputFormatters: [
+                              LengthLimitingTextInputFormatter(1000),
+                            ],
+                            decoration: InputDecorationStyles.build(
+                              'Note',
+                              noteFocusNode,
+                            ),
+                          ),
                         ],
-                        decoration: InputDecorationStyles.build(
-                          'Title',
-                          titleFocusNode,
-                        ),
                       ),
-                      const SizedBox(height: 10.0),
-                      TextFormField(
-                        controller: noteController,
-                        focusNode: noteFocusNode,
-                        maxLength: 1000,
-                        maxLines: 6,
-                        inputFormatters: [
-                          LengthLimitingTextInputFormatter(1000),
-                        ],
-                        decoration: InputDecorationStyles.build(
-                          'Note',
-                          noteFocusNode,
+                    ),
+                  ),
+                  actions: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed:
+                                isSaving
+                                    ? null
+                                    : () async {
+                                      Navigator.of(context).pop();
+                                    },
+                            style:
+                                isSaving
+                                    ? Buttonstyle.buttonGray
+                                    : Buttonstyle.buttonRed,
+                            child: Text('Cancel', style: Textstyle.smallButton),
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextButton(
+                            onPressed:
+                                isSaving
+                                    ? null
+                                    : () async {
+                                      final noteText =
+                                          noteController.text.trim();
+                                      final titleText =
+                                          titleController.text.trim();
+
+                                      if (titleText.isEmpty) {
+                                        showToast(
+                                          'Please provide a title for your note.',
+                                          backgroundColor: AppColors.red,
+                                        );
+                                      } else if (noteText.isEmpty) {
+                                        showToast(
+                                          'Please provide the content for your note.',
+                                          backgroundColor: AppColors.red,
+                                        );
+                                      } else {
+                                        final shouldSave =
+                                            await showConfirmationDialog(
+                                              context,
+                                              'edit',
+                                            );
+                                        if (shouldSave) {
+                                          setState(() {
+                                            isSaving = true;
+                                          });
+                                          await _updateNote(
+                                            note['noteId'],
+                                            titleText,
+                                            noteText,
+                                          );
+                                          setState(() {
+                                            isSaving = false;
+                                          });
+                                          if (mounted) {
+                                            Navigator.of(context).pop();
+                                          }
+                                        }
+                                      }
+                                    },
+                            style: Buttonstyle.buttonNeon,
+                            child:
+                                isSaving
+                                    ? SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              AppColors.white,
+                                            ),
+                                      ),
+                                    )
+                                    : Text(
+                                      'Save',
+                                      style: Textstyle.smallButton,
+                                    ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<bool> showConfirmationDialog(BuildContext context, String flag) async {
+    String message = '';
+    String buttonText = '';
+    if (flag == 'edit') {
+      message = 'Are you sure you want to edit this note?';
+      buttonText = 'Delete';
+    } else if (flag == 'add') {
+      message = 'Are you sure you want to add this note?';
+      buttonText = 'Add';
+    }
+
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: AppColors.white,
+          title: Text('Confirmation', style: Textstyle.subheader),
+          content: Text(message, style: Textstyle.body),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(false),
+                    style: Buttonstyle.buttonRed,
+                    child: Text('Cancel', style: Textstyle.smallButton),
                   ),
                 ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(true),
+                    style: Buttonstyle.buttonNeon,
+                    child: Text(buttonText, style: Textstyle.smallButton),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+
+    return confirmed == true;
+  }
+
+  Future<void> showDeleteConfirmationDialog(
+    BuildContext context,
+    Map<String, dynamic> note,
+  ) async {
+    bool isDeleting = false;
+    await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: AppColors.white,
+              title: Text('Confirmation', style: Textstyle.subheader),
+              content: Text(
+                'Are you sure you want to delete this note?',
+                style: Textstyle.body,
               ),
               actions: [
                 Row(
                   children: [
                     Expanded(
                       child: TextButton(
-                        onPressed: () async {
-                          Navigator.of(context).pop();
-                        },
-                        style: Buttonstyle.buttonRed,
+                        onPressed:
+                            isDeleting
+                                ? null
+                                : () => Navigator.of(dialogContext).pop(false),
+                        style:
+                            isDeleting
+                                ? Buttonstyle.buttonGray
+                                : Buttonstyle.buttonNeon,
                         child: Text('Cancel', style: Textstyle.smallButton),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    SizedBox(width: 10),
                     Expanded(
                       child: TextButton(
-                        onPressed: () async {
-                          final noteText = noteController.text.trim();
-                          final titleText = titleController.text.trim();
-
-                          if (titleText.isEmpty) {
-                            showToast(
-                              'Please provide a title for your note.',
-                              backgroundColor: AppColors.red,
-                            );
-                          } else if (noteText.isEmpty) {
-                            showToast(
-                              'Please provide the content for your note.',
-                              backgroundColor: AppColors.red,
-                            );
-                          } else {
-                            await _updateNote(
-                              note['noteId'],
-                              titleText,
-                              noteText,
-                            ); // Update the note in Firestore
-                            Navigator.of(context).pop();
-                          }
-                        },
-                        style: Buttonstyle.buttonNeon,
-                        child: Text('Save', style: Textstyle.smallButton),
+                        onPressed:
+                            isDeleting
+                                ? null
+                                : () async {
+                                  setState(() {
+                                    isDeleting = true;
+                                  });
+                                  await _deleteNote(note);
+                                  setState(() {
+                                    isDeleting = false;
+                                  });
+                                  if (mounted) {
+                                    Navigator.of(dialogContext).pop(true);
+                                  }
+                                  if (mounted) Navigator.of(context).pop();
+                                },
+                        style: Buttonstyle.buttonRed,
+                        child:
+                            isDeleting
+                                ? SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      AppColors.white,
+                                    ),
+                                  ),
+                                )
+                                : Text('Confirm', style: Textstyle.smallButton),
                       ),
                     ),
                   ],
@@ -561,75 +934,44 @@ class PatientNoteState extends State<PatientNote> {
     );
   }
 
-  Future<void> _updateNote(
-    String noteId,
-    String updatedTitle,
-    String updatedNote,
-  ) async {
-    try {
-      final noteRef = FirebaseFirestore.instance
-          .collection('patient')
-          .doc(widget.patientId)
-          .collection('notes')
-          .doc(noteId);
+  Future<bool> showDiscardConfirmationDialog(BuildContext context) async {
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: AppColors.white,
+          title: Text('Discard Changes?', style: Textstyle.subheader),
+          content: Text(
+            'You have unsaved changes. Do you want to discard them?',
+            style: Textstyle.body,
+          ),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(false),
+                    style: Buttonstyle.buttonNeon,
+                    child: Text('Cancel', style: Textstyle.smallButton),
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(true),
+                    style: Buttonstyle.buttonRed,
+                    child: Text('Discard', style: Textstyle.smallButton),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
 
-      await noteRef.update({'title': updatedTitle, 'note': updatedNote});
-
-      final user = _auth.currentUser;
-
-      if (user == null) {
-        showToast("User is not Authenticated", backgroundColor: AppColors.red);
-        return;
-      }
-
-      if (user.uid == null) {
-        showToast("User is id Null", backgroundColor: AppColors.red);
-        return;
-      }
-
-      final String? role = await databaseService.fetchAndCacheUserRole(
-        user.uid,
-      );
-      final String userRole =
-          '${role!.substring(0, 1).toUpperCase()}${role.substring(1)}';
-      final String? name = await databaseService.fetchUserName(user.uid);
-
-      if (user == null) {
-        showToast("User is not Authenticated", backgroundColor: AppColors.red);
-        return;
-      }
-
-      if (user.uid == null) {
-        showToast("User is id Null", backgroundColor: AppColors.red);
-        return;
-      }
-
-      final String userId = user.uid;
-
-      await _logService.addLog(
-        userId: userId,
-        action: "Updated note $updatedTitle for patient $patientName",
-      );
-
-      await notificationService.sendInAppNotificationToTaggedUsers(
-        patientId: widget.patientId,
-        currentUserId: user.uid,
-        notificationMessage:
-            "$userRole $name updated a note from patient $patientName.",
-        type: "note",
-      );
-
-      await notificationService.sendNotificationToTaggedUsers(
-        widget.patientId,
-        "Updated Patient Note",
-        "$userRole $name updated a note from patient $patientName.",
-      );
-
-      fetchNotesForDay(selectedDay);
-      showToast('Note updated successfully!');
-    } catch (e) {
-      showToast('Error updating note: $e', backgroundColor: AppColors.red);
-    }
+    return confirmed == true;
   }
 
   Widget _buildLegendItem(Color color, String label) {
@@ -668,90 +1010,6 @@ class PatientNoteState extends State<PatientNote> {
     );
   }
 
-  Future<void> showDeleteConfirmationDialog(
-    BuildContext context,
-    Map<String, dynamic> note,
-  ) async {
-    final bool? confirmed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          backgroundColor: AppColors.white,
-          title: Text('Confirmation', style: Textstyle.subheader),
-          content: Text(
-            'Are you sure you want to delete this note?',
-            style: Textstyle.body,
-          ),
-          actions: [
-            Row(
-              children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.of(dialogContext).pop(false),
-                    style: Buttonstyle.buttonNeon,
-                    child: Text('Cancel', style: Textstyle.smallButton),
-                  ),
-                ),
-                SizedBox(width: 10),
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.of(dialogContext).pop(true),
-                    style: Buttonstyle.buttonRed,
-                    child: Text('Confirm', style: Textstyle.smallButton),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed == true) {
-      _deleteNote(note);
-      Navigator.of(context).pop();
-    }
-  }
-
-  Future<bool> showDiscardConfirmationDialog(BuildContext context) async {
-    final bool? confirmed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          backgroundColor: AppColors.white,
-          title: Text('Discard Changes?', style: Textstyle.subheader),
-          content: Text(
-            'You have unsaved changes. Do you want to discard them?',
-            style: Textstyle.body,
-          ),
-          actions: [
-            Row(
-              children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.of(dialogContext).pop(false),
-                    style: Buttonstyle.buttonNeon,
-                    child: Text('Cancel', style: Textstyle.smallButton),
-                  ),
-                ),
-                SizedBox(width: 10),
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.of(dialogContext).pop(true),
-                    style: Buttonstyle.buttonRed,
-                    child: Text('Discard', style: Textstyle.smallButton),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        );
-      },
-    );
-
-    return confirmed == true;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -779,9 +1037,7 @@ class PatientNoteState extends State<PatientNote> {
                 focusedDay: selectedDay,
                 firstDay:
                     userCreatedDate ??
-                    DateTime.now().subtract(
-                      const Duration(days: 30),
-                    ), // Default to 30 days ago
+                    DateTime.now().subtract(const Duration(days: 30)),
                 lastDay: DateTime.now(),
                 selectedDayPredicate: (day) => isSameDay(day, selectedDay),
                 enabledDayPredicate: (day) {
@@ -827,7 +1083,7 @@ class PatientNoteState extends State<PatientNote> {
                   ),
                   outsideTextStyle: Textstyle.body.copyWith(
                     color: AppColors.blackTransparent,
-                  ), // Dimmed color for outside days
+                  ),
                 ),
                 headerStyle: HeaderStyle(
                   formatButtonVisible: false,
@@ -835,24 +1091,85 @@ class PatientNoteState extends State<PatientNote> {
                   leftChevronIcon: const Icon(
                     Icons.chevron_left_rounded,
                     color: AppColors.white,
-                  ), // Light color for chevrons
+                  ),
                   rightChevronIcon: const Icon(
                     Icons.chevron_right_rounded,
                     color: AppColors.white,
-                  ), // Light color for chevrons
+                  ),
                   titleTextStyle: Textstyle.subheader.copyWith(
                     color: AppColors.white,
-                  ), // Light color for title
+                  ),
                 ),
                 daysOfWeekStyle: DaysOfWeekStyle(
                   weekdayStyle: Textstyle.bodySmall.copyWith(
                     color: AppColors.white,
                     fontWeight: FontWeight.bold,
-                  ), // Light color for weekdays
+                  ),
                   weekendStyle: Textstyle.bodySmall.copyWith(
                     color: AppColors.white,
                     fontWeight: FontWeight.bold,
-                  ), // Light color for weekends
+                  ),
+                ),
+                calendarBuilders: CalendarBuilders(
+                  defaultBuilder: (context, day, focusedDay) {
+                    final hasNote = noteDates.any(
+                      (noteDate) => isSameDay(noteDate, day),
+                    );
+                    if (hasNote) {
+                      return Container(
+                        margin: const EdgeInsets.all(4.0),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(
+                            alpha: 0.8,
+                          ), // Using Colors.orange
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '${day.day}',
+                          style: Textstyle.body.copyWith(
+                            color: AppColors.white,
+                          ),
+                        ),
+                      );
+                    } else {
+                      return null; // Use the default cell rendering
+                    }
+                  },
+                  selectedBuilder: (context, day, focusedDay) {
+                    return Container(
+                      margin: const EdgeInsets.all(4.0),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.neon.withValues(alpha: 0.5),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        '${day.day}',
+                        style: Textstyle.body.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.white,
+                        ),
+                      ),
+                    );
+                  },
+                  todayBuilder: (context, day, focusedDay) {
+                    return Container(
+                      margin: const EdgeInsets.all(4.0),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.purple.withValues(alpha: 0.5),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        '${day.day}',
+                        style: Textstyle.body.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.white,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ),
@@ -865,6 +1182,7 @@ class PatientNoteState extends State<PatientNote> {
                 children: [
                   _buildLegendItem(AppColors.neon, "Selected Day"),
                   _buildLegendItem(AppColors.purple, "Today"),
+                  _buildLegendItem(Colors.orange, "Day with Notes"),
                 ],
               ),
             ),
