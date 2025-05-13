@@ -55,7 +55,7 @@ class PatientScheduleState extends State<PatientSchedule> {
   }
 
   Future<void> removePastSchedules() async {
-//     debugPrint("Removing Past Schedules");
+    //     debugPrint("Removing Past Schedules");
     await scheduleUtility.removePastSchedules(widget.patientId);
   }
 
@@ -144,8 +144,8 @@ class PatientScheduleState extends State<PatientSchedule> {
     if (caregiverSnapshot.exists) {
       final firstName = caregiverSnapshot['firstName'] as String?;
       final lastName = caregiverSnapshot['lastName'] as String?;
-//       debugPrint("Schedule firstName: $firstName");
-//       debugPrint("Schedule lastName: $lastName");
+      //       debugPrint("Schedule firstName: $firstName");
+      //       debugPrint("Schedule lastName: $lastName");
 
       if (firstName != null && lastName != null) {
         return '$firstName $lastName';
@@ -207,21 +207,22 @@ class PatientScheduleState extends State<PatientSchedule> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.black.withValues(alpha: 0.8),
-      width: double.infinity,
-      height: 700,
-      padding: EdgeInsets.all(16),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return _isLoading
-              ? _buildLoadingState()
-              : _errorMessage.isNotEmpty
-              ? _buildErrorState()
-              : upcomingSchedules.isEmpty
-              ? _buildNoScheduleState()
-              : _buildScheduleList();
-        },
+    return SingleChildScrollView(
+      child: Container(
+        color: AppColors.white,
+        width: double.infinity,
+        padding: EdgeInsets.all(16),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return _isLoading
+                ? _buildLoadingState()
+                : _errorMessage.isNotEmpty
+                ? _buildErrorState()
+                : upcomingSchedules.isEmpty
+                ? _buildNoScheduleState()
+                : _buildScheduleList();
+          },
+        ),
       ),
     );
   }
@@ -249,7 +250,7 @@ class PatientScheduleState extends State<PatientSchedule> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: AppColors.white.withValues(alpha: 0.9),
+        color: AppColors.gray,
         borderRadius: BorderRadius.circular(10.0),
       ),
       child: Column(
@@ -343,13 +344,11 @@ class PatientScheduleState extends State<PatientSchedule> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.event_busy, color: AppColors.whiteTransparent, size: 70),
+          Icon(Icons.event_busy, color: AppColors.black, size: 70),
           const SizedBox(height: 10.0),
           Text(
             "No schedule yet",
-            style: Textstyle.bodyWhite.copyWith(
-              color: AppColors.whiteTransparent,
-            ),
+            style: Textstyle.body,
             textAlign: TextAlign.center,
           ),
         ],

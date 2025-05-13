@@ -311,9 +311,8 @@ class PatientMedicineState extends State<PatientMedicine> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppColors.black.withValues(alpha: 0.8),
+      color: AppColors.white,
       width: double.infinity,
-      height: 700,
       padding: EdgeInsets.all(16),
       child:
           _isLoading
@@ -352,7 +351,7 @@ class PatientMedicineState extends State<PatientMedicine> {
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
-          color: AppColors.white.withValues(alpha: 0.9),
+          color: AppColors.gray,
           borderRadius: BorderRadius.circular(10.0),
         ),
         child: Column(
@@ -464,17 +463,11 @@ class PatientMedicineState extends State<PatientMedicine> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.error_outline_rounded,
-            color: AppColors.whiteTransparent,
-            size: 70,
-          ),
+          Icon(Icons.error_outline_rounded, color: AppColors.black, size: 70),
           SizedBox(height: 10.0),
           Text(
             "No Prescriptions Yet",
-            style: Textstyle.bodyWhite.copyWith(
-              color: AppColors.whiteTransparent,
-            ),
+            style: Textstyle.body,
             textAlign: TextAlign.center,
           ),
         ],

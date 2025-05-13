@@ -39,19 +39,16 @@ class _CarouselWidgetState extends State<CarouselWidget> {
     return Column(
       children: [
         Container(
-          color: AppColors.black.withValues(alpha: 0.8),
+          color: AppColors.white,
           padding: const EdgeInsets.fromLTRB(16.0, 16, 16, 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                "Patient Activities",
-                style: Textstyle.subheader.copyWith(color: AppColors.white),
-              ),
+              Text("Patient Activities", style: Textstyle.subheader),
               SizedBox(height: 10),
               Text(
                 'Navigate through the buttons to show patient activities.',
-                style: Textstyle.bodyWhite,
+                style: Textstyle.body,
               ),
               SizedBox(height: 10),
               Row(
@@ -64,13 +61,14 @@ class _CarouselWidgetState extends State<CarouselWidget> {
                   _buildNavigationButton("Prescriptions", 2),
                 ],
               ),
+              SizedBox(height: 10),
             ],
           ),
         ),
 
         // PageView
         SizedBox(
-          height: 700,
+          height: 684,
           child: PageView(
             controller: widget.pageController,
             onPageChanged: (index) {
@@ -96,7 +94,7 @@ class _CarouselWidgetState extends State<CarouselWidget> {
         style:
             _currentPage == pageIndex
                 ? Buttonstyle.buttonNeon
-                : Buttonstyle.buttonGray,
+                : Buttonstyle.buttonDarkGray,
         child: Text(
           title,
           style: Textstyle.bodySmall.copyWith(

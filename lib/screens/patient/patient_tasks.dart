@@ -142,17 +142,11 @@ class PatientTasksState extends State<PatientTasks> {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.event_busy,
-            color: AppColors.whiteTransparent,
-            size: 70,
-          ),
+          const Icon(Icons.event_busy, color: AppColors.black, size: 70),
           const SizedBox(height: 10.0),
           Text(
             "Great Work! No Tasks",
-            style: Textstyle.bodyWhite.copyWith(
-              color: AppColors.whiteTransparent,
-            ),
+            style: Textstyle.body,
             textAlign: TextAlign.center,
           ),
         ],
@@ -246,8 +240,8 @@ class PatientTasksState extends State<PatientTasks> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 700,
-      color: AppColors.black.withValues(alpha: 0.8),
+      height: 684,
+      color: AppColors.white,
       width: double.infinity,
       padding: EdgeInsets.all(16),
       child: Column(
@@ -344,7 +338,7 @@ class PatientTasksState extends State<PatientTasks> {
       child: Container(
         margin: EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
-          color: AppColors.white.withValues(alpha: 0.9),
+          color: AppColors.gray,
           borderRadius: BorderRadius.circular(10.0),
         ),
         child: Column(
@@ -437,6 +431,7 @@ class PatientTasksState extends State<PatientTasks> {
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
@@ -460,26 +455,29 @@ class PatientTasksState extends State<PatientTasks> {
                     const SizedBox(height: 20),
                     Row(
                       children: [
-                        if (!isCompleted) const SizedBox(width: 10.0),
                         Expanded(
                           child: TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop(); // Close dialog
-                            },
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 15,
-                                vertical: 5,
-                              ),
-                              backgroundColor:
-                                  isCompleted ? AppColors.neon : AppColors.red,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
+                            onPressed:
+                                isLoading
+                                    ? null
+                                    : () {
+                                      Navigator.of(
+                                        context,
+                                      ).pop(); // Close dialog
+                                    },
+                            style:
+                                isLoading
+                                    ? Buttonstyle.buttonGray
+                                    : isCompleted
+                                    ? Buttonstyle.buttonNeon
+                                    : Buttonstyle.buttonRed,
+                            child: Text(
+                              isCompleted ? 'Close' : 'Cancel',
+                              style: Textstyle.smallButton,
                             ),
-                            child: Text('Close', style: Textstyle.smallButton),
                           ),
                         ),
+                        if (!isCompleted) const SizedBox(width: 10.0),
                         if (!isCompleted)
                           Expanded(
                             child: TextButton(

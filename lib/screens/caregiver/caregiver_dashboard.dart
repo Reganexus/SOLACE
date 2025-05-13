@@ -301,6 +301,28 @@ class CaregiverDashboardState extends State<CaregiverDashboard> {
           _buildPatientSelection(),
 
         const SizedBox(height: 20),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.red.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              Text('The', style: Textstyle.bodySmall),
+              SizedBox(width: 4.0),
+              Icon(
+                Icons.warning_amber_rounded,
+                color: AppColors.red,
+                size: 20.0,
+              ),
+              SizedBox(width: 4.0),
+              Text('indicates Unstable Patients', style: Textstyle.bodySmall),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
         if (patients.isEmpty)
           SizedBox(height: 300, child: _buildNoPatientState()),
         if (patients.isNotEmpty) _buildPatientList(title, patients),

@@ -57,29 +57,52 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
   ScheduleUtility scheduleUtility = ScheduleUtility();
   Map<String, dynamic>? patientData;
   bool isLoading = true;
+  bool _isLoading = true;
   bool _isTagging = false;
   late final PageController _pageController;
+  late final PageController _mainController;
   late String patientName = '';
   late Map<String, dynamic> thresholds = {};
-  bool _isLoading = true;
+  int _currentPage = 0;
 
   Timer? _timer;
   DateTime _currentTime = DateTime.now();
 
+  final List<String> _pages = [
+    "Patient Records",
+    "Available Actions",
+    "Interventions",
+    "Patient Activities",
+  ];
+
   @override
   void initState() {
     super.initState();
+
+    // Initialize controllers first
+    _pageController = PageController(initialPage: 0);
+    _mainController = PageController(initialPage: 0);
+
+    // Fetch data and initialize other logic
     fetchPatientData();
     _fetchThresholds();
     _startTimer();
-    _pageController = PageController(initialPage: 0);
   }
 
   @override
   void dispose() {
     _timer?.cancel();
     _pageController.dispose();
+    _mainController.dispose();
     super.dispose();
+  }
+
+  void _goToPage(int pageIndex) {
+    _mainController.animateToPage(
+      pageIndex,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
   }
 
   Future<String> _loadUserName(String userId) async {
@@ -532,35 +555,37 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
   Widget _buildActions(String role) {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text("Available Actions", style: Textstyle.subheader),
-          const SizedBox(height: 10.0),
-          Text(
-            "Below are the tools available to help you monitor and manage the patient effectively.",
-            style: Textstyle.body,
-          ),
-          const SizedBox(height: 20.0),
-          GridView(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2, // Two columns
-              crossAxisSpacing: 10.0, // Space between columns
-              mainAxisSpacing: 10.0, // Space between rows
-              childAspectRatio: 2.5, // Adjust height-to-width ratio
-              mainAxisExtent: 200,
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Available Actions", style: Textstyle.subheader),
+            const SizedBox(height: 10.0),
+            Text(
+              "Below are the tools available to help you monitor and manage the patient effectively.",
+              style: Textstyle.body,
             ),
-            children: [
-              _buildTracking(),
-              _buildNotes(),
-              if (role != 'caregiver') _buildScheduleContainer(),
-              _buildTaskContainer(),
-              if (role == 'doctor') _buildMedicineContainer(),
-            ],
-          ),
-        ],
+            const SizedBox(height: 20.0),
+            GridView(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2, // Two columns
+                crossAxisSpacing: 10.0, // Space between columns
+                mainAxisSpacing: 10.0, // Space between rows
+                childAspectRatio: 2.5, // Adjust height-to-width ratio
+                mainAxisExtent: 200,
+              ),
+              children: [
+                _buildTracking(),
+                _buildNotes(),
+                if (role != 'caregiver') _buildScheduleContainer(),
+                _buildTaskContainer(),
+                if (role == 'doctor') _buildMedicineContainer(),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -610,8 +635,6 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
         final symptomData = snapshot.data!['symptoms']!;
         final vitalData = snapshot.data!['vitals']!;
         final timestampData = snapshot.data!['timestamps']!;
-
-        debugPrint("timestampDataaaa: $timestampData");
 
         return Padding(
           padding: const EdgeInsets.all(16),
@@ -1685,26 +1708,34 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
   }
 
   Widget _buildInterventions() {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Interventions', style: Textstyle.subheader),
-              const SizedBox(height: 10),
-              Text(
-                'Choose a section to view intervention checklists based on the patient\'s current status.',
-                style: Textstyle.body,
-              ),
-            ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Interventions', style: Textstyle.subheader),
+                const SizedBox(height: 10),
+                Text(
+                  'Choose a section to view intervention checklists based on the patient\'s current status.',
+                  style: Textstyle.body,
+                ),
+              ],
+            ),
           ),
-        ),
-
-        const SizedBox(height: 10),
-        PatientInterventions(patientId: widget.patientId),
-      ],
+          const SizedBox(height: 10),
+          // Constrain height and make it scrollable
+          SizedBox(
+            height: 726, // Adjust this to your desired maximum height
+            child: SingleChildScrollView(
+              child: PatientInterventions(patientId: widget.patientId),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -2011,14 +2042,68 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Static Patient Status
                     _buildPatientStatus(),
-                    _buildGraph(widget.patientId),
+
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Wrap(
+                          spacing: 8.0,
+                          children: List<Widget>.generate(
+                            _pages.length,
+                            (index) => ChoiceChip(
+                              checkmarkColor: AppColors.white,
+                              label: Text(
+                                _pages[index],
+                                style: Textstyle.bodySmall.copyWith(
+                                  color: AppColors.white,
+                                  fontWeight:
+                                      _currentPage == index
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                ),
+                              ),
+                              selected: _currentPage == index,
+                              onSelected: (selected) {
+                                if (selected) {
+                                  setState(() {
+                                    _currentPage =
+                                        index; // Update current page index
+                                  });
+                                  _goToPage(index);
+                                }
+                              },
+                              selectedColor: AppColors.neon,
+                              backgroundColor: AppColors.black.withValues(
+                                alpha: 0.7,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
                     Divider(),
-                    _buildActions(widget.role),
-                    Divider(),
-                    _buildInterventions(),
-                    const SizedBox(height: 20.0),
-                    _buildCarousel(),
+                    SizedBox(
+                      height: 850,
+                      child: PageView(
+                        controller: _mainController,
+                        onPageChanged: (index) {
+                          setState(() {
+                            _currentPage =
+                                index; // Update current page index when swiped
+                          });
+                        },
+                        children: [
+                          _buildGraph(widget.patientId),
+                          _buildActions(widget.role),
+                          _buildInterventions(),
+                          _buildCarousel(),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
