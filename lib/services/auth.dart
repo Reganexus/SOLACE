@@ -227,8 +227,11 @@ class AuthService {
         newUser: true,
       );
       return true; // Indicate success
+    } on FirebaseAuthException {
+      // Rethrow so the UI can handle specific error codes
+      rethrow;
     } catch (e) {
-      return false;
+      throw Exception('Sign up failed: $e');
     }
   }
 
