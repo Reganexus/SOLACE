@@ -741,8 +741,8 @@ class _PatientsDashboardState extends State<PatientsDashboard> {
 
                   return Center(
                     child: SizedBox(
-                      height: Curves.easeInOut.transform(value) * pageHeight,
-                      width: Curves.easeInOut.transform(value) * pageWidth,
+                      height: pageHeight,
+                      width: pageWidth,
                       child: Padding(
                         padding: const EdgeInsets.all(4.0),
                         child: Container(
